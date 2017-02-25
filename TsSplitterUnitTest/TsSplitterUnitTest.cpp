@@ -21,15 +21,6 @@ namespace std {
 	}
 }
 
-// テストINIファイルアクセス
-static std::string getTestFileParam(const char* key) {
-	char buf[200];
-	if (!GetPrivateProfileStringA("FILE", key, "", buf, sizeof(buf), "TestParam.ini")) {
-		return "";
-	}
-	return std::string(buf);
-}
-
 static bool fileExists(const char* filepath) {
 	WIN32_FIND_DATAA findData;
 	HANDLE hFind = FindFirstFileA(filepath, &findData);
@@ -41,16 +32,31 @@ static bool fileExists(const char* filepath) {
 }
 
 // テスト対象となるクラス Foo のためのフィクスチャ
-class FooTest : public ::testing::Test {
+class TestBase : public ::testing::Test {
 protected:
-	// 以降の関数で中身のないものは自由に削除できます．
-	//
 
-	FooTest() {
-		// テスト毎に実行される set-up をここに書きます．
+	TestBase() {
+		char curdir[200];
+		GetCurrentDirectoryA(sizeof(curdir), curdir);
+		std::string inipath = curdir;
+		inipath += "\\TestParam.ini";
+
+		getParam(inipath, "TestDataDir", TestDataDir);
+		getParam(inipath, "TestWorkDir", TestWorkDir);
+		getParam(inipath, "MPEG2VideoTsFile", MPEG2VideoTsFile);
+		getParam(inipath, "H264VideoTsFile", H264VideoTsFile);
+		getParam(inipath, "H265VideoTsFile", H265VideoTsFile);
+		getParam(inipath, "OneSegVideoTsFile", OneSegVideoTsFile);
+		getParam(inipath, "SampleAACFile", SampleAACFile);
+		getParam(inipath, "SampleMPEG2PsFile", SampleMPEG2PsFile);
+		getParam(inipath, "DropTsFile", DropTsFile);
+		getParam(inipath, "VideoFormatChangeTsFile", VideoFormatChangeTsFile);
+		getParam(inipath, "AudioFormatChangeTsFile", AudioFormatChangeTsFile);
+		getParam(inipath, "PullDownTsFile", PullDownTsFile);
+		getParam(inipath, "LargeTsFile", LargeTsFile);
 	}
 
-	virtual ~FooTest() {
+	virtual ~TestBase() {
 		// テスト毎に実行される，例外を投げない clean-up をここに書きます．
 	}
 
@@ -68,17 +74,30 @@ protected:
 	}
 
 	// ここで宣言されるオブジェクトは，テストケース内の全てのテストで利用できます．
+	std::string TestDataDir;
+	std::string TestWorkDir;
+	std::string MPEG2VideoTsFile;
+	std::string H264VideoTsFile;
+	std::string H265VideoTsFile;
+	std::string OneSegVideoTsFile;
+	std::string SampleAACFile;
+	std::string SampleMPEG2PsFile;
+	std::string DropTsFile;
+	std::string VideoFormatChangeTsFile;
+	std::string AudioFormatChangeTsFile;
+	std::string PullDownTsFile;
+	std::string LargeTsFile;
+
+	void ParserTest(const std::string& filename, bool verify = true);
+
+private:
+	void getParam(const std::string& inipath, const char* key, std::string& dst) {
+		char buf[200];
+		if (GetPrivateProfileStringA("FILE", key, "", buf, sizeof(buf), inipath.c_str())) {
+			dst = buf;
+		}
+	}
 };
-
-// Abc を行う Foo::Bar() メソッドをテストします．
-TEST_F(FooTest, MethodBarDoesAbc) {
-	//EXPECT_EQ(0, f.Bar(input_filepath, output_filepath));
-}
-
-// Xyz を行う Foo をテストします．
-TEST_F(FooTest, DoesXyz) {
-	// Foo の Xyz を検査
-}
 
 TEST(CRC, PrintTable) {
 
@@ -127,7 +146,7 @@ TEST(Util, readOpt) {
 
 void VerifyMpeg2Ps(std::string srcfile) {
 	enum {
-		BUF_SIZE = 1024 * 1024 * 1024, // 1GB
+		BUF_SIZE = 1400 * 1024 * 1024, // 1GB
 	};
 	uint8_t* buf = (uint8_t*)malloc(BUF_SIZE); // 
 	FILE* fp = fopen(srcfile.c_str(), "rb");
@@ -148,9 +167,9 @@ void VerifyMpeg2Ps(std::string srcfile) {
 	fp = NULL;
 }
 
-void ParserTest(const std::string& filename) {
-	std::string srcDir = getTestFileParam("TestDataDir") + "\\";
-	std::string dstDir = getTestFileParam("TestWorkDir") + "\\";
+void TestBase::ParserTest(const std::string& filename, bool verify) {
+	std::string srcDir = TestDataDir + "\\";
+	std::string dstDir = TestWorkDir + "\\";
 
 	std::string srcfile = srcDir + filename + ".ts";
 	std::string mpgfile = dstDir + filename + ".mpg";
@@ -196,54 +215,38 @@ void ParserTest(const std::string& filename) {
 	fclose(wavfp);
 
 	// 出力ファイルをチェック
-	VerifyMpeg2Ps(mpgfile);
+	if (verify) {
+		VerifyMpeg2Ps(mpgfile);
+	}
 }
 
-TEST(Input, MPEG2Parser) {
-	ParserTest(getTestFileParam("MPEG2VideoTsFile"));
+TEST_F(TestBase, MPEG2Parser) {
+	ParserTest(MPEG2VideoTsFile);
 }
 
-TEST(Input, H264Parser) {
-	ParserTest(getTestFileParam("H264VideoTsFile"));
+TEST_F(TestBase, H264Parser) {
+	ParserTest(H264VideoTsFile);
 }
 
-TEST(Input, H264Parser1Seg) {
-	ParserTest(getTestFileParam("1SegVideoTsFile"));
+TEST_F(TestBase, H264Parser1Seg) {
+	ParserTest(OneSegVideoTsFile);
 }
 
-TEST(Input, MPEG2PSVerifier) {
-	std::string srcDir = getTestFileParam("TestDataDir") + "\\";
-	std::string filename = getTestFileParam("SampleMPEG2PsFile");
-	std::string srcfile = srcDir + filename + ".mpg";
+TEST_F(TestBase, Pulldown) {
+	ParserTest(PullDownTsFile);
+}
+
+// TODO: 通常はオフ
+TEST_F(TestBase, LargeTsParse) {
+	ParserTest(LargeTsFile, false);
+}
+
+TEST_F(TestBase, MPEG2PSVerifier) {
+	std::string srcfile = TestDataDir + "\\" + SampleMPEG2PsFile + ".mpg";
 	VerifyMpeg2Ps(srcfile);
 }
 
-TEST(Input, MPEG2PSWriter) {
-	std::string srcDir = getTestFileParam("TestDataDir") + "\\";
-	std::string filename = getTestFileParam("SampleMPEG2PsFile");
-	std::string srcfile = srcDir + filename + ".mpg";
-
-	enum {
-		BUF_SIZE = 1024 * 1024 * 1024, // 1GB
-	};
-	uint8_t* buf = (uint8_t*)malloc(BUF_SIZE); // 
-	FILE* fp = fopen(srcfile.c_str(), "rb");
-	try {
-		TsSplitterContext ctx;
-		PsStreamVerifier psVerifier(&ctx);
-
-		size_t readBytes = fread(buf, 1, BUF_SIZE, fp);
-		psVerifier.verify(MemoryChunk(buf, readBytes));
-	}
-	catch (Exception) {
-		free(buf);
-		buf = NULL;
-		fclose(fp);
-		fp = NULL;
-	}
-}
-
-TEST(Input, AutoBufferTest) {
+TEST_F(TestBase, AutoBufferTest) {
 
 	srand(0);
 
@@ -278,9 +281,9 @@ TEST(Input, AutoBufferTest) {
 }
 
 // FAADデコードが正しい出力をするかテスト
-TEST(FAAD, DecodeVerifyTest) {
-	std::string srcDir = getTestFileParam("TestDataDir") + "\\";
-	std::string filename = getTestFileParam("SampleAACFile");
+TEST_F(TestBase, AacDecodeVerifyTest) {
+	std::string srcDir = TestDataDir + "\\";
+	std::string filename = SampleAACFile;
 	std::string srcfile = srcDir + filename + ".aac";
 	std::string testfile = srcDir + filename + ".wav";
 
@@ -351,9 +354,35 @@ TEST(FAAD, DecodeVerifyTest) {
 	fclose(testfp);
 }
 
+TEST_F(TestBase, WaveWriter) {
+	std::string dstDir = TestWorkDir + "\\";
+	std::string dstfile = dstDir + "fake.wav";
+
+	FILE* fp = fopen(dstfile.c_str(), "wb");
+	ASSERT_TRUE(fp != NULL);
+
+	int writeSeconds = 300;
+	int sampleRate = 24000;
+	int bitsPerSample = 8;
+	int nChannels = 1;
+
+	uint8_t* samples = (uint8_t*)malloc(writeSeconds * sampleRate * nChannels * (bitsPerSample / 2));
+	for (int i = 0; i < writeSeconds * sampleRate; ++i) {
+		for (int c = 0; c < nChannels; ++c) {
+			samples[i * nChannels + c] = (i % sampleRate);
+		}
+	}
+
+	writeWaveHeader(fp, nChannels, sampleRate, bitsPerSample, writeSeconds * sampleRate);
+	ASSERT_TRUE(fwrite(samples, writeSeconds * sampleRate * nChannels, 1, fp) == 1);
+
+	free(samples);
+	fclose(fp);
+}
+
 int main(int argc, char **argv)
 {
-	::testing::GTEST_FLAG(filter) = "*MPEG2Parser";
+	::testing::GTEST_FLAG(filter) = "*LargeTsParse";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

@@ -477,6 +477,19 @@ enum PICTURE_TYPE {
 	MAX_PIC_TYPE,
 };
 
+const char* PictureTypeString(PICTURE_TYPE pic) {
+	switch (pic) {
+	case PIC_FRAME: return "FRAME";
+	case PIC_FRAME_DOUBLING: return "DBL";
+	case PIC_FRAME_TRIPLING: return "TLP";
+	case PIC_TFF: return "TFF";
+	case PIC_BFF: return "BFF";
+	case PIC_TFF_RFF: return "TFF_RFF";
+	case PIC_BFF_RFF: return "BFF_RFF";
+	default: return "UNK";
+	}
+}
+
 enum FRAME_TYPE {
 	FRAME_NO_INFO = 0,
 	FRAME_I,
@@ -485,6 +498,15 @@ enum FRAME_TYPE {
 	FRAME_OTHER,
 	MAX_FRAME_TYPE,
 };
+
+const char* FrameTypeString(FRAME_TYPE frame) {
+	switch (frame) {
+	case FRAME_I: return "I";
+	case FRAME_P: return "P";
+	case FRAME_B: return "B";
+	default: return "UNK";
+	}
+}
 
 double presenting_time(PICTURE_TYPE picType, double frameRate) {
 	switch (picType) {

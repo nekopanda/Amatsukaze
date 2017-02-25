@@ -347,6 +347,19 @@ public:
 		tsPacketParser.flush();
 	}
 
+	static bool CheckPullDown(PICTURE_TYPE p0, PICTURE_TYPE p1) {
+		switch (p0) {
+		case PIC_TFF:
+		case PIC_BFF_RFF:
+			return (p1 == PIC_TFF || p1 == PIC_TFF_RFF);
+		case PIC_BFF:
+		case PIC_TFF_RFF:
+			return (p1 == PIC_BFF || p1 == PIC_BFF_RFF);
+		default: // それ以外はチェック対象外
+			return true;
+		}
+	}
+
 	void printInteraceCount() {
 
 		if (numAudioSamples > 0) {
@@ -374,6 +387,29 @@ public:
 		// PTSでソート
 		std::sort(modifiedPTS.begin(), modifiedPTS.end());
 
+		// フレームリストを出力
+		FILE* framesfp = fopen("frames.txt", "w");
+		fprintf(framesfp, "FrameNumber,DecodeFrameNumber,PTS,Duration,FRAME_TYPE,PIC_TYPE,IsGOPStart\n");
+		for (int i = 0; i < (int)modifiedPTS.size(); ++i) {
+			int64_t PTS = modifiedPTS[i].first;
+			int decodeIndex = modifiedPTS[i].second;
+			const VideoFrameInfo& frame = allFrames[decodeIndex];
+			int PTSdiff = -1;
+			if (i < (int)modifiedPTS.size() - 1) {
+				int64_t nextPTS = modifiedPTS[i + 1].first;
+				const VideoFrameInfo& nextFrame = allFrames[modifiedPTS[i + 1].second];
+				PTSdiff = int(nextPTS - PTS);
+				if (CheckPullDown(frame.pic, nextFrame.pic) == false) {
+					printf("Flag Check Error: PTS=%lld %s -> %s\n",
+						PTS, PictureTypeString(frame.pic), PictureTypeString(nextFrame.pic));
+				}
+			}
+			fprintf(framesfp, "%d,%d,%lld,%d,%s,%s,%d\n",
+				i, decodeIndex, PTS, PTSdiff, FrameTypeString(frame.type), PictureTypeString(frame.pic), frame.isGopStart ? 1 : 0);
+		}
+		fclose(framesfp);
+
+		// PTS間隔を出力
 		struct Integer {
 			int v;
 			Integer() : v(0) { }
@@ -520,11 +556,13 @@ private:
 			allFrames.push_back(frame);
 		}
 
+		/*
 		bool bSkip = false;
 		if ((inFrameCount % 900) == 555) {
 			printf("Skip %d frames [in] %d [out] %d\n", (int)frames.size(), inFrameCount, outFrameCount);
 			bSkip = true;
 		}
+		*/
 		inFrameCount += (int)frames.size();
 		//if (bSkip) return;
 		outFrameCount += (int)frames.size();

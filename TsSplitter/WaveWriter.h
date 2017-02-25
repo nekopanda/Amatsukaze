@@ -36,6 +36,7 @@ uint32_t toBigEndian(uint32_t a) {
 	return (a >> 24) | ((a & 0xFF0000) >> 8) | ((a & 0xFF00) << 8) | (a << 24);
 }
 
+// numSamples: 1チャンネルあたりのサンプル数
 // エラー検出のため numSamples が64bitになっているがintを超える範囲に対応している訳ではないことに注意
 void writeWaveHeader(FILE* fp, int channels, int samplerate, int bitswidth, int64_t numSamples)
 {
