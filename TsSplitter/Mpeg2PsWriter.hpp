@@ -398,6 +398,8 @@ private:
 		if (systemClock.currentClock == -1) {
 			systemClock.clockOffset = clock - SYSTEM_CLOCK;
 			systemClock.currentClock = clock;
+
+      ctx->info("[PsWriter] ClockOffset = %lld", systemClock.clockOffset);
 		}
 		if (nextIsPSM) {
 			nextIsPSM = false;

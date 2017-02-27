@@ -199,6 +199,12 @@ DEFINE_EXCEPTION(IOException)
 
 #undef DEFINE_EXCEPTION
 
+#define THROW(exception, message) \
+  throw exception("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__)
+
+#define THROWF(exception, fmt, ...) \
+  throw exception("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__)
+
 class BitReader {
 public:
 	BitReader(MemoryChunk data)

@@ -368,17 +368,17 @@ public:
 					else {
 						// 2枚目はチェック可能だけど面倒なので見ない
 						if (picHeader.picture_structure == 3) {
-							throw FormatException("フィールド配置が変則的すぎて対応できません");
+              THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 						}
 						switch (picType) {
 						case PIC_TFF:
 							if (picHeader.picture_structure != 2) {
-								throw FormatException("フィールド配置が変則的すぎて対応できません");
+                THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 							}
 							break;
 						case PIC_BFF:
 							if (picHeader.picture_structure != 1) {
-								throw FormatException("フィールド配置が変則的すぎて対応できません");
+                THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 							}
 							break;
 						}
@@ -387,7 +387,7 @@ public:
 				}
 
 				if (receivedField > 2) {
-					throw FormatException("フィールド配置が変則的すぎて対応できません");
+          THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 				}
 
 				if (receivedField == 2) {
