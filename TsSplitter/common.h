@@ -49,3 +49,24 @@ inline int __builtin_clzl(uint64_t mask) {
 #endif
 	return index;
 }
+
+// with idiom サポート //
+
+template <typename T>
+class WithHolder
+{
+public:
+  WithHolder(T& obj) : obj_(obj) {
+    obj_.enter();
+  }
+  ~WithHolder() {
+    obj_.exit();
+  }
+private:
+  T& obj_;
+};
+
+template <typename T>
+WithHolder<T>& with(T& obj) {
+  return WithHolder<T>(obj);
+}
