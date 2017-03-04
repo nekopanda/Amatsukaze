@@ -8,7 +8,9 @@
 #include "gtest/gtest.h"
 
 #include "TsSplitter.cpp"
-
+#include "ProcessThread.hpp"
+#include "Transcode.hpp"
+#include "TranscodeManager.hpp"
 #include "WaveWriter.h"
 
 // FAAD
@@ -380,16 +382,6 @@ TEST_F(TestBase, WaveWriter) {
 	fclose(fp);
 }
 
-// libffmpeg
-extern "C" {
-#include <libavutil/imgutils.h>
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
-}
-#pragma comment(lib, "avutil.lib")
-#pragma comment(lib, "avcodec.lib")
-#pragma comment(lib, "avformat.lib")
 
 // swscale
 #pragma comment(lib, "swscale.lib")
@@ -404,33 +396,6 @@ extern "C" {
 #endif
 
 #include <direct.h>
-
-AVStream* avGetVideoStream(AVFormatContext* pCtx)
-{
-  for (int i = 0; i < (int)pCtx->nb_streams; ++i) {
-    if (pCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-      return pCtx->streams[i];
-    }
-  }
-  return NULL;
-}
-
-AVFrame* avAllocPicture(AVPixelFormat fmt, int width, int height)
-{
-  // AVFrame確保
-  AVFrame *pPicture = av_frame_alloc();
-  // バッファ確保
-  ASSERT(av_image_alloc(pPicture->data, pPicture->linesize, width, height, fmt, 32) >= 0);
-
-  return pPicture;
-}
-
-void avFreePicture(AVFrame*& pPicture)
-{
-  av_freep(&pPicture->data[0]);
-  av_frame_free(&pPicture);
-  pPicture = NULL;
-}
 
 class ImageWriter
 {
@@ -447,12 +412,12 @@ public:
     sws_ctx = sws_getContext(width, height, src_fmt, width, height,
       AV_PIX_FMT_BGR24, SWS_BILINEAR, NULL, NULL, NULL);
 
-    pFrameRGB = avAllocPicture(AV_PIX_FMT_BGR24, width, height);
+    pFrameRGB = av::AllocPicture(AV_PIX_FMT_BGR24, width, height);
   }
   ~ImageWriter()
   {
     sws_freeContext(sws_ctx); sws_ctx = NULL;
-    avFreePicture(pFrameRGB);
+    av::FreePicture(pFrameRGB);
   }
 
   void Write(AVFrame* pFrame)
@@ -504,6 +469,7 @@ PICTURE_TYPE avPictureType(int interalced, int tff, int repeat_pict)
   default:
     THROWF(FormatException, "不明なrepeat_pict(%d)です", repeat_pict);
   }
+  return PIC_FRAME; // 警告抑制
 }
 
 FRAME_TYPE avFrameType(AVPictureType type)
@@ -524,13 +490,31 @@ TEST_F(TestBase, ffmpegEncode) {
   // FFMPEGライブラリ初期化
   av_register_all();
 
-  std::string srcFile = TestWorkDir + "\\" + LargeTsFile + ".mpg";
+  std::string srcFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".mpg";
+  std::string outFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".264";
 
-  AVFormatContext *pOutFormatCtx = NULL;
-  //avformat_alloc_output_context2(&pOutFormatCtx, NULL, NULL, filename);
+  std::string options = "--crf 23";
 
+  VideoFormat fmt;
+  fmt.width = 1440;
+  fmt.height = 1080;
+  fmt.sarWidth = 4;
+  fmt.sarHeight = 3;
+  fmt.frameRateNum = 30000;
+  fmt.frameRateDenom = 1001;
+  fmt.colorPrimaries = 1;
+  fmt.transferCharacteristics = 1;
+  fmt.colorSpace = 1;
+  fmt.progressive = false;
 
-  avformat_free_context(pOutFormatCtx);
+  std::vector<VideoFormat> fmts = { fmt };
+  std::vector<std::string> args = { makeArgs("x264.exe", options, fmt, outFile) };
+  printf("args: %s\n", args[0].c_str());
+
+  std::map<int64_t, int> dummy;
+
+  av::MultiOutTranscoder trans;
+  trans.encode(srcFile, fmts, args, dummy, fmt.width * fmt.height * 3);
 }
 
 TEST_F(TestBase, ffmpegTest) {
@@ -543,7 +527,7 @@ TEST_F(TestBase, ffmpegTest) {
   ASSERT_TRUE(avformat_open_input(&pFormatCtx, srcFile.c_str(), NULL, NULL) == 0);
   ASSERT_TRUE(avformat_find_stream_info(pFormatCtx, NULL) >= 0);
   av_dump_format(pFormatCtx, 0, srcFile.c_str(), 0);
-  AVStream *videoStream = avGetVideoStream(pFormatCtx);
+  AVStream *videoStream = av::GetVideoStream(pFormatCtx);
   ASSERT_TRUE(videoStream != NULL);
   AVCodec *pCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
   ASSERT_TRUE(pCodec != NULL);
@@ -580,9 +564,54 @@ TEST_F(TestBase, ffmpegTest) {
   avformat_close_input(&pFormatCtx);
 }
 
+// Process/Thread Test
+
+class IntDataPumpThread : public DataPumpThread<int>
+{
+public:
+  IntDataPumpThread(size_t maximum)
+    : DataPumpThread(maximum)
+  { }
+protected:
+  virtual void OnDataReceived(const int& data) {
+    printf("Received %d\n", data);
+  }
+};
+
+TEST(Process, SimpleThreadTest)
+{
+  {
+    IntDataPumpThread th(3);
+    th.put(1, 1);
+    th.put(4, 4);
+  }
+}
+
+TEST(Process, SimpleProcessTest)
+{
+  class ProcTest : public EventBaseSubProcess {
+  public:
+    ProcTest() : EventBaseSubProcess("x264.exe --help") { }
+  protected:
+    virtual void onOut(bool isErr, MemoryChunk mc) {
+      fwrite(mc.data, mc.length, 1, stdout);
+    }
+  };
+
+  ProcTest proc;
+  proc.join();
+}
+
+void my_purecall_handler() {
+  printf("It's pure virtual call !!!\n");
+}
+
 int main(int argc, char **argv)
 {
-	::testing::GTEST_FLAG(filter) = "*LargeTsParse";
+  // エラーハンドラをセット
+  _set_purecall_handler(my_purecall_handler);
+
+	::testing::GTEST_FLAG(filter) = "*ffmpegEncode";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

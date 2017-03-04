@@ -168,10 +168,6 @@ struct H264SequenceParameterSet {
 	uint8_t direct_8x8_inference_flag;
 	uint8_t frame_cropping_flag;
 
-	//uint32_t frame_crop_left_offset;
-	//uint32_t frame_crop_right_offset;
-	//uint32_t frame_crop_top_offset;
-	//uint32_t frame_crop_bottom_offset;
 	RECT frame_crop;
 
 	uint8_t vui_parameters_present_flag; // 1ŒÅ’è
@@ -256,13 +252,27 @@ struct H264SequenceParameterSet {
 		getSARFromIdc(aspect_ratio_idc, width, height);
 	}
 
-	void getFramteRate(double& frameRate) {
+	void getFramteRate(int& frameRateNum, int& frameRateDenom) {
 		if (vui_parameters_present_flag) {
 			if (fixed_frame_rate_flag) {
-				frameRate = (double)time_scale / num_units_in_tick / 2.0;
+        frameRateNum = time_scale / 2;
+        frameRateDenom = num_units_in_tick;
 			}
 		}
 	}
+
+  void getColorDesc(uint8_t& colorPrimaries, uint8_t& transferCharacteristics, uint8_t& colorSpace) {
+    if (!vui_parameters_present_flag || !colour_description_present_flag) {
+      // ‚È‚©‚Á‚½‚çBT.709‚Æ‚·‚é
+      colorPrimaries = 1;
+      transferCharacteristics = 1;
+      colorSpace = 1;
+      return;
+    }
+    colorPrimaries = colour_primaries;
+    transferCharacteristics = transfer_characteristics;
+    colorSpace = matrix_coefficients;
+  }
 
 	double getClockTick() {
 		if (!vui_parameters_present_flag) {
@@ -756,7 +766,10 @@ public:
 					isGopStart = true;
 					sps.getPicutureSize(format.width, format.height);
 					sps.getSAR(format.sarWidth, format.sarHeight);
-					sps.getFramteRate(format.frameRate);
+					sps.getFramteRate(format.frameRateNum, format.frameRateDenom);
+          sps.getColorDesc(format.colorPrimaries,
+            format.transferCharacteristics, format.colorSpace);
+          format.progressive = (sps.frame_mbs_only_flag != 0);
 				}
 				break;
 			case 8: // PPS

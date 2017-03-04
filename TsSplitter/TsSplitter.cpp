@@ -572,7 +572,7 @@ private:
 
 	void onVideoFormatChanged(VideoFormat fmt) {
 		ctx->debug("映像フォーマット変更を検知");
-		ctx->debug("サイズ: %dx%d FPS: %f", fmt.width, fmt.height, fmt.frameRate);
+		ctx->debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
 	}
 
 	void onAudioPesPacket(int audioIdx, int64_t clock, const std::vector<AudioFrameData>& frames, PESPacket packet) {

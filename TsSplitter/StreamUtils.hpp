@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "CoreUtils.hpp"
 
 /** @brief リングバッファではないがtrimHeadとtrimTailが同じくらい高速なバッファ */
 class AutoBuffer {
@@ -172,38 +172,6 @@ void write32(uint8_t* ptr, uint32_t w) { writeN<4, uint32_t>(ptr, w); }
 void write40(uint8_t* ptr, uint64_t w) { writeN<5, uint64_t>(ptr, w); }
 void write48(uint8_t* ptr, uint64_t w) { writeN<6, uint64_t>(ptr, w); }
 
-struct Exception {
-	virtual ~Exception() { }
-	virtual const char* message() {
-		return "No Message ...";
-	};
-};
-
-#define DEFINE_EXCEPTION(name) \
-	struct name : public Exception { \
-		name() { buf[0] = 0; } \
-		name(const char* fmt, ...) { \
-			va_list arg; va_start(arg, fmt); \
-			vsnprintf_s(buf, sizeof(buf), fmt, arg); \
-			va_end(arg); \
-		} \
-		virtual const char* message() { return buf; } \
-	private: \
-		char buf[300]; \
-	};
-
-DEFINE_EXCEPTION(EOFException)
-DEFINE_EXCEPTION(FormatException)
-DEFINE_EXCEPTION(InvalidOperationException)
-DEFINE_EXCEPTION(IOException)
-
-#undef DEFINE_EXCEPTION
-
-#define THROW(exception, message) \
-  throw exception("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__)
-
-#define THROWF(exception, fmt, ...) \
-  throw exception("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__)
 
 class BitReader {
 public:
@@ -531,14 +499,21 @@ double presenting_time(PICTURE_TYPE picType, double frameRate) {
 struct VideoFormat {
 	int width, height; // 横縦
 	int sarWidth, sarHeight; // アスペクト比
-	double frameRate; // フレームレート
+	int frameRateNum, frameRateDenom; // フレームレート
+  uint8_t colorPrimaries, transferCharacteristics, colorSpace; // カラースペース
+  bool progressive;
 
 	VideoFormat()
 		: width(0)
 		, height(0)
 		, sarWidth(0)
 		, sarHeight(0)
-		, frameRate(0)
+    , frameRateNum(0)
+    , frameRateDenom(0)
+    , colorPrimaries(0)
+    , transferCharacteristics(0)
+    , colorSpace(0)
+    , progressive(false)
 	{ }
 
 	bool isEmpty() const {
@@ -547,7 +522,8 @@ struct VideoFormat {
 
 	bool operator==(const VideoFormat& o) const {
 		return (width == o.width && height == o.height
-			&& frameRate == o.frameRate);
+			&& frameRateNum == o.frameRateNum && frameRateDenom == o.frameRateDenom
+      && progressive == o.progressive);
 	}
 	bool operator!=(const VideoFormat& o) const {
 		return !(*this == o);

@@ -131,9 +131,11 @@ struct MPEG2SequenceHeader {
 	int height() {
 		return (vertical_size_extension << 12) | vertical_size_value;
 	}
-	double frame_rate() {
-		return frame_rate_value(frame_rate_code) *
-			(frame_rate_extension_n + 1) / (frame_rate_extension_d + 1);
+	std::pair<int, int> frame_rate() {
+    auto base = frame_rate_value(frame_rate_code);
+    return std::make_pair(
+      base.first * (frame_rate_extension_n + 1),
+      base.second * (frame_rate_extension_d + 1));
 	}
 	void getSAR(int& sar_w, int& sar_h) {
 		if (aspect_ratio_info == 1) {
@@ -181,16 +183,16 @@ private:
 		width = 16; height = 9;
 	}
 
-	static double frame_rate_value(int code) {
+	static std::pair<int, int> frame_rate_value(int code) {
 		switch (code) {
-		case 1: return 24000.0 / 1001.0;
-		case 2: return 24;
-		case 3: return 25;
-		case 4: return 30000.0 / 1001.0;
-		case 5: return 30;
-		case 6: return 50;
-		case 7: return 60000.0 / 1001.0;
-		case 8: return 60;
+		case 1: return std::make_pair(24000, 1001);
+		case 2: return std::make_pair(24, 1);
+		case 3: return std::make_pair(25, 1);
+		case 4: return std::make_pair(30000, 1001);
+		case 5: return std::make_pair(30, 1);
+		case 6: return std::make_pair(50, 1);
+		case 7: return std::make_pair(60000, 1001);
+		case 8: return std::make_pair(60, 1);
 		}
 		throw FormatException();
 	}
@@ -313,8 +315,23 @@ public:
 					format.width = sequenceHeader.width();
 					format.height = sequenceHeader.height();
 					sequenceHeader.getSAR(format.sarWidth, format.sarHeight);
-					format.frameRate = sequenceHeader.frame_rate();
-					b += sequenceHeader.numReadBytes;
+          auto frameRate = sequenceHeader.frame_rate();
+          format.frameRateNum = frameRate.first;
+          format.frameRateDenom = frameRate.second;
+          format.progressive = (sequenceHeader.progressive_sequence != 0);
+
+          if (sequenceHeader.colour_description == 0) {
+            format.colorPrimaries = 1;
+            format.transferCharacteristics = 1;
+            format.colorSpace = 1;
+          }
+          else {
+            format.colorPrimaries = sequenceHeader.colour_primaries;
+            format.transferCharacteristics = sequenceHeader.transfer_characteristics;
+            format.colorSpace = sequenceHeader.matrix_coefficients;
+          }
+					
+          b += sequenceHeader.numReadBytes;
 					hasSequenceHeader = true;
 					isGopStart = true;
 				}
