@@ -132,6 +132,8 @@ enum {
 	TS_PACKET_LENGTH2 = 192,
 
 	MAX_PID = 0x1FFF,
+
+  MPEG_CLOCK_HZ = 90000, // MPEG2,H264,H265はPTSが90kHz単位となっている
 };
 
 /** @brief shiftだけ右シフトしてmask数bitだけ返す(bit shift mask) */
@@ -621,11 +623,6 @@ struct AudioFormat {
 	AUDIO_CHANNELS channels;
 	int sampleRate;
 
-	AudioFormat()
-		: channels(AUDIO_NONE)
-		, sampleRate(0)
-	{ }
-
 	bool operator==(const AudioFormat& o) const {
 		return (channels == o.channels && sampleRate == o.sampleRate);
 	}
@@ -638,11 +635,6 @@ struct AudioFrameInfo {
 	int64_t PTS;
 	int numSamples; // 1チャンネルあたりのサンプル数
 	AudioFormat format;
-
-	AudioFrameInfo()
-		: PTS(0)
-		, numSamples(0)
-	{ }
 };
 
 struct AudioFrameData : public AudioFrameInfo {
@@ -651,15 +643,6 @@ struct AudioFrameData : public AudioFrameInfo {
 	int numDecodedSamples;
 	int decodedDataSize;
 	uint16_t* decodedData;
-
-	AudioFrameData()
-		: AudioFrameInfo()
-		, codedDataSize(0)
-		, codedData(NULL)
-		, numDecodedSamples(0)
-		, decodedDataSize(0)
-		, decodedData(NULL)
-	{ }
 };
 
 class IVideoParser {

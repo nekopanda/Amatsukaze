@@ -297,12 +297,8 @@ private:
 	PCR_Info pcrInfo[2];
 };
 
-class TsSplitter : public TsSplitterObject, private TsPacketSelectorHandler {
+class TsSplitter : public TsSplitterObject, protected TsPacketSelectorHandler {
 public:
-	FILE* mpgfp;
-	FILE* aacfp;
-	FILE* wavfp;
-
 	TsSplitter(TsSplitterContext *ctx)
 		: TsSplitterObject(ctx)
 		, initPhase(PMT_WAITING)
@@ -311,13 +307,10 @@ public:
 		, tsPacketParser(ctx)
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
-		, psWriter(ctx)
-		, writeHandler(*this)
 	{
 		tsPacketParser.setHandler(&tsPacketHandler);
 		tsPacketParser.setNumBufferingPackets(50 * 1024); // 9.6MB
 		tsPacketSelector.setHandler(this);
-		psWriter.setHandler(&writeHandler);
 		reset();
 	}
 
@@ -326,10 +319,6 @@ public:
 		preferedServiceId = -1;
 		selectedServiceId = -1;
 		tsPacketParser.setEnableBuffering(true);
-		allFrames.clear();
-		inFrameCount = 0;
-		outFrameCount = 0;
-		numAudioSamples = 0;
 	}
 
 	void setServiceId(int sid) {
@@ -347,101 +336,7 @@ public:
 		tsPacketParser.flush();
 	}
 
-	static bool CheckPullDown(PICTURE_TYPE p0, PICTURE_TYPE p1) {
-		switch (p0) {
-		case PIC_TFF:
-		case PIC_BFF_RFF:
-			return (p1 == PIC_TFF || p1 == PIC_TFF_RFF);
-		case PIC_BFF:
-		case PIC_TFF_RFF:
-			return (p1 == PIC_BFF || p1 == PIC_BFF_RFF);
-		default: // それ以外はチェック対象外
-			return true;
-		}
-	}
-
-	void printInteraceCount() {
-
-		if (numAudioSamples > 0) {
-			// サンプル数が確定したのでWAVヘッダを更新
-			fseek(wavfp, 0, SEEK_SET);
-			writeWaveHeader(wavfp, getNumAudioChannels(audioFormat.channels), audioFormat.sampleRate, 16, numAudioSamples);
-		}
-
-		if (allFrames.size() == 0) {
-			printf("フレームがありません");
-			return;
-		}
-
-		// ラップアラウンドしないPTSを生成
-		std::vector<std::pair<int64_t, int>> modifiedPTS;
-		int64_t videoBasePTS = allFrames[0].PTS;
-		int64_t prevPTS = allFrames[0].PTS;
-		for (int i = 0; i < int(allFrames.size()); ++i) {
-			int64_t PTS = allFrames[i].PTS;
-			int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
-			modifiedPTS.push_back(std::make_pair(modPTS, i));
-			prevPTS = PTS;
-		}
-
-		// PTSでソート
-		std::sort(modifiedPTS.begin(), modifiedPTS.end());
-
-		// フレームリストを出力
-		FILE* framesfp = fopen("frames.txt", "w");
-		fprintf(framesfp, "FrameNumber,DecodeFrameNumber,PTS,Duration,FRAME_TYPE,PIC_TYPE,IsGOPStart\n");
-		for (int i = 0; i < (int)modifiedPTS.size(); ++i) {
-			int64_t PTS = modifiedPTS[i].first;
-			int decodeIndex = modifiedPTS[i].second;
-			const VideoFrameInfo& frame = allFrames[decodeIndex];
-			int PTSdiff = -1;
-			if (i < (int)modifiedPTS.size() - 1) {
-				int64_t nextPTS = modifiedPTS[i + 1].first;
-				const VideoFrameInfo& nextFrame = allFrames[modifiedPTS[i + 1].second];
-				PTSdiff = int(nextPTS - PTS);
-				if (CheckPullDown(frame.pic, nextFrame.pic) == false) {
-					printf("Flag Check Error: PTS=%lld %s -> %s\n",
-						PTS, PictureTypeString(frame.pic), PictureTypeString(nextFrame.pic));
-				}
-			}
-			fprintf(framesfp, "%d,%d,%lld,%d,%s,%s,%d\n",
-				i, decodeIndex, PTS, PTSdiff, FrameTypeString(frame.type), PictureTypeString(frame.pic), frame.isGopStart ? 1 : 0);
-		}
-		fclose(framesfp);
-
-		// PTS間隔を出力
-		struct Integer {
-			int v;
-			Integer() : v(0) { }
-		};
-
-		std::array<int, MAX_PIC_TYPE> interaceCounter = { 0 };
-		std::map<int, Integer> PTSdiffMap;
-		prevPTS = -1;
-		for (const auto& ptsIndex : modifiedPTS) {
-			int64_t PTS = ptsIndex.first;
-			const VideoFrameInfo& frame = allFrames[ptsIndex.second];
-			interaceCounter[(int)frame.pic]++;
-			if (prevPTS != -1) {
-				int PTSdiff = int(PTS - prevPTS);
-				PTSdiffMap[PTSdiff].v++;
-			}
-			prevPTS = PTS;
-		}
-
-		int64_t totalTime = modifiedPTS.back().first - videoBasePTS;
-		ctx->info("時間: %f 秒", totalTime / 90000.0);
-
-		ctx->info("フレームカウンタ");
-		ctx->info("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
-			interaceCounter[0], interaceCounter[1], interaceCounter[2], interaceCounter[3], interaceCounter[4], interaceCounter[5], interaceCounter[6]);
-
-		for (const auto& pair : PTSdiffMap) {
-			ctx->info("(PTS_Diff,Cnt)=(%d,%d)\n", pair.first, pair.second.v);
-		}
-	}
-
-private:
+protected:
 	enum INITIALIZATION_PHASE {
 		PMT_WAITING,	// PAT,PMT待ち
 		PCR_WAITING,	// ビットレート取得のためPCR2つを受信中
@@ -512,16 +407,6 @@ private:
 			this_.onAudioFormatChanged(audioIdx, fmt);
 		}
 	};
-	class StreamFileWriteHandler : public PsStreamWriter::EventHandler {
-		TsSplitter& this_;
-	public:
-		StreamFileWriteHandler(TsSplitter& this_)
-			: this_(this_) { }
-
-		virtual void onStreamData(MemoryChunk mc) {
-			fwrite(mc.data, mc.length, 1, this_.mpgfp);
-		}
-	};
 
 	INITIALIZATION_PHASE initPhase;
 
@@ -534,70 +419,23 @@ private:
 	SpVideoFrameParser videoParser;
 	std::vector<SpAudioFrameParser*> audioParsers;
 
-	PsStreamWriter psWriter;
-	StreamFileWriteHandler writeHandler;
-
-	AutoBuffer buffer;
-
 	int preferedServiceId;
 	int selectedServiceId;
 
+  virtual void onVideoPesPacket(
+    int64_t clock,
+    const std::vector<VideoFrameInfo>& frames,
+    PESPacket packet) = 0;
 
-	// テスト用
-	std::vector<VideoFrameInfo> allFrames;
-	int64_t numAudioSamples;
-	AudioFormat audioFormat;
+  virtual void onVideoFormatChanged(VideoFormat fmt) = 0;
 
-	/////
-	int inFrameCount;
-	int outFrameCount;
-	void onVideoPesPacket(int64_t clock, const std::vector<VideoFrameInfo>& frames, PESPacket packet) {
-		for (const VideoFrameInfo& frame : frames) {
-			allFrames.push_back(frame);
-		}
+  virtual void onAudioPesPacket(
+    int audioIdx,
+    int64_t clock,
+    const std::vector<AudioFrameData>& frames,
+    PESPacket packet) = 0;
 
-		/*
-		bool bSkip = false;
-		if ((inFrameCount % 900) == 555) {
-			printf("Skip %d frames [in] %d [out] %d\n", (int)frames.size(), inFrameCount, outFrameCount);
-			bSkip = true;
-		}
-		*/
-		inFrameCount += (int)frames.size();
-		//if (bSkip) return;
-		outFrameCount += (int)frames.size();
-
-		psWriter.outVideoPesPacket(clock, frames, packet);
-	}
-
-	void onVideoFormatChanged(VideoFormat fmt) {
-		ctx->debug("映像フォーマット変更を検知");
-		ctx->debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
-	}
-
-	void onAudioPesPacket(int audioIdx, int64_t clock, const std::vector<AudioFrameData>& frames, PESPacket packet) {
-		//
-		for (const AudioFrameData& data : frames) {
-			if (data.decodedDataSize > 0) {
-				if (numAudioSamples == 0) {
-					audioFormat = data.format;
-					writeWaveHeader(wavfp, getNumAudioChannels(data.format.channels), data.format.sampleRate, 16, 0);
-				}
-				fwrite(data.decodedData, data.decodedDataSize, 1, wavfp);
-				numAudioSamples += data.numDecodedSamples;
-			}
-			fwrite(data.codedData, data.codedDataSize, 1, aacfp);
-		}
-
-		psWriter.outAudioPesPacket(audioIdx, clock, frames, packet);
-
-	}
-
-	void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
-		ctx->debug("音声 %d のフォーマット変更を検知", audioIdx);
-		ctx->debug("チャンネル: %s サンプルレート: %d",
-			getAudioChannelString(fmt.channels), fmt.sampleRate);
-	}
+  virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) = 0;
 
 	// サービスを設定する場合はサービスのpids上でのインデックス
 	// なにもしない場合は負の値の返す
@@ -644,9 +482,6 @@ private:
 			audioParsers.push_back(new SpAudioFrameParser(ctx, *this, audioIdx));
 			ctx->debug("音声パーサ %d を追加", audioIdx);
 		}
-
-		ASSERT(audio.size() > 0);
-		psWriter.outHeader(video.stype, audio[0].stype);
 	}
 
 	virtual void onVideoPacket(int64_t clock, TsPacket packet) {
