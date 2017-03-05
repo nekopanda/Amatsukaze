@@ -141,39 +141,3 @@ public:
 private:
   HANDLE handle;
 };
-
-class File : NonCopyable
-{
-public:
-  File(const std::string& path, const char* mode) {
-    fp_ = _fsopen(path.c_str(), mode, _SH_DENYNO);
-    if (fp_ == NULL) {
-      THROWF(IOException, "failed to open file %s", path.c_str());
-    }
-  }
-  ~File() {
-    fclose(fp_);
-  }
-  void write(MemoryChunk mc) {
-    if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
-      THROWF(IOException, "failed to write to file");
-    }
-  }
-  size_t read(MemoryChunk mc) {
-    size_t ret = fread(mc.data, 1, mc.length, fp_);
-    if (ret <= 0) {
-      THROWF(IOException, "failed to read from file");
-    }
-    return ret;
-  }
-  void flush() {
-    fflush(fp_);
-  }
-  void seek(int64_t offset, int origin) {
-    if (_fseeki64(fp_, offset, origin) != 0) {
-      THROWF(IOException, "failed to seek file");
-    }
-  }
-private:
-  FILE* fp_;
-};

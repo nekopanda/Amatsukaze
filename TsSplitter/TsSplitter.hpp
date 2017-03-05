@@ -1,5 +1,4 @@
-// TsSplitter.cpp : DLL アプリケーション用にエクスポートされる関数を定義します。
-//
+#pragma once
 
 #include "common.h"
 
