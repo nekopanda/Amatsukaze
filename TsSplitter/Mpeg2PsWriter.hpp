@@ -74,10 +74,10 @@ struct PSMESInfo {
 		: stype(stype), stream_id(stream_id) { }
 };
 
-struct PsProgramStreamMap : public TsSplitterObject {
+struct PsProgramStreamMap : public AMTObject {
 
-	PsProgramStreamMap(TsSplitterContext *ctx)
-		: TsSplitterObject(ctx) { }
+	PsProgramStreamMap(AMTContext *ctx)
+		: AMTObject(ctx) { }
 
 	bool parse(MemoryChunk data) {
 		BitReader reader(data);
@@ -132,7 +132,7 @@ struct PsProgramStreamMap : public TsSplitterObject {
 // デバッグ用
 class PsStreamVerifier {
 public:
-	PsStreamVerifier(TsSplitterContext *ctx)
+	PsStreamVerifier(AMTContext *ctx)
 		: psm(ctx)
 	{ }
 
@@ -293,7 +293,7 @@ struct PsEsBuffer {
 
 // PSは映像エンコード用なので、音声はおまけ
 // 音声は複数チャネルあったとしても、最初の１チャンネルだけ出力する
-class PsStreamWriter : public TsSplitterObject {
+class PsStreamWriter : public AMTObject {
 	enum {
 		BITRATE = 80 * 1000 * 1000, // MP@HLの最大ビットレート
 		VBV_SIZE = 9781248 / 8, // MP@HLのVBV Buffer Size
@@ -308,8 +308,8 @@ public:
 		virtual void onStreamData(MemoryChunk mc) = 0;
 	};
 
-	PsStreamWriter(TsSplitterContext *ctx)
-		: TsSplitterObject(ctx)
+	PsStreamWriter(AMTContext *ctx)
+		: AMTObject(ctx)
 	{
 		systemClock.maxBitsPerSecond = BITRATE;
 		videoBuffer.bufferSize = VBV_SIZE;

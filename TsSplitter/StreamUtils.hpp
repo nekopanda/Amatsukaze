@@ -421,9 +421,9 @@ enum TS_SPLITTER_LOG_LEVEL {
 	TS_SPLITTER_ERROR
 };
 
-class TsSplitterContext {
+class AMTContext {
 public:
-	TsSplitterContext()
+	AMTContext()
 		: debugEnabled(true)
 	{ }
 
@@ -465,11 +465,11 @@ private:
 	}
 };
 
-class TsSplitterObject {
+class AMTObject {
 public:
-	TsSplitterObject(TsSplitterContext* ctx) : ctx(ctx) { }
+	AMTObject(AMTContext* ctx) : ctx(ctx) { }
 protected:
-	TsSplitterContext* ctx;
+	AMTContext* ctx;
 };
 
 enum VIDEO_STREAM_FORMAT {

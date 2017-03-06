@@ -49,15 +49,15 @@ struct OutVideoFormat {
   std::vector<AudioFormat> audioFormat;
 };
 
-class StreamReformInfo : public TsSplitterObject {
+class StreamReformInfo : public AMTObject {
 public:
   StreamReformInfo(
-    TsSplitterContext* ctx,
+    AMTContext* ctx,
     int numVideoFile,
     std::vector<VideoFrameInfo>& videoFrameList,
     std::vector<FileAudioFrameInfo>& audioFrameList,
     std::vector<StreamEvent>& streamEventList)
-    : TsSplitterObject(ctx)
+    : AMTObject(ctx)
     , numVideoFile_(numVideoFile)
     , videoFrameList_(std::move(videoFrameList))
     , audioFrameList_(std::move(audioFrameList))

@@ -96,10 +96,10 @@ struct AdtsHeader {
 };
 #endif
 
-class AdtsParser : public TsSplitterObject {
+class AdtsParser : public AMTObject {
 public:
-	AdtsParser(TsSplitterContext *ctx)
-		: TsSplitterObject(ctx)
+	AdtsParser(AMTContext *ctx)
+		: AMTObject(ctx)
 		, hAacDec(NeAACDecOpen())
 	{
 		NeAACDecConfigurationPtr conf = NeAACDecGetCurrentConfiguration(hAacDec);

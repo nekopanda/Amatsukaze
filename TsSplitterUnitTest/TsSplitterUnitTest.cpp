@@ -187,7 +187,7 @@ void VerifyMpeg2Ps(std::string srcfile) {
 	uint8_t* buf = (uint8_t*)malloc(BUF_SIZE); // 
 	FILE* fp = fopen(srcfile.c_str(), "rb");
 	try {
-		TsSplitterContext ctx;
+		AMTContext ctx;
 		PsStreamVerifier psVerifier(&ctx);
 
 		size_t readBytes = fread(buf, 1, BUF_SIZE, fp);
@@ -227,7 +227,7 @@ void TestBase::ParserTest(const std::string& filename, bool verify) {
 	ASSERT_TRUE(wavfp != NULL);
 
   /* TODO: TsSplitterÉeÉXÉgÇçÏÇÈ
-	TsSplitterContext ctx;
+	AMTContext ctx;
 	TsSplitter tsSplitter(&ctx);
 	tsSplitter.mpgfp = mpgfp;
 	tsSplitter.aacfp = aacfp;
@@ -510,7 +510,7 @@ TEST_F(TestBase, ffmpegEncode) {
   fmt.progressive = false;
 
   std::vector<VideoFormat> fmts = { fmt };
-  std::vector<std::string> args = { makeArgs("x264.exe", options, fmt, outFile) };
+  std::vector<std::string> args = { makeArgs(ENCODER_X264, "x264.exe", options, fmt, outFile) };
   printf("args: %s\n", args[0].c_str());
 
   std::map<int64_t, int> dummy;

@@ -15,10 +15,10 @@
 #include "Mpeg2PsWriter.hpp"
 #include "WaveWriter.h"
 
-class VideoFrameParser : public TsSplitterObject, public PesParser {
+class VideoFrameParser : public AMTObject, public PesParser {
 public:
-	VideoFrameParser(TsSplitterContext *ctx)
-		: TsSplitterObject(ctx)
+	VideoFrameParser(AMTContext *ctx)
+		: AMTObject(ctx)
 		, PesParser()
 		, videoStreamFormat(VS_MPEG2)
 		, parser(&mpeg2parser)
@@ -101,10 +101,10 @@ private:
 
 };
 
-class AudioFrameParser : public TsSplitterObject, public PesParser {
+class AudioFrameParser : public AMTObject, public PesParser {
 public:
-	AudioFrameParser(TsSplitterContext *ctx)
-		: TsSplitterObject(ctx)
+	AudioFrameParser(AMTContext *ctx)
+		: AMTObject(ctx)
 		, PesParser()
 		, adtsParser(ctx)
 	{ }
@@ -153,7 +153,7 @@ private:
 // TSÉXÉgÉäÅ[ÉÄÇàÍíËó ÇæÇØñﬂÇÍÇÈÇÊÇ§Ç…Ç∑ÇÈ
 class TsPacketBuffer : public TsPacketParser {
 public:
-	TsPacketBuffer(TsSplitterContext* ctx)
+	TsPacketBuffer(AMTContext* ctx)
 		: TsPacketParser(ctx)
 		, handler(NULL)
 		, numBefferedPackets_(0)
@@ -296,10 +296,10 @@ private:
 	PCR_Info pcrInfo[2];
 };
 
-class TsSplitter : public TsSplitterObject, protected TsPacketSelectorHandler {
+class TsSplitter : public AMTObject, protected TsPacketSelectorHandler {
 public:
-	TsSplitter(TsSplitterContext *ctx)
-		: TsSplitterObject(ctx)
+	TsSplitter(AMTContext *ctx)
+		: AMTObject(ctx)
 		, initPhase(PMT_WAITING)
 		, tsPacketHandler(*this)
 		, pcrDetectionHandler(*this)
@@ -378,7 +378,7 @@ protected:
 	class SpVideoFrameParser : public VideoFrameParser {
 		TsSplitter& this_;
 	public:
-		SpVideoFrameParser(TsSplitterContext *ctx, TsSplitter& this_)
+		SpVideoFrameParser(AMTContext *ctx, TsSplitter& this_)
 			: VideoFrameParser(ctx), this_(this_) { }
 
 	protected:
@@ -394,7 +394,7 @@ protected:
 		TsSplitter& this_;
 		int audioIdx;
 	public:
-		SpAudioFrameParser(TsSplitterContext *ctx, TsSplitter& this_, int audioIdx)
+		SpAudioFrameParser(AMTContext *ctx, TsSplitter& this_, int audioIdx)
 			: AudioFrameParser(ctx), this_(this_), audioIdx(audioIdx) { }
 
 	protected:

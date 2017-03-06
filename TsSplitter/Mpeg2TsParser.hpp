@@ -260,14 +260,14 @@ private:
 * inputTS()を必要回数呼び出して最後にflush()を必ず呼び出すこと。
 * flush()を呼び出さないと内部のバッファに残ったデータが処理されない。
 */
-class TsPacketParser : public TsSplitterObject {
+class TsPacketParser : public AMTObject {
 	enum {
 		// 同期コードを探すときにチェックするパケット数
 		CHECK_PACKET_NUM = 8,
 	};
 public:
-	TsPacketParser(TsSplitterContext* ctx)
-		: TsSplitterObject(ctx)
+	TsPacketParser(AMTContext* ctx)
+		: AMTObject(ctx)
 		, syncOK(false)
 	{ }
 
@@ -434,10 +434,10 @@ struct PsiConstantHeader : public MemoryChunk {
 
 };
 
-struct PsiSection : public TsSplitterObject, public PsiConstantHeader {
+struct PsiSection : public AMTObject, public PsiConstantHeader {
 
-	PsiSection(TsSplitterContext* ctx, uint8_t* data, int length)
-		: TsSplitterObject(ctx), PsiConstantHeader(data, length) { }
+	PsiSection(AMTContext* ctx, uint8_t* data, int length)
+		: AMTObject(ctx), PsiConstantHeader(data, length) { }
 
 	uint16_t id() { return read16(&data[3]); }
 	uint8_t version_number() { return bsm(data[5], 1, 5); }
@@ -555,10 +555,10 @@ private:
 	std::vector<PMTElement> elems;
 };
 
-class PsiParser : public TsSplitterObject, public TsPacketHandler {
+class PsiParser : public AMTObject, public TsPacketHandler {
 public:
-	PsiParser(TsSplitterContext* ctx)
-		: TsSplitterObject(ctx)
+	PsiParser(AMTContext* ctx)
+		: AMTObject(ctx)
 	{}
 
 	/** 状態リセット */
@@ -626,7 +626,7 @@ private:
 class PsiUpdatedDetector : public PsiParser {
 public:
 
-	PsiUpdatedDetector(TsSplitterContext *ctx)
+	PsiUpdatedDetector(AMTContext *ctx)
 		: PsiParser(ctx)
 	{ }
 
@@ -719,10 +719,10 @@ public:
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) = 0;
 };
 
-class TsPacketSelector : public TsSplitterObject {
+class TsPacketSelector : public AMTObject {
 public:
-	TsPacketSelector(TsSplitterContext* ctx)
-		: TsSplitterObject(ctx)
+	TsPacketSelector(AMTContext* ctx)
+		: AMTObject(ctx)
 		, waitingNewVideo(false)
 		, TSID_(-1)
 		, SID_(-1)
@@ -766,7 +766,7 @@ private:
 	class PATDelegator : public PsiUpdatedDetector {
 		TsPacketSelector& this_;
 	public:
-		PATDelegator(TsSplitterContext *ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		PATDelegator(AMTContext *ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
 		virtual void onTableUpdated(PsiSection section) {
 			this_.onPatUpdated(section);
 		}
@@ -774,7 +774,7 @@ private:
 	class PMTDelegator : public PsiUpdatedDetector {
 		TsPacketSelector& this_;
 	public:
-		PMTDelegator(TsSplitterContext *ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		PMTDelegator(AMTContext *ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
 		virtual void onTableUpdated(PsiSection section) {
 			this_.onPmtUpdated(section);
 		}

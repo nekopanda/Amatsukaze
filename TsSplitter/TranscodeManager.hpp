@@ -128,6 +128,7 @@ struct TranscoderSetting {
   ENUM_ENCODER encoder;
   std::string encoderPath;
   std::string encoderOptions;
+  std::string muxerPath;
 
   std::string getIntVideoFilePath(int index) const
   {
@@ -158,7 +159,7 @@ struct TranscoderSetting {
 
 class AMTSplitter : public TsSplitter {
 public:
-  AMTSplitter(TsSplitterContext *ctx, TranscoderSetting* setting)
+  AMTSplitter(AMTContext *ctx, TranscoderSetting* setting)
     : TsSplitter(ctx)
     , setting_(setting)
     , psWriter(ctx)
@@ -389,13 +390,13 @@ protected:
   }
 };
 
-class AMTVideoEncoder : public TsSplitterObject {
+class AMTVideoEncoder : public AMTObject {
 public:
   AMTVideoEncoder(
-    TsSplitterContext *ctx,
+    AMTContext *ctx,
     const TranscoderSetting* setting,
     const StreamReformInfo* reformInfo)
-    : TsSplitterObject(ctx)
+    : AMTObject(ctx)
     , setting_(setting)
     , reformInfo_(reformInfo)
   {
@@ -485,7 +486,12 @@ private:
   }
 };
 
-class AMTMuxder : public TsSplitterObject {
+class AMTMuxder : public AMTObject {
 public:
+  AMTMuxder(AMTContext *ctx)
+    : AMTObject(ctx)
+  { }
 };
+
+
 
