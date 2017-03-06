@@ -6,6 +6,8 @@
 
 #include "StreamUtils.hpp"
 #include "TsSplitter.hpp"
+#include "Transcode.hpp"
+#include "StreamReform.hpp"
 
 // カラースペース定義を使うため
 #include "libavutil/pixfmt.h"
@@ -58,7 +60,14 @@ static const char* getColorSpaceStr(int color_space) {
 
 } // namespace av {
 
+enum ENUM_ENCODER {
+  ENCODER_X264,
+  ENCODER_X265,
+  ENCODER_QSVENC,
+};
+
 static std::string makeArgs(
+  ENUM_ENCODER encoder,
   const std::string& binpath,
   const std::string& options,
   const VideoFormat& fmt,
@@ -67,7 +76,6 @@ static std::string makeArgs(
   std::ostringstream ss;
 
   ss << "\"" << binpath << "\"";
-  ss << " --demuxer y4m";
 
   // y4mヘッダにあるので必要ない
   //ss << " --fps " << fmt.frameRateNum << "/" << fmt.frameRateDenom;
@@ -78,351 +86,79 @@ static std::string makeArgs(
   ss << " --transfer " << av::getTransferCharacteristicsStr(fmt.transferCharacteristics);
   ss << " --colormatrix " << av::getColorSpaceStr(fmt.colorSpace);
 
-  if (fmt.progressive == false) {
-    ss << " --tff";
+  // インターレース
+  switch (encoder) {
+  case ENCODER_X264:
+  case ENCODER_QSVENC:
+    ss << (fmt.progressive ? "" : " --tff");
+    break;
+  case ENCODER_X265:
+    ss << (fmt.progressive ? " --no-interlace" : " --interlace tff");
+    break;
   }
 
-  ss << " " << options << " -o \"" << outpath << "\" -";
+  ss << " " << options << " -o \"" << outpath << "\"";
+
+  // 入力形式
+  switch (encoder) {
+  case ENCODER_X264:
+    ss << " --demuxer y4m -";
+    break;
+  case ENCODER_X265:
+    ss << " --y4m --input -";
+    break;
+  case ENCODER_QSVENC:
+    ss << " --y4m -i -";
+    break;
+  }
   
   return ss.str();
 }
 
-static std::string makeIntVideoFilePath(const std::string& basepath, int index)
-{
-  std::ostringstream ss;
-  ss << basepath << "-" << index << ".mpg";
-  return ss.str();
-}
-
-struct FirstPhaseSetting {
-  std::string videoBasePath;
+struct TranscoderSetting {
+  // 入力ファイルパス（拡張子を含む）
+  std::string tsFilePath;
+  // 出力ファイルパス（拡張子を除く）
+  std::string outVideoPath;
+  // 中間映像ファイルプリフィックス
+  std::string intVideoBasePath;
+  // 一時音声ファイルパス（拡張子を含む）
   std::string audioFilePath;
+  // エンコーダ設定
+  ENUM_ENCODER encoder;
+  std::string encoderPath;
+  std::string encoderOptions;
+
+  std::string getIntVideoFilePath(int index) const
+  {
+    std::ostringstream ss;
+    ss << intVideoBasePath << "-" << index << ".mpg";
+    return ss.str();
+  }
+
+  std::string getEncVideoFilePath(int vindex, int index) const
+  {
+    std::ostringstream ss;
+    ss << intVideoBasePath << "-" << vindex << "-" << index << ".raw";
+    return ss.str();
+  }
+
+  std::string getOutFilePath(int index) const
+  {
+    if (index == 0) {
+      return outVideoPath + ".mp4";
+    }
+    std::string ret = outVideoPath + "-";
+    ret += index;
+    ret += ".mp4";
+    return ret;
+  }
 };
 
-struct FileAudioFrameInfo : public AudioFrameInfo {
-  int audioIdx;
-  int codedDataSize;
-  int64_t fileOffset;
 
-  FileAudioFrameInfo()
-    : AudioFrameInfo()
-    , audioIdx(0)
-    , codedDataSize(0)
-    , fileOffset(0)
-  { }
-
-  FileAudioFrameInfo(const AudioFrameInfo& info)
-    : AudioFrameInfo(info)
-    , audioIdx(0)
-    , codedDataSize(0)
-    , fileOffset(0)
-  { }
-};
-
-enum StreamEventType {
-  STREAM_EVENT_NONE = 0,
-  PID_TABLE_CHANGED,
-  VIDEO_FORMAT_CHANGED,
-  AUDIO_FORMAT_CHANGED
-};
-
-struct StreamEvent {
-  StreamEventType type;
-  int frameIdx;  // フレーム番号
-  int audioIdx;  // 変更された音声インデックス（AUDIO_FORMAT_CHANGEDのときのみ有効）
-  int numAudio;  // 音声の数（PID_TABLE_CHANGEDのときのみ有効）
-};
-
-typedef std::vector<std::unique_ptr<std::vector<int>>> FileAudioFrameList;
-
-struct OutVideoFormat {
-  int formatId; // 内部フォーマットID（通し番号）
-  int videoFileId;
-  VideoFormat videoFormat;
-  std::vector<AudioFormat> audioFormat;
-};
-
-class StreamReformInfo {
+class AMTSplitter : public TsSplitter {
 public:
-  StreamReformInfo(
-    int numVideoFile,
-    std::vector<VideoFrameInfo>& videoFrameList,
-    std::vector<FileAudioFrameInfo>& audioFrameList,
-    std::vector<StreamEvent>& streamEventList)
-    : numVideoFile_(numVideoFile)
-    , videoFrameList_(std::move(videoFrameList))
-    , audioFrameList_(std::move(audioFrameList))
-    , streamEventList_(std::move(streamEventList))
-  {
-    // TODO:
-    encodedFrames_.resize(videoFrameList_.size(), false);
-  }
-
-  // PTS -> video frame index
-  int getVideoFrameIndex(int64_t PTS, int videoFileIndex) const {
-    auto it = framePtsMap_.find(PTS);
-    if (it == framePtsMap_.end()) {
-      return -1;
-    }
-    
-    // TODO: check videoFileIndex
-
-    return it->second;
-  }
-
-  int getNumEncoders(int videoFileIndex) const {
-    return int(
-      outFormatStartIndex_[videoFileIndex + 1] - outFormatStartIndex_[videoFileIndex]);
-  }
-
-  // video frame index -> VideoFrameInfo
-  const VideoFrameInfo& getVideoFrameInfo(int frameIndex) const {
-    return videoFrameList_[frameIndex];
-  }
-
-  // video frame index -> encoder index
-  int getEncoderIndex(int frameIndex) const {
-    int formatId = frameFormatId_[frameIndex];
-    const auto& format = outFormat_[formatId];
-    return formatId - outFormatStartIndex_[format.videoFileId];
-  }
-
-  // フレームをエンコードしたフラグをセット
-  void frameEncoded(int frameIndex) {
-    encodedFrames_[frameIndex] = true;
-  }
-
-  const OutVideoFormat& getFormat(int encoderIndex, int videoFileIndex) const {
-    int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
-    return outFormat_[formatId];
-  }
-
-  void prepare3rdPhase() {
-    // TODO:
-  }
-
-  const std::unique_ptr<FileAudioFrameList>& getFileAudioFrameList(
-    int encoderIndex, int videoFileIndex)
-  {
-    int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
-    return reformedAudioFrameList_[formatId];
-  }
-
-private:
-  // 1st phase 出力
-  int numVideoFile_;
-  std::vector<VideoFrameInfo> videoFrameList_;
-  std::vector<FileAudioFrameInfo> audioFrameList_;
-  std::vector<StreamEvent> streamEventList_;
-
-  // 計算データ
-  std::vector<int64_t> modifiedPTS_; // ラップアラウンドしないPTS
-  std::vector<int64_t> dataPTS_; // 映像フレームのストリーム上での位置とPTSの関連付け
-  std::vector<int64_t> streamEventPTS_;
-
-  std::vector<OutVideoFormat> outFormat_;
-  // 中間映像ファイルごとのフォーマット開始インデックス
-  // サイズは中間映像ファイル数+1
-  std::vector<int> outFormatStartIndex_;
-
-  // 2nd phase 入力
-  std::vector<int> frameFormatId_; // videoFrameList_と同じサイズ
-  std::map<int64_t, int> framePtsMap_;
-
-  // 2nd phase 出力
-  std::vector<bool> encodedFrames_;
-
-  // 3rd phase 入力
-  std::vector<std::unique_ptr<FileAudioFrameList>> reformedAudioFrameList_;
-
-  void reformMain()
-  {
-    if (videoFrameList_.size() == 0) {
-      THROW(FormatException, "映像フレームが1枚もありません");
-    }
-    if (audioFrameList_.size() == 0) {
-      THROW(FormatException, "音声フレームが1枚もありません");
-    }
-    if (streamEventList_.size() == 0 || streamEventList_[0].type != PID_TABLE_CHANGED) {
-      THROW(FormatException, "不正なデータです");
-    }
-
-    // framePtsMap_を作成（すぐに作れるので）
-    for (int i = 0; i < int(videoFrameList_.size()); ++i) {
-      framePtsMap_[videoFrameList_[i].PTS] = i;
-    }
-
-    // ラップアラウンドしないPTSを生成
-    modifiedPTS_.reserve(videoFrameList_.size());
-    int64_t prevPTS = videoFrameList_[0].PTS;
-    for (int i = 0; i < int(videoFrameList_.size()); ++i) {
-      int64_t PTS = videoFrameList_[i].PTS;
-      int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
-      modifiedPTS_.push_back(modPTS);
-      prevPTS = PTS;
-    }
-
-    // ストリームが戻っている場合は処理できないのでエラーとする
-    for (int i = 1; i < int(videoFrameList_.size()); ++i) {
-      if (modifiedPTS_[i] - modifiedPTS_[i - 1] < -60 * MPEG_CLOCK_HZ) {
-        // 1分以上戻っていたらエラーとする
-        THROWF(FormatException,
-          "PTSが戻っています。処理できません。 %llu -> %llu",
-          modifiedPTS_[i - 1], modifiedPTS_[i]);
-      }
-    }
-
-    // dataPTSを生成
-    // 後ろから見てその時点で最も小さいPTSをdataPTSとする
-    int64_t curMin = INT64_MAX;
-    int64_t curMax = 0;
-    dataPTS_.resize(videoFrameList_.size());
-    for (int i = (int)videoFrameList_.size() - 1; i >= 0; --i) {
-      curMin = std::min(curMin, modifiedPTS_[i]);
-      curMax = std::max(curMax, modifiedPTS_[i]);
-      dataPTS_[i] = curMin;
-    }
-
-    // ストリームイベントのPTSを計算
-    int64_t exceedLastPTS = curMax + 1;
-    streamEventPTS_.resize(streamEventList_.size());
-    for (int i = 0; i < (int)streamEventList_.size(); ++i) {
-      auto& ev = streamEventList_[i];
-      int64_t pts = -1;
-      if (ev.type == PID_TABLE_CHANGED || ev.type == VIDEO_FORMAT_CHANGED) {
-        if (ev.frameIdx >= (int)videoFrameList_.size()) {
-          // 後ろ過ぎて対象のフレームがない
-          pts = exceedLastPTS;
-        }
-        else {
-          pts = dataPTS_[ev.frameIdx];
-        }
-      }
-      else if (ev.type == AUDIO_FORMAT_CHANGED) {
-        if (ev.frameIdx >= (int)audioFrameList_.size()) {
-          // 後ろ過ぎて対象のフレームがない
-          pts = exceedLastPTS;
-        }
-        else {
-          pts = audioFrameList_[ev.frameIdx].PTS;
-        }
-      }
-      streamEventPTS_[i] = pts;
-    }
-
-    struct SingleFormatSection {
-      int formatId;
-      int64_t fromPTS, toPTS;
-    };
-
-    // 時間的に近いストリームイベントを1つの変化点とみなす
-    const int64_t CHANGE_TORELANCE = 3 * MPEG_CLOCK_HZ;
-
-    std::vector<SingleFormatSection> sectionList;
-
-    OutVideoFormat curFormat = OutVideoFormat();
-    SingleFormatSection curSection = SingleFormatSection();
-    int64_t curFromPTS = -1;
-    curFormat.videoFileId = -1;
-    for (int i = 0; i < (int)streamEventList_.size(); ++i) {
-      auto& ev = streamEventList_[i];
-      int64_t pts = streamEventPTS_[i];
-      if (pts >= exceedLastPTS) {
-        // 後ろに映像がなければ意味がない
-        continue;
-      }
-      if (curFromPTS == -1) { // 最初
-        curFromPTS = curSection.fromPTS = pts;
-      }
-      else if (curFromPTS + CHANGE_TORELANCE < pts) {
-        // 区間を追加
-        curSection.toPTS = pts;
-        registerOrGetFormat(curFormat);
-        curSection.formatId = curFormat.formatId;
-        sectionList.push_back(curSection);
-
-        curFromPTS = curSection.fromPTS = pts;
-      }
-      // 変更を反映
-      switch (ev.type) {
-      case PID_TABLE_CHANGED:
-        curFormat.audioFormat.resize(ev.numAudio);
-        break;
-      case VIDEO_FORMAT_CHANGED:
-        // ファイル変更
-        ++curFormat.videoFileId;
-        outFormatStartIndex_.push_back(outFormat_.size());
-        curFormat.videoFormat = videoFrameList_[ev.frameIdx].format;
-        break;
-      case AUDIO_FORMAT_CHANGED:
-        if (curFormat.audioFormat.size() >= ev.audioIdx) {
-          THROW(FormatException, "StreamEvent's audioIdx exceeds numAudio of the previous table change event");
-        }
-        curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.audioIdx].format;
-        break;
-      }
-    }
-    // 最後の区間を追加
-    curSection.toPTS = exceedLastPTS;
-    registerOrGetFormat(curFormat);
-    curSection.formatId = curFormat.formatId;
-    sectionList.push_back(curSection);
-    outFormatStartIndex_.push_back(outFormat_.size());
-
-    // frameFormatId_を生成
-    frameFormatId_.resize(videoFrameList_.size());
-    for (int i = 0; i < int(videoFrameList_.size()); ++i) {
-      int64_t pts = modifiedPTS_[i];
-      // 区間を探す
-      int formatId = std::partition_point(sectionList.begin(), sectionList.end(),
-        [=](const SingleFormatSection& sec) {
-          return !(pts < sec.toPTS);
-        })->formatId;
-      frameFormatId_[i] = formatId;
-    }
-  }
-
-  void registerOrGetFormat(OutVideoFormat& format) {
-    // すでにあるのから探す
-    for (int i = outFormatStartIndex_.back(); i < (int)outFormat_.size(); ++i) {
-      if (isEquealFormat(outFormat_[i], format)) {
-        format.formatId = i;
-        return;
-      }
-    }
-    // ないので登録
-    format.formatId = (int)outFormat_.size();
-    outFormat_.push_back(format);
-  }
-
-  bool isEquealFormat(const OutVideoFormat& a, const OutVideoFormat& b) {
-    if (a.videoFormat != b.videoFormat) return false;
-    if (a.audioFormat.size() != b.audioFormat.size()) return false;
-    for (int i = 0; i < (int)a.audioFormat.size(); ++i) {
-      if (a.audioFormat[i] != b.audioFormat[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  int getEncoderIdx(const OutVideoFormat& format) {
-    return format.formatId - outFormatStartIndex_[format.videoFileId];
-  }
-
-  static int numGenerateFrames(const VideoFrameInfo& frameInfo) {
-    // BFF RFFだけ2枚、他は1枚
-    return (frameInfo.pic == PIC_BFF_RFF) ? 2 : 1;
-  }
-
-  void genAudioStream() {
-    // TODO: encodedFrames_から音声ストリームのフレーム列を生成
-  }
-};
-
-class FirstPhaseConverter : public TsSplitter {
-public:
-  FirstPhaseConverter(TsSplitterContext *ctx, FirstPhaseSetting* setting)
+  AMTSplitter(TsSplitterContext *ctx, TranscoderSetting* setting)
     : TsSplitter(ctx)
     , setting_(setting)
     , psWriter(ctx)
@@ -441,7 +177,7 @@ public:
     // for debug
     printInteraceCount();
 
-    return StreamReformInfo(videoFileCount_,
+    return StreamReformInfo(ctx, videoFileCount_,
       videoFrameList_, audioFrameList_, streamEventList_);
   }
 
@@ -465,7 +201,7 @@ protected:
     }
   };
 
-  FirstPhaseSetting* setting_;
+  TranscoderSetting* setting_;
   PsStreamWriter psWriter;
   StreamFileWriteHandler writeHandler;
   File audioFile_;
@@ -587,7 +323,7 @@ protected:
     ctx->debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
 
     // 出力ファイルを変更
-    writeHandler.open(makeIntVideoFilePath(setting_->videoBasePath, videoFileCount_++));
+    writeHandler.open(setting_->getIntVideoFilePath(videoFileCount_++));
     psWriter.outHeader(videoStreamType_, audioStreamType_);
 
     StreamEvent ev = StreamEvent();
@@ -652,3 +388,104 @@ protected:
     streamEventList_.push_back(ev);
   }
 };
+
+class AMTVideoEncoder : public TsSplitterObject {
+public:
+  AMTVideoEncoder(
+    TsSplitterContext *ctx,
+    const TranscoderSetting* setting,
+    const StreamReformInfo* reformInfo)
+    : TsSplitterObject(ctx)
+    , setting_(setting)
+    , reformInfo_(reformInfo)
+  {
+    //
+  }
+
+  ~AMTVideoEncoder() {
+    delete[] encoders_; encoders_ = NULL;
+  }
+
+  void encode(int videoFileIndex) {
+    videoFileIndex_ = videoFileIndex;
+
+    int numEncoders = reformInfo_->getNumEncoders(videoFileIndex);
+    if (numEncoders == 0) {
+      ctx->warn("numEncoders == 0 ...");
+      return;
+    }
+
+    const auto& format0 = reformInfo_->getFormat(0, videoFileIndex);
+    int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
+
+    // 初期化
+    encoders_ = new av::EncodeWriter[numEncoders_];
+    SpVideoReader reader(this);
+
+    for (int i = 0; i < numEncoders_; ++i) {
+      const auto& format = reformInfo_->getFormat(i, videoFileIndex);
+      std::string arg = makeArgs(
+        setting_->encoder,
+        setting_->encoderPath,
+        setting_->encoderOptions,
+        format.videoFormat,
+        setting_->getEncVideoFilePath(videoFileIndex, i));
+      encoders_[i].start(arg, format.videoFormat, bufsize);
+    }
+
+    // エンコード
+    reader.readAll(setting_->getIntVideoFilePath(videoFileIndex));
+
+    // 終了処理
+    for (int i = 0; i < numEncoders_; ++i) {
+      encoders_[i].finish();
+    }
+
+    delete[] encoders_; encoders_ = NULL;
+    numEncoders_ = 0;
+  }
+
+private:
+  class SpVideoReader : public av::VideoReader {
+  public:
+    SpVideoReader(AMTVideoEncoder* this_)
+      : VideoReader()
+      , this_(this_)
+    { }
+  protected:
+    virtual void onFrameDecoded(av::Frame& frame) {
+      this_->onFrameDecoded(frame);
+    }
+  private:
+    AMTVideoEncoder* this_;
+  };
+
+  const TranscoderSetting* setting_;
+  const StreamReformInfo* reformInfo_;
+
+  int videoFileIndex_;
+  int numEncoders_;
+  av::EncodeWriter* encoders_;
+
+  void onFrameDecoded(av::Frame& frame__) {
+
+    // TODO: thread
+    // copy reference
+    av::Frame frame = frame__;
+
+    int64_t pts = frame()->pts;
+    int frameIndex = reformInfo_->getVideoFrameIndex(pts, videoFileIndex_);
+    if (frameIndex == -1) {
+      THROWF(FormatException, "Unknown PTS frame %lld", pts);
+    }
+
+    int encoderIndex = reformInfo_->getEncoderIndex(frameIndex);
+    
+    encoders_[encoderIndex].inputFrame(frame);
+  }
+};
+
+class AMTMuxder : public TsSplitterObject {
+public:
+};
+
