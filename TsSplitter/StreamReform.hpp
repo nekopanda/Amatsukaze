@@ -52,7 +52,7 @@ struct OutVideoFormat {
 class StreamReformInfo : public AMTObject {
 public:
   StreamReformInfo(
-    AMTContext* ctx,
+    AMTContext& ctx,
     int numVideoFile,
     std::vector<VideoFrameInfo>& videoFrameList,
     std::vector<FileAudioFrameInfo>& audioFrameList,
@@ -64,7 +64,18 @@ public:
     , streamEventList_(std::move(streamEventList))
   {
     encodedFrames_.resize(videoFrameList_.size(), false);
+  }
+
+  void prepareEncode() {
     reformMain();
+  }
+
+  void prepareMux() {
+    genAudioStream();
+  }
+
+  int getNumVideoFile() const {
+    return numVideoFile_;
   }
 
   // PTS -> video frame index
@@ -114,12 +125,8 @@ public:
     return outFormat_[formatId];
   }
 
-  void prepare3rdPhase() {
-    genAudioStream();
-  }
-
   const FileAudioFrameList& getFileAudioFrameList(
-    int encoderIndex, int videoFileIndex)
+    int encoderIndex, int videoFileIndex) const
   {
     int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
     return *reformedAudioFrameList_[formatId].get();
@@ -129,6 +136,15 @@ public:
   int64_t getFileDuration(int encoderIndex, int videoFileIndex) const {
     int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
     return fileDuration_[formatId];
+  }
+
+  const std::vector<int64_t>& getAudioFileOffsets() const {
+    return audioFileOffsets_;
+  }
+
+  int getOutFileIndex(int encoderIndex, int videoFileIndex) const {
+    int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
+    return outFileIndex_[formatId];
   }
 
 private:
@@ -163,6 +179,8 @@ private:
   // 3rd phase 入力
   std::vector<std::unique_ptr<FileAudioFrameList>> reformedAudioFrameList_;
   std::vector<int64_t> fileDuration_;
+  std::vector<int64_t> audioFileOffsets_; // 音声ファイルキャッシュ用
+  std::vector<int> outFileIndex_;
 
   void reformMain()
   {
@@ -418,9 +436,33 @@ private:
     // 出力データ生成
     reformedAudioFrameList_.resize(outFormat_.size());
     fileDuration_.resize(outFormat_.size());
+    int64_t maxDuration = 0;
+    int maxId = 0;
     for (int i = 0; i < (int)outFormat_.size(); ++i) {
+      int64_t time = outFiles[i].time;
       reformedAudioFrameList_[i] = std::move(outFiles[i].audioFrameList);
-      fileDuration_[i] = outFiles[i].time;
+      fileDuration_[i] = time;
+      if (maxDuration < time) {
+        maxDuration = time;
+        maxId = i;
+      }
+    }
+
+    // audioFileOffsets_を生成
+    audioFileOffsets_.resize(audioFrameList_.size() + 1);
+    for (int i = 0; i < (int)audioFrameList_.size(); ++i) {
+      audioFileOffsets_[i] = audioFrameList_[i].fileOffset;
+    }
+    const auto& lastFrame = audioFrameList_.back();
+    audioFileOffsets_.back() = lastFrame.fileOffset + lastFrame.codedDataSize;
+
+    // 出力ファイル番号生成
+    outFileIndex_.resize(outFormat_.size());
+    outFileIndex_[maxId] = 0;
+    for (int i = 0, cnt = 1; i < (int)outFormat_.size(); ++i) {
+      if (i != maxId) {
+        outFileIndex_[i] = cnt++;
+      }
     }
   }
 
@@ -493,7 +535,7 @@ private:
     });
     if (it != frameList.end()) {
       // 見つけたところに位置をセットして入れてみる
-      ctx->warn("%f秒で音声%dの同期ポイントを見失ったので再検索",
+      ctx.warn("%f秒で音声%dの同期ポイントを見失ったので再検索",
         elapsedTime(pts), index);
       state.lastFrame = *it - 1;
       fillAudioFramesInOrder(file, index, format, pts, duration);
@@ -544,11 +586,11 @@ private:
       int nframes = std::max(1, ((int)(modPTS - pts) + (frameDuration / 4)) / frameDuration);
 
       if (nframes > 1) {
-        ctx->warn("%f秒で音声%dにずれがあるので%dフレーム水増しします。",
+        ctx.warn("%f秒で音声%dにずれがあるので%dフレーム水増しします。",
           elapsedTime(modPTS), index, nframes - 1);
       }
       if (nskipped > 0) {
-        ctx->warn("%f秒で音声%dにずれがあるので%dフレームスキップします。",
+        ctx.warn("%f秒で音声%dにずれがあるので%dフレームスキップします。",
           elapsedTime(modPTS), index, nskipped);
       }
 

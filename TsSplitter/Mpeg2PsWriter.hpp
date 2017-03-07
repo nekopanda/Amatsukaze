@@ -76,7 +76,7 @@ struct PSMESInfo {
 
 struct PsProgramStreamMap : public AMTObject {
 
-	PsProgramStreamMap(AMTContext *ctx)
+	PsProgramStreamMap(AMTContext&ctx)
 		: AMTObject(ctx) { }
 
 	bool parse(MemoryChunk data) {
@@ -112,7 +112,7 @@ struct PsProgramStreamMap : public AMTObject {
 
 		nReadBytes = reader.numReadBytes();
 
-		uint32_t crc = ctx->getCRC()->calc(data.data, nReadBytes, uint32_t(-1));
+		uint32_t crc = ctx.getCRC()->calc(data.data, nReadBytes, uint32_t(-1));
 		if (crc != 0) {
 			// CRC不正
 			return false;
@@ -132,7 +132,7 @@ struct PsProgramStreamMap : public AMTObject {
 // デバッグ用
 class PsStreamVerifier {
 public:
-	PsStreamVerifier(AMTContext *ctx)
+	PsStreamVerifier(AMTContext&ctx)
 		: psm(ctx)
 	{ }
 
@@ -308,7 +308,7 @@ public:
 		virtual void onStreamData(MemoryChunk mc) = 0;
 	};
 
-	PsStreamWriter(AMTContext *ctx)
+	PsStreamWriter(AMTContext& ctx)
 		: AMTObject(ctx)
 	{
 		systemClock.maxBitsPerSecond = BITRATE;
@@ -399,7 +399,7 @@ private:
 			systemClock.clockOffset = clock - SYSTEM_CLOCK;
 			systemClock.currentClock = clock;
 
-      ctx->info("[PsWriter] ClockOffset = %lld", systemClock.clockOffset);
+      ctx.info("[PsWriter] ClockOffset = %lld", systemClock.clockOffset);
 		}
 		if (nextIsPSM) {
 			nextIsPSM = false;
@@ -431,7 +431,7 @@ private:
 			writer.write<16>(0);
 			writer.flush();
 
-			uint32_t crc = ctx->getCRC()->calc(
+			uint32_t crc = ctx.getCRC()->calc(
 				buffer.get() + psmStart, (int)buffer.size() - psmStart, uint32_t(-1));
 			writer.write<32>(crc);
 			writer.flush();

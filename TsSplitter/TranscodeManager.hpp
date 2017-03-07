@@ -8,6 +8,7 @@
 #include "TsSplitter.hpp"
 #include "Transcode.hpp"
 #include "StreamReform.hpp"
+#include "PacketCache.hpp"
 
 // カラースペース定義を使うため
 #include "libavutil/pixfmt.h"
@@ -66,7 +67,7 @@ enum ENUM_ENCODER {
   ENCODER_QSVENC,
 };
 
-static std::string makeArgs(
+static std::string makeEncoderArgs(
   ENUM_ENCODER encoder,
   const std::string& binpath,
   const std::string& options,
@@ -115,13 +116,31 @@ static std::string makeArgs(
   return ss.str();
 }
 
+static std::string makeMuxerArgs(
+  const std::string& binpath,
+  const std::string& inVideo,
+  const std::vector<std::string>& inAudios,
+  const std::string& outpath)
+{
+  std::ostringstream ss;
+
+  ss << "\"" << binpath << "\"";
+  ss << " -i \"" << inVideo << "\"";
+  for (const auto& inAudio : inAudios) {
+    ss << " -i \"" << inAudio << "\"";
+  }
+  ss << " \"" << outpath << "\"";
+
+  return ss.str();
+}
+
 struct TranscoderSetting {
   // 入力ファイルパス（拡張子を含む）
   std::string tsFilePath;
   // 出力ファイルパス（拡張子を除く）
   std::string outVideoPath;
-  // 中間映像ファイルプリフィックス
-  std::string intVideoBasePath;
+  // 中間ファイルプリフィックス
+  std::string intFileBasePath;
   // 一時音声ファイルパス（拡張子を含む）
   std::string audioFilePath;
   // エンコーダ設定
@@ -133,14 +152,21 @@ struct TranscoderSetting {
   std::string getIntVideoFilePath(int index) const
   {
     std::ostringstream ss;
-    ss << intVideoBasePath << "-" << index << ".mpg";
+    ss << intFileBasePath << "-" << index << ".mpg";
     return ss.str();
   }
 
   std::string getEncVideoFilePath(int vindex, int index) const
   {
     std::ostringstream ss;
-    ss << intVideoBasePath << "-" << vindex << "-" << index << ".raw";
+    ss << intFileBasePath << "-" << vindex << "-" << index << ".raw";
+    return ss.str();
+  }
+
+  std::string getIntAudioFilePath(int vindex, int index, int aindex) const
+  {
+    std::ostringstream ss;
+    ss << intFileBasePath << "-" << vindex << "-" << index << "-" << aindex << ".aac";
     return ss.str();
   }
 
@@ -159,12 +185,12 @@ struct TranscoderSetting {
 
 class AMTSplitter : public TsSplitter {
 public:
-  AMTSplitter(AMTContext *ctx, TranscoderSetting* setting)
+  AMTSplitter(AMTContext& ctx, const TranscoderSetting& setting)
     : TsSplitter(ctx)
     , setting_(setting)
     , psWriter(ctx)
     , writeHandler(*this)
-    , audioFile_(setting->audioFilePath, "wb")
+    , audioFile_(setting.audioFilePath, "wb")
     , videoFileCount_(0)
     , videoStreamType_(-1)
     , audioStreamType_(-1)
@@ -173,8 +199,9 @@ public:
     psWriter.setHandler(&writeHandler);
   }
 
-  StreamReformInfo reformInfo() {
-    
+  StreamReformInfo split() {
+    readAll();
+
     // for debug
     printInteraceCount();
 
@@ -202,7 +229,7 @@ protected:
     }
   };
 
-  TranscoderSetting* setting_;
+  const TranscoderSetting& setting_;
   PsStreamWriter psWriter;
   StreamFileWriteHandler writeHandler;
   File audioFile_;
@@ -217,6 +244,17 @@ protected:
   std::vector<FileAudioFrameInfo> audioFrameList_;
   std::vector<StreamEvent> streamEventList_;
 
+  void readAll() {
+    enum { BUFSIZE = 4 * 1024 * 1024 };
+    auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
+    MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
+    File srcfile(setting_.tsFilePath, "rb");
+    size_t readBytes;
+    do {
+      readBytes = srcfile.read(buffer);
+      inputTsData(MemoryChunk(buffer.data, readBytes));
+    } while (readBytes == buffer.length);
+  }
 
   static bool CheckPullDown(PICTURE_TYPE p0, PICTURE_TYPE p1) {
     switch (p0) {
@@ -295,14 +333,14 @@ protected:
     }
 
     int64_t totalTime = modifiedPTS.back().first - videoBasePTS;
-    ctx->info("時間: %f 秒", totalTime / 90000.0);
+    ctx.info("時間: %f 秒", totalTime / 90000.0);
 
-    ctx->info("フレームカウンタ");
-    ctx->info("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
+    ctx.info("フレームカウンタ");
+    ctx.info("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
       interaceCounter[0], interaceCounter[1], interaceCounter[2], interaceCounter[3], interaceCounter[4], interaceCounter[5], interaceCounter[6]);
 
     for (const auto& pair : PTSdiffMap) {
-      ctx->info("(PTS_Diff,Cnt)=(%d,%d)\n", pair.first, pair.second.v);
+      ctx.info("(PTS_Diff,Cnt)=(%d,%d)\n", pair.first, pair.second.v);
     }
   }
 
@@ -320,11 +358,11 @@ protected:
   }
 
   virtual void onVideoFormatChanged(VideoFormat fmt) {
-    ctx->debug("映像フォーマット変更を検知");
-    ctx->debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
+    ctx.debug("映像フォーマット変更を検知");
+    ctx.debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
 
     // 出力ファイルを変更
-    writeHandler.open(setting_->getIntVideoFilePath(videoFileCount_++));
+    writeHandler.open(setting_.getIntVideoFilePath(videoFileCount_++));
     psWriter.outHeader(videoStreamType_, audioStreamType_);
 
     StreamEvent ev = StreamEvent();
@@ -361,8 +399,8 @@ protected:
   }
 
   virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
-		ctx->debug("音声 %d のフォーマット変更を検知", audioIdx);
-    ctx->debug("チャンネル: %s サンプルレート: %d",
+		ctx.debug("音声 %d のフォーマット変更を検知", audioIdx);
+    ctx.debug("チャンネル: %s サンプルレート: %d",
       getAudioChannelString(fmt.channels), fmt.sampleRate);
 
     StreamEvent ev = StreamEvent();
@@ -393,9 +431,9 @@ protected:
 class AMTVideoEncoder : public AMTObject {
 public:
   AMTVideoEncoder(
-    AMTContext *ctx,
-    const TranscoderSetting* setting,
-    const StreamReformInfo* reformInfo)
+    AMTContext&ctx,
+    const TranscoderSetting& setting,
+    const StreamReformInfo& reformInfo)
     : AMTObject(ctx)
     , setting_(setting)
     , reformInfo_(reformInfo)
@@ -410,13 +448,13 @@ public:
   void encode(int videoFileIndex) {
     videoFileIndex_ = videoFileIndex;
 
-    int numEncoders = reformInfo_->getNumEncoders(videoFileIndex);
+    int numEncoders = reformInfo_.getNumEncoders(videoFileIndex);
     if (numEncoders == 0) {
-      ctx->warn("numEncoders == 0 ...");
+      ctx.warn("numEncoders == 0 ...");
       return;
     }
 
-    const auto& format0 = reformInfo_->getFormat(0, videoFileIndex);
+    const auto& format0 = reformInfo_.getFormat(0, videoFileIndex);
     int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
 
     // 初期化
@@ -424,18 +462,19 @@ public:
     SpVideoReader reader(this);
 
     for (int i = 0; i < numEncoders_; ++i) {
-      const auto& format = reformInfo_->getFormat(i, videoFileIndex);
-      std::string arg = makeArgs(
-        setting_->encoder,
-        setting_->encoderPath,
-        setting_->encoderOptions,
+      const auto& format = reformInfo_.getFormat(i, videoFileIndex);
+      std::string arg = makeEncoderArgs(
+        setting_.encoder,
+        setting_.encoderPath,
+        setting_.encoderOptions,
         format.videoFormat,
-        setting_->getEncVideoFilePath(videoFileIndex, i));
+        setting_.getEncVideoFilePath(videoFileIndex, i));
       encoders_[i].start(arg, format.videoFormat, bufsize);
     }
 
     // エンコード
-    reader.readAll(setting_->getIntVideoFilePath(videoFileIndex));
+    std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex);
+    reader.readAll(intVideoFilePath);
 
     // 終了処理
     for (int i = 0; i < numEncoders_; ++i) {
@@ -444,6 +483,9 @@ public:
 
     delete[] encoders_; encoders_ = NULL;
     numEncoders_ = 0;
+
+    // 中間ファイル削除
+    remove(intVideoFilePath.c_str());
   }
 
 private:
@@ -461,8 +503,8 @@ private:
     AMTVideoEncoder* this_;
   };
 
-  const TranscoderSetting* setting_;
-  const StreamReformInfo* reformInfo_;
+  const TranscoderSetting& setting_;
+  const StreamReformInfo& reformInfo_;
 
   int videoFileIndex_;
   int numEncoders_;
@@ -471,16 +513,17 @@ private:
   void onFrameDecoded(av::Frame& frame__) {
 
     // TODO: thread
+    // TODO: process pic_type
     // copy reference
     av::Frame frame = frame__;
 
     int64_t pts = frame()->pts;
-    int frameIndex = reformInfo_->getVideoFrameIndex(pts, videoFileIndex_);
+    int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
     if (frameIndex == -1) {
       THROWF(FormatException, "Unknown PTS frame %lld", pts);
     }
 
-    int encoderIndex = reformInfo_->getEncoderIndex(frameIndex);
+    int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
     
     encoders_[encoderIndex].inputFrame(frame);
   }
@@ -488,10 +531,95 @@ private:
 
 class AMTMuxder : public AMTObject {
 public:
-  AMTMuxder(AMTContext *ctx)
+  AMTMuxder(
+    AMTContext&ctx,
+    const TranscoderSetting& setting,
+    const StreamReformInfo& reformInfo)
     : AMTObject(ctx)
+    , setting_(setting)
+    , reformInfo_(reformInfo)
+    , audioCache_(ctx, setting.audioFilePath, reformInfo.getAudioFileOffsets(), 12, 4)
   { }
+
+  void mux(int videoFileIndex) {
+    int numEncoders = reformInfo_.getNumEncoders(videoFileIndex);
+    if (numEncoders == 0) {
+      return;
+    }
+
+    for (int i = 0; i < numEncoders; ++i) {
+      // 音声ファイルを作成
+      std::vector<std::string> audioFiles;
+      const FileAudioFrameList& fileFrameList =
+        reformInfo_.getFileAudioFrameList(i, videoFileIndex);
+      for (int a = 0; a < (int)fileFrameList.size(); ++a) {
+        const std::vector<int>& frameList = fileFrameList[a];
+        if (frameList.size() > 0) {
+          std::string filepath = setting_.getIntAudioFilePath(videoFileIndex, i, a);
+          File file(filepath, "wb");
+          for (int frameIndex : frameList) {
+            file.write(audioCache_[frameIndex]);
+          }
+          audioFiles.push_back(filepath);
+        }
+      }
+
+      // Mux
+      std::string encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
+      std::string outFilePath = setting_.getOutFilePath(
+        reformInfo_.getOutFileIndex(i, videoFileIndex));
+      std::string args = makeMuxerArgs(
+        setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
+
+      {
+        MySubProcess muxer(args);
+      }
+
+      // 中間ファイル削除
+      for (const std::string& audioFile : audioFiles) {
+        remove(audioFile.c_str());
+      }
+      remove(encVideoFile.c_str());
+    }
+  }
+
+private:
+  class MySubProcess : public EventBaseSubProcess {
+  public:
+    MySubProcess(const std::string& args) : EventBaseSubProcess(args) { }
+  protected:
+    virtual void onOut(bool isErr, MemoryChunk mc) {
+      // これはマルチスレッドで呼ばれるの注意
+      fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+    }
+  };
+
+  const TranscoderSetting& setting_;
+  const StreamReformInfo& reformInfo_;
+
+  PacketCache audioCache_;
 };
 
+static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
+{
+  auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
+  StreamReformInfo reformInfo = splitter->split();
+  splitter = nullptr;
 
+  reformInfo.prepareEncode();
+
+  auto encoder = std::unique_ptr<AMTVideoEncoder>(new AMTVideoEncoder(ctx, setting, reformInfo));
+  for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
+    encoder->encode(i);
+  }
+  encoder = nullptr;
+
+  reformInfo.prepareMux();
+
+  auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
+  for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
+    muxer->mux(i);
+  }
+  muxer = nullptr;
+}
 

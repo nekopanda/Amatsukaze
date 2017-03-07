@@ -266,7 +266,7 @@ class TsPacketParser : public AMTObject {
 		CHECK_PACKET_NUM = 8,
 	};
 public:
-	TsPacketParser(AMTContext* ctx)
+	TsPacketParser(AMTContext& ctx)
 		: AMTObject(ctx)
 		, syncOK(false)
 	{ }
@@ -436,7 +436,7 @@ struct PsiConstantHeader : public MemoryChunk {
 
 struct PsiSection : public AMTObject, public PsiConstantHeader {
 
-	PsiSection(AMTContext* ctx, uint8_t* data, int length)
+	PsiSection(AMTContext& ctx, uint8_t* data, int length)
 		: AMTObject(ctx), PsiConstantHeader(data, length) { }
 
 	uint16_t id() { return read16(&data[3]); }
@@ -453,7 +453,7 @@ struct PsiSection : public AMTObject, public PsiConstantHeader {
 	bool check() const {
 		if (!PsiConstantHeader::check()) return false;
 		if (length != section_length() + 3) return false;
-		if (ctx->getCRC()->calc(data, (int)length, 0xFFFFFFFFUL)) return false;
+		if (ctx.getCRC()->calc(data, (int)length, 0xFFFFFFFFUL)) return false;
 		return true;
 	}
 
@@ -557,7 +557,7 @@ private:
 
 class PsiParser : public AMTObject, public TsPacketHandler {
 public:
-	PsiParser(AMTContext* ctx)
+	PsiParser(AMTContext& ctx)
 		: AMTObject(ctx)
 	{}
 
@@ -626,7 +626,7 @@ private:
 class PsiUpdatedDetector : public PsiParser {
 public:
 
-	PsiUpdatedDetector(AMTContext *ctx)
+	PsiUpdatedDetector(AMTContext&ctx)
 		: PsiParser(ctx)
 	{ }
 
@@ -721,7 +721,7 @@ public:
 
 class TsPacketSelector : public AMTObject {
 public:
-	TsPacketSelector(AMTContext* ctx)
+	TsPacketSelector(AMTContext& ctx)
 		: AMTObject(ctx)
 		, waitingNewVideo(false)
 		, TSID_(-1)
@@ -766,7 +766,7 @@ private:
 	class PATDelegator : public PsiUpdatedDetector {
 		TsPacketSelector& this_;
 	public:
-		PATDelegator(AMTContext *ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		PATDelegator(AMTContext&ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
 		virtual void onTableUpdated(PsiSection section) {
 			this_.onPatUpdated(section);
 		}
@@ -774,7 +774,7 @@ private:
 	class PMTDelegator : public PsiUpdatedDetector {
 		TsPacketSelector& this_;
 	public:
-		PMTDelegator(AMTContext *ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		PMTDelegator(AMTContext&ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
 		virtual void onTableUpdated(PsiSection section) {
 			this_.onPmtUpdated(section);
 		}
@@ -881,11 +881,11 @@ private:
 			}
 			if (videoEs.pid == -1) {
 				// 映像ストリームがない
-				ctx->warn("[PMT更新] 映像ストリームがありません");
+				ctx.warn("[PMT更新] 映像ストリームがありません");
 				return;
 			}
 			if (audioEs.size() == 0) {
-				ctx->warn("[PMT更新] オーディオストリームがありません");
+				ctx.warn("[PMT更新] オーディオストリームがありません");
 			}
 
 			// 
@@ -895,7 +895,7 @@ private:
 				waitingNewVideo = true;
 				table = nextHandlerTable;
 				if (this->videoEs.pid != -1) {
-					ctx->info("[PMT更新] 映像ストリームの変更を検知");
+					ctx.info("[PMT更新] 映像ストリームの変更を検知");
 				}
 			}
 
@@ -986,10 +986,10 @@ private:
 			}
 
 			if (content != NULL) {
-				ctx->info("PID: 0x%04x TYPE: %s", elem.elementary_PID(), content);
+				ctx.info("PID: 0x%04x TYPE: %s", elem.elementary_PID(), content);
 			}
 			else {
-				ctx->info("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());
+				ctx.info("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());
 			}
 		}
 	}

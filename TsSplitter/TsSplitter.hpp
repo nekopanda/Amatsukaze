@@ -17,7 +17,7 @@
 
 class VideoFrameParser : public AMTObject, public PesParser {
 public:
-	VideoFrameParser(AMTContext *ctx)
+	VideoFrameParser(AMTContext&ctx)
 		: AMTObject(ctx)
 		, PesParser()
 		, videoStreamFormat(VS_MPEG2)
@@ -50,11 +50,11 @@ protected:
 
 	virtual void onPesPacket(int64_t clock, PESPacket packet) {
 		if (clock == -1) {
-			ctx->error("Video PES Packet にクロック情報がありません");
+			ctx.error("Video PES Packet にクロック情報がありません");
 			return;
 		}
 		if (!packet.has_PTS()) {
-			ctx->error("Video PES Packet に PTS がありません");
+			ctx.error("Video PES Packet に PTS がありません");
 			return;
 		}
 
@@ -63,7 +63,7 @@ protected:
 		MemoryChunk payload = packet.paylod();
 
 		if (!parser->inputFrame(payload, frameInfo, PTS, DTS)) {
-			ctx->error("フレーム情報の取得に失敗 PTS=%lld", PTS);
+			ctx.error("フレーム情報の取得に失敗 PTS=%lld", PTS);
 			return;
 		}
 
@@ -103,7 +103,7 @@ private:
 
 class AudioFrameParser : public AMTObject, public PesParser {
 public:
-	AudioFrameParser(AMTContext *ctx)
+	AudioFrameParser(AMTContext&ctx)
 		: AMTObject(ctx)
 		, PesParser()
 		, adtsParser(ctx)
@@ -111,11 +111,11 @@ public:
 
 	virtual void onPesPacket(int64_t clock, PESPacket packet) {
 		if (clock == -1) {
-			ctx->error("Audio PES Packet にクロック情報がありません");
+			ctx.error("Audio PES Packet にクロック情報がありません");
 			return;
 		}
 		if (!packet.has_PTS()) {
-			ctx->error("Audio PES Packet に PTS がありません");
+			ctx.error("Audio PES Packet に PTS がありません");
 			return;
 		}
 
@@ -153,7 +153,7 @@ private:
 // TSストリームを一定量だけ戻れるようにする
 class TsPacketBuffer : public TsPacketParser {
 public:
-	TsPacketBuffer(AMTContext* ctx)
+	TsPacketBuffer(AMTContext& ctx)
 		: TsPacketParser(ctx)
 		, handler(NULL)
 		, numBefferedPackets_(0)
@@ -298,7 +298,7 @@ private:
 
 class TsSplitter : public AMTObject, protected TsPacketSelectorHandler {
 public:
-	TsSplitter(AMTContext *ctx)
+	TsSplitter(AMTContext& ctx)
 		: AMTObject(ctx)
 		, initPhase(PMT_WAITING)
 		, tsPacketHandler(*this)
@@ -364,7 +364,7 @@ protected:
 		virtual void onTsPacket(int64_t clock, TsPacket packet) {
 			this_.tsSystemClock.inputTsPacket(packet);
 			if (this_.tsSystemClock.pcrReceived()) {
-				this_.ctx->debug("必要な情報は取得したのでTSを最初から読み直します");
+				this_.ctx.debug("必要な情報は取得したのでTSを最初から読み直します");
 				this_.initPhase = INIT_FINISHED;
 				// ハンドラを戻して最初から読み直す
 				this_.tsPacketParser.setHandler(&this_.tsPacketHandler);
@@ -378,7 +378,7 @@ protected:
 	class SpVideoFrameParser : public VideoFrameParser {
 		TsSplitter& this_;
 	public:
-		SpVideoFrameParser(AMTContext *ctx, TsSplitter& this_)
+		SpVideoFrameParser(AMTContext&ctx, TsSplitter& this_)
 			: VideoFrameParser(ctx), this_(this_) { }
 
 	protected:
@@ -394,7 +394,7 @@ protected:
 		TsSplitter& this_;
 		int audioIdx;
 	public:
-		SpAudioFrameParser(AMTContext *ctx, TsSplitter& this_, int audioIdx)
+		SpAudioFrameParser(AMTContext&ctx, TsSplitter& this_, int audioIdx)
 			: AudioFrameParser(ctx), this_(this_), audioIdx(audioIdx) { }
 
 	protected:
@@ -442,12 +442,12 @@ protected:
 		for (int i = 0; i < int(pids.size()); ++i) {
 			if (preferedServiceId == pids[i]) {
 				selectedServiceId = pids[i];
-				ctx->info("[PAT更新] サービス 0x%04x を選択", selectedServiceId);
+				ctx.info("[PAT更新] サービス 0x%04x を選択", selectedServiceId);
 				return i;
 			}
 		}
 		selectedServiceId = pids[0];
-		ctx->info("[PAT更新] サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
+		ctx.info("[PAT更新] サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
 		return 0;
 	}
 
@@ -479,7 +479,7 @@ protected:
 		while (audioParsers.size() < numAudios) {
 			int audioIdx = int(audioParsers.size());
 			audioParsers.push_back(new SpAudioFrameParser(ctx, *this, audioIdx));
-			ctx->debug("音声パーサ %d を追加", audioIdx);
+			ctx.debug("音声パーサ %d を追加", audioIdx);
 		}
 	}
 

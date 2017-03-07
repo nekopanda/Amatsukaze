@@ -467,9 +467,9 @@ private:
 
 class AMTObject {
 public:
-	AMTObject(AMTContext* ctx) : ctx(ctx) { }
+	AMTObject(AMTContext& ctx) : ctx(ctx) { }
 protected:
-	AMTContext* ctx;
+	AMTContext& ctx;
 };
 
 enum VIDEO_STREAM_FORMAT {

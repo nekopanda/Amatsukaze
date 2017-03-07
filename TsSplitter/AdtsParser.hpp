@@ -98,7 +98,7 @@ struct AdtsHeader {
 
 class AdtsParser : public AMTObject {
 public:
-	AdtsParser(AMTContext *ctx)
+	AdtsParser(AMTContext&ctx)
 		: AMTObject(ctx)
 		, hAacDec(NeAACDecOpen())
 	{
@@ -148,7 +148,7 @@ public:
 						unsigned char channels;
 						// TODO: フォーマットが変わる場合に対応できるか検証
 						if (NeAACDecInit(hAacDec, frame.data + i, (int)frame.length - i, &samplerate, &channels)) {
-							ctx->warn("NeAACDecInitに失敗");
+							ctx.warn("NeAACDecInitに失敗");
 							return false;
 						}
 						samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data + i, (int)frame.length - i);
