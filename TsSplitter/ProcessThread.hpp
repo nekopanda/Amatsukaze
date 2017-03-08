@@ -37,7 +37,10 @@ public:
     }
   }
   bool isRunning() { return thread_handle_ != NULL;  }
+
+protected:
   virtual void run() = 0;
+
 private:
   HANDLE thread_handle_;
 
@@ -48,25 +51,22 @@ private:
 };
 
 template <typename T>
-class DataPumpThread
+class DataPumpThread : private ThreadBase
 {
 public:
   DataPumpThread(size_t maximum)
     : maximum_(maximum)
     , current_(0)
     , finished_(false)
-    , thread_(this)
-  {
-    thread_.start();
-  }
+  { }
 
   ~DataPumpThread() {
-    if (thread_.isRunning()) {
+    if (isRunning()) {
       THROW(InvalidOperationException, "call join() before destroy object ...");
     }
   }
 
-  void put(const T& data, size_t amount)
+  void put(T& data, size_t amount)
   {
     auto& lock = with(critical_section_);
     while (current_ >= maximum_) {
@@ -75,21 +75,25 @@ public:
     if (data_.size() == 0) {
       cond_empty_.signal();
     }
-    data_.push_back(std::make_pair(amount, data));
+    data_.emplace_back(std::make_pair(amount, std::move(data)));
     current_ += amount;
+  }
+
+  void start() {
+    ThreadBase::start();
   }
 
   void join() {
     auto& lock = with(critical_section_);
     finished_ = true;
     cond_empty_.signal();
-    thread_.join();
+    ThreadBase::join();
   }
 
-  bool isRunning() { return thread_.isRunning(); }
+  bool isRunning() { return ThreadBase::isRunning(); }
 
 protected:
-  virtual void OnDataReceived(const T& data) = 0;
+  virtual void OnDataReceived(T& data) = 0;
 
 private:
   class MyThread : public ThreadBase {
@@ -114,7 +118,7 @@ private:
 
   bool finished_;
 
-  void pump_thread()
+  virtual void run()
   {
     while (true) {
       T data;
@@ -131,7 +135,7 @@ private:
           cond_full_.broadcast();
         }
         current_ = newsize;
-        data = entry.second;
+        data = std::move(entry.second);
         data_.pop_front();
       }
       OnDataReceived(data);

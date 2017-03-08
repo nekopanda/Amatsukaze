@@ -433,7 +433,7 @@ public:
   AMTVideoEncoder(
     AMTContext&ctx,
     const TranscoderSetting& setting,
-    const StreamReformInfo& reformInfo)
+    StreamReformInfo& reformInfo)
     : AMTObject(ctx)
     , setting_(setting)
     , reformInfo_(reformInfo)
@@ -472,15 +472,23 @@ public:
       encoders_[i].start(arg, format.videoFormat, bufsize);
     }
 
+    // エンコードスレッド開始
+    thread_.start();
+
     // エンコード
     std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex);
     reader.readAll(intVideoFilePath);
 
-    // 終了処理
+    // エンコードスレッドを終了して自分に引き継ぐ
+    thread_.join();
+
+    // 残ったフレームを処理
     for (int i = 0; i < numEncoders_; ++i) {
       encoders_[i].finish();
     }
 
+    // 終了
+    prevFrame_ = nullptr;
     delete[] encoders_; encoders_ = NULL;
     numEncoders_ = 0;
 
@@ -503,29 +511,172 @@ private:
     AMTVideoEncoder* this_;
   };
 
+  class SpDataPumpThread : public DataPumpThread<std::unique_ptr<av::Frame>> {
+  public:
+    SpDataPumpThread(AMTVideoEncoder* this_, int bufferingFrames)
+      : DataPumpThread(bufferingFrames)
+      , this_(this_)
+    { }
+  protected:
+    virtual void OnDataReceived(std::unique_ptr<av::Frame>& data) {
+      this_->onFrameReceived(data);
+    }
+  private:
+    AMTVideoEncoder* this_;
+  };
+
   const TranscoderSetting& setting_;
-  const StreamReformInfo& reformInfo_;
+  StreamReformInfo& reformInfo_;
 
   int videoFileIndex_;
   int numEncoders_;
   av::EncodeWriter* encoders_;
+  
+  SpDataPumpThread thread_;
+
+  std::unique_ptr<av::Frame> prevFrame_;
 
   void onFrameDecoded(av::Frame& frame__) {
+    // フレームをコピーしてスレッドに渡す
+    thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
+  }
 
-    // TODO: thread
-    // TODO: process pic_type
-    // copy reference
-    av::Frame frame = frame__;
+  void onFrameReceived(std::unique_ptr<av::Frame>& frame) {
 
-    int64_t pts = frame()->pts;
+    int64_t pts = (*frame)()->pts;
     int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
     if (frameIndex == -1) {
       THROWF(FormatException, "Unknown PTS frame %lld", pts);
     }
 
-    int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
-    
-    encoders_[encoderIndex].inputFrame(frame);
+    const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
+    auto& encoder = encoders_[reformInfo_.getEncoderIndex(frameIndex)];
+
+    // RFFフラグ処理
+    // PTSはinputFrameで再定義されるので修正しないでそのまま渡す
+    switch (info.pic) {
+    case PIC_FRAME:
+    case PIC_TFF:
+    case PIC_TFF_RFF:
+      encoder.inputFrame(*frame);
+      break;
+    case PIC_FRAME_DOUBLING:
+      encoder.inputFrame(*frame);
+      encoder.inputFrame(*frame);
+      break;
+    case PIC_FRAME_TRIPLING:
+      encoder.inputFrame(*frame);
+      encoder.inputFrame(*frame);
+      encoder.inputFrame(*frame);
+      break;
+    case PIC_BFF:
+      encoder.inputFrame(*makeFrameFromFields(*prevFrame_, *frame));
+      break;
+    case PIC_BFF_RFF:
+      encoder.inputFrame(*makeFrameFromFields(*prevFrame_, *frame));
+      encoder.inputFrame(*frame);
+      break;
+    }
+
+    reformInfo_.frameEncoded(frameIndex);
+    prevFrame_ = std::move(frame);
+  }
+
+  static std::unique_ptr<av::Frame> makeFrameFromFields(av::Frame& topframe, av::Frame& bottomframe)
+  {
+    auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
+
+    AVFrame* top = topframe();
+    AVFrame* bottom = bottomframe();
+    AVFrame* dst = (*dstframe)();
+
+    // フレームのプロパティをコピー
+    av_frame_copy_props(dst, top);
+
+    // メモリサイズに関する情報をコピー
+    dst->format = top->format;
+    dst->width = top->width;
+    dst->height = top->height;
+
+    // メモリ確保
+    if (av_frame_get_buffer(dst, 64) != 0) {
+      THROW(RuntimeException, "failed to allocate frame buffer");
+    }
+
+    // 中身をコピー
+    int bytesLumaLine;
+    int bytesChromaLine;
+    int chromaHeight;
+
+    switch (dst->format) {
+    case AV_PIX_FMT_YUV420P:
+      bytesLumaLine = dst->width;
+      bytesChromaLine = dst->width / 2;
+      chromaHeight = dst->height / 2;
+      break;
+    case AV_PIX_FMT_YUV420P9:
+    case AV_PIX_FMT_YUV420P10:
+    case AV_PIX_FMT_YUV420P12:
+    case AV_PIX_FMT_YUV420P14:
+    case AV_PIX_FMT_YUV420P16:
+      bytesLumaLine = dst->width * 2;
+      bytesChromaLine = dst->width * 2 / 2;
+      chromaHeight = dst->height / 2;
+      break;
+    case AV_PIX_FMT_YUV422P:
+      bytesLumaLine = dst->width;
+      bytesChromaLine = dst->width / 2;
+      chromaHeight = dst->height;
+      break;
+    case AV_PIX_FMT_YUV422P9:
+    case AV_PIX_FMT_YUV422P10:
+    case AV_PIX_FMT_YUV422P12:
+    case AV_PIX_FMT_YUV422P14:
+    case AV_PIX_FMT_YUV422P16:
+      bytesLumaLine = dst->width * 2;
+      bytesChromaLine = dst->width * 2 / 2;
+      chromaHeight = dst->height;
+      break;
+    default:
+      THROW(FormatException,
+        "makeFrameFromFields: unsupported pixel format (%d)", dst->format);
+    }
+
+    uint8_t* dsty = dst->data[0];
+    uint8_t* dstu = dst->data[1];
+    uint8_t* dstv = dst->data[2];
+    uint8_t* topy = top->data[0];
+    uint8_t* topu = top->data[1];
+    uint8_t* topv = top->data[2];
+    uint8_t* bottomy = bottom->data[0];
+    uint8_t* bottomu = bottom->data[1];
+    uint8_t* bottomv = bottom->data[2];
+
+    int stepdsty = dst->linesize[0];
+    int stepdstu = dst->linesize[1];
+    int stepdstv = dst->linesize[2];
+    int steptopy = top->linesize[0];
+    int steptopu = top->linesize[1];
+    int steptopv = top->linesize[2];
+    int stepbottomy = bottom->linesize[0];
+    int stepbottomu = bottom->linesize[1];
+    int stepbottomv = bottom->linesize[2];
+
+    // luma
+    for (int i = 0; i < dst->height; i += 2) {
+      memcpy(dsty + stepdsty * (i + 0), topy + steptopy * (i + 0), bytesLumaLine);
+      memcpy(dsty + stepdsty * (i + 1), bottomy + stepbottomy * (i + 1), bytesLumaLine);
+    }
+
+    // chroma
+    for (int i = 0; i < chromaHeight; i += 2) {
+      memcpy(dstu + stepdstu * (i + 0), topu + steptopu * (i + 0), bytesChromaLine);
+      memcpy(dstu + stepdstu * (i + 1), bottomu + stepbottomu * (i + 1), bytesChromaLine);
+      memcpy(dstv + stepdstv * (i + 0), topv + steptopv * (i + 0), bytesChromaLine);
+      memcpy(dstv + stepdstv * (i + 1), bottomv + stepbottomv * (i + 1), bytesChromaLine);
+    }
+
+    return std::move(dstframe);
   }
 };
 
