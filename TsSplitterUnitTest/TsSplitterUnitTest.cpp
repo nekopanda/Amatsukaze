@@ -188,7 +188,7 @@ void VerifyMpeg2Ps(std::string srcfile) {
 	FILE* fp = fopen(srcfile.c_str(), "rb");
 	try {
 		AMTContext ctx;
-		PsStreamVerifier psVerifier(&ctx);
+		PsStreamVerifier psVerifier(ctx);
 
 		size_t readBytes = fread(buf, 1, BUF_SIZE, fp);
 		psVerifier.verify(MemoryChunk(buf, readBytes));
@@ -489,8 +489,6 @@ FRAME_TYPE avFrameType(AVPictureType type)
 }
 
 TEST_F(TestBase, ffmpegEncode) {
-  // FFMPEGライブラリ初期化
-  av_register_all();
 
   std::string srcFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".mpg";
   std::string outFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".264";
@@ -510,7 +508,7 @@ TEST_F(TestBase, ffmpegEncode) {
   fmt.progressive = false;
 
   std::vector<VideoFormat> fmts = { fmt };
-  std::vector<std::string> args = { makeArgs(ENCODER_X264, "x264.exe", options, fmt, outFile) };
+  std::vector<std::string> args = { makeEncoderArgs(ENCODER_X264, "x264.exe", options, fmt, outFile) };
   printf("args: %s\n", args[0].c_str());
 
   std::map<int64_t, int> dummy;
@@ -520,8 +518,6 @@ TEST_F(TestBase, ffmpegEncode) {
 }
 
 TEST_F(TestBase, ffmpegTest) {
-  // FFMPEGライブラリ初期化
-  av_register_all();
 
   std::string srcFile = TestWorkDir + "\\" + LargeTsFile + ".mpg";
 
@@ -568,27 +564,6 @@ TEST_F(TestBase, ffmpegTest) {
 
 // Process/Thread Test
 
-class IntDataPumpThread : public DataPumpThread<int>
-{
-public:
-  IntDataPumpThread(size_t maximum)
-    : DataPumpThread(maximum)
-  { }
-protected:
-  virtual void OnDataReceived(const int& data) {
-    printf("Received %d\n", data);
-  }
-};
-
-TEST(Process, SimpleThreadTest)
-{
-  {
-    IntDataPumpThread th(3);
-    th.put(1, 1);
-    th.put(4, 4);
-  }
-}
-
 TEST(Process, SimpleProcessTest)
 {
   class ProcTest : public EventBaseSubProcess {
@@ -604,6 +579,27 @@ TEST(Process, SimpleProcessTest)
   proc.join();
 }
 
+// Encode Test
+
+TEST_F(TestBase, encodeMpeg2Test)
+{
+  std::string srcDir = TestDataDir + "\\";
+  std::string dstDir = TestWorkDir + "\\";
+
+  TranscoderSetting setting;
+  setting.tsFilePath = srcDir + MPEG2VideoTsFile + ".ts";
+  setting.outVideoPath = dstDir + "Mpeg2Test";
+  setting.intFileBasePath = dstDir + "Mpeg2TestInt";
+  setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
+  setting.encoder = ENCODER_X264;
+  setting.encoderPath = "x264.exe";
+  setting.encoderOptions = "--crf 23";
+  setting.muxerPath = "muxer.exe";
+
+  AMTContext ctx;
+  transcodeMain(ctx, setting);
+}
+
 void my_purecall_handler() {
   printf("It's pure virtual call !!!\n");
 }
@@ -613,7 +609,10 @@ int main(int argc, char **argv)
   // エラーハンドラをセット
   _set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*ffmpegEncode";
+  // FFMPEGライブラリ初期化
+  av_register_all();
+
+	::testing::GTEST_FLAG(filter) = "*encodeMpeg2Test";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

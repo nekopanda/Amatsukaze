@@ -242,16 +242,22 @@ private:
 	}
 };
 
+#define REDEFINE_PTS 0
+
 struct PsSystemClock {
+#if REDEFINE_PTS
 	int64_t clockOffset;
+#endif
 	int maxBitsPerSecond;
 
 	int64_t currentClock;
 
-	PsSystemClock()
-		: clockOffset(-1)
-		, maxBitsPerSecond(0)
-		, currentClock(-1)
+	PsSystemClock() :
+#if REDEFINE_PTS
+		clockOffset(-1),
+#endif
+		maxBitsPerSecond(0),
+		currentClock(-1)
 	{ }
 };
 
@@ -341,9 +347,15 @@ public:
 		if (frames.size() == 0) return;
 
 		initWhenNeeded(clock);
-		int64_t PTS = frames.front().PTS - systemClock.clockOffset / 300;
-		int64_t DTS = frames.front().DTS - systemClock.clockOffset / 300;
-		int64_t lastDTS = frames.back().DTS - systemClock.clockOffset / 300;
+#if REDEFINE_PTS
+    int64_t PTS = frames.front().PTS - systemClock.clockOffset / 300;
+    int64_t DTS = frames.front().DTS - systemClock.clockOffset / 300;
+    int64_t lastDTS = frames.back().DTS - systemClock.clockOffset / 300;
+#else
+    int64_t PTS = frames.front().PTS;
+    int64_t DTS = frames.front().DTS;
+    int64_t lastDTS = frames.back().DTS;
+#endif
 
 		// デコーダバッファが空くまでクロックを進める
 		putAccessUnit(lastDTS, (int)packet.length, videoBuffer);
@@ -360,8 +372,13 @@ public:
 		if (frames.size() == 0) return;
 
 		initWhenNeeded(clock);
+#if REDEFINE_PTS
 		int64_t PTS = frames.front().PTS - systemClock.clockOffset / 300;
 		int64_t lastDTS = frames.back().PTS - systemClock.clockOffset / 300;
+#else
+    int64_t PTS = frames.front().PTS;
+    int64_t lastDTS = frames.back().PTS;
+#endif
 
 		// バッファサイズ調整
 		if (audioChannels != frames.front().format.channels) {
@@ -396,10 +413,11 @@ private:
 	
 	void initWhenNeeded(int64_t clock) {
 		if (systemClock.currentClock == -1) {
+#if REDEFINE_PTS
 			systemClock.clockOffset = clock - SYSTEM_CLOCK;
-			systemClock.currentClock = clock;
-
       ctx.info("[PsWriter] ClockOffset = %lld", systemClock.clockOffset);
+#endif
+			systemClock.currentClock = clock;
 		}
 		if (nextIsPSM) {
 			nextIsPSM = false;

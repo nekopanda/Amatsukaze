@@ -66,7 +66,7 @@ public:
     }
   }
 
-  void put(T& data, size_t amount)
+  void put(T&& data, size_t amount)
   {
     auto& lock = with(critical_section_);
     while (current_ >= maximum_) {
@@ -75,7 +75,7 @@ public:
     if (data_.size() == 0) {
       cond_empty_.signal();
     }
-    data_.emplace_back(std::make_pair(amount, std::move(data)));
+    data_.emplace_back(amount, std::move(data));
     current_ += amount;
   }
 
@@ -84,29 +84,20 @@ public:
   }
 
   void join() {
-    auto& lock = with(critical_section_);
-    finished_ = true;
-    cond_empty_.signal();
+    {
+      auto& lock = with(critical_section_);
+      finished_ = true;
+      cond_empty_.signal();
+    }
     ThreadBase::join();
   }
 
   bool isRunning() { return ThreadBase::isRunning(); }
 
 protected:
-  virtual void OnDataReceived(T& data) = 0;
+  virtual void OnDataReceived(T&& data) = 0;
 
 private:
-  class MyThread : public ThreadBase {
-  public:
-    MyThread(DataPumpThread<T>* this_) : this_(this_) { }
-    ~MyThread() { join(); }
-    virtual void run() { this_->pump_thread(); }
-  private:
-    DataPumpThread<T>* this_;
-  };
-
-  MyThread thread_;
-
   CriticalSection critical_section_;
   CondWait cond_full_;
   CondWait cond_empty_;
@@ -138,7 +129,7 @@ private:
         data = std::move(entry.second);
         data_.pop_front();
       }
-      OnDataReceived(data);
+      OnDataReceived(std::move(data));
     }
   }
 };

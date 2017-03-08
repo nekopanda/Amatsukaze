@@ -129,7 +129,7 @@ static std::string makeMuxerArgs(
   for (const auto& inAudio : inAudios) {
     ss << " -i \"" << inAudio << "\"";
   }
-  ss << " \"" << outpath << "\"";
+  ss << " -o \"" << outpath << "\"";
 
   return ss.str();
 }
@@ -283,7 +283,7 @@ protected:
     for (int i = 0; i < int(videoFrameList_.size()); ++i) {
       int64_t PTS = videoFrameList_[i].PTS;
       int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
-      modifiedPTS.push_back(std::make_pair(modPTS, i));
+      modifiedPTS.emplace_back(modPTS, i);
       prevPTS = PTS;
     }
 
@@ -437,6 +437,7 @@ public:
     : AMTObject(ctx)
     , setting_(setting)
     , reformInfo_(reformInfo)
+    , thread_(this, 8)
   {
     //
   }
@@ -458,10 +459,10 @@ public:
     int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
 
     // 初期化
-    encoders_ = new av::EncodeWriter[numEncoders_];
+    encoders_ = new av::EncodeWriter[numEncoders];
     SpVideoReader reader(this);
 
-    for (int i = 0; i < numEncoders_; ++i) {
+    for (int i = 0; i < numEncoders; ++i) {
       const auto& format = reformInfo_.getFormat(i, videoFileIndex);
       std::string arg = makeEncoderArgs(
         setting_.encoder,
@@ -483,14 +484,13 @@ public:
     thread_.join();
 
     // 残ったフレームを処理
-    for (int i = 0; i < numEncoders_; ++i) {
+    for (int i = 0; i < numEncoders; ++i) {
       encoders_[i].finish();
     }
 
     // 終了
     prevFrame_ = nullptr;
     delete[] encoders_; encoders_ = NULL;
-    numEncoders_ = 0;
 
     // 中間ファイル削除
     remove(intVideoFilePath.c_str());
@@ -518,8 +518,8 @@ private:
       , this_(this_)
     { }
   protected:
-    virtual void OnDataReceived(std::unique_ptr<av::Frame>& data) {
-      this_->onFrameReceived(data);
+    virtual void OnDataReceived(std::unique_ptr<av::Frame>&& data) {
+      this_->onFrameReceived(std::move(data));
     }
   private:
     AMTVideoEncoder* this_;
@@ -529,7 +529,6 @@ private:
   StreamReformInfo& reformInfo_;
 
   int videoFileIndex_;
-  int numEncoders_;
   av::EncodeWriter* encoders_;
   
   SpDataPumpThread thread_;
@@ -541,7 +540,7 @@ private:
     thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
   }
 
-  void onFrameReceived(std::unique_ptr<av::Frame>& frame) {
+  void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
 
     int64_t pts = (*frame)()->pts;
     int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
@@ -638,7 +637,7 @@ private:
       chromaHeight = dst->height;
       break;
     default:
-      THROW(FormatException,
+      THROWF(FormatException,
         "makeFrameFromFields: unsupported pixel format (%d)", dst->format);
     }
 
@@ -724,6 +723,7 @@ public:
 
       {
         MySubProcess muxer(args);
+        muxer.join();
       }
 
       // 中間ファイル削除

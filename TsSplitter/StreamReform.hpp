@@ -182,6 +182,13 @@ private:
   std::vector<int64_t> audioFileOffsets_; // 音声ファイルキャッシュ用
   std::vector<int> outFileIndex_;
 
+  // 音ズレ情報
+  int64_t sumPtsDiff_;
+  int totalAudioFrames_; // 出力した音声フレーム（水増し分を含む）
+  int totalUniquAudioFrames_; // 出力した音声フレーム（水増し分を含まず）
+  int64_t maxPtsDiff_;
+  int64_t maxPtsDiffPos_;
+
   void reformMain()
   {
     if (videoFrameList_.size() == 0) {
@@ -298,14 +305,14 @@ private:
       case VIDEO_FORMAT_CHANGED:
         // ファイル変更
         ++curFormat.videoFileId;
-        outFormatStartIndex_.push_back(outFormat_.size());
+        outFormatStartIndex_.push_back((int)outFormat_.size());
         curFormat.videoFormat = videoFrameList_[ev.frameIdx].format;
         break;
       case AUDIO_FORMAT_CHANGED:
-        if (curFormat.audioFormat.size() >= ev.audioIdx) {
+        if (ev.audioIdx >= curFormat.audioFormat.size()) {
           THROW(FormatException, "StreamEvent's audioIdx exceeds numAudio of the previous table change event");
         }
-        curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.audioIdx].format;
+        curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.frameIdx].format;
         break;
       }
     }
@@ -314,7 +321,7 @@ private:
     registerOrGetFormat(curFormat);
     curSection.formatId = curFormat.formatId;
     sectionList.push_back(curSection);
-    outFormatStartIndex_.push_back(outFormat_.size());
+    outFormatStartIndex_.push_back((int)outFormat_.size());
 
     // frameFormatId_を生成
     frameFormatId_.resize(videoFrameList_.size());
@@ -401,6 +408,13 @@ private:
 
   void genAudioStream() {
 
+    // 統計情報初期化
+    sumPtsDiff_ = 0;
+    totalAudioFrames_ = 0;
+    totalUniquAudioFrames_ = 0;
+    maxPtsDiff_ = 0;
+    maxPtsDiffPos_ = 0;
+
     // indexAudioFrameList_を作成
     int numMaxAudio = 1;
     for (int i = 0; i < (int)outFormat_.size(); ++i) {
@@ -416,7 +430,7 @@ private:
     // outFiles初期化
     for (int i = 0; i < (int)outFormat_.size(); ++i) {
       auto& file = outFiles[i];
-      int numAudio = outFormat_[i].audioFormat.size();
+      int numAudio = (int)outFormat_[i].audioFormat.size();
       file.time = 0;
       file.audioState.resize(numAudio);
       file.audioFrameList =
@@ -464,6 +478,8 @@ private:
         outFileIndex_[i] = cnt++;
       }
     }
+
+    printAudioPtsDiff();
   }
 
   // ファイルに映像フレームを１枚追加
@@ -571,9 +587,7 @@ private:
       }
       if (modPTS + (frameDuration / 2) < pts) {
         // 前すぎるのでスキップ
-        if (state.lastFrame != 0) {
-          ++nskipped;
-        }
+        ++nskipped;
         continue;
       }
       if (frame.format != format) {
@@ -590,12 +604,29 @@ private:
           elapsedTime(modPTS), index, nframes - 1);
       }
       if (nskipped > 0) {
-        ctx.warn("%f秒で音声%dにずれがあるので%dフレームスキップします。",
-          elapsedTime(modPTS), index, nskipped);
+        if (state.lastFrame == -1) {
+          ctx.info("音声%dは%dフレーム目から開始します。",
+            index, nskipped);
+        }
+        else {
+          ctx.warn("%f秒で音声%dにずれがあるので%dフレームスキップします。",
+            elapsedTime(modPTS), index, nskipped);
+        }
+        nskipped = 0;
       }
 
-      // フレームを出力
+      ++totalUniquAudioFrames_;
       for (int t = 0; t < nframes; ++t) {
+        // 統計情報
+        int64_t diff = std::abs(modPTS - pts);
+        if (maxPtsDiff_ < diff) {
+          maxPtsDiff_ = diff;
+          maxPtsDiffPos_ = pts;
+        }
+        sumPtsDiff_ += diff;
+        ++totalAudioFrames_;
+
+        // フレームを出力
         outFrameList.push_back(frameIndex);
         state.time += frameDuration;
         pts += frameDuration;
@@ -610,8 +641,17 @@ private:
     }
   }
 
+  void printAudioPtsDiff() {
+    ctx.info("音声フレーム %d（うち水増し%dフレーム）出力しました。",
+      totalAudioFrames_, totalAudioFrames_ - totalUniquAudioFrames_);
+    ctx.info("音ズレは平均 %fms、最大 %fms（入力動画最初の映像フレームから%f秒後の位置）です。",
+      (double)sumPtsDiff_ * 1000 / (totalAudioFrames_ * MPEG_CLOCK_HZ),
+      (double)maxPtsDiff_ * 1000 / MPEG_CLOCK_HZ,
+      elapsedTime(maxPtsDiffPos_));
+  }
+
   double elapsedTime(int64_t modPTS) {
-    return (double)(modPTS - modifiedPTS_[0]) / MPEG_CLOCK_HZ;
+    return (double)(modPTS - dataPTS_[0]) / MPEG_CLOCK_HZ;
   }
 };
 

@@ -531,7 +531,7 @@ struct PMT {
 		payload_ = section.payload();
 		int offset = program_info_length() + 4;
 		while (offset < payload_.length) {
-			elems.push_back(PMTElement(&payload_.data[offset]));
+			elems.emplace_back(&payload_.data[offset]);
 			offset += elems.back().size();
 		}
 		return true;
@@ -876,7 +876,7 @@ private:
 					videoEs.pid = elem.elementary_PID();
 				}
 				else if (isAudio(stream_type)) {
-					audioEs.push_back(PMTESInfo(stream_type, elem.elementary_PID()));
+					audioEs.emplace_back(stream_type, elem.elementary_PID());
 				}
 			}
 			if (videoEs.pid == -1) {

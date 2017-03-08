@@ -16,6 +16,8 @@ public:
     : AMTObject(ctx)
     , file_(filepath, "rb")
     , offsets_(offsets)
+    , nLinebit_(nLinebit)
+    , nEntry_(nEntry)
   {
     int numData = (int)offsets.size() - 1;
 
@@ -33,7 +35,7 @@ public:
   // MemoryChunk‚Í­‚È‚­‚Æ‚ànEntry‰ñ‚ÌŒÄ‚Ño‚µ‚Ü‚Å—LŒø
   MemoryChunk operator[](int index) {
     int64_t localOffset = offsets_[index] - offsets_[getLineBaseIndex(index)];
-    int dataSize = offsets_[index + 1] - offsets_[index];
+    int dataSize = int(offsets_[index + 1] - offsets_[index]);
     uint8_t* entryPtr = getEntry(getLineNumber(index));
     return MemoryChunk(entryPtr + localOffset, dataSize);
   }
