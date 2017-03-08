@@ -133,7 +133,7 @@ enum {
 
 	MAX_PID = 0x1FFF,
 
-  MPEG_CLOCK_HZ = 90000, // MPEG2,H264,H265はPTSが90kHz単位となっている
+	MPEG_CLOCK_HZ = 90000, // MPEG2,H264,H265はPTSが90kHz単位となっている
 };
 
 /** @brief shiftだけ右シフトしてmask数bitだけ返す(bit shift mask) */
@@ -381,37 +381,37 @@ private:
 class File : NonCopyable
 {
 public:
-  File(const std::string& path, const char* mode) {
-    fp_ = _fsopen(path.c_str(), mode, _SH_DENYNO);
-    if (fp_ == NULL) {
-      THROWF(IOException, "failed to open file %s", path.c_str());
-    }
-  }
-  ~File() {
-    fclose(fp_);
-  }
-  void write(MemoryChunk mc) {
-    if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
-      THROWF(IOException, "failed to write to file");
-    }
-  }
-  size_t read(MemoryChunk mc) {
-    size_t ret = fread(mc.data, 1, mc.length, fp_);
-    if (ret <= 0) {
-      THROWF(IOException, "failed to read from file");
-    }
-    return ret;
-  }
-  void flush() {
-    fflush(fp_);
-  }
-  void seek(int64_t offset, int origin) {
-    if (_fseeki64(fp_, offset, origin) != 0) {
-      THROWF(IOException, "failed to seek file");
-    }
-  }
+	File(const std::string& path, const char* mode) {
+		fp_ = _fsopen(path.c_str(), mode, _SH_DENYNO);
+		if (fp_ == NULL) {
+			THROWF(IOException, "failed to open file %s", path.c_str());
+		}
+	}
+	~File() {
+		fclose(fp_);
+	}
+	void write(MemoryChunk mc) {
+		if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
+			THROWF(IOException, "failed to write to file");
+		}
+	}
+	size_t read(MemoryChunk mc) {
+		size_t ret = fread(mc.data, 1, mc.length, fp_);
+		if (ret <= 0) {
+			THROWF(IOException, "failed to read from file");
+		}
+		return ret;
+	}
+	void flush() {
+		fflush(fp_);
+	}
+	void seek(int64_t offset, int origin) {
+		if (_fseeki64(fp_, offset, origin) != 0) {
+			THROWF(IOException, "failed to seek file");
+		}
+	}
 private:
-  FILE* fp_;
+	FILE* fp_;
 };
 
 enum TS_SPLITTER_LOG_LEVEL {
@@ -538,20 +538,20 @@ struct VideoFormat {
 	int width, height; // 横縦
 	int sarWidth, sarHeight; // アスペクト比
 	int frameRateNum, frameRateDenom; // フレームレート
-  uint8_t colorPrimaries, transferCharacteristics, colorSpace; // カラースペース
-  bool progressive;
+	uint8_t colorPrimaries, transferCharacteristics, colorSpace; // カラースペース
+	bool progressive;
 
 	VideoFormat()
 		: width(0)
 		, height(0)
 		, sarWidth(0)
 		, sarHeight(0)
-    , frameRateNum(0)
-    , frameRateDenom(0)
-    , colorPrimaries(0)
-    , transferCharacteristics(0)
-    , colorSpace(0)
-    , progressive(false)
+		, frameRateNum(0)
+		, frameRateDenom(0)
+		, colorPrimaries(0)
+		, transferCharacteristics(0)
+		, colorSpace(0)
+		, progressive(false)
 	{ }
 
 	bool isEmpty() const {
@@ -561,7 +561,7 @@ struct VideoFormat {
 	bool operator==(const VideoFormat& o) const {
 		return (width == o.width && height == o.height
 			&& frameRateNum == o.frameRateNum && frameRateDenom == o.frameRateDenom
-      && progressive == o.progressive);
+			&& progressive == o.progressive);
 	}
 	bool operator!=(const VideoFormat& o) const {
 		return !(*this == o);

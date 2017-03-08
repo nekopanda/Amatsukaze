@@ -188,7 +188,10 @@ public:
 	void backAndInput() {
 		if (handler != NULL) {
 			for (int i = 0; i < buffer.size(); i += TS_PACKET_LENGTH) {
-				handler->onTsPacket(-1, TsPacket(buffer.get() + i));
+				TsPacket packet(buffer.get() + i);
+				if (packet.parse() && packet.check()) {
+					handler->onTsPacket(-1, packet);
+				}
 			}
 		}
 	}
@@ -368,6 +371,7 @@ protected:
 				this_.initPhase = INIT_FINISHED;
 				// ハンドラを戻して最初から読み直す
 				this_.tsPacketParser.setHandler(&this_.tsPacketHandler);
+				this_.tsPacketSelector.resetParser();
 				this_.tsSystemClock.backTs();
 				this_.tsPacketParser.backAndInput();
 				// もう必要ないのでバッファリングはOFF
@@ -421,20 +425,20 @@ protected:
 	int preferedServiceId;
 	int selectedServiceId;
 
-  virtual void onVideoPesPacket(
-    int64_t clock,
-    const std::vector<VideoFrameInfo>& frames,
-    PESPacket packet) = 0;
+	virtual void onVideoPesPacket(
+		int64_t clock,
+		const std::vector<VideoFrameInfo>& frames,
+		PESPacket packet) = 0;
 
-  virtual void onVideoFormatChanged(VideoFormat fmt) = 0;
+	virtual void onVideoFormatChanged(VideoFormat fmt) = 0;
 
-  virtual void onAudioPesPacket(
-    int audioIdx,
-    int64_t clock,
-    const std::vector<AudioFrameData>& frames,
-    PESPacket packet) = 0;
+	virtual void onAudioPesPacket(
+		int audioIdx,
+		int64_t clock,
+		const std::vector<AudioFrameData>& frames,
+		PESPacket packet) = 0;
 
-  virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) = 0;
+	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) = 0;
 
 	// サービスを設定する場合はサービスのpids上でのインデックス
 	// なにもしない場合は負の値の返す
@@ -457,6 +461,7 @@ protected:
 			// PCRハンドラに置き換えてTSを最初から読み直す
 			tsPacketParser.setHandler(&pcrDetectionHandler);
 			tsSystemClock.setPcrPid(PcrPid);
+			tsPacketSelector.resetParser();
 			tsSystemClock.backTs();
 			tsPacketParser.backAndInput();
 		}

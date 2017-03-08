@@ -45,13 +45,13 @@ protected:
 		getParam(inipath, "SampleAACFile", SampleAACFile);
 		getParam(inipath, "SampleMPEG2PsFile", SampleMPEG2PsFile);
 		getParam(inipath, "VideoFormatChangeTsFile", VideoFormatChangeTsFile);
-    getParam(inipath, "AudioFormatChangeTsFile", AudioFormatChangeTsFile);
-    getParam(inipath, "RffFieldPictureTsFile", RffFieldPictureTsFile);
-    getParam(inipath, "BFFMPEG2VideoTsFile", BFFMPEG2VideoTsFile);
-    getParam(inipath, "DropTsFile", DropTsFile);
-    getParam(inipath, "VideoDropTsFile", VideoDropTsFile);
-    getParam(inipath, "AudioDropTsFile", AudioDropTsFile);
-    getParam(inipath, "PullDownTsFile", PullDownTsFile);
+		getParam(inipath, "AudioFormatChangeTsFile", AudioFormatChangeTsFile);
+		getParam(inipath, "RffFieldPictureTsFile", RffFieldPictureTsFile);
+		getParam(inipath, "BFFMPEG2VideoTsFile", BFFMPEG2VideoTsFile);
+		getParam(inipath, "DropTsFile", DropTsFile);
+		getParam(inipath, "VideoDropTsFile", VideoDropTsFile);
+		getParam(inipath, "AudioDropTsFile", AudioDropTsFile);
+		getParam(inipath, "PullDownTsFile", PullDownTsFile);
 		getParam(inipath, "LargeTsFile", LargeTsFile);
 	}
 
@@ -81,13 +81,13 @@ protected:
 	std::string SampleAACFile;
 	std::string SampleMPEG2PsFile;
 	std::string VideoFormatChangeTsFile;
-  std::string AudioFormatChangeTsFile;
-  std::string RffFieldPictureTsFile;
-  std::string BFFMPEG2VideoTsFile;
-  std::string DropTsFile;
-  std::string VideoDropTsFile;
-  std::string AudioDropTsFile;
-  std::string PullDownTsFile;
+	std::string AudioFormatChangeTsFile;
+	std::string RffFieldPictureTsFile;
+	std::string BFFMPEG2VideoTsFile;
+	std::string DropTsFile;
+	std::string VideoDropTsFile;
+	std::string AudioDropTsFile;
+	std::string PullDownTsFile;
 	std::string LargeTsFile;
 
 	void ParserTest(const std::string& filename, bool verify = true);
@@ -148,36 +148,36 @@ TEST(Util, readOpt) {
 
 TEST(Util, AutoBufferTest) {
 
-  srand(0);
+	srand(0);
 
-  uint8_t *buf = new uint8_t[65536];
-  int addCnt = 0;
-  int delCnt = 0;
+	uint8_t *buf = new uint8_t[65536];
+	int addCnt = 0;
+	int delCnt = 0;
 
-  AutoBuffer ab;
-  for (int i = 0; i < 10000; ++i) {
-    int addNum = rand();
-    int delNum = rand();
+	AutoBuffer ab;
+	for (int i = 0; i < 10000; ++i) {
+		int addNum = rand();
+		int delNum = rand();
 
-    for (int c = 0; c < addNum; ++c) {
-      buf[c] = addCnt++;
-    }
-    //printf("Add %d\n", addNum);
-    ab.add(buf, addNum);
+		for (int c = 0; c < addNum; ++c) {
+			buf[c] = addCnt++;
+		}
+		//printf("Add %d\n", addNum);
+		ab.add(buf, addNum);
 
-    uint8_t *data = ab.get();
-    for (int c = 0; c < ab.size(); ++c) {
-      if (data[c] != ((delCnt + c) & 0xFF)) {
-        ASSERT_TRUE(false);
-      }
-    }
+		uint8_t *data = ab.get();
+		for (int c = 0; c < ab.size(); ++c) {
+			if (data[c] != ((delCnt + c) & 0xFF)) {
+				ASSERT_TRUE(false);
+			}
+		}
 
-    delNum = std::min<int>(delNum, (int)ab.size());
-    //printf("Del %d\n", delNum);
-    ab.trimHead(delNum);
-    delCnt += delNum;
-  }
-  delete buf;
+		delNum = std::min<int>(delNum, (int)ab.size());
+		//printf("Del %d\n", delNum);
+		ab.trimHead(delNum);
+		delCnt += delNum;
+	}
+	delete buf;
 }
 
 void VerifyMpeg2Ps(std::string srcfile) {
@@ -226,7 +226,7 @@ void TestBase::ParserTest(const std::string& filename, bool verify) {
 	ASSERT_TRUE(aacfp != NULL);
 	ASSERT_TRUE(wavfp != NULL);
 
-  /* TODO: TsSplitterテストを作る
+	/* TODO: TsSplitterテストを作る
 	AMTContext ctx;
 	TsSplitter tsSplitter(&ctx);
 	tsSplitter.mpgfp = mpgfp;
@@ -250,7 +250,7 @@ void TestBase::ParserTest(const std::string& filename, bool verify) {
 	fclose(mpgfp);
 	fclose(aacfp);
 	fclose(wavfp);
-  */
+	*/
 
 	// 出力ファイルをチェック
 	if (verify) {
@@ -344,7 +344,7 @@ TEST_F(TestBase, AacDecodeVerifyTest) {
 			EXPECT_TRUE(testLength == decoded.size());
 			// AACのデコード結果は小数なので丸め誤差を考慮して
 			for (int c = 0; c < testLength/2; ++c) {
-				EXPECT_TRUE(std::abs((int)pTest[c] -  (int)pDec[c]) <= 1);
+				EXPECT_TRUE(std::abs((int)pTest[c] -	(int)pDec[c]) <= 1);
 			}
 			break;
 		}
@@ -402,215 +402,215 @@ TEST_F(TestBase, WaveWriter) {
 class ImageWriter
 {
 public:
-  ImageWriter(const std::string& path, AVPixelFormat src_fmt, int width, int height)
-  {
-    this->dirPath = path;
-    this->src_fmt = src_fmt;
-    this->width = width;
-    this->height = height;
+	ImageWriter(const std::string& path, AVPixelFormat src_fmt, int width, int height)
+	{
+		this->dirPath = path;
+		this->src_fmt = src_fmt;
+		this->width = width;
+		this->height = height;
 
-    _mkdir(path.c_str());
+		_mkdir(path.c_str());
 
-    sws_ctx = sws_getContext(width, height, src_fmt, width, height,
-      AV_PIX_FMT_BGR24, SWS_BILINEAR, NULL, NULL, NULL);
+		sws_ctx = sws_getContext(width, height, src_fmt, width, height,
+			AV_PIX_FMT_BGR24, SWS_BILINEAR, NULL, NULL, NULL);
 
-    pFrameRGB = av::AllocPicture(AV_PIX_FMT_BGR24, width, height);
-  }
-  ~ImageWriter()
-  {
-    sws_freeContext(sws_ctx); sws_ctx = NULL;
-    av::FreePicture(pFrameRGB);
-  }
+		pFrameRGB = av::AllocPicture(AV_PIX_FMT_BGR24, width, height);
+	}
+	~ImageWriter()
+	{
+		sws_freeContext(sws_ctx); sws_ctx = NULL;
+		av::FreePicture(pFrameRGB);
+	}
 
-  void Write(AVFrame* pFrame)
-  {
-    
-    ASSERT_TRUE(src_fmt == pFrame->format);
-    ASSERT_TRUE(width == pFrame->width);
-    ASSERT_TRUE(height == pFrame->height);
+	void Write(AVFrame* pFrame)
+	{
+		
+		ASSERT_TRUE(src_fmt == pFrame->format);
+		ASSERT_TRUE(width == pFrame->width);
+		ASSERT_TRUE(height == pFrame->height);
 
-    sws_scale(sws_ctx, (uint8_t const * const *)pFrame->data,
-      pFrame->linesize, 0, pFrame->height,
-      pFrameRGB->data, pFrameRGB->linesize);
+		sws_scale(sws_ctx, (uint8_t const * const *)pFrame->data,
+			pFrame->linesize, 0, pFrame->height,
+			pFrameRGB->data, pFrameRGB->linesize);
 
-    cv::Mat img(pFrame->height, pFrame->width, CV_8UC3,
-      pFrameRGB->data[0], pFrameRGB->linesize[0]);
-    cv::imwrite(getNextFileName(), img);
-  }
+		cv::Mat img(pFrame->height, pFrame->width, CV_8UC3,
+			pFrameRGB->data[0], pFrameRGB->linesize[0]);
+		cv::imwrite(getNextFileName(), img);
+	}
 
 private:
-  std::string dirPath;
-  SwsContext *sws_ctx;
-  AVFrame *pFrameRGB;
+	std::string dirPath;
+	SwsContext *sws_ctx;
+	AVFrame *pFrameRGB;
 
-  AVPixelFormat src_fmt;
-  int width;
-  int height;
+	AVPixelFormat src_fmt;
+	int width;
+	int height;
 
-  int fileCnt = 0;
-  char nameBuffer[256];
+	int fileCnt = 0;
+	char nameBuffer[256];
 
-  const char* getNextFileName()
-  {
-    sprintf_s(nameBuffer, "%s\\frame-%06d.bmp", dirPath.c_str(), fileCnt++);
-    return nameBuffer;
-  }
+	const char* getNextFileName()
+	{
+		sprintf_s(nameBuffer, "%s\\frame-%06d.bmp", dirPath.c_str(), fileCnt++);
+		return nameBuffer;
+	}
 };
 
 PICTURE_TYPE avPictureType(int interalced, int tff, int repeat_pict)
 {
-  switch (repeat_pict) {
-  case 0:
-    return interalced ? (tff ? PIC_TFF : PIC_BFF) : PIC_FRAME;
-  case 1:
-    return tff ? PIC_TFF_RFF : PIC_BFF_RFF;
-  case 2:
-    return PIC_FRAME_DOUBLING;
-  case 4:
-    return PIC_FRAME_TRIPLING;
-  default:
-    THROWF(FormatException, "不明なrepeat_pict(%d)です", repeat_pict);
-  }
-  return PIC_FRAME; // 警告抑制
+	switch (repeat_pict) {
+	case 0:
+		return interalced ? (tff ? PIC_TFF : PIC_BFF) : PIC_FRAME;
+	case 1:
+		return tff ? PIC_TFF_RFF : PIC_BFF_RFF;
+	case 2:
+		return PIC_FRAME_DOUBLING;
+	case 4:
+		return PIC_FRAME_TRIPLING;
+	default:
+		THROWF(FormatException, "不明なrepeat_pict(%d)です", repeat_pict);
+	}
+	return PIC_FRAME; // 警告抑制
 }
 
 FRAME_TYPE avFrameType(AVPictureType type)
 {
-  switch (type) {
-  case AV_PICTURE_TYPE_I:
-    return FRAME_I;
-  case AV_PICTURE_TYPE_P:
-    return FRAME_P;
-  case AV_PICTURE_TYPE_B:
-    return FRAME_B;
-  default:
-    return FRAME_OTHER;
-  }
+	switch (type) {
+	case AV_PICTURE_TYPE_I:
+		return FRAME_I;
+	case AV_PICTURE_TYPE_P:
+		return FRAME_P;
+	case AV_PICTURE_TYPE_B:
+		return FRAME_B;
+	default:
+		return FRAME_OTHER;
+	}
 }
 
 TEST_F(TestBase, ffmpegEncode) {
 
-  std::string srcFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".mpg";
-  std::string outFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".264";
+	std::string srcFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".mpg";
+	std::string outFile = TestWorkDir + "\\" + MPEG2VideoTsFile + ".264";
 
-  std::string options = "--crf 23";
+	std::string options = "--crf 23";
 
-  VideoFormat fmt;
-  fmt.width = 1440;
-  fmt.height = 1080;
-  fmt.sarWidth = 4;
-  fmt.sarHeight = 3;
-  fmt.frameRateNum = 30000;
-  fmt.frameRateDenom = 1001;
-  fmt.colorPrimaries = 1;
-  fmt.transferCharacteristics = 1;
-  fmt.colorSpace = 1;
-  fmt.progressive = false;
+	VideoFormat fmt;
+	fmt.width = 1440;
+	fmt.height = 1080;
+	fmt.sarWidth = 4;
+	fmt.sarHeight = 3;
+	fmt.frameRateNum = 30000;
+	fmt.frameRateDenom = 1001;
+	fmt.colorPrimaries = 1;
+	fmt.transferCharacteristics = 1;
+	fmt.colorSpace = 1;
+	fmt.progressive = false;
 
-  std::vector<VideoFormat> fmts = { fmt };
-  std::vector<std::string> args = { makeEncoderArgs(ENCODER_X264, "x264.exe", options, fmt, outFile) };
-  printf("args: %s\n", args[0].c_str());
+	std::vector<VideoFormat> fmts = { fmt };
+	std::vector<std::string> args = { makeEncoderArgs(ENCODER_X264, "x264.exe", options, fmt, outFile) };
+	printf("args: %s\n", args[0].c_str());
 
-  std::map<int64_t, int> dummy;
+	std::map<int64_t, int> dummy;
 
-  av::MultiOutTranscoder trans;
-  trans.encode(srcFile, fmts, args, dummy, fmt.width * fmt.height * 3);
+	av::MultiOutTranscoder trans;
+	trans.encode(srcFile, fmts, args, dummy, fmt.width * fmt.height * 3);
 }
 
 TEST_F(TestBase, ffmpegTest) {
 
-  std::string srcFile = TestWorkDir + "\\" + LargeTsFile + ".mpg";
+	std::string srcFile = TestWorkDir + "\\" + LargeTsFile + ".mpg";
 
-  AVFormatContext *pFormatCtx = NULL;
-  ASSERT_TRUE(avformat_open_input(&pFormatCtx, srcFile.c_str(), NULL, NULL) == 0);
-  ASSERT_TRUE(avformat_find_stream_info(pFormatCtx, NULL) >= 0);
-  av_dump_format(pFormatCtx, 0, srcFile.c_str(), 0);
-  AVStream *videoStream = av::GetVideoStream(pFormatCtx);
-  ASSERT_TRUE(videoStream != NULL);
-  AVCodec *pCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
-  ASSERT_TRUE(pCodec != NULL);
-  AVCodecContext *pCodecCtx = avcodec_alloc_context3(pCodec);
-  ASSERT_TRUE(avcodec_parameters_to_context(pCodecCtx, videoStream->codecpar) == 0);
-  ASSERT_TRUE(avcodec_open2(pCodecCtx, pCodec, NULL) == 0);
-  AVFrame *pFrame = av_frame_alloc();
+	AVFormatContext *pFormatCtx = NULL;
+	ASSERT_TRUE(avformat_open_input(&pFormatCtx, srcFile.c_str(), NULL, NULL) == 0);
+	ASSERT_TRUE(avformat_find_stream_info(pFormatCtx, NULL) >= 0);
+	av_dump_format(pFormatCtx, 0, srcFile.c_str(), 0);
+	AVStream *videoStream = av::GetVideoStream(pFormatCtx);
+	ASSERT_TRUE(videoStream != NULL);
+	AVCodec *pCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
+	ASSERT_TRUE(pCodec != NULL);
+	AVCodecContext *pCodecCtx = avcodec_alloc_context3(pCodec);
+	ASSERT_TRUE(avcodec_parameters_to_context(pCodecCtx, videoStream->codecpar) == 0);
+	ASSERT_TRUE(avcodec_open2(pCodecCtx, pCodec, NULL) == 0);
+	AVFrame *pFrame = av_frame_alloc();
 
-  {
-    //ImageWriter writer(TestWorkDir + "\\decoded", pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height);
-    FILE* framesfp = fopen("ffmpeg_frames.txt", "w");
-    fprintf(framesfp, "PTS,FRAME_TYPE,PIC_TYPE,PixelFormat,IsGOPStart\n");
+	{
+		//ImageWriter writer(TestWorkDir + "\\decoded", pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height);
+		FILE* framesfp = fopen("ffmpeg_frames.txt", "w");
+		fprintf(framesfp, "PTS,FRAME_TYPE,PIC_TYPE,PixelFormat,IsGOPStart\n");
 
-    AVPacket packet;
-    while (av_read_frame(pFormatCtx, &packet) == 0) {
-      if (packet.stream_index == videoStream->index) {
-        ASSERT_TRUE(avcodec_send_packet(pCodecCtx, &packet) == 0);
-        while (avcodec_receive_frame(pCodecCtx, pFrame) == 0) {
-          //writer.Write(pFrame);
-          auto picType = avPictureType(pFrame->interlaced_frame, pFrame->top_field_first, pFrame->repeat_pict);
-          auto frameType = avFrameType(pFrame->pict_type);
-          fprintf(framesfp, "%lld,%s,%s,%d,%d\n",
-            pFrame->pts, FrameTypeString(frameType), PictureTypeString(picType), pFrame->format, pFrame->key_frame);
-        }
-      }
-      av_packet_unref(&packet);
-    }
+		AVPacket packet;
+		while (av_read_frame(pFormatCtx, &packet) == 0) {
+			if (packet.stream_index == videoStream->index) {
+				ASSERT_TRUE(avcodec_send_packet(pCodecCtx, &packet) == 0);
+				while (avcodec_receive_frame(pCodecCtx, pFrame) == 0) {
+					//writer.Write(pFrame);
+					auto picType = avPictureType(pFrame->interlaced_frame, pFrame->top_field_first, pFrame->repeat_pict);
+					auto frameType = avFrameType(pFrame->pict_type);
+					fprintf(framesfp, "%lld,%s,%s,%d,%d\n",
+						pFrame->pts, FrameTypeString(frameType), PictureTypeString(picType), pFrame->format, pFrame->key_frame);
+				}
+			}
+			av_packet_unref(&packet);
+		}
 
-    fclose(framesfp);
-  }
-  
-  av_frame_free(&pFrame);
-  avcodec_free_context(&pCodecCtx);
-  avformat_close_input(&pFormatCtx);
+		fclose(framesfp);
+	}
+	
+	av_frame_free(&pFrame);
+	avcodec_free_context(&pCodecCtx);
+	avformat_close_input(&pFormatCtx);
 }
 
 // Process/Thread Test
 
 TEST(Process, SimpleProcessTest)
 {
-  class ProcTest : public EventBaseSubProcess {
-  public:
-    ProcTest() : EventBaseSubProcess("x264.exe --help") { }
-  protected:
-    virtual void onOut(bool isErr, MemoryChunk mc) {
-      fwrite(mc.data, mc.length, 1, stdout);
-    }
-  };
+	class ProcTest : public EventBaseSubProcess {
+	public:
+		ProcTest() : EventBaseSubProcess("x264.exe --help") { }
+	protected:
+		virtual void onOut(bool isErr, MemoryChunk mc) {
+			fwrite(mc.data, mc.length, 1, stdout);
+		}
+	};
 
-  ProcTest proc;
-  proc.join();
+	ProcTest proc;
+	proc.join();
 }
 
 // Encode Test
 
 TEST_F(TestBase, encodeMpeg2Test)
 {
-  std::string srcDir = TestDataDir + "\\";
-  std::string dstDir = TestWorkDir + "\\";
+	std::string srcDir = TestDataDir + "\\";
+	std::string dstDir = TestWorkDir + "\\";
 
-  TranscoderSetting setting;
-  setting.tsFilePath = srcDir + MPEG2VideoTsFile + ".ts";
-  setting.outVideoPath = dstDir + "Mpeg2Test";
-  setting.intFileBasePath = dstDir + "Mpeg2TestInt";
-  setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
-  setting.encoder = ENCODER_X264;
-  setting.encoderPath = "x264.exe";
-  setting.encoderOptions = "--crf 23";
-  setting.muxerPath = "muxer.exe";
+	TranscoderSetting setting;
+	setting.tsFilePath = srcDir + PullDownTsFile + ".ts";
+	setting.outVideoPath = dstDir + "Mpeg2Test";
+	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
+	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
+	setting.encoder = ENCODER_X264;
+	setting.encoderPath = "x264.exe";
+	setting.encoderOptions = "--crf 23";
+	setting.muxerPath = "muxer.exe";
 
-  AMTContext ctx;
-  transcodeMain(ctx, setting);
+	AMTContext ctx;
+	transcodeMain(ctx, setting);
 }
 
 void my_purecall_handler() {
-  printf("It's pure virtual call !!!\n");
+	printf("It's pure virtual call !!!\n");
 }
 
 int main(int argc, char **argv)
 {
-  // エラーハンドラをセット
-  _set_purecall_handler(my_purecall_handler);
+	// エラーハンドラをセット
+	_set_purecall_handler(my_purecall_handler);
 
-  // FFMPEGライブラリ初期化
-  av_register_all();
+	// FFMPEGライブラリ初期化
+	av_register_all();
 
 	::testing::GTEST_FLAG(filter) = "*encodeMpeg2Test";
 	::testing::InitGoogleTest(&argc, argv);

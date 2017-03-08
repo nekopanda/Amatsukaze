@@ -132,10 +132,10 @@ struct MPEG2SequenceHeader {
 		return (vertical_size_extension << 12) | vertical_size_value;
 	}
 	std::pair<int, int> frame_rate() {
-    auto base = frame_rate_value(frame_rate_code);
-    return std::make_pair(
-      base.first * (frame_rate_extension_n + 1),
-      base.second * (frame_rate_extension_d + 1));
+		auto base = frame_rate_value(frame_rate_code);
+		return std::make_pair(
+			base.first * (frame_rate_extension_n + 1),
+			base.second * (frame_rate_extension_d + 1));
 	}
 	void getSAR(int& sar_w, int& sar_h) {
 		if (aspect_ratio_info == 1) {
@@ -315,23 +315,23 @@ public:
 					format.width = sequenceHeader.width();
 					format.height = sequenceHeader.height();
 					sequenceHeader.getSAR(format.sarWidth, format.sarHeight);
-          auto frameRate = sequenceHeader.frame_rate();
-          format.frameRateNum = frameRate.first;
-          format.frameRateDenom = frameRate.second;
-          format.progressive = (sequenceHeader.progressive_sequence != 0);
+					auto frameRate = sequenceHeader.frame_rate();
+					format.frameRateNum = frameRate.first;
+					format.frameRateDenom = frameRate.second;
+					format.progressive = (sequenceHeader.progressive_sequence != 0);
 
-          if (sequenceHeader.colour_description == 0) {
-            format.colorPrimaries = 1;
-            format.transferCharacteristics = 1;
-            format.colorSpace = 1;
-          }
-          else {
-            format.colorPrimaries = sequenceHeader.colour_primaries;
-            format.transferCharacteristics = sequenceHeader.transfer_characteristics;
-            format.colorSpace = sequenceHeader.matrix_coefficients;
-          }
+					if (sequenceHeader.colour_description == 0) {
+						format.colorPrimaries = 1;
+						format.transferCharacteristics = 1;
+						format.colorSpace = 1;
+					}
+					else {
+						format.colorPrimaries = sequenceHeader.colour_primaries;
+						format.transferCharacteristics = sequenceHeader.transfer_characteristics;
+						format.colorSpace = sequenceHeader.matrix_coefficients;
+					}
 					
-          b += sequenceHeader.numReadBytes;
+					b += sequenceHeader.numReadBytes;
 					hasSequenceHeader = true;
 					isGopStart = true;
 				}
@@ -385,17 +385,17 @@ public:
 					else {
 						// 2枚目はチェック可能だけど面倒なので見ない
 						if (picHeader.picture_structure == 3) {
-              THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+							THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 						}
 						switch (picType) {
 						case PIC_TFF:
 							if (picHeader.picture_structure != 2) {
-                THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+								THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 							}
 							break;
 						case PIC_BFF:
 							if (picHeader.picture_structure != 1) {
-                THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+								THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 							}
 							break;
 						}
@@ -404,7 +404,7 @@ public:
 				}
 
 				if (receivedField > 2) {
-          THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+					THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 				}
 
 				if (receivedField == 2) {

@@ -244,11 +244,11 @@ private:
 	void writeTimeStamp(uint8_t* ptr, int64_t TS) {
 		int64_t raw = 0;
 		bms(raw, 3, 36, 4); // '0011'
-		bms(raw, TS >> 30, 33,  3);
+		bms(raw, TS >> 30, 33,	3);
 		bms(raw, 1, 32, 1); // marker_bit
 		bms(raw, TS >> 15, 17, 15);
 		bms(raw, 1, 16, 1); // marker_bit
-		bms(raw, TS >>  0,  1, 15);
+		bms(raw, TS >>	0,	1, 15);
 		bms(raw, 1, 0, 1); // marker_bit
 		write40(ptr, raw);
 	}
@@ -747,6 +747,12 @@ public:
 		selectorHandler = handler;
 	}
 
+	// PSIパーサ内部バッファをクリア
+	void resetParser() {
+		PsiParserPAT.clear();
+		PsiParserPMT.clear();
+	}
+
 	void inputTsPacket(int64_t clock, TsPacket packet) {
 
 		if (waitingNewVideo && packet.PID() == videoEs.pid) {
@@ -943,7 +949,7 @@ private:
 		switch (stream_type) {
 		case 0x02: // MPEG2-VIDEO
 		case 0x1B: // H.264/AVC
-				   //	case 0x24: // H.265/HEVC
+					 //	case 0x24: // H.265/HEVC
 			return true;
 		}
 		return false;
