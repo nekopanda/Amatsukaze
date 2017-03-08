@@ -692,10 +692,6 @@ public:
 		, reformInfo_(reformInfo)
 		, audioCache_(ctx, setting.audioFilePath, reformInfo.getAudioFileOffsets(), 12, 4)
 	{ }
-	~AMTMuxder() {
-		// 中間ファイルを削除
-		remove(setting_.audioFilePath.c_str());
-	}
 
 	void mux(int videoFileIndex) {
 		int numEncoders = reformInfo_.getNumEncoders(videoFileIndex);
@@ -778,5 +774,8 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 		muxer->mux(i);
 	}
 	muxer = nullptr;
+
+	// 中間ファイルを削除
+	remove(setting.audioFilePath.c_str());
 }
 

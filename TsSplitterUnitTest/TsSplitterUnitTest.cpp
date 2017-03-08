@@ -587,7 +587,7 @@ TEST_F(TestBase, encodeMpeg2Test)
 	std::string dstDir = TestWorkDir + "\\";
 
 	TranscoderSetting setting;
-	setting.tsFilePath = srcDir + PullDownTsFile + ".ts";
+	setting.tsFilePath = srcDir + H264VideoTsFile + ".ts";
 	setting.outVideoPath = dstDir + "Mpeg2Test";
 	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
 	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";

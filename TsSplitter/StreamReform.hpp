@@ -642,7 +642,7 @@ private:
 	}
 
 	void printAudioPtsDiff() {
-		double avgDiff = (double)sumPtsDiff_ * 1000 / (totalAudioFrames_ * MPEG_CLOCK_HZ);
+		double avgDiff = ((double)sumPtsDiff_ / totalAudioFrames_) * 1000 / MPEG_CLOCK_HZ;
 		double maxDiff = (double)maxPtsDiff_ * 1000 / MPEG_CLOCK_HZ;
 
 		ctx.info("音声フレーム %d（うち水増し%dフレーム）出力しました。",
