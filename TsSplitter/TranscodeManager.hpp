@@ -338,10 +338,11 @@ protected:
 			prevPTS = PTS;
 		}
 
+		ctx.info("[映像フレーム統計情報]");
+
 		int64_t totalTime = modifiedPTS.back().first - videoBasePTS;
 		ctx.info("時間: %f 秒", totalTime / 90000.0);
 
-		ctx.info("フレームカウンタ");
 		ctx.info("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
 			interaceCounter[0], interaceCounter[1], interaceCounter[2], interaceCounter[3], interaceCounter[4], interaceCounter[5], interaceCounter[6]);
 
@@ -364,7 +365,7 @@ protected:
 	}
 
 	virtual void onVideoFormatChanged(VideoFormat fmt) {
-		ctx.debug("映像フォーマット変更を検知");
+		ctx.debug("[映像フォーマット変更]");
 		ctx.debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
 
 		// 出力ファイルを変更
@@ -405,7 +406,7 @@ protected:
 	}
 
 	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
-		ctx.debug("音声 %d のフォーマット変更を検知", audioIdx);
+		ctx.debug("[音声%dフォーマット変更]", audioIdx);
 		ctx.debug("チャンネル: %s サンプルレート: %d",
 			getAudioChannelString(fmt.channels), fmt.sampleRate);
 
@@ -476,7 +477,8 @@ public:
 				setting_.encoderOptions,
 				format.videoFormat,
 				setting_.getEncVideoFilePath(videoFileIndex, i));
-			ctx.info("Start encoder: %s", args.c_str());
+			ctx.info("[エンコーダ開始]");
+			ctx.info(args.c_str());
 			encoders_[i].start(args, format.videoFormat, bufsize);
 		}
 
@@ -730,7 +732,8 @@ public:
 				reformInfo_.getOutFileIndex(i, videoFileIndex));
 			std::string args = makeMuxerArgs(
 				setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
-			ctx.info("Start muxer: %s", args.c_str());
+			ctx.info("[Mux開始]");
+			ctx.info(args.c_str());
 
 			{
 				MySubProcess muxer(args);
@@ -793,5 +796,9 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 	// 中間ファイルを削除
 	remove(setting.audioFilePath.c_str());
+
+	// 出力結果を表示
+	ctx.info("完了");
+	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
 }
 

@@ -203,7 +203,6 @@ private:
 
 		unsigned long samplerate;
 		unsigned char channels;
-		// TODO: フォーマットが変わる場合に対応できるか検証
 		if (NeAACDecInit(hAacDec, data.data, (int)data.length, &samplerate, &channels)) {
 			ctx.warn("NeAACDecInitに失敗");
 			return false;

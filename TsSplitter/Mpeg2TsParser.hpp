@@ -966,7 +966,7 @@ private:
 	}
 
 	void printPMT(const PMT& pmt) {
-		ctx.info("PMTが更新されました");
+		ctx.info("[PMT更新]");
 		const char* content = NULL;
 		for (int i = 0; i < pmt.numElems(); ++i) {
 			PMTElement elem = pmt.get(i);

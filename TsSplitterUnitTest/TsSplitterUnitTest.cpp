@@ -593,7 +593,7 @@ TranscoderSetting makeTranscodeSetting(
 	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
 	setting.encoder = ENCODER_X264;
 	setting.encoderPath = "x264.exe";
-	setting.encoderOptions = "--preset ultrafast --crf 23";
+	setting.encoderOptions = "--preset fast --crf 23";
 	setting.muxerPath = "muxer.exe";
 	setting.dumpStreamInfo = true;
 	return setting;
@@ -622,6 +622,7 @@ TEST_F(TestBase, fileStreamInfoTest)
 	reformInfo.prepareEncode();
 	reformInfo.makeAllframgesEncoded();
 	reformInfo.prepareMux();
+	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
 }
 
 void my_purecall_handler() {

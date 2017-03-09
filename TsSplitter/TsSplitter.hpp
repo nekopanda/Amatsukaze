@@ -443,15 +443,16 @@ protected:
 	// サービスを設定する場合はサービスのpids上でのインデックス
 	// なにもしない場合は負の値の返す
 	virtual int onPidSelect(int TSID, const std::vector<int>& pids) {
+		ctx.info("[PAT更新]");
 		for (int i = 0; i < int(pids.size()); ++i) {
 			if (preferedServiceId == pids[i]) {
 				selectedServiceId = pids[i];
-				ctx.info("PAT サービス 0x%04x を選択", selectedServiceId);
+				ctx.info("サービス 0x%04x を選択", selectedServiceId);
 				return i;
 			}
 		}
 		selectedServiceId = pids[0];
-		ctx.info("PAT サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
+		ctx.info("サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
 		return 0;
 	}
 

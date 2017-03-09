@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <functional>
 
 #include "StreamUtils.hpp"
 
@@ -145,6 +146,32 @@ public:
 	int getOutFileIndex(int encoderIndex, int videoFileIndex) const {
 		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
 		return outFileIndex_[formatId];
+	}
+
+	void printOutputMapping(std::function<std::string(int)> getFileName) const
+	{
+		ctx.info("[出力ファイル]");
+		for (int i = 0; i < (int)outFormat_.size(); ++i) {
+			ctx.info("%d: %s", i, getFileName(i).c_str());
+		}
+
+		ctx.info("[入力->出力マッピング]");
+		int64_t fromPTS = dataPTS_[0];
+		int prevFormatId = 0;
+		for (int i = 0; i < (int)ordredVideoFrame_.size(); ++i) {
+			int ordered = ordredVideoFrame_[i];
+			int64_t pts = modifiedPTS_[ordered];
+			int formatId = frameFormatId_[ordered];
+			if (prevFormatId != formatId) {
+				// print
+				ctx.info("%8.3f秒 - %8.3f秒 -> %d",
+					elapsedTime(fromPTS), elapsedTime(pts), outFileIndex_[prevFormatId]);
+				prevFormatId = formatId;
+				fromPTS = pts;
+			}
+		}
+		ctx.info("%8.3f秒 - %8.3f秒 -> %d",
+			elapsedTime(fromPTS), elapsedTime(dataPTS_.back()), outFileIndex_[prevFormatId]);
 	}
 
 	// 以下デバッグ用 //
@@ -472,6 +499,7 @@ private:
 		}
 
 		// 全映像フレームを追加
+		ctx.info("[音声構築]");
 		for (int i = 0; i < (int)videoFrameList_.size(); ++i) {
 			// 映像フレームはPTS順に追加する
 			int ordered = ordredVideoFrame_[i];
@@ -587,8 +615,8 @@ private:
 			// 見つけたところに位置をセットして入れてみる
 			if (state.lostPts != pts) {
 				state.lostPts = pts;
-				ctx.warn("%.3f秒で音声%dの同期ポイントを見失ったので再検索",
-					elapsedTime(pts), index);
+				ctx.debug("%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
+					elapsedTime(pts), file.formatId, index);
 			}
 			state.lastFrame = *it - 1;
 			fillAudioFramesInOrder(file, index, format, pts, duration);
@@ -643,16 +671,16 @@ private:
 			int nframes = std::max(1, ((int)(modPTS - pts) + (frameDuration / 4)) / frameDuration);
 
 			if (nframes > 1) {
-				ctx.warn("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増しします。",
+				ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
 					elapsedTime(modPTS), file.formatId, index, nframes - 1);
 			}
 			if (nskipped > 0) {
 				if (state.lastFrame == -1) {
-					ctx.info("音声%d-%dは%dフレーム目から開始します。",
+					ctx.debug("音声%d-%dは%dフレーム目から開始",
 						file.formatId, index, nskipped);
 				}
 				else {
-					ctx.warn("%.3f秒で音声%d-%dにずれがあるので%dフレームスキップします。",
+					ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
 						elapsedTime(modPTS), file.formatId, index, nskipped);
 				}
 				nskipped = 0;
@@ -687,19 +715,22 @@ private:
 	void printAudioPtsDiff() {
 		double avgDiff = ((double)sumPtsDiff_ / totalAudioFrames_) * 1000 / MPEG_CLOCK_HZ;
 		double maxDiff = (double)maxPtsDiff_ * 1000 / MPEG_CLOCK_HZ;
+		int notIncluded = (int)audioFrameList_.size() - totalUniquAudioFrames_;
 
-		ctx.info("音声フレーム %d（うち水増し%dフレーム）出力しました。",
+		ctx.info("出力音声フレーム: %d（うち水増しフレーム%d）",
 			totalAudioFrames_, totalAudioFrames_ - totalUniquAudioFrames_);
-		ctx.info("音ズレは 平均 %.2fms 最大 %.2fms です。",
-			avgDiff, maxDiff);
+		ctx.info("未出力フレーム: %d（%.3f%%）",
+			notIncluded, (double)notIncluded * 100 / audioFrameList_.size());
 
+		ctx.info("音ズレ: 平均 %.2fms 最大 %.2fms",
+			avgDiff, maxDiff);
 		if (maxPtsDiff_ > 0 && maxDiff - avgDiff > 1) {
-			ctx.info("最大音ズレ位置: 入力動画最初の映像フレームから%.3f秒後",
+			ctx.info("最大音ズレ位置: 入力最初の映像フレームから%.3f秒後",
 				elapsedTime(maxPtsDiffPos_));
 		}
 	}
 
-	double elapsedTime(int64_t modPTS) {
+	double elapsedTime(int64_t modPTS) const {
 		return (double)(modPTS - dataPTS_[0]) / MPEG_CLOCK_HZ;
 	}
 };
