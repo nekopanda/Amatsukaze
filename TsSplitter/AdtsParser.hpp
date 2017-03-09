@@ -34,9 +34,9 @@ struct AdtsHeader {
 			if (syncword != 0xFFF) return false;
 
 			uint8_t ID = reader.read<1>();
+			if (ID != 1) return false; // 固定
 			uint8_t layer = reader.read<2>();
-			// 固定
-			if (layer != 0) return false;
+			if (layer != 0) return false; // 固定
 
 			protection_absent = reader.read<1>();
 			uint8_t profile = reader.read<2>();
@@ -53,6 +53,8 @@ struct AdtsHeader {
 			number_of_raw_data_blocks_in_frame = reader.read<2>();
 
 			numBytesRead = reader.numReadBytes();
+
+			if (frame_length < numBytesRead) return false; // ヘッダより短いのはおかしい
 		}
 		catch (EOFException) {
 			return false;
@@ -101,6 +103,8 @@ public:
 	AdtsParser(AMTContext&ctx)
 		: AMTObject(ctx)
 		, hAacDec(NULL)
+		, bytesConsumed_(0)
+		, syncOK(false)
 	{
 		createChannelsMap();
 	}
@@ -112,9 +116,25 @@ public:
 		decodedBuffer.release();
 	}
 
-	virtual bool inputFrame(MemoryChunk frame, std::vector<AudioFrameData>& info, int64_t PTS) {
+	virtual bool inputFrame(MemoryChunk frame__, std::vector<AudioFrameData>& info, int64_t PTS) {
 		info.clear();
 		decodedBuffer.clear();
+
+		// codedBufferは次にinputFrameが呼ばれるまでデータを保持する必要があるので
+		// inputFrameの先頭で前のinputFrame呼び出しで読んだデータを消す
+		codedBuffer.trimHead(bytesConsumed_);
+
+		if (codedBuffer.size() >= (1 << 13)) {
+			// 不正なデータが続くと処理されないデータが永遠と増えていくので
+			// 増え過ぎたら捨てる
+			// ヘッダのframe_lengthフィールドは13bitなのでそれ以上データがあったら
+			// 完全に不正データ
+			codedBuffer.clear();
+		}
+
+		int prevDataSize = (int)codedBuffer.size();
+		codedBuffer.add(frame__.data, frame__.length);
+		MemoryChunk frame = codedBuffer;
 
 		if (frame.length < 7) {
 			// データ不正
@@ -122,24 +142,34 @@ public:
 		}
 
 		int64_t curPTS = PTS;
+		int ibytes = 0;
+		bytesConsumed_ = 0;
+		for ( ; ibytes < frame.length - 1; ++ibytes) {
+			uint16_t syncword = (read16(&frame.data[ibytes]) >> 4);
+			if (syncword != 0xFFF) {
+				syncOK = false;
+			}
+			else {
+				uint8_t* ptr = frame.data + ibytes;
+				int len = (int)frame.length - ibytes;
 
-		for (int i = 0; i < frame.length - 1; ++i) {
-			uint16_t syncword = (read16(&frame.data[i]) >> 4);
-			if (syncword == 0xFFF) {
-				if (header.parse(frame.data + i, (int)frame.length - i)) {
+				// ヘッダーOKかつフレーム長だけのデータがある
+				if (header.parse(ptr, len)
+					&& header.frame_length <= len)
+				{
 					// ストリームを解析するのは面倒なのでデコードしちゃう
 					if (hAacDec == NULL) {
-						resetDecoder(MemoryChunk(frame.data + i, frame.length - i));
+						resetDecoder(MemoryChunk(ptr, len));
 					}
 					NeAACDecFrameInfo frameInfo;
-					void* samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data + i, (int)frame.length - i);
+					void* samples = NeAACDecDecode(hAacDec, &frameInfo, ptr, len);
 					if (frameInfo.error != 0) {
 						// フォーマットが変わるとエラーを吐くので初期化してもう１回食わせる
 						// 変な使い方だけどNeroAAC君はストリームの途中で
 						// フォーマットが変わることを想定していないんだから仕方ない
 						//（fixed headerが変わらなくてもチャンネル構成が変わることがあるから読んでみないと分からない）
-						resetDecoder(MemoryChunk(frame.data + i, frame.length - i));
-						samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data + i, (int)frame.length - i);
+						resetDecoder(MemoryChunk(ptr, len));
+						samples = NeAACDecDecode(hAacDec, &frameInfo, ptr, len);
 					}
 					if (frameInfo.error == 0) {
 						decodedBuffer.add((uint8_t*)samples, frameInfo.samples * 2);
@@ -149,24 +179,51 @@ public:
 							frameInfo.num_back_channels + frameInfo.num_side_channels + frameInfo.num_lfe_channels;
 
 						AudioFrameData frameData;
-						frameData.PTS = curPTS;
 						frameData.numSamples = frameInfo.original_samples / numChannels;
 						frameData.numDecodedSamples = frameInfo.samples / numChannels;
 						frameData.format.channels = getAudioChannels(header, frameInfo);
 						frameData.format.sampleRate = frameInfo.samplerate;
 						frameData.codedDataSize = frameInfo.bytesconsumed;
-						frameData.codedData = frame.data + i;
+						// codedBuffer内データへのポインタを入れているので
+						// codedBufferには触らないように注意！
+						frameData.codedData = ptr;
 						frameData.decodedDataSize = frameInfo.samples * 2;
-						// AutoBufferはメモリ再確保があるのでポインタは後で入れる
+						// AutoBufferはメモリ再確保があるのでデコードデータへのポインタは後で入れる
+
+						// PTSを計算
+						int64_t duration = 90000 * frameData.numSamples / frameData.format.sampleRate;
+						if (ibytes < prevDataSize) {
+							// フレームの開始が現在のパケット先頭より前だった場合は
+							// 現在のパケットのPTSは適用できないので前のパケットからの値を入れる
+							frameData.PTS = lastPTS_;
+							lastPTS_ += duration;
+						}
+						else {
+							frameData.PTS = curPTS;
+							curPTS += duration;
+						}
+
 						info.push_back(frameData);
 
-						curPTS += 90000 * frameData.numSamples / frameData.format.sampleRate;
-						i += frameInfo.bytesconsumed - 1;
+						// データを進める
+						ASSERT(frameInfo.bytesconsumed == header.frame_length);
+						ibytes += header.frame_length - 1;
+						bytesConsumed_ = ibytes + 1;
+
+						syncOK = true;
+					}
+				}
+				else {
+					// ヘッダ不正 or 十分なデータがなかった
+					if (syncOK) {
+						// 直前のフレームがOKなら単に次のパケットを受信すればいいだけ
+						break;
 					}
 				}
 
 			}
 		}
+		lastPTS_ = curPTS;
 
 		// デコードデータのポインタを入れる
 		uint8_t* decodedData = decodedBuffer.get();
@@ -183,7 +240,13 @@ private:
 	AdtsHeader header;
 	std::map<int64_t, AUDIO_CHANNELS> channelsMap;
 
+	// パケット間での情報保持
+	AutoBuffer codedBuffer;
+	int bytesConsumed_;
+	int64_t lastPTS_;
+
 	AutoBuffer decodedBuffer;
+	bool syncOK;
 
 	void closeDecoder() {
 		if (hAacDec != NULL) {

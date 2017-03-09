@@ -46,6 +46,7 @@ protected:
 		getParam(inipath, "SampleMPEG2PsFile", SampleMPEG2PsFile);
 		getParam(inipath, "VideoFormatChangeTsFile", VideoFormatChangeTsFile);
 		getParam(inipath, "AudioFormatChangeTsFile", AudioFormatChangeTsFile);
+		getParam(inipath, "MultiAudioTsFile", MultiAudioTsFile);
 		getParam(inipath, "RffFieldPictureTsFile", RffFieldPictureTsFile);
 		getParam(inipath, "BFFMPEG2VideoTsFile", BFFMPEG2VideoTsFile);
 		getParam(inipath, "DropTsFile", DropTsFile);
@@ -82,6 +83,7 @@ protected:
 	std::string SampleMPEG2PsFile;
 	std::string VideoFormatChangeTsFile;
 	std::string AudioFormatChangeTsFile;
+	std::string MultiAudioTsFile;
 	std::string RffFieldPictureTsFile;
 	std::string BFFMPEG2VideoTsFile;
 	std::string DropTsFile;
@@ -495,7 +497,7 @@ TEST_F(TestBase, ffmpegEncode) {
 
 	std::string options = "--crf 23";
 
-	VideoFormat fmt;
+	VideoFormat fmt = VideoFormat();
 	fmt.width = 1440;
 	fmt.height = 1080;
 	fmt.sarWidth = 4;
@@ -593,8 +595,9 @@ TranscoderSetting makeTranscodeSetting(
 	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
 	setting.encoder = ENCODER_X264;
 	setting.encoderPath = "x264.exe";
-	setting.encoderOptions = "--preset fast --crf 23";
+	setting.encoderOptions = "--preset superfast --crf 23";
 	setting.muxerPath = "muxer.exe";
+	setting.timelineditorPath = "timelineeditor.exe";
 	setting.dumpStreamInfo = true;
 	return setting;
 }
@@ -604,7 +607,7 @@ TEST_F(TestBase, encodeMpeg2Test)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, AudioFormatChangeTsFile);
+		makeTranscodeSetting(srcDir, dstDir, MultiAudioTsFile);
 
 	AMTContext ctx;
 	transcodeMain(ctx, setting);
@@ -615,7 +618,7 @@ TEST_F(TestBase, fileStreamInfoTest)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, AudioFormatChangeTsFile);
+		makeTranscodeSetting(srcDir, dstDir, MultiAudioTsFile);
 
 	AMTContext ctx;
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
@@ -637,7 +640,7 @@ int main(int argc, char **argv)
 	// FFMPEGÉâÉCÉuÉâÉäèâä˙âª
 	av_register_all();
 
-	::testing::GTEST_FLAG(filter) = "*encodeMpeg2Test";
+	::testing::GTEST_FLAG(filter) = "*fileStreamInfoTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

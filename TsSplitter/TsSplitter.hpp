@@ -21,6 +21,7 @@ public:
 		: AMTObject(ctx)
 		, PesParser()
 		, videoStreamFormat(VS_MPEG2)
+		, videoFormat()
 		, parser(&mpeg2parser)
 	{ }
 

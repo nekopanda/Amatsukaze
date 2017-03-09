@@ -566,23 +566,14 @@ struct VideoFormat {
 	int sarWidth, sarHeight; // アスペクト比
 	int frameRateNum, frameRateDenom; // フレームレート
 	uint8_t colorPrimaries, transferCharacteristics, colorSpace; // カラースペース
-	bool progressive;
-
-	VideoFormat()
-		: width(0)
-		, height(0)
-		, sarWidth(0)
-		, sarHeight(0)
-		, frameRateNum(0)
-		, frameRateDenom(0)
-		, colorPrimaries(0)
-		, transferCharacteristics(0)
-		, colorSpace(0)
-		, progressive(false)
-	{ }
+	bool progressive, fixedFrameRate;
 
 	bool isEmpty() const {
 		return width == 0;
+	}
+
+	bool isSARUnspecified() const {
+		return sarWidth == 0 && sarHeight == 1;
 	}
 
 	bool operator==(const VideoFormat& o) const {
@@ -603,12 +594,6 @@ struct VideoFrameInfo {
 	PICTURE_TYPE pic;
 	FRAME_TYPE type; // 使わないけど参考情報
 	VideoFormat format;
-
-	VideoFrameInfo()
-		: PTS(0)
-		, pic(PIC_FRAME)
-		, type(FRAME_NO_INFO)
-	{ }
 };
 
 enum AUDIO_CHANNELS {

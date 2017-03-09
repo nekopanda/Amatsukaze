@@ -241,7 +241,9 @@ struct H264SequenceParameterSet {
 
 	void getSAR(int& width, int& height) {
 		if (!vui_parameters_present_flag || !aspect_ratio_info_present_flag) {
-			width = height = 1;
+			// unspecified (FFMPEGÇ…çáÇÌÇπÇÈÅj
+			width = 0;
+			height = 1;
 			return;
 		}
 		if (aspect_ratio_idc == Extended_SAR) {
@@ -252,21 +254,20 @@ struct H264SequenceParameterSet {
 		getSARFromIdc(aspect_ratio_idc, width, height);
 	}
 
-	void getFramteRate(int& frameRateNum, int& frameRateDenom) {
+	void getFramteRate(int& frameRateNum, int& frameRateDenom, bool& cfr) {
 		if (vui_parameters_present_flag) {
-			if (fixed_frame_rate_flag) {
-        frameRateNum = time_scale / 2;
-        frameRateDenom = num_units_in_tick;
-			}
+			frameRateNum = time_scale / 2;
+			frameRateDenom = num_units_in_tick;
+			cfr = (fixed_frame_rate_flag != 0);
 		}
 	}
 
   void getColorDesc(uint8_t& colorPrimaries, uint8_t& transferCharacteristics, uint8_t& colorSpace) {
     if (!vui_parameters_present_flag || !colour_description_present_flag) {
-      // Ç»Ç©Ç¡ÇΩÇÁBT.709Ç∆Ç∑ÇÈ
-      colorPrimaries = 1;
-      transferCharacteristics = 1;
-      colorSpace = 1;
+      // 2ÇÕUNSPECIFIED
+      colorPrimaries = 2;
+      transferCharacteristics = 2;
+      colorSpace = 2;
       return;
     }
     colorPrimaries = colour_primaries;
@@ -766,7 +767,7 @@ public:
 					isGopStart = true;
 					sps.getPicutureSize(format.width, format.height);
 					sps.getSAR(format.sarWidth, format.sarHeight);
-					sps.getFramteRate(format.frameRateNum, format.frameRateDenom);
+					sps.getFramteRate(format.frameRateNum, format.frameRateDenom, format.fixedFrameRate);
           sps.getColorDesc(format.colorPrimaries,
             format.transferCharacteristics, format.colorSpace);
           format.progressive = (sps.frame_mbs_only_flag != 0);

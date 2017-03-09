@@ -63,6 +63,7 @@ public:
 		, videoFrameList_(std::move(videoFrameList))
 		, audioFrameList_(std::move(audioFrameList))
 		, streamEventList_(std::move(streamEventList))
+		, isVFR_(false)
 	{
 		encodedFrames_.resize(videoFrameList_.size(), false);
 	}
@@ -148,6 +149,15 @@ public:
 		return outFileIndex_[formatId];
 	}
 
+	bool isVFR() const {
+		return isVFR_;
+	}
+
+	const std::vector<int64_t>& getTimecode(int encoderIndex, int videoFileIndex) const {
+		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
+		return timecodeList_[formatId];
+	}
+
 	void printOutputMapping(std::function<std::string(int)> getFileName) const
 	{
 		ctx.info("[出力ファイル]");
@@ -208,6 +218,7 @@ private:
 	std::vector<StreamEvent> streamEventList_;
 
 	// 計算データ
+	bool isVFR_;
 	std::vector<int64_t> modifiedPTS_; // ラップアラウンドしないPTS
 	std::vector<int64_t> modifiedAudioPTS_; // ラップアラウンドしないPTS
 	std::vector<int> audioFrameDuration_; // 各音声フレームの時間
@@ -225,6 +236,7 @@ private:
 	// 2nd phase 入力
 	std::vector<int> frameFormatId_; // videoFrameList_と同じサイズ
 	std::map<int64_t, int> framePtsMap_;
+	std::vector<std::vector<int64_t>> timecodeList_;
 
 	// 2nd phase 出力
 	std::vector<bool> encodedFrames_;
@@ -257,6 +269,15 @@ private:
 		// framePtsMap_を作成（すぐに作れるので）
 		for (int i = 0; i < int(videoFrameList_.size()); ++i) {
 			framePtsMap_[videoFrameList_[i].PTS] = i;
+		}
+
+		// VFR検出
+		isVFR_ = false;
+		for (int i = 0; i < int(videoFrameList_.size()); ++i) {
+			if (videoFrameList_[i].format.fixedFrameRate == false) {
+				isVFR_ = true;
+				break;
+			}
 		}
 
 		// ラップアラウンドしないPTSを生成
@@ -406,7 +427,7 @@ private:
 			int64_t PTS = frames[i].PTS;
 			int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
 			modifiedPTS[i] = modPTS;
-			prevPTS = PTS;
+			prevPTS = modPTS;
 		}
 
 		// ストリームが戻っている場合は処理できないのでエラーとする
@@ -464,6 +485,7 @@ private:
 		int64_t time; // 追加された映像フレームの合計時間
 		std::vector<AudioState> audioState;
 		std::unique_ptr<FileAudioFrameList> audioFrameList;
+		std::vector<int64_t> timecode;
 	};
 
 	void genAudioStream() {
@@ -505,13 +527,17 @@ private:
 			int ordered = ordredVideoFrame_[i];
 			if (encodedFrames_[ordered]) {
 				int formatId = frameFormatId_[ordered];
-				addVideoFrame(outFiles[formatId], ordered);
+				int next = (i + 1 < (int)videoFrameList_.size())
+					? ordredVideoFrame_[i + 1] 
+					: -1;
+				addVideoFrame(outFiles[formatId], ordered, next);
 			}
 		}
 
 		// 出力データ生成
 		reformedAudioFrameList_.resize(outFormat_.size());
 		fileDuration_.resize(outFormat_.size());
+		timecodeList_.resize(outFormat_.size());
 		int64_t maxDuration = 0;
 		int maxId = 0;
 		for (int i = 0; i < (int)outFormat_.size(); ++i) {
@@ -522,6 +548,7 @@ private:
 				maxDuration = time;
 				maxId = i;
 			}
+			timecodeList_[i] = std::move(outFiles[i].timecode);
 		}
 
 		// audioFileOffsets_を生成
@@ -545,32 +572,48 @@ private:
 	}
 
 	// ファイルに映像フレームを１枚追加
-	void addVideoFrame(OutFileState& file, int index) {
+	// nextIndexはソース動画においてPTSで次のフレームの番号
+	void addVideoFrame(OutFileState& file, int index, int nextIndex) {
 		const auto& videoFrame = videoFrameList_[index];
 		int64_t pts = modifiedPTS_[index];
 		int formatId = frameFormatId_[index];
 		const auto& format = outFormat_[formatId];
-		int64_t duration = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
 
-		switch (videoFrame.pic) {
-		case PIC_FRAME:
-		case PIC_TFF:
-		case PIC_TFF_RFF:
-			break;
-		case PIC_FRAME_DOUBLING:
-			duration *= 2;
-			break;
-		case PIC_FRAME_TRIPLING:
-			duration *= 3;
-			break;
-		case PIC_BFF:
-			pts -= (duration / 2);
-			break;
-		case PIC_BFF_RFF:
-			pts -= (duration / 2);
-			duration *= 2;
-			break;
+		int64_t duration;
+		if (isVFR_) { // VFR
+			if (nextIndex == -1) {
+				duration = 0; // 最後のフレーム
+			}
+			else {
+				duration = modifiedPTS_[nextIndex] - pts;
+			}
 		}
+		else { // CFR
+			duration = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
+
+			switch (videoFrame.pic) {
+			case PIC_FRAME:
+			case PIC_TFF:
+			case PIC_TFF_RFF:
+				break;
+			case PIC_FRAME_DOUBLING:
+				duration *= 2;
+				break;
+			case PIC_FRAME_TRIPLING:
+				duration *= 3;
+				break;
+			case PIC_BFF:
+				pts -= (duration / 2);
+				break;
+			case PIC_BFF_RFF:
+				pts -= (duration / 2);
+				duration *= 2;
+				break;
+			}
+		}
+
+		// timecode出力
+		file.timecode.push_back(file.time);
 
 		int64_t endPts = pts + duration;
 		file.time += duration;

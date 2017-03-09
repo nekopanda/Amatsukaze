@@ -292,10 +292,6 @@ struct MPEG2PictureHeader {
 
 class MPEG2VideoParser : public IVideoParser {
 public:
-	MPEG2VideoParser()
-		: hasSequenceHeader(false)
-	{ }
-
 	virtual void reset() {
 		hasSequenceHeader = false;
 	}
@@ -318,12 +314,13 @@ public:
 					auto frameRate = sequenceHeader.frame_rate();
 					format.frameRateNum = frameRate.first;
 					format.frameRateDenom = frameRate.second;
+					format.fixedFrameRate = true;
 					format.progressive = (sequenceHeader.progressive_sequence != 0);
 
 					if (sequenceHeader.colour_description == 0) {
-						format.colorPrimaries = 1;
-						format.transferCharacteristics = 1;
-						format.colorSpace = 1;
+						format.colorPrimaries = 2;
+						format.transferCharacteristics = 2;
+						format.colorSpace = 2;
 					}
 					else {
 						format.colorPrimaries = sequenceHeader.colour_primaries;

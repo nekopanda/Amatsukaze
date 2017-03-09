@@ -83,9 +83,15 @@ static std::string makeEncoderArgs(
 	//ss << " --input-res " << fmt.width << "x" << fmt.height;
 	//ss << " --sar " << fmt.sarWidth << ":" << fmt.sarHeight;
 
-	ss << " --colorprim " << av::getColorPrimStr(fmt.colorPrimaries);
-	ss << " --transfer " << av::getTransferCharacteristicsStr(fmt.transferCharacteristics);
-	ss << " --colormatrix " << av::getColorSpaceStr(fmt.colorSpace);
+	if (fmt.colorPrimaries != AVCOL_PRI_UNSPECIFIED) {
+		ss << " --colorprim " << av::getColorPrimStr(fmt.colorPrimaries);
+	}
+	if (fmt.transferCharacteristics != AVCOL_TRC_UNSPECIFIED) {
+		ss << " --transfer " << av::getTransferCharacteristicsStr(fmt.transferCharacteristics);
+	}
+	if (fmt.colorSpace != AVCOL_TRC_UNSPECIFIED) {
+		ss << " --colormatrix " << av::getColorSpaceStr(fmt.colorSpace);
+	}
 
 	// インターレース
 	switch (encoder) {
@@ -134,6 +140,21 @@ static std::string makeMuxerArgs(
 	return ss.str();
 }
 
+static std::string makeTimelineEditorArgs(
+	const std::string& binpath,
+	const std::string& inpath,
+	const std::string& outpath,
+	const std::string& timecodepath)
+{
+	std::ostringstream ss;
+	ss << "\"" << binpath << "\"";
+	ss << " --track 1";
+	ss << " --timecode \"" << timecodepath << "\"";
+	ss << " \"" << inpath << "\"";
+	ss << " \"" << outpath << "\"";
+	return ss.str();
+}
+
 struct TranscoderSetting {
 	// 入力ファイルパス（拡張子を含む）
 	std::string tsFilePath;
@@ -148,6 +169,7 @@ struct TranscoderSetting {
 	std::string encoderPath;
 	std::string encoderOptions;
 	std::string muxerPath;
+	std::string timelineditorPath;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 
@@ -170,6 +192,13 @@ struct TranscoderSetting {
 		return ss.str();
 	}
 
+	std::string getEnvTimecodeFilePath(int vindex, int index) const
+	{
+		std::ostringstream ss;
+		ss << intFileBasePath << "-" << vindex << "-" << index << "-tc.txt";
+		return ss.str();
+	}
+
 	std::string getIntAudioFilePath(int vindex, int index, int aindex) const
 	{
 		std::ostringstream ss;
@@ -177,13 +206,21 @@ struct TranscoderSetting {
 		return ss.str();
 	}
 
+	std::string getVfrTmpFilePath(int index) const
+	{
+		std::ostringstream ss;
+		ss << intFileBasePath << "-" << index << ".mp4";
+		return ss.str();
+	}
+
 	std::string getOutFilePath(int index) const
 	{
-		if (index == 0) {
-			return outVideoPath + ".mp4";
-		}
 		std::ostringstream ss;
-		ss << outVideoPath << "-" << index << ".mp4";
+		ss << outVideoPath;
+		if (index != 0) {
+			ss << "-" << index;
+		}
+		ss << ".mp4";
 		return ss.str();
 	}
 };
@@ -290,7 +327,7 @@ protected:
 			int64_t PTS = videoFrameList_[i].PTS;
 			int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
 			modifiedPTS.emplace_back(modPTS, i);
-			prevPTS = PTS;
+			prevPTS = modPTS;
 		}
 
 		// PTSでソート
@@ -366,7 +403,12 @@ protected:
 
 	virtual void onVideoFormatChanged(VideoFormat fmt) {
 		ctx.debug("[映像フォーマット変更]");
-		ctx.debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
+		if (fmt.fixedFrameRate) {
+			ctx.debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
+		}
+		else {
+			ctx.debug("サイズ: %dx%d FPS: VFR", fmt.width, fmt.height);
+		}
 
 		// 出力ファイルを変更
 		writeHandler.open(setting_.getIntVideoFilePath(videoFileCount_++));
@@ -384,22 +426,15 @@ protected:
 		const std::vector<AudioFrameData>& frames, 
 		PESPacket packet)
 	{
-		MemoryChunk payload = packet.paylod();
-		audioFile_.write(payload);
-
-		int64_t offset = 0;
 		for (const AudioFrameData& frame : frames) {
 			FileAudioFrameInfo info = frame;
 			info.audioIdx = audioIdx;
 			info.codedDataSize = frame.codedDataSize;
-			info.fileOffset = audioFileSize_ + offset;
-			offset += frame.codedDataSize;
+			info.fileOffset = audioFileSize_;
+			audioFile_.write(MemoryChunk(frame.codedData, frame.codedDataSize));
+			audioFileSize_ += frame.codedDataSize;
 			audioFrameList_.push_back(info);
 		}
-
-		ASSERT(offset == payload.length);
-		audioFileSize_ += payload.length;
-
 		if (videoFileCount_ > 0) {
 			psWriter.outAudioPesPacket(audioIdx, clock, frames, packet);
 		}
@@ -551,7 +586,10 @@ private:
 
 	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
 
-		int64_t pts = (*frame)()->pts;
+		// ffmpegがどうptsをwrapするか分からないので入力データの
+		// 下位33bitのみを見る
+		//（26時間以上ある動画だと重複する可能性はあるが無視）
+		int64_t pts = (*frame)()->pts & ((int64_t(1) << 33) - 1);
 
 		int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
 		if (frameIndex == -1) {
@@ -561,32 +599,38 @@ private:
 		const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
 		auto& encoder = encoders_[reformInfo_.getEncoderIndex(frameIndex)];
 
-		// RFFフラグ処理
-		// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
-		switch (info.pic) {
-		case PIC_FRAME:
-		case PIC_TFF:
-		case PIC_TFF_RFF:
+		if (reformInfo_.isVFR()) {
+			// VFRの場合は必ず１枚だけ出力
 			encoder.inputFrame(*frame);
-			break;
-		case PIC_FRAME_DOUBLING:
-			encoder.inputFrame(*frame);
-			encoder.inputFrame(*frame);
-			break;
-		case PIC_FRAME_TRIPLING:
-			encoder.inputFrame(*frame);
-			encoder.inputFrame(*frame);
-			encoder.inputFrame(*frame);
-			break;
-		case PIC_BFF:
-			encoder.inputFrame(*makeFrameFromFields(
-				(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
-			break;
-		case PIC_BFF_RFF:
-			encoder.inputFrame(*makeFrameFromFields(
-				(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
-			encoder.inputFrame(*frame);
-			break;
+		}
+		else {
+			// RFFフラグ処理
+			// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
+			switch (info.pic) {
+			case PIC_FRAME:
+			case PIC_TFF:
+			case PIC_TFF_RFF:
+				encoder.inputFrame(*frame);
+				break;
+			case PIC_FRAME_DOUBLING:
+				encoder.inputFrame(*frame);
+				encoder.inputFrame(*frame);
+				break;
+			case PIC_FRAME_TRIPLING:
+				encoder.inputFrame(*frame);
+				encoder.inputFrame(*frame);
+				encoder.inputFrame(*frame);
+				break;
+			case PIC_BFF:
+				encoder.inputFrame(*makeFrameFromFields(
+					(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
+				break;
+			case PIC_BFF_RFF:
+				encoder.inputFrame(*makeFrameFromFields(
+					(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
+				encoder.inputFrame(*frame);
+				break;
+			}
 		}
 
 		reformInfo_.frameEncoded(frameIndex);
@@ -727,9 +771,11 @@ public:
 			}
 
 			// Mux
+			int outFileIndex = reformInfo_.getOutFileIndex(i, videoFileIndex);
 			std::string encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
-			std::string outFilePath = setting_.getOutFilePath(
-				reformInfo_.getOutFileIndex(i, videoFileIndex));
+			std::string outFilePath = reformInfo_.isVFR()
+				? setting_.getVfrTmpFilePath(outFileIndex)
+				: setting_.getOutFilePath(outFileIndex);
 			std::string args = makeMuxerArgs(
 				setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
 			ctx.info("[Mux開始]");
@@ -741,6 +787,39 @@ public:
 				if (ret != 0) {
 					THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
 				}
+			}
+
+			// VFRの場合はタイムコードを埋め込む
+			if (reformInfo_.isVFR()) {
+				std::string outWithTimeFilePath = setting_.getOutFilePath(outFileIndex);
+				std::string encTimecodeFile = setting_.getEnvTimecodeFilePath(videoFileIndex, i);
+				{ // タイムコードファイルを生成
+					std::ostringstream ss;
+					ss << "# timecode format v2" << std::endl;
+					const auto& timecode = reformInfo_.getTimecode(i, videoFileIndex);
+					for (int64_t pts : timecode) {
+						double ms = ((double)pts / (MPEG_CLOCK_HZ / 1000));
+						ss << (int)std::round(ms) << std::endl;
+					}
+					std::string str = ss.str();
+					MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
+					File file(encTimecodeFile, "w");
+					file.write(mc);
+				}
+				std::string args = makeTimelineEditorArgs(
+					setting_.timelineditorPath, outFilePath, outWithTimeFilePath, encTimecodeFile);
+				ctx.info("[タイムコード埋め込み開始]");
+				ctx.info(args.c_str());
+				{
+					MySubProcess timelineeditor(args);
+					int ret = timelineeditor.join();
+					if (ret != 0) {
+						THROWF(RuntimeException, "timelineeditor failed (exit code: %d)", ret);
+					}
+				}
+				// 中間ファイル削除
+				remove(encTimecodeFile.c_str());
+				remove(outFilePath.c_str());
 			}
 
 			// 中間ファイル削除
