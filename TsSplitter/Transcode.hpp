@@ -368,7 +368,10 @@ public:
 		if (videoWriter_ != NULL) {
 			videoWriter_->flush();
 			process_->finishWrite();
-			process_->join();
+			int ret = process_->join();
+			if (ret != 0) {
+				THROWF(RuntimeException, "encode failed (encoder exit code: %d)", ret);
+			}
 		}
 	}
 

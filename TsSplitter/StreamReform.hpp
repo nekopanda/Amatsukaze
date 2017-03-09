@@ -147,6 +147,32 @@ public:
 		return outFileIndex_[formatId];
 	}
 
+	// 以下デバッグ用 //
+
+	void serialize(const std::string& path) {
+		File file(path, "wb");
+		file.writeValue(numVideoFile_);
+		file.writeArray(videoFrameList_);
+		file.writeArray(audioFrameList_);
+		file.writeArray(streamEventList_);
+	}
+
+	static StreamReformInfo deserialize(AMTContext& ctx, const std::string& path) {
+		File file(path, "rb");
+		int numVideoFile = file.readValue<int>();
+		auto videoFrameList = file.readArray<VideoFrameInfo>();
+		auto audioFrameList = file.readArray<FileAudioFrameInfo>();
+		auto streamEventList = file.readArray<StreamEvent>();
+		return StreamReformInfo(ctx,
+			numVideoFile, videoFrameList, audioFrameList, streamEventList);
+	}
+
+	void makeAllframgesEncoded() {
+		for (int i = 0; i < (int)encodedFrames_.size(); ++i) {
+			encodedFrames_[i] = true;
+		}
+	}
+
 private:
 	// 1st phase 出力
 	int numVideoFile_;
@@ -238,7 +264,7 @@ private:
 		}
 
 		// ストリームイベントのPTSを計算
-		int64_t exceedLastPTS = curMax + 1;
+		int64_t endPTS = curMax + 1;
 		streamEventPTS_.resize(streamEventList_.size());
 		for (int i = 0; i < (int)streamEventList_.size(); ++i) {
 			auto& ev = streamEventList_[i];
@@ -246,7 +272,7 @@ private:
 			if (ev.type == PID_TABLE_CHANGED || ev.type == VIDEO_FORMAT_CHANGED) {
 				if (ev.frameIdx >= (int)videoFrameList_.size()) {
 					// 後ろ過ぎて対象のフレームがない
-					pts = exceedLastPTS;
+					pts = endPTS;
 				}
 				else {
 					pts = dataPTS_[ev.frameIdx];
@@ -255,7 +281,7 @@ private:
 			else if (ev.type == AUDIO_FORMAT_CHANGED) {
 				if (ev.frameIdx >= (int)audioFrameList_.size()) {
 					// 後ろ過ぎて対象のフレームがない
-					pts = exceedLastPTS;
+					pts = endPTS;
 				}
 				else {
 					pts = audioFrameList_[ev.frameIdx].PTS;
@@ -264,38 +290,33 @@ private:
 			streamEventPTS_[i] = pts;
 		}
 
-		struct SingleFormatSection {
-			int formatId;
-			int64_t fromPTS, toPTS;
-		};
-
 		// 時間的に近いストリームイベントを1つの変化点とみなす
 		const int64_t CHANGE_TORELANCE = 3 * MPEG_CLOCK_HZ;
 
-		std::vector<SingleFormatSection> sectionList;
+		std::vector<int> sectionFormatList;
+		std::vector<int64_t> startPtsList;
 
 		OutVideoFormat curFormat = OutVideoFormat();
-		SingleFormatSection curSection = SingleFormatSection();
 		int64_t curFromPTS = -1;
+		bool formatChanged = false;
 		curFormat.videoFileId = -1;
 		for (int i = 0; i < (int)streamEventList_.size(); ++i) {
 			auto& ev = streamEventList_[i];
 			int64_t pts = streamEventPTS_[i];
-			if (pts >= exceedLastPTS) {
+			if (pts >= endPTS) {
 				// 後ろに映像がなければ意味がない
 				continue;
 			}
 			if (curFromPTS == -1) { // 最初
-				curFromPTS = curSection.fromPTS = pts;
+				curFromPTS = pts;
 			}
-			else if (curFromPTS + CHANGE_TORELANCE < pts) {
+			else if (formatChanged && curFromPTS + CHANGE_TORELANCE < pts) {
 				// 区間を追加
-				curSection.toPTS = pts;
 				registerOrGetFormat(curFormat);
-				curSection.formatId = curFormat.formatId;
-				sectionList.push_back(curSection);
-
-				curFromPTS = curSection.fromPTS = pts;
+				sectionFormatList.push_back(curFormat.formatId);
+				startPtsList.push_back(curFromPTS);
+				curFromPTS = pts;
+				formatChanged = false;
 			}
 			// 変更を反映
 			switch (ev.type) {
@@ -307,20 +328,26 @@ private:
 				++curFormat.videoFileId;
 				outFormatStartIndex_.push_back((int)outFormat_.size());
 				curFormat.videoFormat = videoFrameList_[ev.frameIdx].format;
+				// 映像フォーマットの変更時刻を優先させる
+				curFromPTS = dataPTS_[ev.frameIdx];
+				formatChanged = true;
 				break;
 			case AUDIO_FORMAT_CHANGED:
 				if (ev.audioIdx >= curFormat.audioFormat.size()) {
 					THROW(FormatException, "StreamEvent's audioIdx exceeds numAudio of the previous table change event");
 				}
 				curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.frameIdx].format;
+				formatChanged = true;
 				break;
 			}
 		}
 		// 最後の区間を追加
-		curSection.toPTS = exceedLastPTS;
-		registerOrGetFormat(curFormat);
-		curSection.formatId = curFormat.formatId;
-		sectionList.push_back(curSection);
+		if (formatChanged) {
+			registerOrGetFormat(curFormat);
+			sectionFormatList.push_back(curFormat.formatId);
+			startPtsList.push_back(curFromPTS);
+		}
+		startPtsList.push_back(endPTS);
 		outFormatStartIndex_.push_back((int)outFormat_.size());
 
 		// frameFormatId_を生成
@@ -328,11 +355,15 @@ private:
 		for (int i = 0; i < int(videoFrameList_.size()); ++i) {
 			int64_t pts = modifiedPTS_[i];
 			// 区間を探す
-			int formatId = std::partition_point(sectionList.begin(), sectionList.end(),
-				[=](const SingleFormatSection& sec) {
-				return !(pts < sec.toPTS);
-			})->formatId;
-			frameFormatId_[i] = formatId;
+			int sectionId = int(std::partition_point(startPtsList.begin(), startPtsList.end(),
+				[=](int64_t sec) {
+				return !(pts < sec);
+			}) - startPtsList.begin() - 1);
+			if (sectionId >= sectionFormatList.size()) {
+				THROWF(RuntimeException, "sectionId exceeds section count (%d >= %d) at frame %d",
+					sectionId, (int)sectionFormatList.size(), i);
+			}
+			frameFormatId_[i] = sectionFormatList[sectionId];
 		}
 	}
 
@@ -397,10 +428,12 @@ private:
 
 	struct AudioState {
 		int64_t time = 0; // 追加された音声フレームの合計時間
+		int64_t lostPts = -1; // 同期ポイントを見失ったPTS（表示用）
 		int lastFrame = -1;
 	};
 
 	struct OutFileState {
+		int formatId; // デバッグ出力用
 		int64_t time; // 追加された映像フレームの合計時間
 		std::vector<AudioState> audioState;
 		std::unique_ptr<FileAudioFrameList> audioFrameList;
@@ -431,6 +464,7 @@ private:
 		for (int i = 0; i < (int)outFormat_.size(); ++i) {
 			auto& file = outFiles[i];
 			int numAudio = (int)outFormat_[i].audioFormat.size();
+			file.formatId = i;
 			file.time = 0;
 			file.audioState.resize(numAudio);
 			file.audioFrameList =
@@ -551,8 +585,11 @@ private:
 		});
 		if (it != frameList.end()) {
 			// 見つけたところに位置をセットして入れてみる
-			ctx.warn("%f秒で音声%dの同期ポイントを見失ったので再検索",
-				elapsedTime(pts), index);
+			if (state.lostPts != pts) {
+				state.lostPts = pts;
+				ctx.warn("%.3f秒で音声%dの同期ポイントを見失ったので再検索",
+					elapsedTime(pts), index);
+			}
 			state.lastFrame = *it - 1;
 			fillAudioFramesInOrder(file, index, format, pts, duration);
 		}
@@ -580,10 +617,16 @@ private:
 			const auto& frame = audioFrameList_[frameIndex];
 			int64_t modPTS = modifiedAudioPTS_[frameIndex];
 			int frameDuration = audioFrameDuration_[frameIndex];
+			int halfDuration = frameDuration / 2;
+			int quaterDuration = frameDuration / 4;
 
 			if (modPTS >= pts + duration) {
-				// 行き過ぎ
-				break;
+				// 開始が終了より後ろの場合
+				if (modPTS >= pts + frameDuration - quaterDuration) {
+					// フレームの4分の3以上のズレている場合
+					// 行き過ぎ
+					break;
+				}
 			}
 			if (modPTS + (frameDuration / 2) < pts) {
 				// 前すぎるのでスキップ
@@ -600,17 +643,17 @@ private:
 			int nframes = std::max(1, ((int)(modPTS - pts) + (frameDuration / 4)) / frameDuration);
 
 			if (nframes > 1) {
-				ctx.warn("%f秒で音声%dにずれがあるので%dフレーム水増しします。",
-					elapsedTime(modPTS), index, nframes - 1);
+				ctx.warn("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増しします。",
+					elapsedTime(modPTS), file.formatId, index, nframes - 1);
 			}
 			if (nskipped > 0) {
 				if (state.lastFrame == -1) {
-					ctx.info("音声%dは%dフレーム目から開始します。",
-						index, nskipped);
+					ctx.info("音声%d-%dは%dフレーム目から開始します。",
+						file.formatId, index, nskipped);
 				}
 				else {
-					ctx.warn("%f秒で音声%dにずれがあるので%dフレームスキップします。",
-						elapsedTime(modPTS), index, nskipped);
+					ctx.warn("%.3f秒で音声%d-%dにずれがあるので%dフレームスキップします。",
+						elapsedTime(modPTS), file.formatId, index, nskipped);
 				}
 				nskipped = 0;
 			}
@@ -651,7 +694,7 @@ private:
 			avgDiff, maxDiff);
 
 		if (maxPtsDiff_ > 0 && maxDiff - avgDiff > 1) {
-			ctx.info("最大音ズレ位置: 入力動画最初の映像フレームから%f秒後",
+			ctx.info("最大音ズレ位置: 入力動画最初の映像フレームから%.3f秒後",
 				elapsedTime(maxPtsDiffPos_));
 		}
 	}

@@ -814,6 +814,7 @@ private:
 
 	PATDelegator PsiParserPAT;
 	PMTDelegator PsiParserPMT;
+	int pmtPid;
 	VideoDelegator videoDelegator;
 	std::vector<AudioDelegator*> audioDelegators;
 
@@ -857,7 +858,8 @@ private:
 					PsiParserPMT.clear();
 					SID_ = sid;
 				}
-				curHandlerTable->add(pid, &PsiParserPMT);
+				pmtPid = pid;
+				curHandlerTable->add(pmtPid, &PsiParserPMT);
 			}
 		}
 	}
@@ -887,11 +889,11 @@ private:
 			}
 			if (videoEs.pid == -1) {
 				// 映像ストリームがない
-				ctx.warn("[PMT更新] 映像ストリームがありません");
+				ctx.warn("PMT 映像ストリームがありません");
 				return;
 			}
 			if (audioEs.size() == 0) {
-				ctx.warn("[PMT更新] オーディオストリームがありません");
+				ctx.warn("PMT オーディオストリームがありません");
 			}
 
 			// 
@@ -901,7 +903,7 @@ private:
 				waitingNewVideo = true;
 				table = nextHandlerTable;
 				if (this->videoEs.pid != -1) {
-					ctx.info("[PMT更新] 映像ストリームの変更を検知");
+					ctx.info("PMT 映像ストリームの変更を検知");
 				}
 			}
 
@@ -936,6 +938,9 @@ private:
 	void swapHandlerTable() {
 		std::swap(curHandlerTable, nextHandlerTable);
 		nextHandlerTable->clear();
+
+		// PMTを引き継ぐ
+		curHandlerTable->add(pmtPid, &PsiParserPMT);
 	}
 
 	void ensureAudioDelegators(int numAudios) {
@@ -961,6 +966,7 @@ private:
 	}
 
 	void printPMT(const PMT& pmt) {
+		ctx.info("PMTが更新されました");
 		const char* content = NULL;
 		for (int i = 0; i < pmt.numElems(); ++i) {
 			PMTElement elem = pmt.get(i);

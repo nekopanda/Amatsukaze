@@ -446,12 +446,12 @@ protected:
 		for (int i = 0; i < int(pids.size()); ++i) {
 			if (preferedServiceId == pids[i]) {
 				selectedServiceId = pids[i];
-				ctx.info("[PAT更新] サービス 0x%04x を選択", selectedServiceId);
+				ctx.info("PAT サービス 0x%04x を選択", selectedServiceId);
 				return i;
 			}
 		}
 		selectedServiceId = pids[0];
-		ctx.info("[PAT更新] サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
+		ctx.info("PAT サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
 		return 0;
 	}
 

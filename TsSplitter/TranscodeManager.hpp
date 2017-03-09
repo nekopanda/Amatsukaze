@@ -148,12 +148,19 @@ struct TranscoderSetting {
 	std::string encoderPath;
 	std::string encoderOptions;
 	std::string muxerPath;
+	// デバッグ用設定
+	bool dumpStreamInfo;
 
 	std::string getIntVideoFilePath(int index) const
 	{
 		std::ostringstream ss;
 		ss << intFileBasePath << "-" << index << ".mpg";
 		return ss.str();
+	}
+
+	std::string getStreamInfoPath() const
+	{
+		return intFileBasePath + "-streaminfo.dat";
 	}
 
 	std::string getEncVideoFilePath(int vindex, int index) const
@@ -175,10 +182,9 @@ struct TranscoderSetting {
 		if (index == 0) {
 			return outVideoPath + ".mp4";
 		}
-		std::string ret = outVideoPath + "-";
-		ret += index;
-		ret += ".mp4";
-		return ret;
+		std::ostringstream ss;
+		ss << outVideoPath << "-" << index << ".mp4";
+		return ss.str();
 	}
 };
 
@@ -340,7 +346,7 @@ protected:
 			interaceCounter[0], interaceCounter[1], interaceCounter[2], interaceCounter[3], interaceCounter[4], interaceCounter[5], interaceCounter[6]);
 
 		for (const auto& pair : PTSdiffMap) {
-			ctx.info("(PTS_Diff,Cnt)=(%d,%d)\n", pair.first, pair.second.v);
+			ctx.info("(PTS_Diff,Cnt)=(%d,%d)", pair.first, pair.second.v);
 		}
 	}
 
@@ -464,13 +470,14 @@ public:
 
 		for (int i = 0; i < numEncoders; ++i) {
 			const auto& format = reformInfo_.getFormat(i, videoFileIndex);
-			std::string arg = makeEncoderArgs(
+			std::string args = makeEncoderArgs(
 				setting_.encoder,
 				setting_.encoderPath,
 				setting_.encoderOptions,
 				format.videoFormat,
 				setting_.getEncVideoFilePath(videoFileIndex, i));
-			encoders_[i].start(arg, format.videoFormat, bufsize);
+			ctx.info("Start encoder: %s", args.c_str());
+			encoders_[i].start(args, format.videoFormat, bufsize);
 		}
 
 		// エンコードスレッド開始
@@ -543,6 +550,7 @@ private:
 	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
 
 		int64_t pts = (*frame)()->pts;
+
 		int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
 		if (frameIndex == -1) {
 			THROWF(FormatException, "Unknown PTS frame %lld", pts);
@@ -722,10 +730,14 @@ public:
 				reformInfo_.getOutFileIndex(i, videoFileIndex));
 			std::string args = makeMuxerArgs(
 				setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
+			ctx.info("Start muxer: %s", args.c_str());
 
 			{
 				MySubProcess muxer(args);
-				muxer.join();
+				int ret = muxer.join();
+				if (ret != 0) {
+					THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
+				}
 			}
 
 			// 中間ファイル削除
@@ -758,6 +770,10 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
 	StreamReformInfo reformInfo = splitter->split();
 	splitter = nullptr;
+
+	if (setting.dumpStreamInfo) {
+		reformInfo.serialize(setting.getStreamInfoPath());
+	}
 
 	reformInfo.prepareEncode();
 

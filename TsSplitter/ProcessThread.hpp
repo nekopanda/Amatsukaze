@@ -45,7 +45,12 @@ private:
 	HANDLE thread_handle_;
 
 	static unsigned __stdcall thread_(void* arg) {
-		static_cast<ThreadBase*>(arg)->run();
+		try {
+			static_cast<ThreadBase*>(arg)->run();
+		}
+		catch (Exception& e) {
+			throw e;
+		}
 		return 0;
 	}
 };
@@ -80,6 +85,7 @@ public:
 	}
 
 	void start() {
+		finished_ = false;
 		ThreadBase::start();
 	}
 
@@ -165,11 +171,7 @@ public:
 		stdInPipe_.closeRead();
 	}
 	~SubProcess() {
-		// 子プロセスの終了を待つ
-		WaitForSingleObject(pi_.hProcess, INFINITE);
-
-		CloseHandle(pi_.hProcess);
-		CloseHandle(pi_.hThread);
+		join();
 	}
 	void write(MemoryChunk mc) {
 		if (mc.length > 0xFFFFFFFF) {
@@ -191,6 +193,19 @@ public:
 	}
 	void finishWrite() {
 		stdInPipe_.closeWrite();
+	}
+	int join() {
+		if (pi_.hProcess != NULL) {
+			// 子プロセスの終了を待つ
+			WaitForSingleObject(pi_.hProcess, INFINITE);
+			// 終了コード取得
+			GetExitCodeProcess(pi_.hProcess, &exitCode_);
+
+			CloseHandle(pi_.hProcess);
+			CloseHandle(pi_.hThread);
+			pi_.hProcess = NULL;
+		}
+		return exitCode_;
 	}
 private:
 	class Pipe {
@@ -229,6 +244,7 @@ private:
 	Pipe stdErrPipe_;
 	Pipe stdOutPipe_;
 	Pipe stdInPipe_;
+	DWORD exitCode_;
 
 	size_t readGeneric(MemoryChunk mc, HANDLE readHandle)
 	{
@@ -262,7 +278,7 @@ public:
 			THROW(InvalidOperationException, "call join before destroy object ...");
 		}
 	}
-	void join() {
+	int join() {
 		/*
 		* 終了処理の流れ
 		* finishWrite()
@@ -278,6 +294,7 @@ public:
 		finishWrite();
 		drainOut.join();
 		drainErr.join();
+		return SubProcess::join();
 	}
 	bool isRunning() { return drainOut.isRunning(); }
 protected:

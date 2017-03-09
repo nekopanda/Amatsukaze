@@ -581,23 +581,47 @@ TEST(Process, SimpleProcessTest)
 
 // Encode Test
 
-TEST_F(TestBase, encodeMpeg2Test)
+TranscoderSetting makeTranscodeSetting(
+	const std::string& srcDir, 
+	const std::string& dstDir, 
+	const std::string& srcfile)
 {
-	std::string srcDir = TestDataDir + "\\";
-	std::string dstDir = TestWorkDir + "\\";
-
 	TranscoderSetting setting;
-	setting.tsFilePath = srcDir + H264VideoTsFile + ".ts";
+	setting.tsFilePath = srcDir + srcfile + ".ts";
 	setting.outVideoPath = dstDir + "Mpeg2Test";
 	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
 	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
 	setting.encoder = ENCODER_X264;
 	setting.encoderPath = "x264.exe";
-	setting.encoderOptions = "--crf 23";
+	setting.encoderOptions = "--preset ultrafast --crf 23";
 	setting.muxerPath = "muxer.exe";
+	setting.dumpStreamInfo = true;
+	return setting;
+}
+
+TEST_F(TestBase, encodeMpeg2Test)
+{
+	std::string srcDir = TestDataDir + "\\";
+	std::string dstDir = TestWorkDir + "\\";
+	TranscoderSetting setting =
+		makeTranscodeSetting(srcDir, dstDir, AudioFormatChangeTsFile);
 
 	AMTContext ctx;
 	transcodeMain(ctx, setting);
+}
+
+TEST_F(TestBase, fileStreamInfoTest)
+{
+	std::string srcDir = TestDataDir + "\\";
+	std::string dstDir = TestWorkDir + "\\";
+	TranscoderSetting setting =
+		makeTranscodeSetting(srcDir, dstDir, AudioFormatChangeTsFile);
+
+	AMTContext ctx;
+	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
+	reformInfo.prepareEncode();
+	reformInfo.makeAllframgesEncoded();
+	reformInfo.prepareMux();
 }
 
 void my_purecall_handler() {

@@ -100,20 +100,12 @@ class AdtsParser : public AMTObject {
 public:
 	AdtsParser(AMTContext&ctx)
 		: AMTObject(ctx)
-		, hAacDec(NeAACDecOpen())
+		, hAacDec(NULL)
 	{
-		NeAACDecConfigurationPtr conf = NeAACDecGetCurrentConfiguration(hAacDec);
-		conf->outputFormat = FAAD_FMT_16BIT;
-		conf->downMatrix = 1; // WAV出力は解析用なので2chあれば十分
-		NeAACDecSetConfiguration(hAacDec, conf);
-
 		createChannelsMap();
 	}
 	~AdtsParser() {
-		if (hAacDec != NULL) {
-			NeAACDecClose(hAacDec);
-			hAacDec = NULL;
-		}
+		closeDecoder();
 	}
 
 	virtual void reset() {
@@ -136,6 +128,9 @@ public:
 			if (syncword == 0xFFF) {
 				if (header.parse(frame.data + i, (int)frame.length - i)) {
 					// ストリームを解析するのは面倒なのでデコードしちゃう
+					if (hAacDec == NULL) {
+						resetDecoder(MemoryChunk(frame.data + i, frame.length - i));
+					}
 					NeAACDecFrameInfo frameInfo;
 					void* samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data + i, (int)frame.length - i);
 					if (frameInfo.error != 0) {
@@ -143,14 +138,7 @@ public:
 						// 変な使い方だけどNeroAAC君はストリームの途中で
 						// フォーマットが変わることを想定していないんだから仕方ない
 						//（fixed headerが変わらなくてもチャンネル構成が変わることがあるから読んでみないと分からない）
-						// 面倒なので初回の初期化もこれで行う
-						unsigned long samplerate;
-						unsigned char channels;
-						// TODO: フォーマットが変わる場合に対応できるか検証
-						if (NeAACDecInit(hAacDec, frame.data + i, (int)frame.length - i, &samplerate, &channels)) {
-							ctx.warn("NeAACDecInitに失敗");
-							return false;
-						}
+						resetDecoder(MemoryChunk(frame.data + i, frame.length - i));
 						samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data + i, (int)frame.length - i);
 					}
 					if (frameInfo.error == 0) {
@@ -196,6 +184,32 @@ private:
 	std::map<int64_t, AUDIO_CHANNELS> channelsMap;
 
 	AutoBuffer decodedBuffer;
+
+	void closeDecoder() {
+		if (hAacDec != NULL) {
+			NeAACDecClose(hAacDec);
+			hAacDec = NULL;
+		}
+	}
+
+	bool resetDecoder(MemoryChunk data) {
+		closeDecoder();
+
+		hAacDec = NeAACDecOpen();
+		NeAACDecConfigurationPtr conf = NeAACDecGetCurrentConfiguration(hAacDec);
+		conf->outputFormat = FAAD_FMT_16BIT;
+		conf->downMatrix = 1; // WAV出力は解析用なので2chあれば十分
+		NeAACDecSetConfiguration(hAacDec, conf);
+
+		unsigned long samplerate;
+		unsigned char channels;
+		// TODO: フォーマットが変わる場合に対応できるか検証
+		if (NeAACDecInit(hAacDec, data.data, (int)data.length, &samplerate, &channels)) {
+			ctx.warn("NeAACDecInitに失敗");
+			return false;
+		}
+		return true;
+	}
 
 	AUDIO_CHANNELS getAudioChannels(const AdtsHeader& header, const NeAACDecFrameInfo& frameInfo) {
 

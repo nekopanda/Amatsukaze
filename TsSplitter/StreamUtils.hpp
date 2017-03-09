@@ -395,12 +395,39 @@ public:
 			THROWF(IOException, "failed to write to file");
 		}
 	}
+	template <typename T>
+	void writeValue(T v) {
+		write(MemoryChunk((uint8_t*)&v, sizeof(T)));
+	}
+	template <typename T>
+	void writeArray(const std::vector<T>& arr) {
+		writeValue(arr.size());
+		auto dataptr = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(arr.data()));
+		write(MemoryChunk(dataptr, sizeof(T)*arr.size()));
+	}
 	size_t read(MemoryChunk mc) {
 		size_t ret = fread(mc.data, 1, mc.length, fp_);
 		if (ret <= 0) {
 			THROWF(IOException, "failed to read from file");
 		}
 		return ret;
+	}
+	template <typename T>
+	T readValue() {
+		T v;
+		if (read(MemoryChunk((uint8_t*)&v, sizeof(T))) != sizeof(T)) {
+			THROWF(IOException, "failed to read value from file");
+		}
+		return v;
+	}
+	template <typename T>
+	std::vector<T> readArray() {
+		size_t len = readValue<size_t>();
+		std::vector<T> arr(len);
+		if (read(MemoryChunk((uint8_t*)arr.data(), sizeof(T)*len)) != sizeof(T)*len) {
+			THROWF(IOException, "failed to read array from file");
+		}
+		return arr;
 	}
 	void flush() {
 		fflush(fp_);
