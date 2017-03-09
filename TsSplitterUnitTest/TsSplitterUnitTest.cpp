@@ -640,7 +640,7 @@ int main(int argc, char **argv)
 	// FFMPEGƒ‰ƒCƒuƒ‰ƒŠ‰Šú‰»
 	av_register_all();
 
-	::testing::GTEST_FLAG(filter) = "*fileStreamInfoTest";
+	::testing::GTEST_FLAG(filter) = "*encodeMpeg2Test";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

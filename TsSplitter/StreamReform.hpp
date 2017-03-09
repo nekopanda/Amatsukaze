@@ -297,7 +297,7 @@ private:
 			ordredVideoFrame_[i] = i;
 		}
 		std::sort(ordredVideoFrame_.begin(), ordredVideoFrame_.end(), [&](int a, int b) {
-			return videoFrameList_[a].PTS < videoFrameList_[b].PTS;
+			return modifiedPTS_[a] < modifiedPTS_[b];
 		});
 
 		// dataPTSを生成
@@ -332,7 +332,7 @@ private:
 					pts = endPTS;
 				}
 				else {
-					pts = audioFrameList_[ev.frameIdx].PTS;
+					pts = modifiedAudioPTS_[ev.frameIdx];
 				}
 			}
 			streamEventPTS_[i] = pts;
@@ -369,7 +369,10 @@ private:
 			// 変更を反映
 			switch (ev.type) {
 			case PID_TABLE_CHANGED:
-				curFormat.audioFormat.resize(ev.numAudio);
+				if (curFormat.audioFormat.size() != ev.numAudio) {
+					curFormat.audioFormat.resize(ev.numAudio);
+					formatChanged = true;
+				}
 				break;
 			case VIDEO_FORMAT_CHANGED:
 				// ファイル変更
@@ -661,7 +664,7 @@ private:
 				ctx.debug("%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
 					elapsedTime(pts), file.formatId, index);
 			}
-			state.lastFrame = *it - 1;
+			state.lastFrame = (int)(it - frameList.begin() - 1);
 			fillAudioFramesInOrder(file, index, format, pts, duration);
 		}
 
