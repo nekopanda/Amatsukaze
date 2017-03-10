@@ -18,40 +18,10 @@ namespace EncodeServer
         }
     }
 
-    public class QueueItem
-    {
-        public string Path;
-        public List<string> MediaFiles;
-    }
-
-    public class QueueData
-    {
-        public List<QueueItem> Items;
-    }
-
-    public class QueueUpdate
-    {
-        public bool AddOrRemove;
-        public string ItemPath;
-        public string MediaPath;
-    }
-
-    public class LogItem
-    {
-        public long Id; 
-        public string Path;
-        public bool Success;
-    }
-
-    public class LogData
-    {
-        public List<LogItem> Items;
-    }
-
     public interface IEncodeServer
     {
         // 操作系
-        Task SetSetting();
+        Task SetSetting(Setting setting);
         Task AddQueue(string dirPath);
         Task RemoveQueue(string dirPath);
         Task PauseEncode(bool pause);
@@ -70,11 +40,11 @@ namespace EncodeServer
         Task OnQueueUpdate(QueueUpdate update);
         Task OnLogData(LogData data);
         Task OnLogUpdate(LogItem newLog);
-        Task OnConsole();
-        Task OnConsoleUpdate();
-        Task OnLogFile();
+        Task OnConsole(string str);
+        Task OnConsoleUpdate(string str);
+        Task OnLogFile(string str);
         Task OnStatus();
-        Task OnOperationResult(string result);
+        Task OnOperationResult(LogFile result);
     }
 
     public enum RPCMethodId
@@ -103,7 +73,7 @@ namespace EncodeServer
     public class ClientManager : IUserClient
     {
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
-            { RPCMethodId.SetSetting, null },
+            { RPCMethodId.SetSetting, typeof(Setting) },
             { RPCMethodId.AddQueue, typeof(string) },
             { RPCMethodId.RemoveQueue, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
@@ -229,7 +199,7 @@ namespace EncodeServer
             switch (methodId)
             {
                 case RPCMethodId.SetSetting:
-                    server.SetSetting();
+                    server.SetSetting((Setting)arg);
                     break;
                 case RPCMethodId.AddQueue:
                     server.AddQueue((string)arg);
@@ -271,27 +241,27 @@ namespace EncodeServer
         #region IUserClient
         public Task OnQueueData(QueueData data)
         {
-            return Send(RPCMethodId.OnQueueData, typeof(string), data);
+            return Send(RPCMethodId.OnQueueData, typeof(QueueData), data);
         }
 
         public Task OnQueueUpdate(QueueUpdate update)
         {
-            return Send(RPCMethodId.OnQueueUpdate, typeof(string), update);
+            return Send(RPCMethodId.OnQueueUpdate, typeof(QueueUpdate), update);
         }
 
         public Task OnLogData(LogData data)
         {
-            return Send(RPCMethodId.OnLogData, typeof(string), data);
+            return Send(RPCMethodId.OnLogData, typeof(LogData), data);
         }
 
         public Task OnLogUpdate(LogItem newLog)
         {
-            return Send(RPCMethodId.OnLogUpdate, typeof(string), newLog);
+            return Send(RPCMethodId.OnLogUpdate, typeof(LogItem), newLog);
         }
 
-        public Task OnConsole()
+        public Task OnConsole(string str)
         {
-            return Send(RPCMethodId.OnConsole, null, null);
+            return Send(RPCMethodId.OnConsole, typeof(string), str);
         }
 
         public Task OnConsoleUpdate()
@@ -337,6 +307,7 @@ namespace EncodeServer
         
         private List<TargetDirectory> queue = new List<TargetDirectory>();
         private LogData log;
+        private Queue<string> consoleStrings = new Queue<string>();
 
         private bool encodePaused = false;
         private bool nowEncoding = false;
@@ -386,66 +357,77 @@ namespace EncodeServer
             }
         }
 
-        private string ReadLogFIle(long id)
+        private string GetLogFilePath(long id)
         {
-            return File.ReadAllText(LOG_DIR + "\\" + id.ToString("D8") + ".txt");
+            return LOG_DIR + "\\" + id.ToString("D8") + ".txt";
         }
 
-        private async void StartEncode()
+        private string ReadLogFIle(long id)
+        {
+            return File.ReadAllText(GetLogFilePath(id));
+        }
+
+        private void WriteLogFile(long id, string logstr)
+        {
+            File.WriteAllText(GetLogFilePath(id), logstr);
+        }
+
+        private async Task StartEncode()
         {
             nowEncoding = true;
             await Task.Delay(10000);
             nowEncoding = false;
         }
 
-        public void SetSetting()
+        public Task SetSetting(Setting setting)
         {
             throw new NotImplementedException();
         }
 
-        public void AddQueue(string dirPath)
+        public async Task AddQueue(string dirPath)
         {
             if (queue.Find(t => t.DirPath == dirPath) != null)
             {
-                clientManager.OnOperationResult(
+                await clientManager.OnOperationResult(
                     "すでに同じパスが追加されています。パス:" + dirPath);
                 return;
             }
             var target = new TargetDirectory(dirPath);
             if (target.TsFiles.Count == 0)
             {
-                clientManager.OnOperationResult(
+                await clientManager.OnOperationResult(
                     "エンコード対象ファイルが見つかりません。パス:" + dirPath);
                 return;
             }
             queue.Add(target);
             if (nowEncoding == false)
             {
-                StartEncode();
+                await StartEncode();
             }
         }
 
-        public void RemoveQueue(string dirPath)
+        public async Task RemoveQueue(string dirPath)
         {
             var target = queue.Find(t => t.DirPath == dirPath);
             if (target == null)
             {
-                clientManager.OnOperationResult(
+                await clientManager.OnOperationResult(
                     "指定されたキューディレクトリが見つかりません。パス:" + dirPath);
+                return;
             }
             queue.Remove(target);
         }
 
-        public void PauseEncode(bool pause)
+        public async Task PauseEncode(bool pause)
         {
             encodePaused = pause;
             if (encodePaused == false && nowEncoding == false)
             {
-                StartEncode();
+                await StartEncode();
             }
         }
 
-        public void RequestQueue()
+        public Task RequestQueue()
         {
             QueueData data = new QueueData()
             {
@@ -455,27 +437,32 @@ namespace EncodeServer
                     MediaFiles = item.TsFiles
                 }).ToList()
             };
-            clientManager.OnQueueData(data);
+            return clientManager.OnQueueData(data);
         }
 
-        public void RequestLog()
+        public Task RequestLog()
         {
-            throw new NotImplementedException();
+            return clientManager.OnLogData(log);
         }
 
-        public void RequestConsole()
+        public Task RequestConsole()
         {
-            throw new NotImplementedException();
+            return clientManager.OnConsole(String.Join("\r\n", consoleStrings));
         }
 
-        public void RequestLogFile()
+        public Task RequestLogFile()
         {
-            throw new NotImplementedException();
+            return clientManager.OnLogData(log);
         }
 
-        public void RequestStatus()
+        public Task RequestStatus()
         {
-            throw new NotImplementedException();
+            return clientManager.OnLogData(log);
+        }
+
+        public Task RequestLogFile(LogItem item)
+        {
+            return clientManager.OnLogData(log);
         }
     }
 }

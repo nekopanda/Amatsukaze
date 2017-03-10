@@ -1,17 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TsSplitter", "TsSplitter\TsSplitter.vcxproj", "{4E733A88-E41A-4370-B25F-1626A5F439F1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Amatsukaze", "TsSplitter\TsSplitter.vcxproj", "{4E733A88-E41A-4370-B25F-1626A5F439F1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TsSplitterUnitTest", "TsSplitterUnitTest\TsSplitterUnitTest.vcxproj", "{8C95EAD9-DE23-4DA4-8FEE-0D0B6E289055}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AmatsukazeUnitTest", "TsSplitterUnitTest\TsSplitterUnitTest.vcxproj", "{8C95EAD9-DE23-4DA4-8FEE-0D0B6E289055}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libfaad2", "libfaad\libfaad2.vcxproj", "{482DA264-EE88-4575-B208-87C4CB80CD08}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FileCutter", "FileCutter\FileCutter.vcxproj", "{62A88502-50BC-4045-A184-13C08DCC00E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EncodeServer", "EncodeServer\EncodeServer.csproj", "{3722017C-1CD2-4D47-A065-29DA38DA6718}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmatsukazeServer", "EncodeServer\AmatsukazeServer.csproj", "{3722017C-1CD2-4D47-A065-29DA38DA6718}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
