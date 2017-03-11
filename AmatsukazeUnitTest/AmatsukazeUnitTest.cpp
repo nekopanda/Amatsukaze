@@ -646,6 +646,8 @@ TEST(CLI, ArgumentTest)
 {
 	tchar* argv[] = {
 		_T("Amatsukaze.exe"),
+		_T("-s"),
+		_T("12345"),
 		_T("-i"),
 		_T("C:\\hoge\\input.ts"),
 		_T("-o"),
@@ -670,6 +672,9 @@ TEST(CLI, ArgumentTest)
 	AMTContext ctx;
 	parseArgs(sizeof(argv) / sizeof(argv[0]), argv).dump(ctx);
 
+	argv[2] = _T("0x6308");
+	parseArgs(sizeof(argv) / sizeof(argv[0]), argv).dump(ctx);
+
 	argv[1] = _T("--ourput");
 	EXPECT_ANY_THROW(parseArgs(sizeof(argv) / sizeof(argv[0]), argv));
 	printHelp(argv[0]);
@@ -687,7 +692,7 @@ int main(int argc, char **argv)
 	// FFMPEGÉâÉCÉuÉâÉäèâä˙âª
 	av_register_all();
 
-	::testing::GTEST_FLAG(filter) = "*encodeMpeg2Test";
+	::testing::GTEST_FLAG(filter) = "*ArgumentTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

@@ -18,82 +18,8 @@ namespace EncodeServer
         }
     }
 
-    public interface IEncodeServer
-    {
-        // 操作系
-        Task SetSetting(Setting setting);
-        Task AddQueue(string dirPath);
-        Task RemoveQueue(string dirPath);
-        Task PauseEncode(bool pause);
-
-        // 情報取得系
-        Task RequestQueue();
-        Task RequestLog();
-        Task RequestConsole();
-        Task RequestLogFile(LogItem item);
-        Task RequestStatus();
-    }
-
-    public interface IUserClient
-    {
-        Task OnQueueData(QueueData data);
-        Task OnQueueUpdate(QueueUpdate update);
-        Task OnLogData(LogData data);
-        Task OnLogUpdate(LogItem newLog);
-        Task OnConsole(string str);
-        Task OnConsoleUpdate(string str);
-        Task OnLogFile(string str);
-        Task OnStatus();
-        Task OnOperationResult(LogFile result);
-    }
-
-    public enum RPCMethodId
-    {
-        SetSetting = 100,
-        AddQueue,
-        RemoveQueue,
-        PauseEncode,
-        RequestQueue,
-        RequestLog,
-        RequestConsole,
-        RequestLogFile,
-        RequestStatus,
-
-        OnQueueData = 200,
-        OnQueueUpdate,
-        OnLogData,
-        OnLogUpdate,
-        OnConsole,
-        OnConsoleUpdate,
-        OnLogFile,
-        OnStatus,
-        OnOperationResult,
-    }
-
     public class ClientManager : IUserClient
     {
-        public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
-            { RPCMethodId.SetSetting, typeof(Setting) },
-            { RPCMethodId.AddQueue, typeof(string) },
-            { RPCMethodId.RemoveQueue, typeof(string) },
-            { RPCMethodId.PauseEncode, typeof(bool) },
-            { RPCMethodId.RequestQueue, null },
-            { RPCMethodId.RequestLog, null },
-            { RPCMethodId.RequestConsole, null },
-            { RPCMethodId.RequestLogFile, typeof(LogItem) },
-            { RPCMethodId.RequestStatus, null },
-
-            { RPCMethodId.OnQueueData, typeof(QueueData) },
-            { RPCMethodId.OnQueueUpdate, typeof(QueueUpdate) },
-            { RPCMethodId.OnLogData, typeof(LogData) },
-            { RPCMethodId.OnLogUpdate, typeof(LogItem) },
-            { RPCMethodId.OnConsole, null },
-            { RPCMethodId.OnConsoleUpdate, null },
-            { RPCMethodId.OnLogFile, null },
-            { RPCMethodId.OnStatus, null },
-            { RPCMethodId.OnOperationResult, typeof(string) }
-        };
-
         private class Client
         {
             private ClientManager manager;
@@ -121,7 +47,7 @@ namespace EncodeServer
                         {
                             readBytes = 0;
                             var methodId = (RPCMethodId)((idbytes[0] << 8) | idbytes[1]);
-                            var argType = ArgumentTypes[methodId];
+                            var argType = RPCTypes.ArgumentTypes[methodId];
                             object arg = null;
                             if (argType != null)
                             {
@@ -222,8 +148,8 @@ namespace EncodeServer
                 case RPCMethodId.RequestLogFile:
                     server.RequestLogFile((LogItem)arg);
                     break;
-                case RPCMethodId.RequestStatus:
-                    server.RequestStatus();
+                case RPCMethodId.RequestState:
+                    server.RequestState();
                     break;
             }
         }
@@ -264,19 +190,19 @@ namespace EncodeServer
             return Send(RPCMethodId.OnConsole, typeof(string), str);
         }
 
-        public Task OnConsoleUpdate()
+        public Task OnConsoleUpdate(string str)
         {
-            return Send(RPCMethodId.OnConsoleUpdate, null, null);
+            return Send(RPCMethodId.OnConsoleUpdate, typeof(string), str);
         }
 
-        public Task OnLogFile()
+        public Task OnLogFile(string str)
         {
-            return Send(RPCMethodId.OnLogFile, null, null);
+            return Send(RPCMethodId.OnLogFile, typeof(string), str);
         }
 
-        public Task OnStatus()
+        public Task OnState(State state)
         {
-            return Send(RPCMethodId.OnStatus, null, null);
+            return Send(RPCMethodId.OnState, typeof(State), state);
         }
 
         public Task OnOperationResult(string result)
@@ -300,11 +226,21 @@ namespace EncodeServer
             }
         }
 
+        [DataContract]
+        private class AppData : IExtensibleDataObject
+        {
+            [DataMember]
+            public Setting setting;
+
+            public ExtensionDataObject ExtensionData { get; set; }
+        }
+
         private static string LOG_FILE = "log.xml";
         private static string LOG_DIR = "logs";
 
         private ClientManager clientManager;
-        
+        private AppData appData;
+
         private List<TargetDirectory> queue = new List<TargetDirectory>();
         private LogData log;
         private Queue<string> consoleStrings = new Queue<string>();
@@ -314,8 +250,59 @@ namespace EncodeServer
 
         public EncodeServer()
         {
+            LoadAppData();
             clientManager = new ClientManager(this);
             ReadLog();
+        }
+
+        #region Path
+        private string GetAmatsukzeCLIPath()
+        {
+            return Path.Combine(Path.GetDirectoryName(
+                typeof(EncodeServer).Assembly.Location), "AmatsukazeCLI.exe");
+        }
+
+        private string GetSettingFilePath()
+        {
+            return "AmatsukazeServer.xml";
+        }
+
+        private string GetLogFilePath(long id)
+        {
+            return LOG_DIR + "\\" + id.ToString("D8") + ".txt";
+        }
+
+        private string ReadLogFIle(long id)
+        {
+            return File.ReadAllText(GetLogFilePath(id));
+        }
+
+        private void WriteLogFile(long id, string logstr)
+        {
+            File.WriteAllText(GetLogFilePath(id), logstr);
+        }
+        #endregion
+
+        private void LoadAppData()
+        {
+            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Open))
+            {
+                var s = new DataContractSerializer(typeof(AppData));
+                appData = (AppData)s.ReadObject(fs);
+                if (appData.setting == null)
+                {
+                    appData.setting = new Setting();
+                }
+            }
+        }
+
+        private void SaveAppData()
+        {
+            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Create))
+            {
+                var s = new DataContractSerializer(typeof(AppData));
+                s.WriteObject(fs, appData);
+            }
         }
 
         private void ReadLog()
@@ -357,21 +344,6 @@ namespace EncodeServer
             }
         }
 
-        private string GetLogFilePath(long id)
-        {
-            return LOG_DIR + "\\" + id.ToString("D8") + ".txt";
-        }
-
-        private string ReadLogFIle(long id)
-        {
-            return File.ReadAllText(GetLogFilePath(id));
-        }
-
-        private void WriteLogFile(long id, string logstr)
-        {
-            File.WriteAllText(GetLogFilePath(id), logstr);
-        }
-
         private async Task StartEncode()
         {
             nowEncoding = true;
@@ -381,7 +353,9 @@ namespace EncodeServer
 
         public Task SetSetting(Setting setting)
         {
-            throw new NotImplementedException();
+            appData.setting = setting;
+            SaveAppData();
+            return clientManager.OnOperationResult("設定を更新しました");
         }
 
         public async Task AddQueue(string dirPath)
@@ -450,19 +424,17 @@ namespace EncodeServer
             return clientManager.OnConsole(String.Join("\r\n", consoleStrings));
         }
 
-        public Task RequestLogFile()
-        {
-            return clientManager.OnLogData(log);
-        }
-
-        public Task RequestStatus()
-        {
-            return clientManager.OnLogData(log);
-        }
-
         public Task RequestLogFile(LogItem item)
         {
-            return clientManager.OnLogData(log);
+            return clientManager.OnLogFile(ReadLogFIle(item.Id));
+        }
+
+        public Task RequestState()
+        {
+            var state = new State() {
+                pause = encodePaused
+            };
+            return clientManager.OnState(state);
         }
     }
 }

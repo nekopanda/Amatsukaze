@@ -44,8 +44,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EncodeServerData.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="EncodeServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ServerInterface.cs" />
+    <Compile Include="UserClient.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

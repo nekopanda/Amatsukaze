@@ -257,7 +257,7 @@ struct TranscoderSetting {
 		ctx.info("MuxerPath: %s", muxerPath.c_str());
 		ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
 		if (serviceId > 0) {
-			ctx.info("ServiceId: %d", serviceId);
+			ctx.info("ServiceId: 0x%04x", serviceId);
 		}
 		else {
 			ctx.info("ServiceId: Žw’è‚È‚µ");
