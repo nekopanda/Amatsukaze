@@ -1,3 +1,10 @@
+/**
+* Amatsukaze common header
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
 
 // ターゲットを Windows Vista に設定
@@ -12,12 +19,8 @@
 #undef min
 #undef max
 
-// TODO: プログラムに必要な追加ヘッダーをここで参照してください
-#include <stdint.h>
+#include <cstdint>
 #include <stdio.h>
-#include <stdarg.h>
-
-#include <algorithm>
 
 inline void assertion_failed(const char* line, const char* file, int lineNum) {
 	char buf[500];

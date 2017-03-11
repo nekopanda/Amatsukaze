@@ -1,4 +1,14 @@
+/**
+* Memory and Stream utility
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
+
+#include <algorithm>
+#include <vector>
 
 #include "CoreUtils.hpp"
 
@@ -436,6 +446,24 @@ public:
 		if (_fseeki64(fp_, offset, origin) != 0) {
 			THROWF(IOException, "failed to seek file");
 		}
+	}
+	int64_t size() {
+		int64_t cur = _ftelli64(fp_);
+		if (cur < 0) {
+			THROWF(IOException, "_ftelli64 failed");
+		}
+		if (_fseeki64(fp_, 0L, SEEK_END) != 0) {
+			THROWF(IOException, "failed to seek to end");
+		}
+		int64_t last = _ftelli64(fp_);
+		if (last < 0) {
+			THROWF(IOException, "_ftelli64 failed");
+		}
+		_fseeki64(fp_, cur, SEEK_SET);
+		if (_fseeki64(fp_, cur, SEEK_SET) != 0) {
+			THROWF(IOException, "failed to seek back to current");
+		}
+		return last;
 	}
 private:
 	FILE* fp_;

@@ -1,7 +1,15 @@
+/**
+* Transcode manager
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
 
 #include <string>
 #include <sstream>
+#include <iomanip>
 #include <memory>
 
 #include "StreamUtils.hpp"
@@ -66,6 +74,15 @@ enum ENUM_ENCODER {
 	ENCODER_X265,
 	ENCODER_QSVENC,
 };
+
+static const char* encoderToString(ENUM_ENCODER encoder) {
+	switch (encoder) {
+	case ENCODER_X264: return "x264";
+	case ENCODER_X265: return "x265";
+	case ENCODER_QSVENC: return "QSVEnc";
+	}
+	return "Unknown";
+}
 
 static std::string makeEncoderArgs(
 	ENUM_ENCODER encoder,
@@ -164,12 +181,15 @@ struct TranscoderSetting {
 	std::string intFileBasePath;
 	// 一時音声ファイルパス（拡張子を含む）
 	std::string audioFilePath;
+	// 結果情報JSON出力パス
+	std::string outInfoJsonPath;
 	// エンコーダ設定
 	ENUM_ENCODER encoder;
 	std::string encoderPath;
 	std::string encoderOptions;
 	std::string muxerPath;
 	std::string timelineditorPath;
+	int serviceId;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 
@@ -223,6 +243,27 @@ struct TranscoderSetting {
 		ss << ".mp4";
 		return ss.str();
 	}
+
+	void dump(AMTContext& ctx) const {
+		ctx.info("[設定]");
+		ctx.info("Input: %s", tsFilePath.c_str());
+		ctx.info("Output: %s", outVideoPath.c_str());
+		ctx.info("IntVideo: %s", intFileBasePath.c_str());
+		ctx.info("IntAudio: %s", audioFilePath.c_str());
+		ctx.info("OutJson: %s", outInfoJsonPath.c_str());
+		ctx.info("Encoder: %s", encoderToString(encoder));
+		ctx.info("EncoderPath: %s", encoderPath.c_str());
+		ctx.info("EncoderOptions: %s", encoderOptions.c_str());
+		ctx.info("MuxerPath: %s", muxerPath.c_str());
+		ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
+		if (serviceId > 0) {
+			ctx.info("ServiceId: %d", serviceId);
+		}
+		else {
+			ctx.info("ServiceId: 指定なし");
+		}
+		ctx.info("DumpStreamInfo: %d", dumpStreamInfo);
+	}
 };
 
 
@@ -242,7 +283,10 @@ public:
 		psWriter.setHandler(&writeHandler);
 	}
 
-	StreamReformInfo split() {
+	StreamReformInfo split()
+	{
+		writeHandler.resetSize();
+
 		readAll();
 
 		// for debug
@@ -252,16 +296,26 @@ public:
 			videoFrameList_, audioFrameList_, streamEventList_);
 	}
 
+	int64_t getSrcFileSize() const {
+		return srcFileSize_;
+	}
+
+	int64_t getTotalIntVideoSize() const {
+		return writeHandler.getTotalSize();
+	}
+
 protected:
 	class StreamFileWriteHandler : public PsStreamWriter::EventHandler {
 		TsSplitter& this_;
 		std::unique_ptr<File> file_;
+		int64_t totalIntVideoSize_;
 	public:
 		StreamFileWriteHandler(TsSplitter& this_)
 			: this_(this_) { }
 		virtual void onStreamData(MemoryChunk mc) {
 			if (file_ != NULL) {
 				file_->write(mc);
+				totalIntVideoSize_ += mc.length;
 			}
 		}
 		void open(const std::string& path) {
@@ -269,6 +323,12 @@ protected:
 		}
 		void close() {
 			file_ = nullptr;
+		}
+		void resetSize() {
+			totalIntVideoSize_ = 0;
+		}
+		int64_t getTotalSize() const {
+			return totalIntVideoSize_;
 		}
 	};
 
@@ -281,6 +341,7 @@ protected:
 	int videoStreamType_;
 	int audioStreamType_;
 	int64_t audioFileSize_;
+	int64_t srcFileSize_;
 
 	// データ
 	std::vector<VideoFrameInfo> videoFrameList_;
@@ -292,6 +353,7 @@ protected:
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
 		File srcfile(setting_.tsFilePath, "rb");
+		srcFileSize_ = srcfile.size();
 		size_t readBytes;
 		do {
 			readBytes = srcfile.read(buffer);
@@ -745,6 +807,7 @@ public:
 		, setting_(setting)
 		, reformInfo_(reformInfo)
 		, audioCache_(ctx, setting.audioFilePath, reformInfo.getAudioFileOffsets(), 12, 4)
+		, totalOutSize_(0)
 	{ }
 
 	void mux(int videoFileIndex) {
@@ -822,12 +885,21 @@ public:
 				remove(outFilePath.c_str());
 			}
 
+			{ // 出力サイズ取得
+				File outfile(setting_.getOutFilePath(outFileIndex), "rb");
+				totalOutSize_ += outfile.size();
+			}
+
 			// 中間ファイル削除
 			for (const std::string& audioFile : audioFiles) {
 				remove(audioFile.c_str());
 			}
 			remove(encVideoFile.c_str());
 		}
+	}
+
+	int64_t getTotalOutSize() const {
+		return totalOutSize_;
 	}
 
 private:
@@ -845,12 +917,86 @@ private:
 	const StreamReformInfo& reformInfo_;
 
 	PacketCache audioCache_;
+	int64_t totalOutSize_;
 };
+
+static std::vector<char> toUTF8String(const std::string str) {
+	if (str.size() == 0) {
+		return std::vector<char>();
+	}
+	int intlen = (int)str.size() * 2;
+	auto wc = std::unique_ptr<wchar_t[]>(new wchar_t[intlen]);
+	intlen = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), wc.get(), intlen);
+	if (intlen == 0) {
+		THROW(RuntimeException, "MultiByteToWideChar failed");
+	}
+	int dstlen = WideCharToMultiByte(CP_UTF8, 0, wc.get(), intlen, NULL, 0, NULL, NULL);
+	if (dstlen == 0) {
+		THROW(RuntimeException, "MultiByteToWideChar failed");
+	}
+	std::vector<char> ret(dstlen);
+	WideCharToMultiByte(CP_UTF8, 0, wc.get(), intlen, ret.data(), (int)ret.size(), NULL, NULL);
+	return ret;
+}
+
+static std::string toJsonString(const std::string str) {
+	if (str.size() == 0) {
+		return str;
+	}
+	std::vector<char> utf8 = toUTF8String(str);
+	std::vector<char> ret;
+	for (char c : utf8) {
+		switch (c) {
+		case '\"':
+			ret.push_back('\\');
+			ret.push_back('\"');
+			break;
+		case '\\':
+			ret.push_back('\\');
+			ret.push_back('\\');
+			break;
+		case '/':
+			ret.push_back('\\');
+			ret.push_back('/');
+			break;
+		case '\b':
+			ret.push_back('\\');
+			ret.push_back('b');
+			break;
+		case '\f':
+			ret.push_back('\\');
+			ret.push_back('f');
+			break;
+		case '\n':
+			ret.push_back('\\');
+			ret.push_back('n');
+			break;
+		case '\r':
+			ret.push_back('\\');
+			ret.push_back('r');
+			break;
+		case '\t':
+			ret.push_back('\\');
+			ret.push_back('t');
+			break;
+		default:
+			ret.push_back(c);
+		}
+	}
+	return std::string(ret.begin(), ret.end());
+}
 
 static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 {
+	setting.dump(ctx);
+
 	auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
+	if (setting.serviceId > 0) {
+		splitter->setServiceId(setting.serviceId);
+	}
 	StreamReformInfo reformInfo = splitter->split();
+	int64_t totalIntVideoSize = splitter->getTotalIntVideoSize();
+	int64_t srcFileSize = splitter->getSrcFileSize();
 	splitter = nullptr;
 
 	if (setting.dumpStreamInfo) {
@@ -865,12 +1011,14 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	}
 	encoder = nullptr;
 
-	reformInfo.prepareMux();
+	auto audioDiffInfo = reformInfo.prepareMux();
+	audioDiffInfo.printAudioPtsDiff(ctx);
 
 	auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
 	for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
 		muxer->mux(i);
 	}
+	int64_t totalOutSize = muxer->getTotalOutSize();
 	muxer = nullptr;
 
 	// 中間ファイルを削除
@@ -879,5 +1027,35 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	// 出力結果を表示
 	ctx.info("完了");
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
+
+	// 出力結果JSON出力
+	if (setting.outInfoJsonPath.size() > 0) {
+		std::ostringstream ss;
+		ss << "{ \"srcpath\": \"" << toJsonString(setting.tsFilePath) << "\", ";
+		ss << "\"outpath\": [";
+		for (int i = 0; i < reformInfo.getNumOutFiles(); ++i) {
+			if (i > 0) {
+				ss << ", ";
+			}
+			ss << "\"" << toJsonString(setting.getOutFilePath(i)) << "\"";
+		}
+		ss << "], ";
+		ss << "\"srcfilesize\": " << srcFileSize << ", ";
+		ss << "\"intvideofilesize\": " << totalIntVideoSize << ", ";
+		ss << "\"outfilesize\": " << totalOutSize << ", ";
+		auto duration = reformInfo.getInOutDuration();
+		ss << "\"srcduration\": " << std::fixed << std::setprecision(3)
+			 << ((double)duration.first / MPEG_CLOCK_HZ) << ", ";
+		ss << "\"outduration\": " << std::fixed << std::setprecision(3)
+			 << ((double)duration.second / MPEG_CLOCK_HZ) << ", ";
+		ss << "\"audiodiff\": ";
+		audioDiffInfo.printToJson(ss);
+		ss << " }";
+
+		std::string str = ss.str();
+		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
+		File file(setting.outInfoJsonPath, "w");
+		file.write(mc);
+	}
 }
 

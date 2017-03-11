@@ -1,3 +1,10 @@
+/**
+* MPEG2-TS splitter
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
 
 #include "common.h"
@@ -324,6 +331,7 @@ public:
 		tsPacketParser.setEnableBuffering(true);
 	}
 
+	// 0以下で指定無効
 	void setServiceId(int sid) {
 		preferedServiceId = sid;
 	}
@@ -451,6 +459,19 @@ protected:
 				ctx.info("サービス 0x%04x を選択", selectedServiceId);
 				return i;
 			}
+		}
+		if (preferedServiceId > 0) {
+			// サービス指定があるのに該当サービスがなかったらエラーとする
+			std::ostringstream ss;
+			ss << "サービスID: ";
+			for (int i = 0; i < (int)pids.size(); ++i) {
+				if (i > 0) ss << ", ";
+				ss << pids[i];
+			}
+			ss << " 指定サービスID: " << preferedServiceId;
+			ctx.error("指定されたサービスがありません");
+			ctx.error(ss.str().c_str());
+			THROW(InvalidOperationException, "failed to select service");
 		}
 		selectedServiceId = pids[0];
 		ctx.info("サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);

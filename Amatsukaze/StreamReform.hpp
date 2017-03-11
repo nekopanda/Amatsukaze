@@ -1,3 +1,10 @@
+/**
+* Output stream construction
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
 
 #include <vector>
@@ -50,6 +57,65 @@ struct OutVideoFormat {
 	std::vector<AudioFormat> audioFormat;
 };
 
+// 音ズレ統計情報
+struct AudioDiffInfo {
+	int64_t sumPtsDiff;
+	int totalSrcFrames;
+	int totalAudioFrames; // 出力した音声フレーム（水増し分を含む）
+	int totalUniquAudioFrames; // 出力した音声フレーム（水増し分を含まず）
+	int64_t maxPtsDiff;
+	int64_t maxPtsDiffPos;
+	int64_t basePts;
+
+	// 秒単位で取得
+	double avgDiff() const {
+		return ((double)sumPtsDiff / totalAudioFrames) / MPEG_CLOCK_HZ;
+	}
+	// 秒単位で取得
+	double maxDiff() const {
+		return (double)maxPtsDiff / MPEG_CLOCK_HZ;
+	}
+
+	void printAudioPtsDiff(AMTContext& ctx) const {
+		double avgDiff = this->avgDiff() * 1000;
+		double maxDiff = this->maxDiff() * 1000;
+		int notIncluded = totalSrcFrames - totalUniquAudioFrames;
+
+		ctx.info("出力音声フレーム: %d（うち水増しフレーム%d）",
+			totalAudioFrames, totalAudioFrames - totalUniquAudioFrames);
+		ctx.info("未出力フレーム: %d（%.3f%%）",
+			notIncluded, (double)notIncluded * 100 / totalSrcFrames);
+
+		ctx.info("音ズレ: 平均 %.2fms 最大 %.2fms",
+			avgDiff, maxDiff);
+		if (maxPtsDiff > 0 && maxDiff - avgDiff > 1) {
+			ctx.info("最大音ズレ位置: 入力最初の映像フレームから%.3f秒後",
+				elapsedTime(maxPtsDiffPos));
+		}
+	}
+
+	void printToJson(std::ostringstream& ss) {
+		double avgDiff = this->avgDiff() * 1000;
+		double maxDiff = this->maxDiff() * 1000;
+		int notIncluded = totalSrcFrames - totalUniquAudioFrames;
+
+		ss << "{ \"totalsrcframes\": " << totalSrcFrames 
+			<< ", \"totaloutframes\": " << totalAudioFrames
+			<< ", \"totaloutuniqueframes\": " << totalUniquAudioFrames
+			<< ", \"notincludedper\": " << std::fixed << std::setprecision(3)
+			<< ((double)notIncluded * 100 / totalSrcFrames)
+			<< ", \"avgdiff\": " << std::fixed << std::setprecision(3) << avgDiff
+			<< ", \"maxdiff\": " << std::fixed << std::setprecision(3) << maxDiff
+			<< ", \"maxdiffpos\": " << std::fixed << std::setprecision(3) << elapsedTime(maxPtsDiffPos)
+			<< " }";
+	}
+
+private:
+	double elapsedTime(int64_t modPTS) const {
+		return (double)(modPTS - basePts) / MPEG_CLOCK_HZ;
+	}
+};
+
 class StreamReformInfo : public AMTObject {
 public:
 	StreamReformInfo(
@@ -72,8 +138,9 @@ public:
 		reformMain();
 	}
 
-	void prepareMux() {
+	AudioDiffInfo prepareMux() {
 		genAudioStream();
+		return adiff_;
 	}
 
 	int getNumVideoFile() const {
@@ -103,6 +170,10 @@ public:
 	int getNumEncoders(int videoFileIndex) const {
 		return int(
 			outFormatStartIndex_[videoFileIndex + 1] - outFormatStartIndex_[videoFileIndex]);
+	}
+
+	int getNumOutFiles() const {
+		return (int)outFormat_.size();
 	}
 
 	// video frame index -> VideoFrameInfo
@@ -151,6 +222,10 @@ public:
 
 	bool isVFR() const {
 		return isVFR_;
+	}
+
+	std::pair<int64_t, int64_t> getInOutDuration() const {
+		return std::make_pair(srcTotalDuration_, outTotalDuration_);
 	}
 
 	const std::vector<int64_t>& getTimecode(int encoderIndex, int videoFileIndex) const {
@@ -247,12 +322,11 @@ private:
 	std::vector<int64_t> audioFileOffsets_; // 音声ファイルキャッシュ用
 	std::vector<int> outFileIndex_;
 
+	int64_t srcTotalDuration_;
+	int64_t outTotalDuration_;
+
 	// 音ズレ情報
-	int64_t sumPtsDiff_;
-	int totalAudioFrames_; // 出力した音声フレーム（水増し分を含む）
-	int totalUniquAudioFrames_; // 出力した音声フレーム（水増し分を含まず）
-	int64_t maxPtsDiff_;
-	int64_t maxPtsDiffPos_;
+	AudioDiffInfo adiff_;
 
 	void reformMain()
 	{
@@ -494,11 +568,9 @@ private:
 	void genAudioStream() {
 
 		// 統計情報初期化
-		sumPtsDiff_ = 0;
-		totalAudioFrames_ = 0;
-		totalUniquAudioFrames_ = 0;
-		maxPtsDiff_ = 0;
-		maxPtsDiffPos_ = 0;
+		adiff_ = AudioDiffInfo();
+		adiff_.totalSrcFrames = (int)audioFrameList_.size();
+		adiff_.basePts = dataPTS_[0];
 
 		// indexAudioFrameList_を作成
 		int numMaxAudio = 1;
@@ -541,18 +613,22 @@ private:
 		reformedAudioFrameList_.resize(outFormat_.size());
 		fileDuration_.resize(outFormat_.size());
 		timecodeList_.resize(outFormat_.size());
+		int64_t sumDuration = 0;
 		int64_t maxDuration = 0;
 		int maxId = 0;
 		for (int i = 0; i < (int)outFormat_.size(); ++i) {
 			int64_t time = outFiles[i].time;
 			reformedAudioFrameList_[i] = std::move(outFiles[i].audioFrameList);
 			fileDuration_[i] = time;
+			sumDuration += time;
 			if (maxDuration < time) {
 				maxDuration = time;
 				maxId = i;
 			}
 			timecodeList_[i] = std::move(outFiles[i].timecode);
 		}
+		srcTotalDuration_ = dataPTS_.back() - dataPTS_.front();
+		outTotalDuration_ = sumDuration;
 
 		// audioFileOffsets_を生成
 		audioFileOffsets_.resize(audioFrameList_.size() + 1);
@@ -570,8 +646,6 @@ private:
 				outFileIndex_[i] = cnt++;
 			}
 		}
-
-		printAudioPtsDiff();
 	}
 
 	// ファイルに映像フレームを１枚追加
@@ -732,16 +806,16 @@ private:
 				nskipped = 0;
 			}
 
-			++totalUniquAudioFrames_;
+			++adiff_.totalUniquAudioFrames;
 			for (int t = 0; t < nframes; ++t) {
 				// 統計情報
 				int64_t diff = std::abs(modPTS - pts);
-				if (maxPtsDiff_ < diff) {
-					maxPtsDiff_ = diff;
-					maxPtsDiffPos_ = pts;
+				if (adiff_.maxPtsDiff < diff) {
+					adiff_.maxPtsDiff = diff;
+					adiff_.maxPtsDiffPos = pts;
 				}
-				sumPtsDiff_ += diff;
-				++totalAudioFrames_;
+				adiff_.sumPtsDiff += diff;
+				++adiff_.totalAudioFrames;
 
 				// フレームを出力
 				outFrameList.push_back(frameIndex);
@@ -755,24 +829,6 @@ private:
 				// 十分出力した
 				return;
 			}
-		}
-	}
-
-	void printAudioPtsDiff() {
-		double avgDiff = ((double)sumPtsDiff_ / totalAudioFrames_) * 1000 / MPEG_CLOCK_HZ;
-		double maxDiff = (double)maxPtsDiff_ * 1000 / MPEG_CLOCK_HZ;
-		int notIncluded = (int)audioFrameList_.size() - totalUniquAudioFrames_;
-
-		ctx.info("出力音声フレーム: %d（うち水増しフレーム%d）",
-			totalAudioFrames_, totalAudioFrames_ - totalUniquAudioFrames_);
-		ctx.info("未出力フレーム: %d（%.3f%%）",
-			notIncluded, (double)notIncluded * 100 / audioFrameList_.size());
-
-		ctx.info("音ズレ: 平均 %.2fms 最大 %.2fms",
-			avgDiff, maxDiff);
-		if (maxPtsDiff_ > 0 && maxDiff - avgDiff > 1) {
-			ctx.info("最大音ズレ位置: 入力最初の映像フレームから%.3f秒後",
-				elapsedTime(maxPtsDiffPos_));
 		}
 	}
 

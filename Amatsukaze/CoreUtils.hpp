@@ -1,3 +1,10 @@
+/**
+* Amatsukaze core utility
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
 
 #include "common.h"
@@ -25,6 +32,7 @@ struct Exception {
 DEFINE_EXCEPTION(EOFException)
 DEFINE_EXCEPTION(FormatException)
 DEFINE_EXCEPTION(InvalidOperationException)
+DEFINE_EXCEPTION(ArgumentException)
 DEFINE_EXCEPTION(IOException)
 DEFINE_EXCEPTION(RuntimeException)
 

@@ -7,15 +7,7 @@
 
 #include "gtest/gtest.h"
 
-#include "TsSplitter.hpp"
-#include "ProcessThread.hpp"
-#include "Transcode.hpp"
-#include "TranscodeManager.hpp"
-#include "WaveWriter.h"
-
-// FAAD
-#include "faad.h"
-#pragma comment(lib, "libfaad2.lib")
+#include "AmatsukazeCLI.hpp"
 
 static bool fileExists(const char* filepath) {
 	WIN32_FIND_DATAA findData;
@@ -48,11 +40,11 @@ protected:
 		getParam(inipath, "AudioFormatChangeTsFile", AudioFormatChangeTsFile);
 		getParam(inipath, "MultiAudioTsFile", MultiAudioTsFile);
 		getParam(inipath, "RffFieldPictureTsFile", RffFieldPictureTsFile);
-		getParam(inipath, "BFFMPEG2VideoTsFile", BFFMPEG2VideoTsFile);
 		getParam(inipath, "DropTsFile", DropTsFile);
 		getParam(inipath, "VideoDropTsFile", VideoDropTsFile);
 		getParam(inipath, "AudioDropTsFile", AudioDropTsFile);
 		getParam(inipath, "PullDownTsFile", PullDownTsFile);
+		getParam(inipath, "DameMojiTsFile", DameMojiTsFile);
 		getParam(inipath, "LargeTsFile", LargeTsFile);
 	}
 
@@ -85,11 +77,11 @@ protected:
 	std::string AudioFormatChangeTsFile;
 	std::string MultiAudioTsFile;
 	std::string RffFieldPictureTsFile;
-	std::string BFFMPEG2VideoTsFile;
 	std::string DropTsFile;
 	std::string VideoDropTsFile;
 	std::string AudioDropTsFile;
 	std::string PullDownTsFile;
+	std::string DameMojiTsFile;
 	std::string LargeTsFile;
 
 	void ParserTest(const std::string& filename, bool verify = true);
@@ -588,7 +580,7 @@ TranscoderSetting makeTranscodeSetting(
 	const std::string& dstDir, 
 	const std::string& srcfile)
 {
-	TranscoderSetting setting;
+	TranscoderSetting setting = TranscoderSetting();
 	setting.tsFilePath = srcDir + srcfile + ".ts";
 	setting.outVideoPath = dstDir + "Mpeg2Test";
 	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
@@ -598,6 +590,28 @@ TranscoderSetting makeTranscodeSetting(
 	setting.encoderOptions = "--preset superfast --crf 23";
 	setting.muxerPath = "muxer.exe";
 	setting.timelineditorPath = "timelineeditor.exe";
+	setting.outInfoJsonPath = dstDir + "Mpeg2Test.json";
+	setting.dumpStreamInfo = true;
+	return setting;
+}
+
+TranscoderSetting makeDamemojiSetting(
+	const std::string& srcDir,
+	const std::string& dstDir,
+	const std::string& srcfile)
+{
+	TranscoderSetting setting = TranscoderSetting();
+	setting.tsFilePath = srcDir + srcfile + ".ts";
+	setting.outVideoPath = dstDir + "ー ソ\\十 表";
+	setting.intFileBasePath = dstDir + "ー ソ\\十 表Int";
+	setting.audioFilePath = dstDir + "ー ソ\\十 表Audio.dat";
+	setting.encoder = ENCODER_X264;
+	setting.encoderPath = "x264.exe";
+	setting.encoderOptions = "--preset superfast --crf 23";
+	setting.muxerPath = "muxer.exe";
+	setting.timelineditorPath = "timelineeditor.exe";
+	setting.outInfoJsonPath = dstDir + "Mpeg2Test.json";
+	setting.serviceId = 0x6038;
 	setting.dumpStreamInfo = true;
 	return setting;
 }
@@ -607,7 +621,7 @@ TEST_F(TestBase, encodeMpeg2Test)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, MultiAudioTsFile);
+		makeTranscodeSetting(srcDir, dstDir, PullDownTsFile);
 
 	AMTContext ctx;
 	transcodeMain(ctx, setting);
@@ -618,7 +632,7 @@ TEST_F(TestBase, fileStreamInfoTest)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, MultiAudioTsFile);
+		makeTranscodeSetting(srcDir, dstDir, PullDownTsFile);
 
 	AMTContext ctx;
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
@@ -626,6 +640,39 @@ TEST_F(TestBase, fileStreamInfoTest)
 	reformInfo.makeAllframgesEncoded();
 	reformInfo.prepareMux();
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
+}
+
+TEST(CLI, ArgumentTest)
+{
+	tchar* argv[] = {
+		_T("Amatsukaze.exe"),
+		_T("-i"),
+		_T("C:\\hoge\\input.ts"),
+		_T("-o"),
+		_T("C:\\oops\\output.mmp4"),
+		_T("-w"),
+		_T("C:\\hoge\\"),
+		_T("-et"),
+		_T("x265"),
+		_T("--dump"),
+		_T("-e"),
+		_T("D:\\program\\revXXX-x265.exe"),
+		_T("-eo"),
+		_T("--preset slow --profile main --crf 23 --qcomp 0.7 --vbv-bufsize 10000 --vbv-maxrate 10000 --keyint -1 --min-keyint 4 --b-pyramid none --partitions p8x8,b8x8,i4x4 --ref 3 --weightp 0 --level 3"),
+		_T("-m"),
+		_T("D:\\program\\revXXX-muxer.exe"),
+		_T("-t"),
+		_T("D:\\program\\timelineditro.exe"),
+		_T("-j"),
+		_T("JJJJJJJJSON.json")
+	};
+	printCopyright();
+	AMTContext ctx;
+	parseArgs(sizeof(argv) / sizeof(argv[0]), argv).dump(ctx);
+
+	argv[1] = _T("--ourput");
+	EXPECT_ANY_THROW(parseArgs(sizeof(argv) / sizeof(argv[0]), argv));
+	printHelp(argv[0]);
 }
 
 void my_purecall_handler() {

@@ -45,7 +45,8 @@ namespace EncodeServer
         public List<string> OutPath;
         public DateTime EncodeStartDate;
         public DateTime EncodeFinishDate;
-        public TimeSpan VideoDuration;
+        public TimeSpan SrcVideoDuration;
+        public TimeSpan OutVideoDuration;
         public long SrcFileSize;
         public long IntVideoFileSize;
         public long OutFileSize;

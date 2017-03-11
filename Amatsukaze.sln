@@ -8,6 +8,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FileCutter", "FileCutter\FileCutter.vcxproj", "{62A88502-50BC-4045-A184-13C08DCC00E5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Amatsukaze", "Amatsukaze\Amatsukaze.vcxproj", "{4E733A88-E41A-4370-B25F-1626A5F439F1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{482DA264-EE88-4575-B208-87C4CB80CD08} = {482DA264-EE88-4575-B208-87C4CB80CD08}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmatsukazeServer", "AmatsukazeServer\AmatsukazeServer.csproj", "{3722017C-1CD2-4D47-A065-29DA38DA6718}"
 EndProject

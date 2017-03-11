@@ -1,3 +1,10 @@
+/**
+* Core transcoder
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #pragma once
 
 #include <string>
@@ -297,7 +304,7 @@ private:
 			if (st == NULL) {
 				THROW(FormatException, "avformat_new_stream failed");
 			}
-			// time_base
+
 			AVCodecContext* enc = codecCtx_();
 
 			enc->pix_fmt = (AVPixelFormat)frame()->format;
@@ -416,6 +423,7 @@ private:
 	}
 };
 
+// エンコーダテスト用クラス
 class MultiOutTranscoder
 {
 public:
@@ -490,7 +498,6 @@ private:
 
 	void onFrameDecoded(Frame& frame__) {
 
-		// TODO: thread
 		// copy reference
 		Frame frame = frame__;
 
