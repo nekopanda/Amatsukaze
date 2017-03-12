@@ -11,13 +11,6 @@ using System.Threading.Tasks;
 
 namespace EncodeServer
 {
-    public class EncodeServerStarter
-    {
-        static void Main(string[] args)
-        {
-        }
-    }
-
     public class ClientManager : IUserClient
     {
         private class Client
@@ -239,6 +232,7 @@ namespace EncodeServer
         private static string LOG_DIR = "logs";
 
         private ClientManager clientManager;
+        public Task ServerTask { get; private set; }
         private AppData appData;
 
         private List<TargetDirectory> queue = new List<TargetDirectory>();
@@ -252,6 +246,7 @@ namespace EncodeServer
         {
             LoadAppData();
             clientManager = new ClientManager(this);
+            ServerTask = clientManager.Listen();
             ReadLog();
         }
 
@@ -285,6 +280,13 @@ namespace EncodeServer
 
         private void LoadAppData()
         {
+            if(File.Exists(GetSettingFilePath()) == false)
+            {
+                appData = new AppData() {
+                    setting = new Setting()
+                };
+                return;
+            }
             using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(AppData));

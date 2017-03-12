@@ -225,6 +225,7 @@ namespace EncodeServer
 
         private ClientData appData;
         private ServerConnection server;
+        public Task CommTask { get; private set; }
 
         public UserClient()
         {
@@ -235,6 +236,7 @@ namespace EncodeServer
             appData.ServerPort = 35224;
 
             server = new ServerConnection(this, askServerAddress);
+            CommTask = server.Start();
         }
 
         private void askServerAddress(string reason)
@@ -251,6 +253,11 @@ namespace EncodeServer
 
         private void LoadAppData()
         {
+            if (File.Exists(GetSettingFilePath()) == false)
+            {
+                appData = new ClientData();
+                return;
+            }
             using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(ClientData));
