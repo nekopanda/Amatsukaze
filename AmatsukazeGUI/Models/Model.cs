@@ -32,19 +32,9 @@ namespace AmatsukazeGUI.Models
         private ClientData appData;
         public ServerConnection Server { get; private set; }
         public Task CommTask { get; private set; }
-
-        public Model()
-        {
-            LoadAppData();
-
-            // テスト用
-            appData.ServerIP = "localhost";
-            appData.ServerPort = 35224;
-
-            Server = new ServerConnection(this, askServerAddress);
-            CommTask = Server.Start();
-        }
-
+        private ConsoleText consoleText;
+        private Setting setting = new Setting();
+        private State state = new State();
 
         #region ServerIP変更通知プロパティ
         public string ServerIP
@@ -145,22 +135,158 @@ namespace AmatsukazeGUI.Models
         #endregion
 
         #region IsPaused変更通知プロパティ
-        private bool _IsPaused;
-
         public bool IsPaused
         {
-            get
-            { return _IsPaused; }
+            get { return state.Pause; }
             set
             { 
-                if (_IsPaused == value)
+                if (state.Pause == value)
                     return;
-                _IsPaused = value;
+                state.Pause = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
+        #region IsRunning変更通知プロパティ
+        public bool IsRunning {
+            get { return state.Running; }
+            set { 
+                if (state.Running == value)
+                    return;
+                state.Running = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("IsRunningTest");
+            }
+        }
+
+        public string IsRunningTest {
+            get { return IsRunning ? "実行中" : "停止"; }
+        }
+        #endregion
+
+        #region ConsoleTextLines変更通知プロパティ
+        private ObservableCollection<string> _ConsoleTextLines = new ObservableCollection<string>();
+
+        public ObservableCollection<string> ConsoleTextLines {
+            get { return _ConsoleTextLines; }
+            set { 
+                if (_ConsoleTextLines == value)
+                    return;
+                _ConsoleTextLines = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region X264Path変更通知プロパティ
+        public string X264Path {
+            get { return setting.X264Path; }
+            set { 
+                if (setting.X264Path == value)
+                    return;
+                setting.X264Path = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region X265Path変更通知プロパティ
+        public string X265Path {
+            get { return setting.X265Path; }
+            set { 
+                if (setting.X265Path == value)
+                    return;
+                setting.X265Path = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region QSVEncPath変更通知プロパティ
+        public string QSVEncPath {
+            get { return setting.QSVEncPath; }
+            set { 
+                if (setting.QSVEncPath == value)
+                    return;
+                setting.QSVEncPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EncoderName変更通知プロパティ
+        public string EncoderName {
+            get { return setting.EncoderName; }
+            set { 
+                if (setting.EncoderName == value)
+                    return;
+                setting.EncoderName = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EncoderOption変更通知プロパティ
+        public string EncoderOption {
+            get { return setting.EncoderOption; }
+            set { 
+                if (setting.EncoderOption == value)
+                    return;
+                setting.EncoderOption = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MuxerPath変更通知プロパティ
+        public string MuxerPath {
+            get { return setting.MuxerPath; }
+            set { 
+                if (setting.MuxerPath == value)
+                    return;
+                setting.MuxerPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region TimelineEditorPath変更通知プロパティ
+        public string TimelineEditorPath {
+            get { return setting.TimelineEditorPath; }
+            set { 
+                if (setting.TimelineEditorPath == value)
+                    return;
+                setting.TimelineEditorPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region WorkPath変更通知プロパティ
+        public string WorkPath {
+            get { return setting.WorkPath; }
+            set { 
+                if (setting.WorkPath == value)
+                    return;
+                setting.WorkPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        public Model()
+        {
+            LoadAppData();
+
+            // テスト用
+            appData.ServerIP = "localhost";
+            appData.ServerPort = 35224;
+
+            consoleText = new ConsoleText(_ConsoleTextLines, 400);
+            Server = new ServerConnection(this, askServerAddress);
+            CommTask = Server.Start();
+        }
 
         public void Finish()
         {
@@ -208,17 +334,31 @@ namespace AmatsukazeGUI.Models
 
         public Task OnSetting(Setting setting)
         {
-            throw new NotImplementedException();
+            X264Path = setting.X264Path;
+            X265Path = setting.X265Path;
+            QSVEncPath = setting.QSVEncPath;
+            EncoderName = setting.EncoderName;
+            EncoderOption = setting.EncoderOption;
+            MuxerPath = setting.MuxerPath;
+            TimelineEditorPath = setting.TimelineEditorPath;
+            WorkPath = setting.WorkPath;
+            return Task.FromResult(0);
         }
 
-        public Task OnConsole(string str)
+        public Task OnConsole(List<string> str)
         {
-            throw new NotImplementedException();
+            consoleText.Clear();
+            foreach(var s in str)
+            {
+                _ConsoleTextLines.Add(s);
+            }
+            return Task.FromResult(0);
         }
 
-        public Task OnConsoleUpdate(string str)
+        public Task OnConsoleUpdate(byte[] str)
         {
-            throw new NotImplementedException();
+            consoleText.AddBytes(str, 0, str.Length);
+            return Task.FromResult(0);
         }
 
         public Task OnLogData(LogData data)

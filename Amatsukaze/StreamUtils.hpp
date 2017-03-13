@@ -333,7 +333,7 @@ public:
 
 	void flush() {
 		if (filled & 7) {
-			throw FormatException("バイトアラインしていません");
+			THROW(FormatException, "バイトアラインしていません");
 		}
 		store();
 	}

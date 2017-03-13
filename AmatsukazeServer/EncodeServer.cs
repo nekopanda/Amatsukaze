@@ -195,12 +195,12 @@ namespace AmatsukazeServer
             return Send(RPCMethodId.OnLogUpdate, newLog);
         }
 
-        public Task OnConsole(string str)
+        public Task OnConsole(List<string> str)
         {
             return Send(RPCMethodId.OnConsole, str);
         }
 
-        public Task OnConsoleUpdate(string str)
+        public Task OnConsoleUpdate(byte[] str)
         {
             return Send(RPCMethodId.OnConsoleUpdate, str);
         }
@@ -254,9 +254,9 @@ namespace AmatsukazeServer
 
         private List<TargetDirectory> queue = new List<TargetDirectory>();
         private LogData log;
-        private Queue<string> consoleStrings = new Queue<string>();
+        private ConsoleText consoleText = new ConsoleText(new List<string>(), 400);
 
-        private StreamWriter logWriter;
+        private FileStream logWriter;
 
         private bool encodePaused = false;
         private bool nowEncoding = false;
@@ -446,23 +446,23 @@ namespace AmatsukazeServer
             return sb.ToString();
         }
 
-        private async Task RedirectOut(StreamReader sr)
+        private async Task RedirectOut(Stream stream)
         {
             try
             {
+                byte[] buffer = new byte[1024];
                 while (true)
                 {
-                    var str = await sr.ReadLineAsync();
+                    var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
                     if (logWriter != null)
                     {
-                        logWriter.WriteLine(str);
+                        logWriter.Write(buffer, 0, readBytes);
                     }
-                    if (consoleStrings.Count > 100)
-                    {
-                        consoleStrings.Dequeue();
-                    }
-                    consoleStrings.Enqueue(str);
-                    await clientManager.OnConsoleUpdate(str);
+                    consoleText.AddBytes(buffer, 0, readBytes);
+
+                    byte[] newbuf = new byte[readBytes];
+                    Array.Copy(buffer, newbuf, readBytes);
+                    await clientManager.OnConsoleUpdate(newbuf);
                 }
             }
             catch (Exception e)
@@ -557,13 +557,13 @@ namespace AmatsukazeServer
                 p.StartInfo.RedirectStandardInput = false;
                 p.StartInfo.CreateNoWindow = true;
 
-                using (logWriter = new StreamWriter(logpath))
+                using (logWriter = File.OpenWrite(logpath))
                 {
                     p.Start();
 
                     await Task.WhenAll(
-                        RedirectOut(p.StandardOutput),
-                        RedirectOut(p.StandardError),
+                        RedirectOut(p.StandardOutput.BaseStream),
+                        RedirectOut(p.StandardError.BaseStream),
                         Task.Run(() => p.WaitForExit()));
                 }
 
@@ -691,7 +691,7 @@ namespace AmatsukazeServer
 
         public Task RequestConsole()
         {
-            return clientManager.OnConsole(String.Join("\r\n", consoleStrings));
+            return clientManager.OnConsole(consoleText.TextLines as List<string>);
         }
 
         public Task RequestLogFile(LogItem item)

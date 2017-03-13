@@ -81,4 +81,58 @@ namespace AmatsukazeServer
             Console.WriteLine(str);
         }
     }
+
+    public class ConsoleText
+    {
+        public IList<string> TextLines { get; private set; }
+        private int maxlines;
+
+        private List<byte> rawtext = new List<byte>();
+        private bool isCR = false;
+
+        public ConsoleText(IList<string> textlines, int maxlines)
+        {
+            this.TextLines = textlines;
+            this.maxlines = maxlines;
+        }
+
+        public void Clear()
+        {
+            TextLines.Clear():
+            rawtext.Clear();
+            isCR = false;
+        }
+
+        public void AddBytes(byte[] buf, int offset, int count)
+        {
+            for (int i = 0; i < count; ++i)
+            {
+                if (buf[i] == '\n' || buf[i] == '\r')
+                {
+                    if (rawtext.Count > 0)
+                    {
+                        string text = Encoding.UTF8.GetString(rawtext.ToArray());
+                        if (isCR)
+                        {
+                            TextLines[TextLines.Count - 1] = text;
+                        }
+                        else
+                        {
+                            if (TextLines.Count > maxlines)
+                            {
+                                TextLines.RemoveAt(0);
+                            }
+                            TextLines.Add(text);
+                        }
+                        rawtext.Clear();
+                    }
+                    isCR = (buf[i] == '\r');
+                }
+                else
+                {
+                    rawtext.Add(buf[i]);
+                }
+            }
+        }
+    }
 }

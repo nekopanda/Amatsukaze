@@ -56,7 +56,7 @@ void writeWaveHeader(FILE* fp, int channels, int samplerate, int bitswidth, int6
 	int64_t fileSize = headerSize + dataSize;
 
 	if (fileSize > MAX_SIZE) {
-		throw FormatException("2GB超のWaveデータファイルはサポートしていません");
+		THROW(FormatException, "2GB超のWaveデータファイルはサポートしていません");
 	}
 
 	struct Header {

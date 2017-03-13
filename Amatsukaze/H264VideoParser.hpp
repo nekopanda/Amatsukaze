@@ -285,7 +285,7 @@ struct H264SequenceParameterSet {
 	double getClockTick() {
 		if (!vui_parameters_present_flag) {
 			// VUI parametersがなかったら再生できないよ
-			throw FormatException("VUI parametersがない");
+			THROW(FormatException, "VUI parametersがない");
 		}
 		return (double)num_units_in_tick / time_scale;
 	}
@@ -645,6 +645,7 @@ public:
 		FRAME_TYPE type = FRAME_NO_INFO;
 		int64_t DTS_from_SEI = -1;
 		int64_t PTS_from_SEI = -1;
+		int64_t next_bp_DTS = beffering_period_DTS;
 
 		int numNalUnits = (int)nalUnits.size();
 		for (int i = 0; i < numNalUnits; ++i) {
@@ -670,6 +671,12 @@ public:
 					break;
 				}
 				if (sei.parse(ptr, payloadLength)) {
+					if (sei.has_buffering_period) {
+						if (DTS != -1) {
+							// 次のAUで反映される
+							next_bp_DTS = DTS;
+						}
+					}
 					if (sei.has_pic_timing) {
 						if (receivedField == 0) { // 最初のフィールドのPTSだけ取得できればいい
 							if (beffering_period_DTS != -1) {
@@ -684,7 +691,7 @@ public:
 									//if (PTS != PTS_from_SEI) {
 									if (std::abs(PTS - PTS_from_SEI) > 1) {
 										//
-										throw FormatException("PTSが一致しません");
+										THROW(FormatException, "PTSが一致しません");
 									}
 								}
 							}
@@ -733,15 +740,9 @@ public:
 							break;
 						}
 					}
-					// pic_timingでbeffering_period_DTSを使うので後ろで処理
-					if (sei.has_buffering_period) {
-						if (DTS != -1) {
-							beffering_period_DTS = DTS;
-						}
-					}
 
 					if (receivedField > 2) {
-						throw FormatException("フィールド配置が変則的すぎて対応できません");
+						THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
 					}
 
 					if (receivedField == 2) {
@@ -787,6 +788,7 @@ public:
 				break;
 			case 9: // AUデリミタ
 				frameType(bsm(*ptr, 5, 3), type);
+				beffering_period_DTS = next_bp_DTS;
 				break;
 			case 10: // End of Sequence
 			case 11: // End of Stream

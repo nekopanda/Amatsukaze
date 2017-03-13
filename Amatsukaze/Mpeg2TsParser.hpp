@@ -996,11 +996,17 @@ private:
 			case 0x0F: // ISO/IEC 13818-7 ADTS AAC (MPEG-2 lower bit-rate audio) in a packetized stream
 				content = "ADTS AAC";
 				break;
+			case 0x11: // ISO/IEC 14496-3 (MPEG-4 LOAS multi-format framed audio) in a packetized stream
+				content = "MPEG4 AAC";
+				break;
 			case 0x1B: // ITU-T Rec. H.264 and ISO/IEC 14496-10 (lower bit-rate video) in a packetized stream
 				content = "H.264/AVC";
 				break;
 			case 0x24: // ITU-T Rec. H.265 and ISO/IEC 23008-2 (Ultra HD video) in a packetized stream
 				content = "H.265/HEVC";
+				break;
+			default:
+				content = NULL;
 				break;
 			}
 

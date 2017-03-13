@@ -37,6 +37,8 @@ namespace AmatsukazeServer
     {
         [DataMember]
         public bool Pause { get; set; }
+        [DataMember]
+        public bool Running { get; set; }
     }
 
     [DataContract]

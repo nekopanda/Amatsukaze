@@ -33,8 +33,8 @@ namespace AmatsukazeServer
         Task OnQueueUpdate(QueueUpdate update);
         Task OnLogData(LogData data);
         Task OnLogUpdate(LogItem newLog);
-        Task OnConsole(string str);
-        Task OnConsoleUpdate(string str);
+        Task OnConsole(List<string> str);
+        Task OnConsoleUpdate(byte[] str);
         Task OnLogFile(string str);
         Task OnState(State state);
         Task OnOperationResult(string result);
@@ -90,8 +90,8 @@ namespace AmatsukazeServer
             { RPCMethodId.OnQueueUpdate, typeof(QueueUpdate) },
             { RPCMethodId.OnLogData, typeof(LogData) },
             { RPCMethodId.OnLogUpdate, typeof(LogItem) },
-            { RPCMethodId.OnConsole, typeof(string) },
-            { RPCMethodId.OnConsoleUpdate, typeof(string) },
+            { RPCMethodId.OnConsole, typeof(List<string>) },
+            { RPCMethodId.OnConsoleUpdate, typeof(byte[]) },
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnState, typeof(State) },
             { RPCMethodId.OnOperationResult, typeof(string) }

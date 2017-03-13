@@ -244,8 +244,7 @@ private:
 	}
 
 	void error() {
-		printf("STREAM ERROR\n");
-		throw FormatException();
+		THROW(FormatException, "STREAM ERROR");
 	}
 };
 

@@ -63,5 +63,34 @@ namespace AmatsukazeGUI.ViewModels
         {
         }
 
+
+        #region QueueItemSelectedIndex変更通知プロパティ
+        private int _QueueItemSelectedIndex;
+
+        public int QueueItemSelectedIndex {
+            get { return _QueueItemSelectedIndex; }
+            set { 
+                if (_QueueItemSelectedIndex == value)
+                    return;
+                _QueueItemSelectedIndex = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region LogItemSelectedIndex変更通知プロパティ
+        private int _LogItemSelectedIndex;
+
+        public int LogItemSelectedIndex {
+            get { return _LogItemSelectedIndex; }
+            set { 
+                if (_LogItemSelectedIndex == value)
+                    return;
+                _LogItemSelectedIndex = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 }

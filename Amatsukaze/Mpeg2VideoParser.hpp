@@ -201,7 +201,8 @@ private:
 		case 7: return std::make_pair(60000, 1001);
 		case 8: return std::make_pair(60, 1);
 		}
-		throw FormatException();
+		THROW(FormatException, "Unknown frame rate value");
+		return std::make_pair(0, 1);
 	}
 
 	int gcd(int a, int b) {
