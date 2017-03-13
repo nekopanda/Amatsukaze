@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EncodeServer
+namespace AmatsukazeServer
 {
     public class ServerConnection : IEncodeServer
     {
@@ -38,11 +38,19 @@ namespace EncodeServer
             Close();
         }
 
-        private void Connect()
+        private Task Connect()
         {
+            Debug.Print("Connect");
             Close();
             client = new TcpClient(serverIp, port);
             stream = client.GetStream();
+
+            // 接続後一通りデータを要求する
+            return Task.WhenAll(RequestSetting(),
+                    RequestQueue(),
+                    RequestLog(),
+                    RequestConsole(),
+                    RequestState());
         }
 
         private void Close()
@@ -58,8 +66,6 @@ namespace EncodeServer
         public async Task Start()
         {
             string failReason = "";
-            byte[] idbytes = new byte[2];
-            int readBytes = 0;
             while (true)
             {
                 try
@@ -72,7 +78,7 @@ namespace EncodeServer
                         {
                             break;
                         }
-                        Connect();
+                        await Connect();
                     }
                     if(client == null)
                     {
@@ -82,23 +88,10 @@ namespace EncodeServer
                         {
                             break;
                         }
-                        Connect();
+                        await Connect();
                     }
-                    readBytes += await stream.ReadAsync(
-                        idbytes, readBytes, 2 - readBytes);
-                    if (readBytes == 2)
-                    {
-                        readBytes = 0;
-                        var methodId = (RPCMethodId)((idbytes[0] << 8) | idbytes[1]);
-                        var argType = RPCTypes.ArgumentTypes[methodId];
-                        object arg = null;
-                        if (argType != null)
-                        {
-                            var s = new DataContractSerializer(argType);
-                            await Task.Run(() => { arg = s.ReadObject(stream); });
-                        }
-                        OnRequestReceived((RPCMethodId)methodId, arg);
-                    }
+                    var rpc = await RPCTypes.Deserialize(stream);
+                    OnRequestReceived(rpc.id, rpc.arg);
                 }
                 catch (Exception e)
                 {
@@ -113,20 +106,13 @@ namespace EncodeServer
             }
         }
 
-        private async Task Send(RPCMethodId id, Type type, object obj)
+        private async Task Send(RPCMethodId id, object obj)
         {
             if(client != null)
             {
-                var idbytes = new byte[2] { (byte)((int)id >> 8), (byte)id };
-                var ms = new MemoryStream();
-                ms.Write(idbytes, 0, idbytes.Length);
-                if (obj != null)
-                {
-                    var serializer = new DataContractSerializer(type);
-                    serializer.WriteObject(ms, obj);
-                }
-                var bytes = ms.ToArray();
+                byte[] bytes = RPCTypes.Serialize(id, obj);
                 await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
+                ServerMain.CheckThread();
             }
         }
 
@@ -134,6 +120,9 @@ namespace EncodeServer
         {
             switch (methodId)
             {
+                case RPCMethodId.OnSetting:
+                    userClient.OnSetting((Setting)arg);
+                    break;
                 case RPCMethodId.OnQueueData:
                     userClient.OnQueueData((QueueData)arg);
                     break;
@@ -166,166 +155,52 @@ namespace EncodeServer
 
         public Task AddQueue(string dirPath)
         {
-            return Send(RPCMethodId.AddQueue, typeof(string), dirPath);
+            return Send(RPCMethodId.AddQueue, dirPath);
         }
 
         public Task PauseEncode(bool pause)
         {
-            return Send(RPCMethodId.PauseEncode, typeof(bool), pause);
+            return Send(RPCMethodId.PauseEncode, pause);
         }
 
         public Task RemoveQueue(string dirPath)
         {
-            return Send(RPCMethodId.RemoveQueue, typeof(string), dirPath);
+            return Send(RPCMethodId.RemoveQueue, dirPath);
+        }
+
+        public Task RequestSetting()
+        {
+            return Send(RPCMethodId.RequestSetting, null);
         }
 
         public Task RequestConsole()
         {
-            return Send(RPCMethodId.RequestConsole, null, null);
+            return Send(RPCMethodId.RequestConsole, null);
         }
 
         public Task RequestLog()
         {
-            return Send(RPCMethodId.RequestLog, null, null);
+            return Send(RPCMethodId.RequestLog, null);
         }
 
         public Task RequestLogFile(LogItem item)
         {
-            return Send(RPCMethodId.RequestLogFile, typeof(LogItem), item);
+            return Send(RPCMethodId.RequestLogFile, item);
         }
 
         public Task RequestQueue()
         {
-            return Send(RPCMethodId.RequestQueue, null, null);
+            return Send(RPCMethodId.RequestQueue, null);
         }
 
         public Task RequestState()
         {
-            return Send(RPCMethodId.RequestState, null, null);
+            return Send(RPCMethodId.RequestState, null);
         }
 
         public Task SetSetting(Setting setting)
         {
-            return Send(RPCMethodId.SetSetting, typeof(Setting), setting);
-        }
-    }
-    
-    public class UserClient : IUserClient
-    {
-        [DataContract]
-        private class ClientData : IExtensibleDataObject
-        {
-            [DataMember]
-            public string ServerIP;
-            [DataMember]
-            public int ServerPort;
-
-            public ExtensionDataObject ExtensionData { get; set; }
-        }
-
-        private ClientData appData;
-        private ServerConnection server;
-        public Task CommTask { get; private set; }
-
-        public UserClient()
-        {
-            LoadAppData();
-
-            // テスト用
-            appData.ServerIP = "localhost";
-            appData.ServerPort = 35224;
-
-            server = new ServerConnection(this, askServerAddress);
-            CommTask = server.Start();
-        }
-
-        private void askServerAddress(string reason)
-        {
-            Console.WriteLine(reason);
-            Thread.Sleep(5000);
-            server.SetServerAddress(appData.ServerIP, appData.ServerPort);
-        }
-
-        private string GetSettingFilePath()
-        {
-            return "AmatsukazeClient.xml";
-        }
-
-        private void LoadAppData()
-        {
-            if (File.Exists(GetSettingFilePath()) == false)
-            {
-                appData = new ClientData();
-                return;
-            }
-            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Open))
-            {
-                var s = new DataContractSerializer(typeof(ClientData));
-                appData = (ClientData)s.ReadObject(fs);
-            }
-        }
-
-        private void SaveAppData()
-        {
-            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Create))
-            {
-                var s = new DataContractSerializer(typeof(ClientData));
-                s.WriteObject(fs, appData);
-            }
-        }
-
-        public Task OnConsole(string str)
-        {
-            Console.WriteLine(str);
-            return Task.FromResult(0);
-        }
-
-        public Task OnConsoleUpdate(string str)
-        {
-            Console.WriteLine(str);
-            return Task.FromResult(0);
-        }
-
-        public Task OnLogData(LogData data)
-        {
-            Console.WriteLine(data);
-            return Task.FromResult(0);
-        }
-
-        public Task OnLogFile(string str)
-        {
-            Console.WriteLine(str);
-            return Task.FromResult(0);
-        }
-
-        public Task OnLogUpdate(LogItem newLog)
-        {
-            Console.WriteLine(newLog);
-            return Task.FromResult(0);
-        }
-
-        public Task OnOperationResult(string result)
-        {
-            Console.WriteLine(result);
-            return Task.FromResult(0);
-        }
-
-        public Task OnQueueData(QueueData data)
-        {
-            Console.WriteLine(data);
-            return Task.FromResult(0);
-        }
-
-        public Task OnQueueUpdate(QueueUpdate update)
-        {
-            Console.WriteLine(update);
-            return Task.FromResult(0);
-        }
-
-        public Task OnState(State state)
-        {
-            Console.WriteLine(state);
-            return Task.FromResult(0);
+            return Send(RPCMethodId.SetSetting, setting);
         }
     }
 }

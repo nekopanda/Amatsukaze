@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Codeplex.Data;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -9,7 +11,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EncodeServer
+namespace AmatsukazeServer
 {
     public class ClientManager : IUserClient
     {
@@ -28,27 +30,12 @@ namespace EncodeServer
 
             public async Task Start()
             {
-                byte[] idbytes = new byte[2];
-                int readBytes = 0;
                 try
                 {
                     while (true)
                     {
-                        readBytes += await stream.ReadAsync(
-                            idbytes, readBytes, 2 - readBytes);
-                        if (readBytes == 2)
-                        {
-                            readBytes = 0;
-                            var methodId = (RPCMethodId)((idbytes[0] << 8) | idbytes[1]);
-                            var argType = RPCTypes.ArgumentTypes[methodId];
-                            object arg = null;
-                            if (argType != null)
-                            {
-                                var s = new DataContractSerializer(argType);
-                                await Task.Run(() => { arg = s.ReadObject(stream); });
-                            }
-                            manager.OnRequestReceived(this, (RPCMethodId)methodId, arg);
-                        }
+                        var rpc = await RPCTypes.Deserialize(stream);
+                        manager.OnRequestReceived(this, rpc.id, rpc.arg);
                     }
                 }
                 catch (Exception e)
@@ -74,35 +61,57 @@ namespace EncodeServer
             }
         }
 
+        private TcpListener listener;
+        private bool finished = false;
+
         private List<Client> clientList = new List<Client>();
         private List<Task> receiveTask = new List<Task>();
+
+        public void Finish()
+        {
+            if (listener != null)
+            {
+                listener.Stop();
+                listener = null;
+
+                foreach (var client in clientList)
+                {
+                    client.Close();
+                }
+            }
+        }
 
         public async Task Listen()
         {
             int port = int.Parse(ConfigurationManager.AppSettings["Port"]);
-            TcpListener listener = new TcpListener(IPAddress.Any, port);
+            listener = new TcpListener(IPAddress.Any, port);
             listener.Start();
-            while (true)
+            try
             {
-                var client = new Client(await listener.AcceptTcpClientAsync(), this);
-                receiveTask.Add(client.Start());
-                clientList.Add(client);
+                while (true)
+                {
+                    var client = new Client(await listener.AcceptTcpClientAsync(), this);
+                    ServerMain.CheckThread();
+                    receiveTask.Add(client.Start());
+                    clientList.Add(client);
+                }
+            }
+            catch (Exception e)
+            {
+                if (finished == false)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
         }
 
-        private async Task Send(RPCMethodId id, Type type, object obj)
+        private async Task Send(RPCMethodId id, object obj)
         {
-            var idbytes = new byte[2] { (byte)((int)id >> 8), (byte)id };
-            var ms = new MemoryStream();
-            ms.Write(idbytes, 0, idbytes.Length);
-            if(obj != null) {
-                var serializer = new DataContractSerializer(type);
-                serializer.WriteObject(ms, obj);
-            }
-            var bytes = ms.ToArray();
+            byte[] bytes = RPCTypes.Serialize(id, obj);
             foreach (var client in clientList.ToArray())
             {
                 await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
+                ServerMain.CheckThread();
             }
         }
 
@@ -128,6 +137,9 @@ namespace EncodeServer
                     break;
                 case RPCMethodId.PauseEncode:
                     server.PauseEncode((bool)arg);
+                    break;
+                case RPCMethodId.RequestSetting:
+                    server.RequestSetting();
                     break;
                 case RPCMethodId.RequestQueue:
                     server.RequestQueue();
@@ -158,49 +170,54 @@ namespace EncodeServer
         }
 
         #region IUserClient
+        public Task OnSetting(Setting data)
+        {
+            return Send(RPCMethodId.OnSetting, data);
+        }
+
         public Task OnQueueData(QueueData data)
         {
-            return Send(RPCMethodId.OnQueueData, typeof(QueueData), data);
+            return Send(RPCMethodId.OnQueueData, data);
         }
 
         public Task OnQueueUpdate(QueueUpdate update)
         {
-            return Send(RPCMethodId.OnQueueUpdate, typeof(QueueUpdate), update);
+            return Send(RPCMethodId.OnQueueUpdate, update);
         }
 
         public Task OnLogData(LogData data)
         {
-            return Send(RPCMethodId.OnLogData, typeof(LogData), data);
+            return Send(RPCMethodId.OnLogData, data);
         }
 
         public Task OnLogUpdate(LogItem newLog)
         {
-            return Send(RPCMethodId.OnLogUpdate, typeof(LogItem), newLog);
+            return Send(RPCMethodId.OnLogUpdate, newLog);
         }
 
         public Task OnConsole(string str)
         {
-            return Send(RPCMethodId.OnConsole, typeof(string), str);
+            return Send(RPCMethodId.OnConsole, str);
         }
 
         public Task OnConsoleUpdate(string str)
         {
-            return Send(RPCMethodId.OnConsoleUpdate, typeof(string), str);
+            return Send(RPCMethodId.OnConsoleUpdate, str);
         }
 
         public Task OnLogFile(string str)
         {
-            return Send(RPCMethodId.OnLogFile, typeof(string), str);
+            return Send(RPCMethodId.OnLogFile, str);
         }
 
         public Task OnState(State state)
         {
-            return Send(RPCMethodId.OnState, typeof(State), state);
+            return Send(RPCMethodId.OnState, state);
         }
 
         public Task OnOperationResult(string result)
         {
-            return Send(RPCMethodId.OnOperationResult, typeof(string), result);
+            return Send(RPCMethodId.OnOperationResult, result);
         }
         #endregion
     }
@@ -239,6 +256,8 @@ namespace EncodeServer
         private LogData log;
         private Queue<string> consoleStrings = new Queue<string>();
 
+        private StreamWriter logWriter;
+
         private bool encodePaused = false;
         private bool nowEncoding = false;
 
@@ -262,21 +281,25 @@ namespace EncodeServer
             return "AmatsukazeServer.xml";
         }
 
-        private string GetLogFilePath(long id)
+        private string GetLogFilePath(DateTime start)
         {
-            return LOG_DIR + "\\" + id.ToString("D8") + ".txt";
+            return LOG_DIR + "\\" + start.ToString("yyyy-MM-dd_HHmmss.SSS") + ".txt";
         }
 
-        private string ReadLogFIle(long id)
+        private string ReadLogFIle(DateTime start)
         {
-            return File.ReadAllText(GetLogFilePath(id));
-        }
-
-        private void WriteLogFile(long id, string logstr)
-        {
-            File.WriteAllText(GetLogFilePath(id), logstr);
+            return File.ReadAllText(GetLogFilePath(start));
         }
         #endregion
+
+        public void Finish()
+        {
+            if (clientManager != null)
+            {
+                clientManager.Finish();
+                clientManager = null;
+            }
+        }
 
         private void LoadAppData()
         {
@@ -309,18 +332,23 @@ namespace EncodeServer
 
         private void ReadLog()
         {
+            if (File.Exists(LOG_FILE) == false)
+            {
+                log = new LogData()
+                {
+                    Items = new List<LogItem>()
+                };
+                return;
+            }
             try
             {
-                if (File.Exists(LOG_FILE))
+                using (FileStream fs = new FileStream(LOG_FILE, FileMode.Open))
                 {
-                    using (FileStream fs = new FileStream(LOG_FILE, FileMode.Open))
+                    var s = new DataContractSerializer(typeof(LogData));
+                    log = (LogData)s.ReadObject(fs);
+                    if (log.Items == null)
                     {
-                        var s = new DataContractSerializer(typeof(LogData));
-                        log = (LogData)s.ReadObject(fs);
-                        if (log.Items == null)
-                        {
-                            log.Items = new List<LogItem>();
-                        }
+                        log.Items = new List<LogItem>();
                     }
                 }
             }
@@ -346,10 +374,245 @@ namespace EncodeServer
             }
         }
 
+        private string GetEncoderPath()
+        {
+            if (appData.setting.EncoderName == "x264")
+            {
+                return appData.setting.X264Path;
+            }
+            else if(appData.setting.EncoderName == "x265")
+            {
+                return appData.setting.X265Path;
+            }
+            else if(appData.setting.EncoderName == "QSVEnc")
+            {
+                return appData.setting.QSVEncPath;
+            }
+            else
+            {
+                throw new ArgumentException("エンコーダ名が認識できません");
+            }
+        }
+
+        private string MakeAmatsukazeArgs(string src, string dst, out string json, out string log)
+        {
+            string workPath = string.IsNullOrEmpty(appData.setting.EncoderName)
+                ? "./" : appData.setting.EncoderName;
+            string encoderPath = GetEncoderPath();
+            json = "amt-" + Process.GetCurrentProcess().Id.ToString() + ".json";
+            log = Path.Combine(
+                Path.GetDirectoryName(dst),
+                Path.GetFileNameWithoutExtension(dst)) + "-enc.log";
+            
+            if (string.IsNullOrEmpty(encoderPath))
+            {
+                throw new ArgumentException("エンコーダパスが指定されていません");
+            }
+            if (string.IsNullOrEmpty(appData.setting.MuxerPath))
+            {
+                throw new ArgumentException("Muxerパスが指定されていません");
+            }
+            if (string.IsNullOrEmpty(appData.setting.TimelineEditorPath))
+            {
+                throw new ArgumentException("Timelineeditorパスが指定されていません");
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("-i \"")
+                .Append(src)
+                .Append("\" -o \"")
+                .Append(dst)
+                .Append("\" -w \"")
+                .Append(appData.setting.WorkPath)
+                .Append("\" -et ")
+                .Append(appData.setting.EncoderName)
+                .Append(" -e \"")
+                .Append(encoderPath)
+                .Append("\" -m \"")
+                .Append(appData.setting.MuxerPath)
+                .Append("\" -t \"")
+                .Append(appData.setting.TimelineEditorPath)
+                .Append("\" -j \"")
+                .Append(Path.Combine(workPath, json))
+                .Append("\"");
+
+            if (string.IsNullOrEmpty(appData.setting.EncoderOption) == false)
+            {
+                sb.Append(" -eo \"")
+                    .Append(appData.setting.EncoderOption)
+                    .Append("\"");
+            }
+
+            return sb.ToString();
+        }
+
+        private async Task RedirectOut(StreamReader sr)
+        {
+            try
+            {
+                while (true)
+                {
+                    var str = await sr.ReadLineAsync();
+                    if (logWriter != null)
+                    {
+                        logWriter.WriteLine(str);
+                    }
+                    if (consoleStrings.Count > 100)
+                    {
+                        consoleStrings.Dequeue();
+                    }
+                    consoleStrings.Enqueue(str);
+                    await clientManager.OnConsoleUpdate(str);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Print("RedirectOut exception " + e.Message);
+            }
+        }
+
+        private LogItem LogFromJson(string jsonpath, DateTime start, DateTime finish)
+        {
+            var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
+            var outpath = new List<string>();
+            foreach (var path in json.outpath)
+            {
+                outpath.Add(path);
+            }
+            return new LogItem()
+            {
+                Success = true,
+                SrcPath = json.srcpath,
+                OutPath = outpath,
+                SrcFileSize = json.srcfilesize,
+                IntVideoFileSize = json.intvideofilesize,
+                OutFileSize = json.outfilesize,
+                SrcVideoDuration = json.srcduration,
+                OutVideoDuration = json.outduration,
+                EncodeStartDate = start,
+                EncodeFinishDate = finish,
+                AudioDiff = new AudioDiff()
+                {
+                    TotalSrcFrames = json.audiodiff.totalsrcframes,
+                    TotalOutFrames = json.audiodiff.totaloutframes,
+                    TotalOutUniqueFrames = json.audiodiff.totaloutuniqueframes,
+                    NotIncludedPer = json.audiodiff.notincludedper,
+                    AvgDiff = json.audiodiff.avgdiff,
+                    MaxDiff = json.audiodiff.maxdiff,
+                    MaxDiffPos = json.audiodiff.maxdiffpos
+                }
+            };
+        }
+
+        private LogItem FailLogItem(string reason, DateTime start, DateTime finish)
+        {
+            return new LogItem()
+            {
+                Success = false,
+                Reason = reason,
+                EncodeStartDate = start,
+                EncodeFinishDate = finish
+            };
+        }
+
+        private async Task ProcessDiretoryItem(TargetDirectory dir)
+        {
+            string succeeded = Path.Combine(dir.DirPath, "succeeded");
+            string failed = Path.Combine(dir.DirPath, "failed");
+            string encoded = Path.Combine(dir.DirPath, "encoded");
+            Directory.CreateDirectory(succeeded);
+            Directory.CreateDirectory(failed);
+            Directory.CreateDirectory(encoded);
+
+            foreach (var src in dir.TsFiles.ToArray())
+            {
+                dir.TsFiles.Remove(src);
+
+                if (File.Exists(src) == false)
+                {
+                    DateTime now = DateTime.Now;
+                    log.Items.Add(FailLogItem("入力ファイルが見つかりません", now, now));
+                    WriteLog();
+                    continue;
+                }
+
+                string dst = Path.Combine(encoded, Path.GetFileName(src));
+                string json, logpath;
+                string args = MakeAmatsukazeArgs(src, dst, out json, out logpath);
+                string exename = Path.Combine(
+                    Path.GetDirectoryName(this.GetType().Assembly.Location),
+                    "\\AmatsukazeCLI.exe");
+                
+                Debug.Print("Args: " + exename + " " + args);
+
+                DateTime start = DateTime.Now;
+
+                Process p = new Process();
+                var psi = new ProcessStartInfo(exename, args);
+                p.StartInfo.FileName = exename;
+                p.StartInfo.Arguments = args;
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.RedirectStandardError = true;
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.RedirectStandardInput = false;
+                p.StartInfo.CreateNoWindow = true;
+
+                using (logWriter = new StreamWriter(logpath))
+                {
+                    p.Start();
+
+                    await Task.WhenAll(
+                        RedirectOut(p.StandardOutput),
+                        RedirectOut(p.StandardError),
+                        Task.Run(() => p.WaitForExit()));
+                }
+
+                DateTime finish = DateTime.Now;
+
+                // ログファイルを専用フォルダにコピー
+                if (File.Exists(logpath))
+                {
+                    File.Copy(logpath, GetLogFilePath(start));
+                }
+
+                if (p.ExitCode == 0)
+                {
+                    // 成功
+                    //File.Move(src, succeeded + "\\");
+
+                    log.Items.Add(LogFromJson(json, start, finish));
+                    WriteLog();
+                }
+                else
+                {
+                    // 失敗
+                    //File.Move(src, failed + "\\");
+
+                    // TODO:
+                    throw new InvalidProgramException("エンコードに失敗した");
+                }
+
+                if (encodePaused)
+                {
+                    break;
+                }
+            }
+        }
+
         private async Task StartEncode()
         {
             nowEncoding = true;
-            await Task.Delay(10000);
+
+            while (queue.Count > 0)
+            {
+                await ProcessDiretoryItem(queue[0]);
+                if (encodePaused)
+                {
+                    break;
+                }
+                queue.RemoveAt(0);
+            }
+
             nowEncoding = false;
         }
 
@@ -403,6 +666,11 @@ namespace EncodeServer
             }
         }
 
+        public Task RequestSetting()
+        {
+            return clientManager.OnSetting(appData.setting);
+        }
+
         public Task RequestQueue()
         {
             QueueData data = new QueueData()
@@ -428,13 +696,13 @@ namespace EncodeServer
 
         public Task RequestLogFile(LogItem item)
         {
-            return clientManager.OnLogFile(ReadLogFIle(item.Id));
+            return clientManager.OnLogFile(ReadLogFIle(item.EncodeStartDate));
         }
 
         public Task RequestState()
         {
             var state = new State() {
-                pause = encodePaused
+                Pause = encodePaused
             };
             return clientManager.OnState(state);
         }

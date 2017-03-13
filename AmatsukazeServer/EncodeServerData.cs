@@ -5,27 +5,29 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EncodeServer
+namespace AmatsukazeServer
 {
     [DataContract]
     public class Setting : IExtensibleDataObject
     {
         [DataMember]
-        public string X264Path;
+        public string X264Path { get; set; }
         [DataMember]
-        public string X265Path;
+        public string X265Path { get; set; }
         [DataMember]
-        public string QSVEncPath;
+        public string QSVEncPath { get; set; }
         [DataMember]
-        public string EncoderName;
+        public string EncoderName { get; set; }
+        [DataMember]
+        public string EncoderOption { get; set; }
 
         [DataMember]
-        public string MuxerPath;
+        public string MuxerPath { get; set; }
         [DataMember]
-        public string TimelineEditorPath;
+        public string TimelineEditorPath { get; set; }
 
         [DataMember]
-        public string WorkPath;
+        public string WorkPath { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }
@@ -34,61 +36,80 @@ namespace EncodeServer
     public class State
     {
         [DataMember]
-        public bool pause;
+        public bool Pause { get; set; }
     }
 
     [DataContract]
     public class QueueItem
     {
         [DataMember]
-        public string Path;
+        public string Path { get; set; }
         [DataMember]
-        public List<string> MediaFiles;
+        public List<string> MediaFiles { get; set; }
     }
 
     [DataContract]
     public class QueueData
     {
         [DataMember]
-        public List<QueueItem> Items;
+        public List<QueueItem> Items { get; set; }
     }
 
     [DataContract]
     public class QueueUpdate
     {
         [DataMember]
-        public bool AddOrRemove;
+        public bool AddOrRemove { get; set; }
         [DataMember]
-        public string ItemPath;
+        public QueueItem Item { get; set; }
+    }
+
+    [DataContract]
+    public class AudioDiff
+    {
         [DataMember]
-        public string MediaPath;
+        public int TotalSrcFrames { get; set; }
+        [DataMember]
+        public int TotalOutFrames { get; set; }
+        [DataMember]
+        public int TotalOutUniqueFrames { get; set; }
+        [DataMember]
+        public double NotIncludedPer { get; set; }
+        [DataMember]
+        public double AvgDiff { get; set; }
+        [DataMember]
+        public double MaxDiff { get; set; }
+        [DataMember]
+        public double MaxDiffPos { get; set; }
     }
 
     [DataContract]
     public class LogItem : IExtensibleDataObject
     {
         [DataMember]
-        public long Id;
+        public string SrcPath { get; set; }
         [DataMember]
-        public string SrcPath;
+        public bool Success { get; set; }
         [DataMember]
-        public bool Success;
+        public List<string> OutPath { get; set; }
         [DataMember]
-        public List<string> OutPath;
+        public DateTime EncodeStartDate { get; set; }
         [DataMember]
-        public DateTime EncodeStartDate;
+        public DateTime EncodeFinishDate { get; set; }
         [DataMember]
-        public DateTime EncodeFinishDate;
+        public TimeSpan SrcVideoDuration { get; set; }
         [DataMember]
-        public TimeSpan SrcVideoDuration;
+        public TimeSpan OutVideoDuration { get; set; }
         [DataMember]
-        public TimeSpan OutVideoDuration;
+        public long SrcFileSize { get; set; }
         [DataMember]
-        public long SrcFileSize;
+        public long IntVideoFileSize { get; set; }
         [DataMember]
-        public long IntVideoFileSize;
+        public long OutFileSize { get; set; }
         [DataMember]
-        public long OutFileSize;
+        public AudioDiff AudioDiff { get; set; }
+        [DataMember]
+        public string Reason { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }
@@ -97,7 +118,7 @@ namespace EncodeServer
     public class LogData : IExtensibleDataObject
     {
         [DataMember]
-        public List<LogItem> Items;
+        public List<LogItem> Items { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }
@@ -106,8 +127,8 @@ namespace EncodeServer
     public class LogFile
     {
         [DataMember]
-        public long Id;
+        public long Id { get; set; }
         [DataMember]
-        public string Content;
+        public string Content { get; set; }
     }
 }
