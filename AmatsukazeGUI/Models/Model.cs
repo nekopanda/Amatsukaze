@@ -206,18 +206,19 @@ namespace AmatsukazeGUI.Models
             }
         }
 
+        public Task OnSetting(Setting setting)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task OnConsole(string str)
         {
-            // TODO:
-            Debug.Print(str);
-            return Task.FromResult(0);
+            throw new NotImplementedException();
         }
 
         public Task OnConsoleUpdate(string str)
         {
-            // TODO:
-            Debug.Print(str);
-            return Task.FromResult(0);
+            throw new NotImplementedException();
         }
 
         public Task OnLogData(LogData data)

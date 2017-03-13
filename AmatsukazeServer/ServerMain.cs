@@ -21,36 +21,16 @@ namespace AmatsukazeServer
             SynchronizationContext.SetSynchronizationContext(syncCtx);
 
             EncodeServer server = new EncodeServer();
-            UserClient client = new UserClient();
-            Task.WhenAll(
-                server.ServerTask,
-                client.CommTask,
-                StartTest(server, client)
-                ).ContinueWith(t => {
+
+            // 終わったらRunOnCurrentThread()から抜けるようにしておく
+            server.ServerTask.ContinueWith(t =>
+            {
                 FinishMain();
             });
+
             syncCtx.RunOnCurrentThread();
 
             Console.WriteLine("Finished");
-        }
-
-        private static async Task StartTest(EncodeServer server, UserClient client)
-        {
-            await Task.Delay(1000);
-
-            Debug.Print("Server.RequestQueue");
-            await client.Server.RequestQueue();
-            Debug.Print("Server.RequestLog");
-            await client.Server.RequestLog();
-            Debug.Print("Server.RequestConsole");
-            await client.Server.RequestConsole();
-            Debug.Print("Server.RequestState");
-            await client.Server.RequestState();
-
-            await Task.Delay(1000);
-
-            client.Finish();
-            server.Finish();
         }
 
         public static void CheckThread()
