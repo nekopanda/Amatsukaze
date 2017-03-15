@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Amatsukaze
+namespace Amatsukaze.Server
 {
     public class ServerConnection : IEncodeServer
     {

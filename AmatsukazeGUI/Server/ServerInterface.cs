@@ -7,7 +7,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Amatsukaze
+namespace Amatsukaze.Server
 {
     public interface IEncodeServer
     {

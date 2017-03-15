@@ -8,6 +8,7 @@ using System.Windows;
 using Livet;
 using System.Threading;
 using System.Collections.Concurrent;
+using Amatsukaze.Server;
 
 namespace Amatsukaze
 {

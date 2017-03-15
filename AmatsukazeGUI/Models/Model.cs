@@ -8,7 +8,7 @@ using System.Threading;
 using System.IO;
 
 using Livet;
-using Amatsukaze;
+using Amatsukaze.Server;
 using System.Collections.ObjectModel;
 
 namespace Amatsukaze.Models

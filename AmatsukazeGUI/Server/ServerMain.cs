@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Amatsukaze
+namespace Amatsukaze.Server
 {
     public enum LaunchType {
         Standalone,
@@ -56,6 +56,19 @@ namespace Amatsukaze
         public static void Print(string str)
         {
             Console.WriteLine(str);
+        }
+    }
+
+    public static class Util
+    {
+        public static string ToGUIString(this DateTime dt)
+        {
+            return dt.ToString("yyyy/MM/dd HH:mm:ss");
+        }
+
+        public static string ToGUIString(this TimeSpan ts)
+        {
+            return ts.TotalHours + ts.ToString(":mm:ss");
         }
     }
 

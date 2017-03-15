@@ -62,6 +62,14 @@ namespace Amatsukaze.ViewModels
 
         private Model model = new Model();
 
+        public MainWindowViewModel()
+        {
+            MainPanelMenu.Add(new QueueViewModel() { Model = model });
+            MainPanelMenu.Add(new LogViewModel() { Model = model });
+            ConsolePanelMenu.Add(new ConsoleViewModel() { Model = model });
+            ConsolePanelMenu.Add(new LogFileViewModel());
+        }
+
         public void Initialize()
         {
             model.ServerAddressRequired = ServerAddressRequired;
@@ -83,30 +91,96 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        #region QueueItemSelectedIndex変更通知プロパティ
-        private int _QueueItemSelectedIndex;
+        #region MainPanelMenu変更通知プロパティ
+        private ObservableSynchronizedCollection<ViewModel> _MainPanelMenu = new ObservableSynchronizedCollection<ViewModel>();
 
-        public int QueueItemSelectedIndex {
-            get { return _QueueItemSelectedIndex; }
-            set { 
-                if (_QueueItemSelectedIndex == value)
+        public ObservableSynchronizedCollection<ViewModel> MainPanelMenu
+        {
+            get
+            { return _MainPanelMenu; }
+            set
+            { 
+                if (_MainPanelMenu == value)
                     return;
-                _QueueItemSelectedIndex = value;
+                _MainPanelMenu = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
-        #region LogItemSelectedIndex変更通知プロパティ
-        private int _LogItemSelectedIndex;
+        #region ConsolePanelMenu変更通知プロパティ
+        private ObservableSynchronizedCollection<ViewModel> _ConsolePanelMenu = new ObservableSynchronizedCollection<ViewModel>();
 
-        public int LogItemSelectedIndex {
-            get { return _LogItemSelectedIndex; }
-            set { 
-                if (_LogItemSelectedIndex == value)
+        public ObservableSynchronizedCollection<ViewModel> ConsolePanelMenu
+        {
+            get
+            { return _ConsolePanelMenu; }
+            set
+            { 
+                if (_ConsolePanelMenu == value)
                     return;
-                _LogItemSelectedIndex = value;
+                _ConsolePanelMenu = value;
                 RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MainPanelSelectedIndex変更通知プロパティ
+        private int _MainPanelSelectedIndex;
+
+        public int MainPanelSelectedIndex
+        {
+            get
+            { return _MainPanelSelectedIndex; }
+            set
+            { 
+                if (_MainPanelSelectedIndex == value)
+                    return;
+                _MainPanelSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("MainPanel");
+            }
+        }
+
+        public ViewModel MainPanel
+        {
+            get
+            {
+                if (_MainPanelSelectedIndex >= 0 && _MainPanelSelectedIndex < _MainPanelMenu.Count)
+                {
+                    return _MainPanelMenu[_MainPanelSelectedIndex];
+                }
+                return null;
+            }
+        }
+        #endregion
+
+        #region ConsolePanelSelectedIndex変更通知プロパティ
+        private int _ConsolePanelSelectedIndex;
+
+        public int ConsolePanelSelectedIndex
+        {
+            get
+            { return _ConsolePanelSelectedIndex; }
+            set
+            { 
+                if (_ConsolePanelSelectedIndex == value)
+                    return;
+                _ConsolePanelSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("ConsolePanel");
+            }
+        }
+
+        public ViewModel ConsolePanel
+        {
+            get
+            {
+                if (ConsolePanelSelectedIndex >= 0 && ConsolePanelSelectedIndex < _ConsolePanelMenu.Count)
+                {
+                    return _ConsolePanelMenu[ConsolePanelSelectedIndex];
+                }
+                return null;
             }
         }
         #endregion
