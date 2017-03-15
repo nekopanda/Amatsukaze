@@ -59,26 +59,11 @@ namespace Amatsukaze.ViewModels
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
 
+        public Model Model { get; set; }
+
         public void Initialize()
         {
         }
-
-        #region Text変更通知プロパティ
-        private string _Text;
-
-        public string Text
-        {
-            get
-            { return _Text; }
-            set
-            { 
-                if (_Text == value)
-                    return;
-                _Text = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
 
     }
 }

@@ -115,6 +115,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding HeaderMenu}" SelectedIndex="{Binding HeaderMenuSelectedIndex, Mode=TwoWay}" />
@@ -124,5 +125,25 @@
         <ContentControl Grid.Row="1" Grid.Column="0" Content="{Binding MainPanel}" />
         <ContentControl Grid.Row="1" Grid.Column="2" Content="{Binding ConsolePanel}" />
 
+        <Grid Grid.Row="2" Grid.ColumnSpan="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Model.CurrentOperationResult}" />
+            <Button Content="一時停止" Grid.Column="1">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
+                                <Setter Property="Foreground" Value="Gray"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+            <TextBlock Text="{Binding Model.RunningState}" Grid.Column="2" Width="60" />
+        </Grid>
     </Grid>
 </Window>

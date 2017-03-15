@@ -60,26 +60,32 @@ namespace Amatsukaze.ViewModels
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
 
-        private Model model = new Model();
+        public Model Model { get; private set; }
+
+        private PropertyChangedEventListener isRunningListener;
 
         public MainWindowViewModel()
         {
-            MainPanelMenu.Add(new QueueViewModel() { Model = model });
-            MainPanelMenu.Add(new LogViewModel() { Model = model });
-            ConsolePanelMenu.Add(new ConsoleViewModel() { Model = model });
-            ConsolePanelMenu.Add(new LogFileViewModel());
+            Model = new Model();
+            MainPanelMenu.Add(new QueueViewModel() { Model = Model });
+            MainPanelMenu.Add(new LogViewModel() { Model = Model });
+            ConsolePanelMenu.Add(new ConsoleViewModel() { Model = Model });
+            ConsolePanelMenu.Add(new LogFileViewModel() { Model = Model });
         }
 
         public void Initialize()
         {
-            model.ServerAddressRequired = ServerAddressRequired;
-            model.Start();
+            isRunningListener = new PropertyChangedEventListener(Model);
+            isRunningListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
+
+            Model.ServerAddressRequired = ServerAddressRequired;
+            Model.Start();
         }
 
         private async Task ServerAddressRequired(object sender, string arg)
         {
             // サーバIP・ポートを入力させる
-            var config = new ConfigWindowViewModel(model, model.ServerIP, model.ServerPort);
+            var config = new ConfigWindowViewModel(Model, Model.ServerIP, Model.ServerPort);
             await Messenger.RaiseAsync(new TransitionMessage(
                 typeof(Views.ConfigWindow), config, TransitionMode.Modal, "FromMain"));
 
@@ -182,6 +188,29 @@ namespace Amatsukaze.ViewModels
                 }
                 return null;
             }
+        }
+        #endregion
+
+        public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
+
+        #region TogglePauseCommand
+        private ViewModelCommand _TogglePauseCommand;
+
+        public ViewModelCommand TogglePauseCommand
+        {
+            get
+            {
+                if (_TogglePauseCommand == null)
+                {
+                    _TogglePauseCommand = new ViewModelCommand(TogglePause);
+                }
+                return _TogglePauseCommand;
+            }
+        }
+
+        public void TogglePause()
+        {
+            Model.Server.PauseEncode(!Model.IsPaused);
         }
         #endregion
 

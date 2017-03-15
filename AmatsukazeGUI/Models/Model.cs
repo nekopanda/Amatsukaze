@@ -138,12 +138,7 @@ namespace Amatsukaze.Models
                     return;
                 state.Running = value;
                 RaisePropertyChanged();
-                RaisePropertyChanged("IsRunningTest");
             }
-        }
-
-        public string IsRunningTest {
-            get { return IsRunning ? "実行中" : "停止"; }
         }
         #endregion
 

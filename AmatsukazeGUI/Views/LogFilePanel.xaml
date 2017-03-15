@@ -8,6 +8,6 @@
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:LogFileViewModel}}">
     <Grid>
-        <TextBox Margin="0" TextWrapping="Wrap" Text="{Binding Text}" IsReadOnly="True"/>
+        <TextBox Margin="0" TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True"/>
     </Grid>
 </UserControl>
