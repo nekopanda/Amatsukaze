@@ -7,7 +7,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AmatsukazeServer
+namespace Amatsukaze
 {
     public interface IEncodeServer
     {
@@ -24,6 +24,8 @@ namespace AmatsukazeServer
         Task RequestConsole();
         Task RequestLogFile(LogItem item);
         Task RequestState();
+
+        void Finish();
     }
 
     public interface IUserClient
@@ -38,6 +40,7 @@ namespace AmatsukazeServer
         Task OnLogFile(string str);
         Task OnState(State state);
         Task OnOperationResult(string result);
+        void Finish();
     }
 
     public enum RPCMethodId
@@ -136,7 +139,6 @@ namespace AmatsukazeServer
             var headerbytes = await ReadBytes(ns, HEADER_SIZE);
             var id = (RPCMethodId)BitConverter.ToInt16(headerbytes, 0);
             var csize = BitConverter.ToInt32(headerbytes, 2);
-            ServerMain.CheckThread();
             object arg = null;
             if (csize > 0)
             {
@@ -146,7 +148,6 @@ namespace AmatsukazeServer
                 var s = new DataContractSerializer(argType);
                 var ms = new MemoryStream(data);
                 arg = s.ReadObject(ms);
-                ServerMain.CheckThread();
             }
             return new RPCInfo() { id = id, arg = arg };
         }

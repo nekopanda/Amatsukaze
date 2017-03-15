@@ -11,7 +11,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AmatsukazeServer
+namespace Amatsukaze
 {
     public class ClientManager : IUserClient
     {
@@ -81,9 +81,8 @@ namespace AmatsukazeServer
             }
         }
 
-        public async Task Listen()
+        public async Task Listen(int port)
         {
-            int port = int.Parse(ConfigurationManager.AppSettings["Port"]);
             listener = new TcpListener(IPAddress.Any, port);
             listener.Start();
             try
@@ -91,7 +90,6 @@ namespace AmatsukazeServer
                 while (true)
                 {
                     var client = new Client(await listener.AcceptTcpClientAsync(), this);
-                    ServerMain.CheckThread();
                     receiveTask.Add(client.Start());
                     clientList.Add(client);
                 }
@@ -111,7 +109,6 @@ namespace AmatsukazeServer
             foreach (var client in clientList.ToArray())
             {
                 await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
-                ServerMain.CheckThread();
             }
         }
 
@@ -248,7 +245,7 @@ namespace AmatsukazeServer
         private static string LOG_FILE = "log.xml";
         private static string LOG_DIR = "logs";
 
-        private ClientManager clientManager;
+        private IUserClient client;
         public Task ServerTask { get; private set; }
         private AppData appData;
 
@@ -261,11 +258,19 @@ namespace AmatsukazeServer
         private bool encodePaused = false;
         private bool nowEncoding = false;
 
-        public EncodeServer()
+        public EncodeServer(int port, IUserClient client)
         {
             LoadAppData();
-            clientManager = new ClientManager(this);
-            ServerTask = clientManager.Listen();
+            if (client != null)
+            {
+                this.client = client;
+            }
+            else
+            {
+                var clientManager = new ClientManager(this);
+                ServerTask = clientManager.Listen(port);
+                this.client = clientManager;
+            }
             ReadLog();
         }
 
@@ -294,10 +299,10 @@ namespace AmatsukazeServer
 
         public void Finish()
         {
-            if (clientManager != null)
+            if (client != null)
             {
-                clientManager.Finish();
-                clientManager = null;
+                client.Finish();
+                client = null;
             }
         }
 
@@ -462,7 +467,7 @@ namespace AmatsukazeServer
 
                     byte[] newbuf = new byte[readBytes];
                     Array.Copy(buffer, newbuf, readBytes);
-                    await clientManager.OnConsoleUpdate(newbuf);
+                    await client.OnConsoleUpdate(newbuf);
                 }
             }
             catch (Exception e)
@@ -620,21 +625,21 @@ namespace AmatsukazeServer
         {
             appData.setting = setting;
             SaveAppData();
-            return clientManager.OnOperationResult("設定を更新しました");
+            return client.OnOperationResult("設定を更新しました");
         }
 
         public async Task AddQueue(string dirPath)
         {
             if (queue.Find(t => t.DirPath == dirPath) != null)
             {
-                await clientManager.OnOperationResult(
+                await client.OnOperationResult(
                     "すでに同じパスが追加されています。パス:" + dirPath);
                 return;
             }
             var target = new TargetDirectory(dirPath);
             if (target.TsFiles.Count == 0)
             {
-                await clientManager.OnOperationResult(
+                await client.OnOperationResult(
                     "エンコード対象ファイルが見つかりません。パス:" + dirPath);
                 return;
             }
@@ -650,7 +655,7 @@ namespace AmatsukazeServer
             var target = queue.Find(t => t.DirPath == dirPath);
             if (target == null)
             {
-                await clientManager.OnOperationResult(
+                await client.OnOperationResult(
                     "指定されたキューディレクトリが見つかりません。パス:" + dirPath);
                 return;
             }
@@ -668,7 +673,7 @@ namespace AmatsukazeServer
 
         public Task RequestSetting()
         {
-            return clientManager.OnSetting(appData.setting);
+            return client.OnSetting(appData.setting);
         }
 
         public Task RequestQueue()
@@ -681,22 +686,22 @@ namespace AmatsukazeServer
                     MediaFiles = item.TsFiles
                 }).ToList()
             };
-            return clientManager.OnQueueData(data);
+            return client.OnQueueData(data);
         }
 
         public Task RequestLog()
         {
-            return clientManager.OnLogData(log);
+            return client.OnLogData(log);
         }
 
         public Task RequestConsole()
         {
-            return clientManager.OnConsole(consoleText.TextLines as List<string>);
+            return client.OnConsole(consoleText.TextLines as List<string>);
         }
 
         public Task RequestLogFile(LogItem item)
         {
-            return clientManager.OnLogFile(ReadLogFIle(item.EncodeStartDate));
+            return client.OnLogFile(ReadLogFIle(item.EncodeStartDate));
         }
 
         public Task RequestState()
@@ -704,7 +709,7 @@ namespace AmatsukazeServer
             var state = new State() {
                 Pause = encodePaused
             };
-            return clientManager.OnState(state);
+            return client.OnState(state);
         }
     }
 }

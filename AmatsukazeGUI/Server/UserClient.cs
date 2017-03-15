@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AmatsukazeServer
+namespace Amatsukaze
 {
     public class ServerConnection : IEncodeServer
     {
@@ -112,7 +112,6 @@ namespace AmatsukazeServer
             {
                 byte[] bytes = RPCTypes.Serialize(id, obj);
                 await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
-                ServerMain.CheckThread();
             }
         }
 
@@ -136,10 +135,10 @@ namespace AmatsukazeServer
                     userClient.OnLogUpdate((LogItem)arg);
                     break;
                 case RPCMethodId.OnConsole:
-                    userClient.OnConsole((string)arg);
+                    userClient.OnConsole((List<string>)arg);
                     break;
                 case RPCMethodId.OnConsoleUpdate:
-                    userClient.OnConsoleUpdate((string)arg);
+                    userClient.OnConsoleUpdate((byte[])arg);
                     break;
                 case RPCMethodId.OnLogFile:
                     userClient.OnLogFile((string)arg);

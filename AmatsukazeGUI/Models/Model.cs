@@ -8,10 +8,10 @@ using System.Threading;
 using System.IO;
 
 using Livet;
-using AmatsukazeServer;
+using Amatsukaze;
 using System.Collections.ObjectModel;
 
-namespace AmatsukazeGUI.Models
+namespace Amatsukaze.Models
 {
     public class Model : NotificationObject, IUserClient
     {
@@ -30,41 +30,23 @@ namespace AmatsukazeGUI.Models
         }
 
         private ClientData appData;
-        public ServerConnection Server { get; private set; }
+        public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
         private ConsoleText consoleText;
         private Setting setting = new Setting();
         private State state = new State();
 
-        #region ServerIP変更通知プロパティ
+        public Func<object, string, Task> ServerAddressRequired;
+
         public string ServerIP
         {
-            get
-            { return appData.ServerIP; }
-            set
-            {
-                if (appData.ServerIP == value)
-                    return;
-                appData.ServerIP = value;
-                RaisePropertyChanged();
-            }
+            get { return appData.ServerIP; }
         }
-        #endregion
 
-        #region ServerPort変更通知プロパティ
         public int ServerPort
         {
-            get
-            { return appData.ServerPort; }
-            set
-            {
-                if (appData.ServerPort == value)
-                    return;
-                appData.ServerPort = value;
-                RaisePropertyChanged();
-            }
+            get { return appData.ServerPort; }
         }
-        #endregion
 
         #region CurrentLogFile変更通知プロパティ
         private string _CurrentLogFile;
@@ -284,8 +266,30 @@ namespace AmatsukazeGUI.Models
             appData.ServerPort = 35224;
 
             consoleText = new ConsoleText(_ConsoleTextLines, 400);
-            Server = new ServerConnection(this, askServerAddress);
-            CommTask = Server.Start();
+        }
+
+        public void Start()
+        {
+            if (App.Option.LaunchType == LaunchType.Standalone)
+            {
+                Server = new EncodeServer(0, this);
+            }
+            else
+            {
+                var connection = new ServerConnection(this, AskServerAddress);
+                CommTask = connection.Start();
+                Server = connection;
+            }
+        }
+
+        public void SetServerAddress(string serverIp, int port)
+        {
+            appData.ServerIP = serverIp;
+            appData.ServerPort = port;
+            if (Server is ServerConnection)
+            {
+                (Server as ServerConnection).SetServerAddress(serverIp, port);
+            }
         }
 
         public void Finish()
@@ -297,11 +301,18 @@ namespace AmatsukazeGUI.Models
             }
         }
 
-        private void askServerAddress(string reason)
+        private bool firstAsked = true;
+        private void AskServerAddress(string reason)
         {
-            Console.WriteLine(reason);
-            Thread.Sleep(1000);
-            Server.SetServerAddress(appData.ServerIP, appData.ServerPort);
+            if (firstAsked)
+            {
+                (Server as ServerConnection).SetServerAddress(appData.ServerIP, appData.ServerPort);
+                firstAsked = false;
+            }
+            else
+            {
+                ServerAddressRequired(this, reason);
+            }
         }
 
         private string GetSettingFilePath()

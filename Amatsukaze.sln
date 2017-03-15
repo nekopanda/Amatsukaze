@@ -12,8 +12,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Amatsukaze", "Amatsukaze\Am
 		{482DA264-EE88-4575-B208-87C4CB80CD08} = {482DA264-EE88-4575-B208-87C4CB80CD08}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmatsukazeServer", "AmatsukazeServer\AmatsukazeServer.csproj", "{3722017C-1CD2-4D47-A065-29DA38DA6718}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AmatsukazeUnitTest", "AmatsukazeUnitTest\AmatsukazeUnitTest.vcxproj", "{8C95EAD9-DE23-4DA4-8FEE-0D0B6E289055}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmatsukazeGUI", "AmatsukazeGUI\AmatsukazeGUI.csproj", "{B54EA021-05BC-4CAF-87A5-74081B0ED1CB}"
@@ -72,22 +70,6 @@ Global
 		{4E733A88-E41A-4370-B25F-1626A5F439F1}.Release|x64.Build.0 = Release|x64
 		{4E733A88-E41A-4370-B25F-1626A5F439F1}.Release|x86.ActiveCfg = Release|Win32
 		{4E733A88-E41A-4370-B25F-1626A5F439F1}.Release|x86.Build.0 = Release|Win32
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|x64.Build.0 = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Debug|x86.Build.0 = Debug|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|Mixed Platforms.Build.0 = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|x64.ActiveCfg = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|x64.Build.0 = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|x86.ActiveCfg = Release|Any CPU
-		{3722017C-1CD2-4D47-A065-29DA38DA6718}.Release|x86.Build.0 = Release|Any CPU
 		{8C95EAD9-DE23-4DA4-8FEE-0D0B6E289055}.Debug|Any CPU.ActiveCfg = Debug|Win32
 		{8C95EAD9-DE23-4DA4-8FEE-0D0B6E289055}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
 		{8C95EAD9-DE23-4DA4-8FEE-0D0B6E289055}.Debug|Mixed Platforms.Build.0 = Debug|Win32

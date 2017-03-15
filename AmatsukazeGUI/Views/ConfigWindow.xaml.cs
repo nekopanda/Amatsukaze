@@ -23,11 +23,11 @@ namespace Amatsukaze.Views
      */
 
     /// <summary>
-    /// MainWindow.xaml の相互作用ロジック
+    /// ConfigWindow.xaml の相互作用ロジック
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class ConfigWindow : Window
     {
-        public MainWindow()
+        public ConfigWindow()
         {
             InitializeComponent();
         }

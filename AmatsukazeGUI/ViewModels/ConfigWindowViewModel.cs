@@ -12,11 +12,11 @@ using Livet.EventListeners;
 using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
-using System.Threading.Tasks;
+using Amatsukaze;
 
 namespace Amatsukaze.ViewModels
 {
-    public class MainWindowViewModel : ViewModel
+    public class ConfigWindowViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -60,52 +60,95 @@ namespace Amatsukaze.ViewModels
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
 
-        private Model model = new Model();
+        private Model model;
 
-        public void Initialize()
+        public ConfigWindowViewModel()
+        { }
+
+        public ConfigWindowViewModel(Model model, string serverIp, int port)
         {
-            model.ServerAddressRequired = ServerAddressRequired;
-            model.Start();
+            this.model = model;
+            this.ServerIP = serverIp;
+            this.ServerPort = port.ToString();
         }
 
-        private async Task ServerAddressRequired(object sender, string arg)
-        {
-            // サーバIP・ポートを入力させる
-            var config = new ConfigWindowViewModel(model, model.ServerIP, model.ServerPort);
-            await Messenger.RaiseAsync(new TransitionMessage(
-                typeof(Views.ConfigWindow), config, TransitionMode.Modal, "FromMain"));
+        public void Initialize() { }
 
-            if (config.Succeeded == false)
+        public bool Succeeded { get; private set; }
+
+        #region OkCommand
+        private ViewModelCommand _OkCommand;
+
+        public ViewModelCommand OkCommand
+        {
+            get
             {
-                // キャンセルされたら継続できないので終了
-                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "MainWindowAction"));
-                return;
+                if (_OkCommand == null)
+                {
+                    _OkCommand = new ViewModelCommand(Ok);
+                }
+                return _OkCommand;
             }
         }
 
-        #region QueueItemSelectedIndex変更通知プロパティ
-        private int _QueueItemSelectedIndex;
+        public async void Ok()
+        {
+            int port;
+            if(int.TryParse(_ServerPort, out port) == false) {
+                Description = "ポート番号は数値でなければなりません";
+                return;
+            }
+            model.SetServerAddress(_ServerPort, port);
+            await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+        }
+        #endregion
 
-        public int QueueItemSelectedIndex {
-            get { return _QueueItemSelectedIndex; }
-            set { 
-                if (_QueueItemSelectedIndex == value)
+        #region ServerIP変更通知プロパティ
+        private string _ServerIP;
+
+        public string ServerIP
+        {
+            get
+            { return _ServerIP; }
+            set
+            { 
+                if (_ServerIP == value)
                     return;
-                _QueueItemSelectedIndex = value;
+                _ServerIP = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
-        #region LogItemSelectedIndex変更通知プロパティ
-        private int _LogItemSelectedIndex;
+        #region ServerPort変更通知プロパティ
+        private string _ServerPort;
 
-        public int LogItemSelectedIndex {
-            get { return _LogItemSelectedIndex; }
-            set { 
-                if (_LogItemSelectedIndex == value)
+        public string ServerPort
+        {
+            get
+            { return _ServerPort; }
+            set
+            { 
+                if (_ServerPort == value)
                     return;
-                _LogItemSelectedIndex = value;
+                _ServerPort = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Description変更通知プロパティ
+        private string _Description;
+
+        public string Description
+        {
+            get
+            { return _Description; }
+            set
+            { 
+                if (_Description == value)
+                    return;
+                _Description = value;
                 RaisePropertyChanged();
             }
         }
