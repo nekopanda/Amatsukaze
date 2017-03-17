@@ -16,7 +16,7 @@ using Amatsukaze.Server;
 
 namespace Amatsukaze.ViewModels
 {
-    public class LogViewModel : ViewModel
+    public class LogViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -66,6 +66,15 @@ namespace Amatsukaze.ViewModels
         {
         }
 
+        public void GetLogFileOfCurrentSelectedItem()
+        {
+            var item = SelectedLogItem;
+            if (item != null)
+            {
+                Model.Server.RequestLogFile(item);
+            }
+        }
+
         #region LogItemSelectedIndex変更通知プロパティ
         private int _LogItemSelectedIndex;
 
@@ -94,5 +103,27 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
+
+        #region ExportCSVCommand
+        private ViewModelCommand _ExportCSVCommand;
+
+        public ViewModelCommand ExportCSVCommand
+        {
+            get
+            {
+                if (_ExportCSVCommand == null)
+                {
+                    _ExportCSVCommand = new ViewModelCommand(ExportCSV);
+                }
+                return _ExportCSVCommand;
+            }
+        }
+
+        public void ExportCSV()
+        {
+            // TODO: Model.LogItems
+        }
+        #endregion
+
     }
 }

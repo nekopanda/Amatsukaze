@@ -12,6 +12,7 @@ using Livet.EventListeners;
 using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
+using Amatsukaze.Server;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.ViewModels
@@ -67,10 +68,11 @@ namespace Amatsukaze.ViewModels
         public MainWindowViewModel()
         {
             Model = new Model();
-            MainPanelMenu.Add(new QueueViewModel() { Model = Model });
-            MainPanelMenu.Add(new LogViewModel() { Model = Model });
-            ConsolePanelMenu.Add(new ConsoleViewModel() { Model = Model });
-            ConsolePanelMenu.Add(new LogFileViewModel() { Model = Model });
+            MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
+            MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
+            ConsolePanelMenu.Add(new ConsoleViewModel() { Name = "コンソール", Model = Model });
+            ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
+            ConsolePanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 
         public void Initialize()
@@ -211,6 +213,27 @@ namespace Amatsukaze.ViewModels
         public void TogglePause()
         {
             Model.Server.PauseEncode(!Model.IsPaused);
+        }
+        #endregion
+
+        #region RefreshCommand
+        private ViewModelCommand _RefreshCommand;
+
+        public ViewModelCommand RefreshCommand
+        {
+            get
+            {
+                if (_RefreshCommand == null)
+                {
+                    _RefreshCommand = new ViewModelCommand(Refresh);
+                }
+                return _RefreshCommand;
+            }
+        }
+
+        public void Refresh()
+        {
+            Model.Server.RefreshRequest();
         }
         #endregion
 

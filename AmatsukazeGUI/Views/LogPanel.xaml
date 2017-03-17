@@ -13,7 +13,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <ListView Grid.Row="0" ItemsSource="{Binding Model.LogItems}" SelectedIndex="{Binding LogItemSelectedIndex, Mode=TwoWay}">
+        <ListView Grid.Row="0" ItemsSource="{Binding Model.LogItems}" SelectedIndex="{Binding LogItemSelectedIndex, Mode=TwoWay}" MouseDoubleClick="ListView_MouseDoubleClick">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}"/>
@@ -35,6 +35,11 @@
                     <GridViewColumn Header="平均音ズレ[ms]" DisplayMemberBinding="{Binding DisplayAvgAudioDiff}"/>
                 </GridView>
             </ListView.View>
+            <ListView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="CSV出力" />
+                </ContextMenu>
+            </ListView.ContextMenu>
         </ListView>
         <GridSplitter Grid.Row="1" Height="5"/>
         <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">

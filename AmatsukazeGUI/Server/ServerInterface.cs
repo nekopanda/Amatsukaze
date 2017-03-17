@@ -163,5 +163,15 @@ namespace Amatsukaze.Server
             }
             return bytes;
         }
+
+        public static Task RefreshRequest(this IEncodeServer server)
+        {
+            return Task.WhenAll(
+                    server.RequestSetting(),
+                    server.RequestQueue(),
+                    server.RequestLog(),
+                    server.RequestConsole(),
+                    server.RequestState());
+        }
     }
 }

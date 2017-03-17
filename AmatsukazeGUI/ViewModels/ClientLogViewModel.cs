@@ -15,7 +15,7 @@ using Amatsukaze.Models;
 
 namespace Amatsukaze.ViewModels
 {
-    public class LogFileViewModel : NamedViewModel
+    public class ClientLogViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -64,6 +64,5 @@ namespace Amatsukaze.ViewModels
         public void Initialize()
         {
         }
-
     }
 }

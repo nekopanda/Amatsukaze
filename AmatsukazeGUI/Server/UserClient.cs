@@ -46,11 +46,7 @@ namespace Amatsukaze.Server
             stream = client.GetStream();
 
             // 接続後一通りデータを要求する
-            return Task.WhenAll(RequestSetting(),
-                    RequestQueue(),
-                    RequestLog(),
-                    RequestConsole(),
-                    RequestState());
+            return this.RefreshRequest();
         }
 
         private void Close()

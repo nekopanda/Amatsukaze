@@ -15,7 +15,7 @@ using Amatsukaze.Models;
 
 namespace Amatsukaze.ViewModels
 {
-    public class LogFileViewModel : NamedViewModel
+    public class SettingViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -58,12 +58,80 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-
         public Model Model { get; set; }
+
+        private PropertyChangedEventListener EncoderChangedListener;
 
         public void Initialize()
         {
+            EncoderChangedListener = new PropertyChangedEventListener(Model);
+            EncoderChangedListener.Add(() => Model.EncoderName, (_, __) =>
+            {
+                EncoderSelectedIndex = _EncoderList.IndexOf(Model.EncoderName);
+            });
         }
+
+        #region SendSettingCommand
+        private ViewModelCommand _SendSettingCommand;
+
+        public ViewModelCommand SendSettingCommand
+        {
+            get
+            {
+                if (_SendSettingCommand == null)
+                {
+                    _SendSettingCommand = new ViewModelCommand(SendSetting);
+                }
+                return _SendSettingCommand;
+            }
+        }
+
+        public void SendSetting()
+        {
+            Model.SendSetting();
+        }
+        #endregion
+
+        #region EncoderList変更通知プロパティ
+        private List<string> _EncoderList = new List<string>() {
+                "x264", "x265", "QSVEnc"
+            };
+
+        public List<string> EncoderList
+        {
+            get
+            { return _EncoderList; }
+            set
+            { 
+                if (_EncoderList == value)
+                    return;
+                _EncoderList = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EncoderSelectedIndex変更通知プロパティ
+        private int _EncoderSelectedIndex;
+
+        public int EncoderSelectedIndex
+        {
+            get
+            { return _EncoderSelectedIndex; }
+            set
+            { 
+                if (_EncoderSelectedIndex == value)
+                    return;
+                _EncoderSelectedIndex = value;
+
+                if(_EncoderSelectedIndex >= 0 && _EncoderSelectedIndex < _EncoderList.Count) {
+                    Model.EncoderName = _EncoderList[_EncoderSelectedIndex];
+                }
+
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
     }
 }

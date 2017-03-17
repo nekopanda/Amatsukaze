@@ -118,7 +118,8 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding HeaderMenu}" SelectedIndex="{Binding HeaderMenuSelectedIndex, Mode=TwoWay}" />
+        <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
+        <ListBox Style="{StaticResource HeaderMenuStyle}" Grid.Column="2" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
         
         <GridSplitter Grid.RowSpan="2" Grid.Column="1" Width="5"/>
         
@@ -127,12 +128,15 @@
 
         <Grid Grid.Row="2" Grid.ColumnSpan="3">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding Model.CurrentOperationResult}" />
-            <Button Content="一時停止" Grid.Column="1">
+            <Button Width="50" Content="更新" />
+            <TextBlock Text="{Binding Model.CurrentOperationResult}" Grid.Column="1"/>
+            <TextBlock Text="{Binding Model.RunningState}" Grid.Column="2" Width="60" />
+            <Button Content="一時停止" Grid.Column="3">
                 <Button.Style>
                     <Style TargetType="Button">
                         <Style.Triggers>
@@ -143,7 +147,6 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <TextBlock Text="{Binding Model.RunningState}" Grid.Column="2" Width="60" />
         </Grid>
     </Grid>
 </Window>

@@ -15,7 +15,7 @@ using Amatsukaze.Models;
 
 namespace Amatsukaze.ViewModels
 {
-    public class ConsoleViewModel : ViewModel
+    public class ConsoleViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 

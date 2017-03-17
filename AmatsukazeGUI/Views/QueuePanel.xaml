@@ -13,7 +13,13 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <ListBox Grid.Row="0" Margin="0" ItemsSource="{Binding Model.QueueItems}" SelectedIndex="{Binding QueueItemSelectedIndex, Mode=TwoWay}"/>
+        <ListBox Grid.Row="0" Margin="0" ItemsSource="{Binding Model.QueueItems}" SelectedIndex="{Binding QueueItemSelectedIndex, Mode=TwoWay}" PreviewDragOver="ListBox_PreviewDragOver" Drop="ListBox_Drop">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="選択した項目を削除" IsEnabled="{Binding IsQueueItemSelected}" Command="{Binding DeleteQueueItemCommand}"/>
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
         <GridSplitter Grid.Row="1" Height="5"/>
         <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.MediaFiles}"/>
     </Grid>

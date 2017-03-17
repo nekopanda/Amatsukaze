@@ -1,5 +1,4 @@
-﻿using Amatsukaze.ViewModels;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,22 +16,13 @@ using System.Windows.Shapes;
 namespace Amatsukaze.Views
 {
     /// <summary>
-    /// LogPanel.xaml の相互作用ロジック
+    /// SettingPanel.xaml の相互作用ロジック
     /// </summary>
-    public partial class LogPanel : UserControl
+    public partial class SettingPanel : UserControl
     {
-        public LogPanel()
+        public SettingPanel()
         {
             InitializeComponent();
-        }
-
-        private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            var vm = DataContext as LogViewModel;
-            if (vm != null)
-            {
-                vm.GetLogFileOfCurrentSelectedItem();
-            }
         }
     }
 }

@@ -252,8 +252,27 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ClientLog変更通知プロパティ
+        private ObservableCollection<string> _ClientLog = new ObservableCollection<string>();
+
+        public ObservableCollection<string> ClientLog
+        {
+            get
+            { return _ClientLog; }
+            set
+            { 
+                if (_ClientLog == value)
+                    return;
+                _ClientLog = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public Model()
         {
+            AddLog("クライアント起動");
+
             LoadAppData();
 
             // テスト用
@@ -263,11 +282,22 @@ namespace Amatsukaze.Models
             consoleText = new ConsoleText(_ConsoleTextLines, 400);
         }
 
+        private void AddLog(string text)
+        {
+            var formatted = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + text;
+            if (ClientLog.Count > 400)
+            {
+                ClientLog.RemoveAt(0);
+            }
+            ClientLog.Add(formatted);
+        }
+
         public void Start()
         {
             if (App.Option.LaunchType == LaunchType.Standalone)
             {
                 Server = new EncodeServer(0, this);
+                Server.RefreshRequest();
             }
             else
             {
@@ -338,6 +368,11 @@ namespace Amatsukaze.Models
             }
         }
 
+        public Task SendSetting()
+        {
+            return Server.SetSetting(setting);
+        }
+
         public Task OnSetting(Setting setting)
         {
             X264Path = setting.X264Path;
@@ -392,6 +427,7 @@ namespace Amatsukaze.Models
         public Task OnOperationResult(string result)
         {
             CurrentOperationResult = result;
+            AddLog(result);
             return Task.FromResult(0);
         }
 

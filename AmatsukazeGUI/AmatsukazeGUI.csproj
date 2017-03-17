@@ -63,15 +63,28 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ViewModels\ClientLogViewModel.cs" />
+    <Compile Include="ViewModels\NamedViewModel.cs" />
+    <Compile Include="ViewModels\SettingViewModel.cs" />
+    <Compile Include="Views\ClientLogPanel.xaml.cs">
+      <DependentUpon>ClientLogPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\LogPanel.xaml.cs">
       <DependentUpon>LogPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\QueuePanel.xaml.cs">
       <DependentUpon>QueuePanel.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SettingPanel.xaml.cs">
+      <DependentUpon>SettingPanel.xaml</DependentUpon>
+    </Compile>
     <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\ClientLogPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ConsolePanel.xaml">
       <SubType>Designer</SubType>
@@ -124,6 +137,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="Views\QueuePanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SettingPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

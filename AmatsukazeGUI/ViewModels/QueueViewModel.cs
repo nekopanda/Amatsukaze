@@ -16,7 +16,7 @@ using Amatsukaze.Server;
 
 namespace Amatsukaze.ViewModels
 {
-    public class QueueViewModel : ViewModel
+    public class QueueViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -79,6 +79,7 @@ namespace Amatsukaze.ViewModels
                 _QueueItemSelectedIndex = value;
                 RaisePropertyChanged();
                 RaisePropertyChanged("SetectedQueueItem");
+                RaisePropertyChanged("IsQueueItemSelected");
             }
         }
 
@@ -92,6 +93,40 @@ namespace Amatsukaze.ViewModels
                 return null;
             }
         }
+
+        public bool IsQueueItemSelected
+        {
+            get
+            {
+                return SetectedQueueItem != null;
+            }
+        }
         #endregion
+
+        #region DeleteQueueItemCommand
+        private ViewModelCommand _DeleteQueueItemCommand;
+
+        public ViewModelCommand DeleteQueueItemCommand
+        {
+            get
+            {
+                if (_DeleteQueueItemCommand == null)
+                {
+                    _DeleteQueueItemCommand = new ViewModelCommand(DeleteQueueItem);
+                }
+                return _DeleteQueueItemCommand;
+            }
+        }
+
+        public void DeleteQueueItem()
+        {
+            var item = SetectedQueueItem;
+            if (item != null)
+            {
+                Model.Server.RemoveQueue(item.Path);
+            }
+        }
+        #endregion
+
     }
 }
