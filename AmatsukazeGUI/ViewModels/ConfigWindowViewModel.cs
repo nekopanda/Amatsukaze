@@ -60,12 +60,12 @@ namespace Amatsukaze.ViewModels
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
 
-        private Model model;
+        private ClientModel model;
 
         public ConfigWindowViewModel()
         { }
 
-        public ConfigWindowViewModel(Model model, string serverIp, int port)
+        public ConfigWindowViewModel(ClientModel model, string serverIp, int port)
         {
             this.model = model;
             this.ServerIP = serverIp;

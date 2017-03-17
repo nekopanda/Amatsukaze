@@ -13,7 +13,7 @@ using System.Collections.ObjectModel;
 
 namespace Amatsukaze.Models
 {
-    public class Model : NotificationObject, IUserClient
+    public class ClientModel : NotificationObject, IUserClient
     {
         /*
          * NotificationObjectはプロパティ変更通知の仕組みを実装したオブジェクトです。
@@ -269,7 +269,7 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        public Model()
+        public ClientModel()
         {
             AddLog("クライアント起動");
 

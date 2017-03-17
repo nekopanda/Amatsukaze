@@ -58,7 +58,7 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-        public Model Model { get; set; }
+        public ClientModel Model { get; set; }
 
         private PropertyChangedEventListener EncoderChangedListener;
 

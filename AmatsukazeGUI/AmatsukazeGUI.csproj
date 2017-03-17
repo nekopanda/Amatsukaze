@@ -124,8 +124,8 @@
     <Compile Include="Server\EncodeServer.cs" />
     <Compile Include="Server\EncodeServerData.cs" />
     <Compile Include="Server\ServerInterface.cs" />
-    <Compile Include="Server\ServerMain.cs" />
-    <Compile Include="Server\UserClient.cs" />
+    <Compile Include="Server\Misc.cs" />
+    <Compile Include="Server\ServerConnection.cs" />
     <Compile Include="ViewModels\ConfigWindowViewModel.cs" />
     <Compile Include="ViewModels\LogFileViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />

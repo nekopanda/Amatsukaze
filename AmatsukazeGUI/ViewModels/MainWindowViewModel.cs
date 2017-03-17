@@ -61,13 +61,13 @@ namespace Amatsukaze.ViewModels
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
 
-        public Model Model { get; private set; }
+        public ClientModel Model { get; private set; }
 
         private PropertyChangedEventListener isRunningListener;
 
         public MainWindowViewModel()
         {
-            Model = new Model();
+            Model = new ClientModel();
             MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
             ConsolePanelMenu.Add(new ConsoleViewModel() { Name = "コンソール", Model = Model });
