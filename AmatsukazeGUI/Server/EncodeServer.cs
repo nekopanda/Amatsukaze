@@ -311,7 +311,7 @@ namespace Amatsukaze.Server
             if(File.Exists(GetSettingFilePath()) == false)
             {
                 appData = new AppData() {
-                    setting = new Setting()
+                    setting = new Setting() { EncoderName="x264" }
                 };
                 return;
             }
@@ -401,8 +401,8 @@ namespace Amatsukaze.Server
 
         private string MakeAmatsukazeArgs(string src, string dst, out string json, out string log)
         {
-            string workPath = string.IsNullOrEmpty(appData.setting.EncoderName)
-                ? "./" : appData.setting.EncoderName;
+            string workPath = string.IsNullOrEmpty(appData.setting.WorkPath)
+                ? "./" : appData.setting.WorkPath;
             string encoderPath = GetEncoderPath();
             json = "amt-" + Process.GetCurrentProcess().Id.ToString() + ".json";
             log = Path.Combine(
@@ -607,6 +607,8 @@ namespace Amatsukaze.Server
         private async Task StartEncode()
         {
             nowEncoding = true;
+            // 状態を更新
+            Task t = RequestState();
 
             while (queue.Count > 0)
             {
@@ -619,6 +621,10 @@ namespace Amatsukaze.Server
             }
 
             nowEncoding = false;
+
+            // 状態を更新
+            await t;
+            await RequestState();
         }
 
         public Task SetSetting(Setting setting)
@@ -648,6 +654,15 @@ namespace Amatsukaze.Server
             {
                 await StartEncode();
             }
+            await client.OnQueueUpdate(new QueueUpdate()
+            {
+                AddOrRemove = true,
+                Item = new QueueItem()
+                {
+                    Path = target.DirPath,
+                    MediaFiles = target.TsFiles
+                }
+            });
         }
 
         public async Task RemoveQueue(string dirPath)
@@ -707,7 +722,8 @@ namespace Amatsukaze.Server
         public Task RequestState()
         {
             var state = new State() {
-                Pause = encodePaused
+                Pause = encodePaused,
+                Running = nowEncoding
             };
             return client.OnState(state);
         }

@@ -83,7 +83,7 @@ namespace Amatsukaze.Models
         #endregion
 
         #region QueueItems変更通知プロパティ
-        private ObservableCollection<QueueItem> _QueueItems;
+        private ObservableCollection<QueueItem> _QueueItems = new ObservableCollection<QueueItem>();
 
         public ObservableCollection<QueueItem> QueueItems
         {
@@ -271,6 +271,8 @@ namespace Amatsukaze.Models
 
         public ClientModel()
         {
+            Util.LogHandlers.Add(AddLog);
+
             AddLog("クライアント起動");
 
             LoadAppData();
@@ -371,6 +373,63 @@ namespace Amatsukaze.Models
         public Task SendSetting()
         {
             return Server.SetSetting(setting);
+        }
+
+        public void ExportLogCSV(Stream fs)
+        {
+            var sw = new StreamWriter(fs, Encoding.UTF8);
+            var sb = new StringBuilder();
+            var header = new string[] {
+                "結果",
+                "メッセージ",
+                "入力ファイル",
+                "出力ファイル",
+                "エンコード開始",
+                "エンコード終了",
+                "エンコード時間（秒）",
+                "入力ファイル時間（秒）",
+                "出力ファイル時間（秒）",
+                "入力ファイルサイズ",
+                "中間ファイルサイズ",
+                "出力ファイルサイズ",
+                "圧縮率（％）",
+                "入力音声フレーム",
+                "出力音声フレーム",
+                "ユニーク出力音声フレーム",
+                "未出力音声割合(%)",
+                "平均音ズレ(ms)",
+                "最大音ズレ(ms)",
+                "最大音ズレ位置(ms)"
+            };
+            sw.WriteLine(string.Join(",", header));
+
+            foreach (var item in LogItems)
+            {
+                var row = new string[] {
+                    item.Success ? "〇" : "×",
+                    item.Reason,
+                    item.SrcPath,
+                    string.Join(":", item.OutPath),
+                    item.DisplayEncodeStart,
+                    item.DisplayEncodeFinish,
+                    (item.EncodeFinishDate - item.EncodeStartDate).TotalSeconds.ToString(),
+                    item.SrcVideoDuration.TotalSeconds.ToString(),
+                    item.OutVideoDuration.TotalSeconds.ToString(),
+                    item.SrcFileSize.ToString(),
+                    item.IntVideoFileSize.ToString(),
+                    item.OutFileSize.ToString(),
+                    item.DisplayCompressionRate,
+                    item.AudioDiff.TotalSrcFrames.ToString(),
+                    item.AudioDiff.TotalOutFrames.ToString(),
+                    item.AudioDiff.TotalOutUniqueFrames.ToString(),
+                    item.AudioDiff.NotIncludedPer.ToString(),
+                    item.AudioDiff.AvgDiff.ToString(),
+                    item.AudioDiff.MaxDiff.ToString(),
+                    item.AudioDiff.MaxDiffPos.ToString()
+                };
+                sw.WriteLine(string.Join(",", row));
+            }
+            sw.Flush();
         }
 
         public Task OnSetting(Setting setting)

@@ -9,9 +9,9 @@
              d:DataContext="{d:DesignInstance {x:Type vm:LogViewModel}}">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="{Binding UpperRowLength, Mode=TwoWay}"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
         </Grid.RowDefinitions>
         <ListView Grid.Row="0" ItemsSource="{Binding Model.LogItems}" SelectedIndex="{Binding LogItemSelectedIndex, Mode=TwoWay}" MouseDoubleClick="ListView_MouseDoubleClick">
             <ListView.View>
@@ -41,7 +41,7 @@
                 </ContextMenu>
             </ListView.ContextMenu>
         </ListView>
-        <GridSplitter Grid.Row="1" Height="5"/>
+        <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
         <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <Grid DataContext="{Binding SelectedLogItem}">
                 <Grid.ColumnDefinitions>

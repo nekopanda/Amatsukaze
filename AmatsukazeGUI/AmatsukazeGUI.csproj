@@ -120,7 +120,7 @@
     <Compile Include="Views\LogFilePanel.xaml.cs">
       <DependentUpon>LogFilePanel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Models\Model.cs" />
+    <Compile Include="Models\ClientModel.cs" />
     <Compile Include="Server\EncodeServer.cs" />
     <Compile Include="Server\EncodeServerData.cs" />
     <Compile Include="Server\ServerInterface.cs" />

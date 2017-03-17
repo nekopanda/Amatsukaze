@@ -13,6 +13,8 @@ using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
 using Amatsukaze.Server;
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
@@ -64,6 +66,11 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
+        }
+
+        public void AddQueue(string dirPath)
+        {
+            Model.Server.AddQueue(dirPath).AttachHandler();
         }
 
         #region QueueItemSelectedIndex変更通知プロパティ
@@ -124,6 +131,40 @@ namespace Amatsukaze.ViewModels
             if (item != null)
             {
                 Model.Server.RemoveQueue(item.Path);
+            }
+        }
+        #endregion
+
+        #region UpperRowLength変更通知プロパティ
+        private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength UpperRowLength
+        {
+            get
+            { return _UpperRowLength; }
+            set
+            { 
+                if (_UpperRowLength == value)
+                    return;
+                _UpperRowLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region LowerRowLength変更通知プロパティ
+        private GridLength _LowerRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength LowerRowLength
+        {
+            get
+            { return _LowerRowLength; }
+            set
+            { 
+                if (_LowerRowLength == value)
+                    return;
+                _LowerRowLength = value;
+                RaisePropertyChanged();
             }
         }
         #endregion

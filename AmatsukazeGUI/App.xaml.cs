@@ -28,8 +28,12 @@ namespace Amatsukaze
             Option = new GUIOPtion(args);
             if (Option.LaunchType == LaunchType.Server)
             {
+                Action<string> logHandler = (string str) => Console.WriteLine(str);
+                Util.LogHandlers.Add(logHandler);
+
                 var syncCtx = new SingleThreadSynchronizationContext();
                 SynchronizationContext.SetSynchronizationContext(syncCtx);
+                
                 EncodeServer server = new EncodeServer(Option.ServerPort, null);
 
                 // 終わったらRunOnCurrentThread()から抜けるようにしておく

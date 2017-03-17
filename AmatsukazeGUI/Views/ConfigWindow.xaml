@@ -4,13 +4,13 @@
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:ei="http://schemas.microsoft.com/expression/2010/interactions"
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="サーバアドレス" Height="116.066" Width="240">
-
-    <Window.DataContext>
-        <vm:ConfigWindowViewModel/>
-    </Window.DataContext>
+        mc:Ignorable="d" 
+        Title="サーバアドレス" Height="120" Width="240"
+        d:DataContext="{d:DesignInstance {x:Type vm:ConfigWindowViewModel}}">
 
     <i:Interaction.Triggers>
 

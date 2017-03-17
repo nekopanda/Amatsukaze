@@ -97,11 +97,17 @@
         <DataTemplate DataType="{x:Type vm:ConsoleViewModel}">
             <v:ConsolePanel />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingViewModel}">
+            <v:SettingPanel />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:QueueViewModel}">
             <v:QueuePanel />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:LogViewModel}">
             <v:LogPanel />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ClientLogViewModel}">
+            <v:ClientLogPanel />
         </DataTemplate>
 
     </Window.Resources>
@@ -120,8 +126,8 @@
 
         <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
         <ListBox Style="{StaticResource HeaderMenuStyle}" Grid.Column="2" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
-        
-        <GridSplitter Grid.RowSpan="2" Grid.Column="1" Width="5"/>
+
+        <GridSplitter HorizontalAlignment="Center" Grid.RowSpan="2" Grid.Column="1" Width="5"/>
         
         <ContentControl Grid.Row="1" Grid.Column="0" Content="{Binding MainPanel}" />
         <ContentControl Grid.Row="1" Grid.Column="2" Content="{Binding ConsolePanel}" />
@@ -133,8 +139,8 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button Width="50" Content="更新" />
-            <TextBlock Text="{Binding Model.CurrentOperationResult}" Grid.Column="1"/>
+            <Button Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" />
+            <TextBlock Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center"/>
             <TextBlock Text="{Binding Model.RunningState}" Grid.Column="2" Width="60" />
             <Button Content="一時停止" Grid.Column="3">
                 <Button.Style>

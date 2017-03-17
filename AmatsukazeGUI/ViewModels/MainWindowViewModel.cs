@@ -70,15 +70,31 @@ namespace Amatsukaze.ViewModels
             Model = new ClientModel();
             MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
+            MainPanelMenu.Add(new SettingViewModel() { Name = "設定", Model = Model });
             ConsolePanelMenu.Add(new ConsoleViewModel() { Name = "コンソール", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
             ConsolePanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
+        }
+
+        private static void InitializeVM(dynamic vm)
+        {
+            vm.Initialize();
         }
 
         public void Initialize()
         {
             isRunningListener = new PropertyChangedEventListener(Model);
             isRunningListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
+
+            // 他のVMのInitializeを読んでやる
+            foreach (var vm in MainPanelMenu)
+            {
+                InitializeVM(vm);
+            }
+            foreach (var vm in ConsolePanelMenu)
+            {
+                InitializeVM(vm);
+            }
 
             Model.ServerAddressRequired = ServerAddressRequired;
             Model.Start();

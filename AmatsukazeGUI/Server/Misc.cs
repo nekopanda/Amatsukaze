@@ -55,12 +55,34 @@ namespace Amatsukaze.Server
         [Conditional("DEBUG")]
         public static void Print(string str)
         {
-            Console.WriteLine(str);
+            Util.AddLog(str);
         }
     }
 
     public static class Util
     {
+        public static List<Action<string>> LogHandlers = new List<Action<string>>();
+
+        public static void AddLog(string log)
+        {
+            foreach (var handler in LogHandlers)
+            {
+                handler(log);
+            }
+        }
+
+        public static async void AttachHandler(this Task task)
+        {
+            try
+            {
+                await task;
+            }
+            catch (Exception e)
+            {
+                AddLog(e.Message);
+            }
+        }
+
         public static string ToGUIString(this DateTime dt)
         {
             return dt.ToString("yyyy/MM/dd HH:mm:ss");

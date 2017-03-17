@@ -13,6 +13,8 @@ using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
 using Amatsukaze.Server;
+using Microsoft.Win32;
+using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
@@ -121,7 +123,50 @@ namespace Amatsukaze.ViewModels
 
         public void ExportCSV()
         {
-            // TODO: Model.LogItems
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.FilterIndex = 1;
+            saveFileDialog.Filter = "CSV(.csv)|*.csv|All Files (*.*)|*.*";
+            bool? result = saveFileDialog.ShowDialog();
+            if (result == true)
+            {
+                using(var fs = saveFileDialog.OpenFile()) {
+                    Model.ExportLogCSV(fs);
+                }
+            }
+        }
+        #endregion
+
+        #region UpperRowLength変更通知プロパティ
+        private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength UpperRowLength
+        {
+            get
+            { return _UpperRowLength; }
+            set
+            {
+                if (_UpperRowLength == value)
+                    return;
+                _UpperRowLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region LowerRowLength変更通知プロパティ
+        private GridLength _LowerRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength LowerRowLength
+        {
+            get
+            { return _LowerRowLength; }
+            set
+            {
+                if (_LowerRowLength == value)
+                    return;
+                _LowerRowLength = value;
+                RaisePropertyChanged();
+            }
         }
         #endregion
 

@@ -38,7 +38,7 @@ namespace Amatsukaze.Views
             var vm = DataContext as QueueViewModel;
             if (vm != null)
             {
-                vm.Model.Server.AddQueue(dirPath);
+                vm.AddQueue(dirPath);
             }
         }
 
