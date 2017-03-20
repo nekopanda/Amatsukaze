@@ -736,6 +736,7 @@ public:
 		, videoEs(-1, -1)
 		, PsiParserPAT(ctx, *this)
 		, PsiParserPMT(ctx, *this)
+		, pmtPid(-1)
 		, videoDelegator(*this)
 	{
 		curHandlerTable = new PidHandlerTable(&PsiParserPAT);

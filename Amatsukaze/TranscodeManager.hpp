@@ -279,6 +279,7 @@ public:
 		, videoStreamType_(-1)
 		, audioStreamType_(-1)
 		, audioFileSize_(0)
+		, srcFileSize_(0)
 	{
 		psWriter.setHandler(&writeHandler);
 	}
@@ -311,7 +312,7 @@ protected:
 		int64_t totalIntVideoSize_;
 	public:
 		StreamFileWriteHandler(TsSplitter& this_)
-			: this_(this_) { }
+			: this_(this_), totalIntVideoSize_() { }
 		virtual void onStreamData(MemoryChunk mc) {
 			if (file_ != NULL) {
 				file_->write(mc);
@@ -377,7 +378,7 @@ protected:
 	void printInteraceCount() {
 
 		if (videoFrameList_.size() == 0) {
-			printf("フレームがありません");
+			ctx.error("フレームがありません");
 			return;
 		}
 
@@ -408,7 +409,7 @@ protected:
 				const VideoFrameInfo& nextFrame = videoFrameList_[modifiedPTS[i + 1].second];
 				PTSdiff = int(nextPTS - PTS);
 				if (CheckPullDown(frame.pic, nextFrame.pic) == false) {
-					printf("Flag Check Error: PTS=%lld %s -> %s\n",
+					ctx.warn("Flag Check Error: PTS=%lld %s -> %s",
 						PTS, PictureTypeString(frame.pic), PictureTypeString(nextFrame.pic));
 				}
 			}
@@ -910,6 +911,7 @@ private:
 		virtual void onOut(bool isErr, MemoryChunk mc) {
 			// これはマルチスレッドで呼ばれるの注意
 			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+			fflush(isErr ? stderr : stdout);
 		}
 	};
 

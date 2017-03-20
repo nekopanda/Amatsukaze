@@ -29,6 +29,8 @@ public:
 		, PesParser()
 		, videoStreamFormat(VS_MPEG2)
 		, videoFormat()
+		, mpeg2parser()
+		, h264parser()
 		, parser(&mpeg2parser)
 	{ }
 
@@ -100,12 +102,13 @@ protected:
 private:
 	VIDEO_STREAM_FORMAT videoStreamFormat;
 	VideoFormat videoFormat;
-	IVideoParser* parser;
 	
 	std::vector<VideoFrameInfo> frameInfo;
 
 	MPEG2VideoParser mpeg2parser;
 	H264VideoParser h264parser;
+
+	IVideoParser* parser;
 
 };
 
@@ -232,6 +235,7 @@ public:
 		: PcrPid(-1)
 		, numPcrReceived(0)
 		, numTotakPacketsReveived(0)
+		, pcrInfo()
 	{ }
 
 	void setPcrPid(int PcrPid) {
@@ -280,7 +284,7 @@ public:
 
 						// テスト用
 						//if (pcrReceived()) {
-						//	printf("PCR: %f Mbps\n", currentBitrate() / (1024 * 1024));
+						//	PRINTF("PCR: %f Mbps\n", currentBitrate() / (1024 * 1024));
 						//}
 					}
 				}
@@ -297,8 +301,8 @@ public:
 
 private:
 	struct PCR_Info {
-		int64_t clock;
-		int packetIndex;
+		int64_t clock = 0;
+		int packetIndex = -1;
 	};
 
 	int PcrPid;

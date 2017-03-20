@@ -1,0 +1,32 @@
+﻿<UserControl x:Class="Amatsukaze.Views.DiskFreeSpacePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:s="clr-namespace:Amatsukaze.Server" 
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type vm:DiskFreeSpaceViewModel}}">
+    <Grid>
+        <ListBox ItemsSource="{Binding DiskItems}" HorizontalContentAlignment="Stretch">
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:DiskItemViewModel">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="15"/>
+                            <RowDefinition Height="15"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock>
+                            <Run Text="ディスク: "/>
+                            <Run Text="{Binding Model.Path}" />
+                        </TextBlock>
+                        <Rectangle Grid.Row="1" Fill="Gainsboro" Stroke="Gray" StrokeThickness="1" Width="{Binding TotalWidth, Mode=OneWayToSource}" />
+                        <Rectangle Grid.Row="1" Fill="DarkGray" Stroke="Gray" StrokeThickness="1" HorizontalAlignment="Left" Width="{Binding BarWidth}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</UserControl>

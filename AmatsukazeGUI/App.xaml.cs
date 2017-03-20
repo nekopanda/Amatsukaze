@@ -9,6 +9,7 @@ using Livet;
 using System.Threading;
 using System.Collections.Concurrent;
 using Amatsukaze.Server;
+using System.Runtime.InteropServices;
 
 namespace Amatsukaze
 {
@@ -26,29 +27,20 @@ namespace Amatsukaze
         public static void Main(string[] args)
         {
             Option = new GUIOPtion(args);
+
+            Amatsukaze.App app = new Amatsukaze.App();
+
             if (Option.LaunchType == LaunchType.Server)
             {
-                Action<string> logHandler = (string str) => Console.WriteLine(str);
-                Util.LogHandlers.Add(logHandler);
-
-                var syncCtx = new SingleThreadSynchronizationContext();
-                SynchronizationContext.SetSynchronizationContext(syncCtx);
-                
-                EncodeServer server = new EncodeServer(Option.ServerPort, null);
-
-                // 終わったらRunOnCurrentThread()から抜けるようにしておく
-                server.ServerTask.ContinueWith(t =>
-                {
-                    syncCtx.Complete();
-                });
-                syncCtx.RunOnCurrentThread();
+                app.StartupUri = new Uri("ServerWindow.xaml", UriKind.Relative);
             }
             else
             {
-                Amatsukaze.App app = new Amatsukaze.App();
-                app.InitializeComponent();
-                app.Run();
+                app.StartupUri = new Uri("MainWindow.xaml", UriKind.Relative);
             }
+
+            app.InitializeComponent();
+            app.Run();
         }
 
         private void Application_Startup(object sender, StartupEventArgs e)
@@ -69,29 +61,5 @@ namespace Amatsukaze
         //
         //    Environment.Exit(1);
         //}
-    }
-
-    public sealed class SingleThreadSynchronizationContext :
-        SynchronizationContext
-    {
-        private readonly
-            BlockingCollection<KeyValuePair<SendOrPostCallback, object>>
-            m_queue =
-            new BlockingCollection<KeyValuePair<SendOrPostCallback, object>>();
-
-        public override void Post(SendOrPostCallback d, object state)
-        {
-            m_queue.Add(
-                new KeyValuePair<SendOrPostCallback, object>(d, state));
-        }
-
-        public void RunOnCurrentThread()
-        {
-            KeyValuePair<SendOrPostCallback, object> workItem;
-            while (m_queue.TryTake(out workItem, Timeout.Infinite))
-                workItem.Key(workItem.Value);
-        }
-
-        public void Complete() { m_queue.CompleteAdding(); }
     }
 }

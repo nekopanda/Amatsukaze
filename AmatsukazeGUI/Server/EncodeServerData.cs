@@ -12,6 +12,8 @@ namespace Amatsukaze.Server
     public class Setting : IExtensibleDataObject
     {
         [DataMember]
+        public string AmatsukazePath { get; set; }
+        [DataMember]
         public string X264Path { get; set; }
         [DataMember]
         public string X265Path { get; set; }
@@ -37,6 +39,8 @@ namespace Amatsukaze.Server
     public class State
     {
         [DataMember]
+        public string HostName { get; set; }
+        [DataMember]
         public bool Pause { get; set; }
         [DataMember]
         public bool Running { get; set; }
@@ -48,21 +52,41 @@ namespace Amatsukaze.Server
         [DataMember]
         public string Path { get; set; }
         [DataMember]
-        public List<string> MediaFiles { get; set; }
+        public bool IsComplete { get; set; }
+        [DataMember]
+        public bool IsEncoding { get; set; }
+    }
+
+    [DataContract]
+    public class QueueDirectory
+    {
+        [DataMember]
+        public string Path { get; set; }
+        [DataMember]
+        public List<QueueItem> Items { get; set; }
     }
 
     [DataContract]
     public class QueueData
     {
         [DataMember]
-        public List<QueueItem> Items { get; set; }
+        public List<QueueDirectory> Items { get; set; }
+    }
+
+    public enum UpdateType
+    {
+        Add, Remove, Update
     }
 
     [DataContract]
     public class QueueUpdate
     {
         [DataMember]
-        public bool AddOrRemove { get; set; }
+        public UpdateType Type { get; set; }
+        [DataMember]
+        public QueueDirectory Directory { get; set; }
+        [DataMember]
+        public string DirPath { get; set; }
         [DataMember]
         public QueueItem Item { get; set; }
     }
@@ -113,16 +137,19 @@ namespace Amatsukaze.Server
         public AudioDiff AudioDiff { get; set; }
         [DataMember]
         public string Reason { get; set; }
+        [DataMember]
+        public string MachineName { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
         // アクセサ
+        public TimeSpan EncodeDuration { get { return EncodeFinishDate - EncodeStartDate; } }
         public string DisplayResult { get { return Success ? "〇" : "×"; } }
         public string DisplaySrcDirectory { get { return Path.GetDirectoryName(SrcPath); } }
         public string DisplaySrcFileName { get { return Path.GetFileName(SrcPath); } }
         public string DisplayEncodeStart { get { return EncodeStartDate.ToGUIString(); } }
         public string DisplayEncodeFinish { get { return EncodeFinishDate.ToGUIString(); } }
-        public string DisplayEncodeDuration { get { return (EncodeFinishDate - EncodeStartDate).ToGUIString(); } }
+        public string DisplayEncodeDuration { get { return EncodeDuration.ToGUIString(); } }
         public string DisplaySrcDurationo { get { return SrcVideoDuration.ToGUIString(); } }
         public string DisplayOutDuration { get { return OutVideoDuration.ToGUIString(); } }
         public string DisplayVideoNotIncluded { get {
@@ -133,8 +160,8 @@ namespace Amatsukaze.Server
         public string DisplaySrcFileSize { get { return ((double)SrcFileSize / (1024 * 1024)).ToString("F2"); } }
         public string DisplayIntFileSize { get { return ((double)IntVideoFileSize / (1024 * 1024)).ToString("F2"); } }
         public string DisplayOutFileSize { get { return ((double)OutFileSize / (1024 * 1024)).ToString("F2"); } }
-        public string DisplayIntVideoRate { get { return ((double)IntVideoFileSize / (double)SrcFileSize).ToString("F2"); } }
-        public string DisplayCompressionRate { get { return ((double)SrcFileSize / (double)OutFileSize).ToString("F2"); } }
+        public string DisplayIntVideoRate { get { return ((double)IntVideoFileSize / (double)SrcFileSize * 100).ToString("F2"); } }
+        public string DisplayCompressionRate { get { return ((double)OutFileSize / (double)SrcFileSize * 100).ToString("F2"); } }
         public string DisplaySrcAudioFrames { get { return AudioDiff.TotalSrcFrames.ToString(); } }
         public string DisplayOutAudioFrames { get { return AudioDiff.TotalOutFrames.ToString(); } }
         public string DisplayAudioNotIncluded { get { return AudioDiff.NotIncludedPer.ToString("F3"); } }
@@ -142,6 +169,9 @@ namespace Amatsukaze.Server
         public string DisplayReason { get { return Reason; } }
         public string DisplayAudioMaxDiff { get { return AudioDiff.MaxDiff.ToString("F2"); } }
         public string DisplayAudioMaxDiffPos { get { return AudioDiff.MaxDiffPos.ToString("F2"); } }
+        public string DisplayEncodeSpeed { get { return (SrcVideoDuration.TotalSeconds / EncodeDuration.TotalSeconds).ToString("F2"); } }
+        public string DisplaySrcBitrate { get { return ((double)SrcFileSize / (SrcVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3"); } }
+        public string DisplayOutBitrate { get { return ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3"); } }
     }
 
     [DataContract]
@@ -160,5 +190,23 @@ namespace Amatsukaze.Server
         public long Id { get; set; }
         [DataMember]
         public string Content { get; set; }
+    }
+
+    [DataContract]
+    public class DiskItem
+    {
+        [DataMember]
+        public string Path { get; set; }
+        [DataMember]
+        public long Capacity { get; set; }
+        [DataMember]
+        public long Free { get; set; }
+    }
+
+    [DataContract]
+    public class DiskFreeSpace
+    {
+        [DataMember]
+        public List<DiskItem> Disks { get; set; }
     }
 }

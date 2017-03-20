@@ -46,7 +46,7 @@ DEFINE_EXCEPTION(RuntimeException)
 
 static void throw_exception_(const Exception& exc)
 {
-  printf("%s\n", exc.message());
+	PRINTF("%s\n", exc.message());
   throw exc;
 }
 

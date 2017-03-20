@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -90,27 +91,28 @@ namespace Amatsukaze.Server
 
         public static string ToGUIString(this TimeSpan ts)
         {
-            return ts.TotalHours + ts.ToString(":mm:ss");
+            return (int)ts.TotalHours + "時間" + ts.ToString("mm\\分ss\\秒");
         }
+
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool GetDiskFreeSpaceEx(
+            string lpDirectoryName, 
+            out ulong lpFreeBytesAvailable, 
+            out ulong lpTotalNumberOfBytes, 
+            out ulong lpTotalNumberOfFreeBytes);
     }
 
-    public class ConsoleText
+    public abstract class ConsoleTextBase
     {
-        public IList<string> TextLines { get; private set; }
-        private int maxlines;
+        public abstract void OnAddLine(string text);
+        public abstract void OnReplaceLine(string text);
 
         private List<byte> rawtext = new List<byte>();
         private bool isCR = false;
 
-        public ConsoleText(IList<string> textlines, int maxlines)
-        {
-            this.TextLines = textlines;
-            this.maxlines = maxlines;
-        }
-
         public void Clear()
         {
-            TextLines.Clear();
             rawtext.Clear();
             isCR = false;
         }
@@ -123,18 +125,14 @@ namespace Amatsukaze.Server
                 {
                     if (rawtext.Count > 0)
                     {
-                        string text = Encoding.UTF8.GetString(rawtext.ToArray());
+                        string text = Encoding.Default.GetString(rawtext.ToArray());
                         if (isCR)
                         {
-                            TextLines[TextLines.Count - 1] = text;
+                            OnReplaceLine(text);
                         }
                         else
                         {
-                            if (TextLines.Count > maxlines)
-                            {
-                                TextLines.RemoveAt(0);
-                            }
-                            TextLines.Add(text);
+                            OnAddLine(text);
                         }
                         rawtext.Clear();
                     }

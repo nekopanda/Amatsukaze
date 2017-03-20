@@ -13,6 +13,23 @@ using System.Collections.ObjectModel;
 
 namespace Amatsukaze.Models
 {
+    public class DisplayQueueDirectory
+    {
+        public string Path { get; set; }
+        public ObservableCollection<QueueItem> Items { get; set; }
+
+        public DisplayQueueDirectory(QueueDirectory dir)
+        {
+            Path = dir.Path;
+            Items = new ObservableCollection<QueueItem>(dir.Items);
+        }
+
+        public override string ToString()
+        {
+            return Path + " (" + Items.Count + ")";
+        }
+    }
+
     public class ClientModel : NotificationObject, IUserClient
     {
         /*
@@ -29,10 +46,46 @@ namespace Amatsukaze.Models
             public ExtensionDataObject ExtensionData { get; set; }
         }
 
+        private class ConsoleText : ConsoleTextBase
+        {
+            public ObservableCollection<string> TextLines = new ObservableCollection<string>();
+
+            public override void OnAddLine(string text)
+            {
+                if (TextLines.Count > 400)
+                {
+                    TextLines.RemoveAt(0);
+                }
+                TextLines.Add(text);
+            }
+
+            public override void OnReplaceLine(string text)
+            {
+                if (TextLines.Count == 0)
+                {
+                    TextLines.Add(text);
+                }
+                else
+                {
+                    TextLines[TextLines.Count - 1] = text;
+                }
+            }
+
+            public void SetTextLines(List<string> lines)
+            {
+                Clear();
+                TextLines.Clear();
+                foreach(var s in lines)
+                {
+                    TextLines.Add(s);
+                }
+            }
+        }
+
         private ClientData appData;
         public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
-        private ConsoleText consoleText;
+        private ConsoleText consoleText = new ConsoleText();
         private Setting setting = new Setting();
         private State state = new State();
 
@@ -47,6 +100,18 @@ namespace Amatsukaze.Models
         {
             get { return appData.ServerPort; }
         }
+
+        #region ConsoleTextLines変更通知プロパティ
+        public ObservableCollection<string> ConsoleTextLines {
+            get { return consoleText.TextLines; }
+            set { 
+                if (consoleText.TextLines == value)
+                    return;
+                consoleText.TextLines = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         #region CurrentLogFile変更通知プロパティ
         private string _CurrentLogFile;
@@ -83,9 +148,9 @@ namespace Amatsukaze.Models
         #endregion
 
         #region QueueItems変更通知プロパティ
-        private ObservableCollection<QueueItem> _QueueItems = new ObservableCollection<QueueItem>();
+        private ObservableCollection<DisplayQueueDirectory> _QueueItems = new ObservableCollection<DisplayQueueDirectory>();
 
-        public ObservableCollection<QueueItem> QueueItems
+        public ObservableCollection<DisplayQueueDirectory> QueueItems
         {
             get
             { return _QueueItems; }
@@ -111,6 +176,18 @@ namespace Amatsukaze.Models
                 if (_CurrentOperationResult == value)
                     return;
                 _CurrentOperationResult = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ServerHostName変更通知プロパティ
+        public string ServerHostName {
+            get { return state.HostName; }
+            set { 
+                if (state.HostName == value)
+                    return;
+                state.HostName = value;
                 RaisePropertyChanged();
             }
         }
@@ -142,15 +219,13 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region ConsoleTextLines変更通知プロパティ
-        private ObservableCollection<string> _ConsoleTextLines = new ObservableCollection<string>();
-
-        public ObservableCollection<string> ConsoleTextLines {
-            get { return _ConsoleTextLines; }
+        #region AmatsukazePath変更通知プロパティ
+        public string AmatsukazePath {
+            get { return setting.AmatsukazePath; }
             set { 
-                if (_ConsoleTextLines == value)
+                if (setting.AmatsukazePath == value)
                     return;
-                _ConsoleTextLines = value;
+                setting.AmatsukazePath = value;
                 RaisePropertyChanged();
             }
         }
@@ -269,6 +344,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DiskFreeSpace変更通知プロパティ
+        private List<DiskItem> _DiskFreeSpace = new List<DiskItem>();
+
+        public List<DiskItem> DiskFreeSpace {
+            get { return _DiskFreeSpace; }
+            set { 
+                if (_DiskFreeSpace == value)
+                    return;
+                _DiskFreeSpace = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public ClientModel()
         {
             Util.LogHandlers.Add(AddLog);
@@ -280,8 +369,11 @@ namespace Amatsukaze.Models
             // テスト用
             appData.ServerIP = "localhost";
             appData.ServerPort = 35224;
+        }
 
-            consoleText = new ConsoleText(_ConsoleTextLines, 400);
+        private void ConsoleText_TextChanged()
+        {
+            RaisePropertyChanged("ConsoleText");
         }
 
         private void AddLog(string text)
@@ -434,6 +526,7 @@ namespace Amatsukaze.Models
 
         public Task OnSetting(Setting setting)
         {
+            AmatsukazePath = setting.AmatsukazePath;
             X264Path = setting.X264Path;
             X265Path = setting.X265Path;
             QSVEncPath = setting.QSVEncPath;
@@ -447,11 +540,7 @@ namespace Amatsukaze.Models
 
         public Task OnConsole(List<string> str)
         {
-            consoleText.Clear();
-            foreach(var s in str)
-            {
-                _ConsoleTextLines.Add(s);
-            }
+            consoleText.SetTextLines(str);
             return Task.FromResult(0);
         }
 
@@ -495,27 +584,77 @@ namespace Amatsukaze.Models
             QueueItems.Clear();
             foreach (var item in data.Items)
             {
-                QueueItems.Add(item);
+                QueueItems.Add(new DisplayQueueDirectory(item));
             }
             return Task.FromResult(0);
         }
 
         public Task OnQueueUpdate(QueueUpdate update)
         {
-            if (update.AddOrRemove)
+            if (update.Item == null)
             {
-                QueueItems.Add(update.Item);
+                // ディレクトリに対する操作
+                if (update.Type == UpdateType.Add)
+                {
+                    QueueItems.Add(new DisplayQueueDirectory(update.Directory));
+                }
+                else
+                {
+                    var dir = QueueItems.FirstOrDefault(d => d.Path == update.DirPath);
+                    if(dir != null)
+                    {
+                        if (update.Type == UpdateType.Remove)
+                        {
+                            QueueItems.Remove(dir);
+                        }
+                        else
+                        {
+                            QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory);
+                        }
+                    }
+                }
             }
             else
             {
-                QueueItems.Remove(update.Item);
+                // ファイルに対する操作
+                var dir = QueueItems.FirstOrDefault(d => d.Path == update.DirPath);
+                if (dir != null)
+                {
+                    if (update.Type == UpdateType.Add)
+                    {
+                        dir.Items.Add(update.Item);
+                    }
+                    else
+                    {
+                        var file = dir.Items.FirstOrDefault(f => f.Path == update.Item.Path);
+                        if (file != null)
+                        {
+                            if (update.Type == UpdateType.Remove)
+                            {
+                                dir.Items.Remove(file);
+                            }
+                            else // Update
+                            {
+                                dir.Items[dir.Items.IndexOf(file)] = update.Item;
+                            }
+                        }
+                    }
+                }
             }
             return Task.FromResult(0);
         }
 
         public Task OnState(State state)
         {
+            ServerHostName = state.HostName;
             IsPaused = state.Pause;
+            IsRunning = state.Running;
+            return Task.FromResult(0);
+        }
+
+        public Task OnFreeSpace(DiskFreeSpace space)
+        {
+            DiskFreeSpace = space.Disks;
             return Task.FromResult(0);
         }
     }

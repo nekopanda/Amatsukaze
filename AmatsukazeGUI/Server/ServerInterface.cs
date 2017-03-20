@@ -24,6 +24,7 @@ namespace Amatsukaze.Server
         Task RequestConsole();
         Task RequestLogFile(LogItem item);
         Task RequestState();
+        Task RequestFreeSpace();
 
         void Finish();
     }
@@ -39,6 +40,7 @@ namespace Amatsukaze.Server
         Task OnConsoleUpdate(byte[] str);
         Task OnLogFile(string str);
         Task OnState(State state);
+        Task OnFreeSpace(DiskFreeSpace space);
         Task OnOperationResult(string result);
         void Finish();
     }
@@ -55,6 +57,7 @@ namespace Amatsukaze.Server
         RequestConsole,
         RequestLogFile,
         RequestState,
+        RequestFreeSpace,
 
         OnSetting = 200,
         OnQueueData,
@@ -65,6 +68,7 @@ namespace Amatsukaze.Server
         OnConsoleUpdate,
         OnLogFile,
         OnState,
+        OnFreeSpace,
         OnOperationResult,
     }
 
@@ -87,6 +91,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RequestConsole, null },
             { RPCMethodId.RequestLogFile, typeof(LogItem) },
             { RPCMethodId.RequestState, null },
+            { RPCMethodId.RequestFreeSpace, null },
 
             { RPCMethodId.OnSetting, typeof(Setting) },
             { RPCMethodId.OnQueueData, typeof(QueueData) },
@@ -97,6 +102,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnConsoleUpdate, typeof(byte[]) },
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnState, typeof(State) },
+            { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
             { RPCMethodId.OnOperationResult, typeof(string) }
         };
 

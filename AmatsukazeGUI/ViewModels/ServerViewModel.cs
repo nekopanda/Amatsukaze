@@ -12,10 +12,13 @@ using Livet.EventListeners;
 using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
+using Amatsukaze.Server;
+using System.Collections.ObjectModel;
+using System.IO;
 
 namespace Amatsukaze.ViewModels
 {
-    public class ConsoleViewModel : NamedViewModel
+    public class ServerViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -58,25 +61,81 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
+        public EncodeServer Server { get; set; }
 
-        public ClientModel Model { get; set; }
+        private StreamWriter file;
 
         public void Initialize()
         {
+            file = new StreamWriter(new FileStream("ServerLog.log", FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
+            Util.LogHandlers.Add(AddLog);
+            Server = new EncodeServer(App.Option.ServerPort, null);
         }
 
-        #region AutoScroll変更通知プロパティ
-        private bool _AutoScroll = true;
+        private void AddLog(string str)
+        {
+            _Log.Add(str);
 
-        public bool AutoScroll {
-            get { return _AutoScroll; }
+            if (_Log.Count > 100)
+            {
+                var tmp = _Log.Skip(50).ToArray();
+                _Log.Clear();
+                foreach (var item in tmp)
+                {
+                    _Log.Add(item);
+                }
+            }
+
+            file.WriteLine(str);
+            file.Flush();
+        }
+
+        #region Log変更通知プロパティ
+        private ObservableCollection<string> _Log = new ObservableCollection<string>();
+
+        public ObservableCollection<string> Log {
+            get { return _Log; }
             set { 
-                if (_AutoScroll == value)
+                if (_Log == value)
                     return;
-                _AutoScroll = value;
+                _Log = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
+
+        #region CanCloseWindow変更通知プロパティ
+        private bool _CanCloseWindow;
+
+        public bool CanCloseWindow {
+            get { return _CanCloseWindow; }
+            set { 
+                if (_CanCloseWindow == value)
+                    return;
+                _CanCloseWindow = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        public async void CloseCanceledCallback()
+        {
+            var message = new ConfirmationMessage(
+                "AmatsukazeServerを終了しますか？",
+                "AmatsukazeServer",
+                System.Windows.MessageBoxImage.Information,
+                System.Windows.MessageBoxButton.OKCancel,
+                "Confirm");
+
+            await Messenger.RaiseAsync(message);
+
+            if (message.Response == true)
+            {
+                CanCloseWindow = true;
+                await DispatcherHelper.UIDispatcher.BeginInvoke((Action)(() => {
+                    Messenger.Raise(new WindowActionMessage(WindowAction.Close, "WindowAction"));
+                }));
+            }
+        }
     }
 }

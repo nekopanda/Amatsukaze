@@ -6,7 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="MainWindow" Height="350" Width="525">
+        Title="{Binding WindowCaption, Mode=OneWay}" Height="350" Width="525">
 
     <Window.DataContext>
         <vm:MainWindowViewModel/>
@@ -119,20 +119,43 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
-        <ListBox Style="{StaticResource HeaderMenuStyle}" Grid.Column="2" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
+        <Grid Grid.RowSpan="3" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
+            <ContentControl Grid.Row="1" Content="{Binding MainPanel}" />
+        </Grid>
 
-        <GridSplitter HorizontalAlignment="Center" Grid.RowSpan="2" Grid.Column="1" Width="5"/>
-        
-        <ContentControl Grid.Row="1" Grid.Column="0" Content="{Binding MainPanel}" />
-        <ContentControl Grid.Row="1" Grid.Column="2" Content="{Binding ConsolePanel}" />
+        <Grid Grid.Column="2" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
+            <ContentControl Grid.Row="1" Content="{Binding ConsolePanel}" />
+        </Grid>
 
-        <Grid Grid.Row="2" Grid.ColumnSpan="3">
+        <Grid Grid.Column="2" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding InfoPanelMenu}" SelectedIndex="{Binding InfoPanelSelectedIndex, Mode=TwoWay}" />
+            <ContentControl Grid.Row="1" Content="{Binding InfoPanel}" />
+        </Grid>
+
+        <GridSplitter HorizontalAlignment="Center" Grid.RowSpan="3" Grid.Column="1" Width="5" ResizeDirection="Columns"/>
+        <GridSplitter VerticalAlignment="Center" Grid.Row="1" Grid.Column="2" Height="5" ResizeDirection="Rows"/>
+
+        <Grid Grid.Row="4" Grid.ColumnSpan="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -141,13 +164,24 @@
             </Grid.ColumnDefinitions>
             <Button Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" />
             <TextBlock Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center"/>
-            <TextBlock Text="{Binding Model.RunningState}" Grid.Column="2" Width="60" />
-            <Button Content="一時停止" Grid.Column="3">
+            <TextBlock Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
+            <Button Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border BorderThickness="0.5" BorderBrush="Gray" CornerRadius="5" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
                 <Button.Style>
                     <Style TargetType="Button">
+                        <Setter Property="Foreground" Value="#FFA4A4A4"/>
+                        <Setter Property="Background" Value="White"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
-                                <Setter Property="Foreground" Value="Gray"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="Background" Value="Yellow"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

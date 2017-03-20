@@ -4,9 +4,28 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:s="clr-namespace:Amatsukaze.Server" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:QueueViewModel}}">
+    
+    <UserControl.Resources>
+        <Style x:Key="QueueItemStyle" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsComplete}" Value="True">
+                    <Setter Property="Foreground" Value="Gray"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsEncoding}" Value="True">
+                    <Setter Property="Background" Value="Yellow"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        
+        <DataTemplate DataType="{x:Type s:QueueItem}">
+            <TextBlock Style="{StaticResource QueueItemStyle}" Text="{Binding Path=Path}" />
+        </DataTemplate>
+    </UserControl.Resources>
+    
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="{Binding UpperRowLength, Mode=TwoWay}"/>
@@ -21,6 +40,6 @@
             </ListBox.ContextMenu>
         </ListBox>
         <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
-        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.MediaFiles}"/>
+        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.Items}"/>
     </Grid>
 </UserControl>

@@ -151,17 +151,17 @@ public:
 		do {
 			pos += pack(MemoryChunk(mc.data + pos, mc.length - pos));
 			if (mc.length - pos < 4) {
-				printf("WARNING: 終了コードがありませんでした\n");
+				PRINTF("WARNING: 終了コードがありませんでした\n");
 				goto eof;
 			}
 			code = read32(mc.data + pos);
 		} while (code == PACK_START_CODE);
 		if (code != MPEG_PROGRAM_END_CODE) {
-			printf("WARNING: 終了コードがありませんでした\n");
+			PRINTF("WARNING: 終了コードがありませんでした\n");
 		}
 
 	eof:
-		printf("読み取り終了 VideoPackets: %d AudioPackets: %d\n", nVideoPackets, nAudioPackets);
+		PRINTF("読み取り終了 VideoPackets: %d AudioPackets: %d\n", nVideoPackets, nAudioPackets);
 	}
 private:
 	PsProgramStreamMap psm;
@@ -222,7 +222,7 @@ private:
 				++nAudioPackets;
 			}
 			else {
-				// printf("不明stream: 0x%x\n", stream_id);
+				// PRINTF("不明stream: 0x%x\n", stream_id);
 			}
 			return skipPesPacket(packet);
 		}
@@ -285,7 +285,7 @@ struct PsEsBuffer {
 	int64_t makeSpace(int sizeInBytes) {
 		int64_t time = -1;
 		if (sizeInBytes > bufferSize) {
-			printf("WARNING: VBV Buffer Underflow !!!\n");
+			PRINTF("WARNING: VBV Buffer Underflow !!!\n");
 			if (accessUnits.size() > 0) {
 				time = accessUnits.back().DTS;
 				filled = 0;

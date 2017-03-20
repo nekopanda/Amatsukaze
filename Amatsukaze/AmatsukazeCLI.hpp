@@ -41,14 +41,14 @@ static std::string to_string(std::string str) {
 }
 
 static void printCopyright() {
-	printf(
+	PRINTF(
 		"Amatsukaze - Automated MPEG2-TS Transcode Utility\n"
 		"Built on %s %s\n"
 		"Copyright (c) 2017 Nekopanda\n", __DATE__, __TIME__);
 }
 
 static void printHelp(const tchar* bin) {
-	printf(
+	PRINTF(
 		"%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
 		"オプション []はデフォルト値 \n"
 		"  -i|--input  <パス>  入力TSファイルパス\n"
@@ -143,7 +143,7 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 			std::tstring arg = getParam(argc, argv, i++);
 			encoder = encoderFtomString(arg);
 			if (encoder == (ENUM_ENCODER)-1) {
-				printf("--encoder-typeの指定が間違っています: %" PRITSTR "\n", arg.c_str());
+				PRINTF("--encoder-typeの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
 		else if (key == _T("-e") || key == _T("--encoder")) {

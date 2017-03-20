@@ -872,7 +872,7 @@ private:
 			n3bytes = ((n3bytes & 0xFFFF) << 8) | inByte;
 			if (n3bytes == 0x03) {
 				// skip one byte
-				//printf("Skip one byte (H264 NAL)\n");
+				//PRINTF("Skip one byte (H264 NAL)\n");
 			}
 			else {
 				buffer.add(inByte);

@@ -12,10 +12,11 @@ using Livet.EventListeners;
 using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
+using Amatsukaze.Server;
 
 namespace Amatsukaze.ViewModels
 {
-    public class ConsoleViewModel : NamedViewModel
+    public class DiskFreeSpaceViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -58,22 +59,74 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-
         public ClientModel Model { get; set; }
+
+        private PropertyChangedEventListener listener;
 
         public void Initialize()
         {
+            listener = new PropertyChangedEventListener(Model);
+            listener.Add(() => Model.DiskFreeSpace, (_, __) => {
+                DiskItems = Model.DiskFreeSpace.Select(
+                    item => new DiskItemViewModel() { Model = item }).ToList();
+            });
         }
 
-        #region AutoScroll変更通知プロパティ
-        private bool _AutoScroll = true;
+        #region DiskItems変更通知プロパティ
+        private List<DiskItemViewModel> _DiskItems;
 
-        public bool AutoScroll {
-            get { return _AutoScroll; }
+        public List<DiskItemViewModel> DiskItems {
+            get { return _DiskItems; }
             set { 
-                if (_AutoScroll == value)
+                if (_DiskItems == value)
                     return;
-                _AutoScroll = value;
+                _DiskItems = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class DiskItemViewModel : ViewModel
+    {
+        public DiskItem Model { get; set; }
+
+        private void UpdateBarWidth()
+        {
+            if(Model == null)
+            {
+                BarWidth = 0;
+            }
+            else
+            {
+                BarWidth = (1.0 - (double)Model.Free / Model.Capacity) * TotalWidth;
+            }
+        }
+
+        #region TotalWidth変更通知プロパティ
+        private double _TotalWidth;
+
+        public double TotalWidth {
+            get { return _TotalWidth; }
+            set {
+                if (_TotalWidth == value)
+                    return;
+                _TotalWidth = value;
+                UpdateBarWidth();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BarWidth変更通知プロパティ
+        private double _BarWidth;
+
+        public double BarWidth {
+            get { return _BarWidth; }
+            set { 
+                if (_BarWidth == value)
+                    return;
+                _BarWidth = value;
                 RaisePropertyChanged();
             }
         }

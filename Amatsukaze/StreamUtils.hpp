@@ -516,7 +516,7 @@ private:
 		// TODO:
 		char buf[300];
 		vsnprintf_s(buf, sizeof(buf), fmt, arg);
-		printf("%s\n", buf);
+		PRINTF("%s\n", buf);
 	}
 };
 

@@ -74,7 +74,7 @@ namespace Amatsukaze.ViewModels
         }
 
         #region QueueItemSelectedIndex変更通知プロパティ
-        private int _QueueItemSelectedIndex;
+        private int _QueueItemSelectedIndex = -1;
 
         public int QueueItemSelectedIndex
         {
@@ -90,7 +90,7 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public QueueItem SetectedQueueItem
+        public DisplayQueueDirectory SetectedQueueItem
         {
             get {
                 if (_QueueItemSelectedIndex >= 0 && _QueueItemSelectedIndex < Model.QueueItems.Count)

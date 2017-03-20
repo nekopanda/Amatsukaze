@@ -130,6 +130,9 @@ public:
 		, audioFrameList_(std::move(audioFrameList))
 		, streamEventList_(std::move(streamEventList))
 		, isVFR_(false)
+		, srcTotalDuration_()
+		, outTotalDuration_()
+		, adiff_()
 	{
 		encodedFrames_.resize(videoFrameList_.size(), false);
 	}

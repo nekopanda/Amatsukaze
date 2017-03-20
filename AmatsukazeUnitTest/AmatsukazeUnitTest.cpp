@@ -621,7 +621,7 @@ TEST_F(TestBase, encodeMpeg2Test)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, RffFieldPictureTsFile);
+		makeTranscodeSetting(srcDir, dstDir, MPEG2VideoTsFile);
 
 	AMTContext ctx;
 	transcodeMain(ctx, setting);
@@ -632,7 +632,7 @@ TEST_F(TestBase, fileStreamInfoTest)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, RffFieldPictureTsFile);
+		makeTranscodeSetting(srcDir, dstDir, MPEG2VideoTsFile);
 
 	AMTContext ctx;
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());

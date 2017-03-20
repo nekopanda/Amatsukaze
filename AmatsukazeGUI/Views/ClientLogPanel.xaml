@@ -3,9 +3,25 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:ClientLogViewModel}}">
-    <ListBox ItemsSource="{Binding Model.ClientLog}" />
+    <ListBox ItemsSource="{Binding Model.ClientLog}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <i:Interaction.Behaviors>
+            <c:ListBoxAutoScrollBehavior AutoScroll="{Binding AutoScroll}" />
+        </i:Interaction.Behaviors>
+        <ListBox.ContextMenu>
+            <ContextMenu>
+                <MenuItem IsCheckable="True" IsChecked="{Binding AutoScroll, Mode=TwoWay}" Header="オートスクロール" />
+            </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
+            <DataTemplate>
+                <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
 </UserControl>

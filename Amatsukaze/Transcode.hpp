@@ -56,7 +56,9 @@ void FreePicture(AVFrame*& pPicture)
 
 class Frame {
 public:
-	Frame() {
+	Frame()
+		: frame_()
+	{
 		frame_ = av_frame_alloc();
 	}
 	Frame(const Frame& src) {
@@ -82,7 +84,9 @@ private:
 
 class CodecContext : NonCopyable {
 public:
-	CodecContext(AVCodec* pCodec) {
+	CodecContext(AVCodec* pCodec)
+		: ctx_()
+	{
 		if (pCodec == NULL) {
 			THROW(RuntimeException, "pCodec is NULL");
 		}
@@ -103,7 +107,9 @@ private:
 
 class InputContext : NonCopyable {
 public:
-	InputContext(const std::string& src) {
+	InputContext(const std::string& src)
+		: ctx_()
+	{
 		if (avformat_open_input(&ctx_, src.c_str(), NULL, NULL) != 0) {
 			THROW(IOException, "failed avformat_open_input");
 		}
@@ -120,7 +126,9 @@ private:
 
 class WriteIOContext : NonCopyable {
 public:
-	WriteIOContext(int bufsize) {
+	WriteIOContext(int bufsize)
+		: ctx_()
+	{
 		unsigned char* buffer = (unsigned char*)av_malloc(bufsize);
 		ctx_ = avio_alloc_context(buffer, bufsize, 1, this, NULL, write_packet_, NULL);
 	}
@@ -143,7 +151,9 @@ private:
 
 class OutputContext : NonCopyable {
 public:
-	OutputContext(WriteIOContext& ioCtx) {
+	OutputContext(WriteIOContext& ioCtx)
+		: ctx_()
+	{
 		if (avformat_alloc_output_context2(&ctx_, NULL, "yuv4mpegpipe", "-") < 0) {
 			THROW(FormatException, "avformat_alloc_output_context2 failed");
 		}
@@ -330,6 +340,7 @@ private:
 			
 			// for debug
 			av_dump_format(outputCtx_(), 0, "-", 1);
+			fflush(stderr);
 
 			if (avformat_write_header(outputCtx_(), NULL) < 0) {
 				THROW(FormatException, "avformat_write_header failed");
@@ -417,6 +428,7 @@ private:
 	void onProcessOut(bool isErr, MemoryChunk mc) {
 		// これはマルチスレッドで呼ばれるの注意
 		fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+		fflush(isErr ? stderr : stdout);
 	}
 	void onVideoWrite(MemoryChunk mc) {
 		process_->write(mc);

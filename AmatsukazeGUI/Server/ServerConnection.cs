@@ -142,6 +142,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnState:
                     userClient.OnState((State)arg);
                     break;
+                case RPCMethodId.OnFreeSpace:
+                    userClient.OnFreeSpace((DiskFreeSpace)arg);
+                    break;
                 case RPCMethodId.OnOperationResult:
                     userClient.OnOperationResult((string)arg);
                     break;
@@ -191,6 +194,11 @@ namespace Amatsukaze.Server
         public Task RequestState()
         {
             return Send(RPCMethodId.RequestState, null);
+        }
+
+        public Task RequestFreeSpace()
+        {
+            return Send(RPCMethodId.RequestFreeSpace, null);
         }
 
         public Task SetSetting(Setting setting)

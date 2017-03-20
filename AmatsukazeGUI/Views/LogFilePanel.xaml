@@ -7,5 +7,5 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:LogFileViewModel}}">
-    <TextBox TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True"/>
+    <TextBox TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True" VerticalScrollBarVisibility="Auto"/>
 </UserControl>

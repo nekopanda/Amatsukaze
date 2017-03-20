@@ -259,11 +259,17 @@ private:
 			THROW(RuntimeException, "buffer too large");
 		}
 		DWORD bytesRead = 0;
-		if (ReadFile(readHandle, mc.data, (DWORD)mc.length, &bytesRead, NULL) == 0) {
-			if (GetLastError() == ERROR_BROKEN_PIPE) {
-				throw EOFException("Pipe write handle is closed");
+		while (true) {
+			if (ReadFile(readHandle, mc.data, (DWORD)mc.length, &bytesRead, NULL) == 0) {
+				if (GetLastError() == ERROR_BROKEN_PIPE) {
+					return 0;
+				}
+				THROW(RuntimeException, "failed to read from pipe");
 			}
-			THROW(RuntimeException, "failed to read from pipe");
+			// パイプはWriteFileにゼロを渡すとReadFileがゼロで帰ってくるのでチェック
+			if (bytesRead != 0) {
+				break;
+			}
 		}
 		return bytesRead;
 	}
@@ -326,17 +332,14 @@ private:
 	DrainThread drainErr;
 
 	void drain_thread(bool isErr) {
-		try {
-			std::vector<uint8_t> buffer(4 * 1024);
-			MemoryChunk mc(buffer.data(), buffer.size());
-			while (true) {
-				size_t bytesRead = isErr ? readErr(mc) : readOut(mc);
-				onOut(isErr, MemoryChunk(mc.data, bytesRead));
+		std::vector<uint8_t> buffer(4 * 1024);
+		MemoryChunk mc(buffer.data(), buffer.size());
+		while (true) {
+			size_t bytesRead = isErr ? readErr(mc) : readOut(mc);
+			if (bytesRead == 0) { // 終了
+				break;
 			}
-		}
-		catch (EOFException) {
-			// 終了時
-			return;
+			onOut(isErr, MemoryChunk(mc.data, bytesRead));
 		}
 	}
 };

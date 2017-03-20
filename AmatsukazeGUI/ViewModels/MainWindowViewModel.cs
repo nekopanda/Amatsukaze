@@ -14,6 +14,7 @@ using Livet.Messaging.Windows;
 using Amatsukaze.Models;
 using Amatsukaze.Server;
 using System.Threading.Tasks;
+using System.Collections.ObjectModel;
 
 namespace Amatsukaze.ViewModels
 {
@@ -63,6 +64,7 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; private set; }
 
+        private PropertyChangedEventListener hostNameListener;
         private PropertyChangedEventListener isRunningListener;
 
         public MainWindowViewModel()
@@ -73,7 +75,8 @@ namespace Amatsukaze.ViewModels
             MainPanelMenu.Add(new SettingViewModel() { Name = "設定", Model = Model });
             ConsolePanelMenu.Add(new ConsoleViewModel() { Name = "コンソール", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
-            ConsolePanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
+            InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
+            InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 
         private static void InitializeVM(dynamic vm)
@@ -85,6 +88,8 @@ namespace Amatsukaze.ViewModels
         {
             isRunningListener = new PropertyChangedEventListener(Model);
             isRunningListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
+            hostNameListener = new PropertyChangedEventListener(Model);
+            hostNameListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
 
             // 他のVMのInitializeを読んでやる
             foreach (var vm in MainPanelMenu)
@@ -116,9 +121,9 @@ namespace Amatsukaze.ViewModels
         }
 
         #region MainPanelMenu変更通知プロパティ
-        private ObservableSynchronizedCollection<ViewModel> _MainPanelMenu = new ObservableSynchronizedCollection<ViewModel>();
+        private ObservableCollection<ViewModel> _MainPanelMenu = new ObservableCollection<ViewModel>();
 
-        public ObservableSynchronizedCollection<ViewModel> MainPanelMenu
+        public ObservableCollection<ViewModel> MainPanelMenu
         {
             get
             { return _MainPanelMenu; }
@@ -133,9 +138,9 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region ConsolePanelMenu変更通知プロパティ
-        private ObservableSynchronizedCollection<ViewModel> _ConsolePanelMenu = new ObservableSynchronizedCollection<ViewModel>();
+        private ObservableCollection<ViewModel> _ConsolePanelMenu = new ObservableCollection<ViewModel>();
 
-        public ObservableSynchronizedCollection<ViewModel> ConsolePanelMenu
+        public ObservableCollection<ViewModel> ConsolePanelMenu
         {
             get
             { return _ConsolePanelMenu; }
@@ -144,6 +149,20 @@ namespace Amatsukaze.ViewModels
                 if (_ConsolePanelMenu == value)
                     return;
                 _ConsolePanelMenu = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region InfoPanelMenu変更通知プロパティ
+        private ObservableCollection<ViewModel> _InfoPanelMenu = new ObservableCollection<ViewModel>();
+
+        public ObservableCollection<ViewModel> InfoPanelMenu {
+            get { return _InfoPanelMenu; }
+            set { 
+                if (_InfoPanelMenu == value)
+                    return;
+                _InfoPanelMenu = value;
                 RaisePropertyChanged();
             }
         }
@@ -205,6 +224,43 @@ namespace Amatsukaze.ViewModels
                     return _ConsolePanelMenu[ConsolePanelSelectedIndex];
                 }
                 return null;
+            }
+        }
+        #endregion
+
+        #region InfoPanelSelectedIndex変更通知プロパティ
+        private int _InfoPanelSelectedIndex;
+
+        public int InfoPanelSelectedIndex {
+            get { return _InfoPanelSelectedIndex; }
+            set { 
+                if (_InfoPanelSelectedIndex == value)
+                    return;
+                _InfoPanelSelectedIndex = value;
+                RaisePropertyChanged();
+            }
+        }
+
+        public ViewModel InfoPanel {
+            get {
+                if (InfoPanelSelectedIndex >= 0 && InfoPanelSelectedIndex < _InfoPanelMenu.Count)
+                {
+                    return _InfoPanelMenu[InfoPanelSelectedIndex];
+                }
+                return null;
+            }
+        }
+        #endregion
+
+        #region WindowCaption変更通知プロパティ
+        public string WindowCaption {
+            get {
+                var hostName = Model.ServerHostName;
+                if (hostName == null)
+                {
+                    return "AmatsukazeGUI";
+                }
+                return "AmatsukazeGUI@" + hostName;
             }
         }
         #endregion

@@ -19,21 +19,23 @@
 
         <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコーダ" VerticalAlignment="Top" Margin="0,7,0,0"/>
         <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="追加オプション" VerticalAlignment="Top" Margin="0,63,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,123,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x264パス" VerticalAlignment="Top" Margin="0,151,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x265パス" VerticalAlignment="Top" Margin="0,179,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="QSVEncパス" VerticalAlignment="Top" Margin="0,207,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Muxerパス" VerticalAlignment="Top" Margin="0,235,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="TimelineEditorパス" VerticalAlignment="Top" Margin="0,263,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Amatsukazeパス" VerticalAlignment="Top" Margin="0,123,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,151,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x264パス" VerticalAlignment="Top" Margin="0,179,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x265パス" VerticalAlignment="Top" Margin="0,207,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="QSVEncパス" VerticalAlignment="Top" Margin="0,235,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Muxerパス" VerticalAlignment="Top" Margin="0,263,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="TimelineEditorパス" VerticalAlignment="Top" Margin="0,290,0,0"/>
 
         <ComboBox Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding EncoderList}" SelectedIndex="{Binding EncoderSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
         <TextBox Grid.Column="1" Height="85" Margin="10,32,10,0" TextWrapping="Wrap" Text="{Binding Model.EncoderOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,122,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,150,10,0" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,178,10,0" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,206,10,0" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,234,10,0" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,262,10,0" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,122,10,0" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,150,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,178,10,0" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,206,10,0" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,234,10,0" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,262,10,0" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10,290,10,0" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
 
         <TextBlock Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" TextWrapping="Wrap"
                    Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"

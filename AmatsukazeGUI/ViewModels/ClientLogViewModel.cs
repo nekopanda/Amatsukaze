@@ -64,5 +64,19 @@ namespace Amatsukaze.ViewModels
         public void Initialize()
         {
         }
+
+        #region AutoScroll変更通知プロパティ
+        private bool _AutoScroll = true;
+
+        public bool AutoScroll {
+            get { return _AutoScroll; }
+            set {
+                if (_AutoScroll == value)
+                    return;
+                _AutoScroll = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
     }
 }
