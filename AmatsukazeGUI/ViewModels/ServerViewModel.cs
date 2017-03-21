@@ -15,6 +15,9 @@ using Amatsukaze.Models;
 using Amatsukaze.Server;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Diagnostics;
+using System.Reflection;
+using System.Net;
 
 namespace Amatsukaze.ViewModels
 {
@@ -70,11 +73,24 @@ namespace Amatsukaze.ViewModels
             file = new StreamWriter(new FileStream("ServerLog.log", FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
             Util.LogHandlers.Add(AddLog);
             Server = new EncodeServer(App.Option.ServerPort, null);
+            RaisePropertyChanged("Server");
+            WindowCaption = "AmatsukazeServer@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
+
+            if (App.Option.LaunchType == LaunchType.Debug)
+            {
+                Process.Start(new ProcessStartInfo()
+                {
+                    FileName = Assembly.GetEntryAssembly().Location,
+                    Arguments = "--launch client",
+                });
+            }
         }
 
-        private void AddLog(string str)
+        private void AddLog(string text)
         {
-            _Log.Add(str);
+            var formatted = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + text;
+
+            _Log.Add(formatted);
 
             if (_Log.Count > 100)
             {
@@ -86,7 +102,7 @@ namespace Amatsukaze.ViewModels
                 }
             }
 
-            file.WriteLine(str);
+            file.WriteLine(formatted);
             file.Flush();
         }
 
@@ -137,5 +153,39 @@ namespace Amatsukaze.ViewModels
                 }));
             }
         }
+
+        #region WindowCaption変更通知プロパティ
+        private string _WindowCaption;
+
+        public string WindowCaption
+        {
+            get
+            { return _WindowCaption; }
+            set
+            { 
+                if (_WindowCaption == value)
+                    return;
+                _WindowCaption = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region AutoScroll変更通知プロパティ
+        private bool _AutoScroll = true;
+
+        public bool AutoScroll
+        {
+            get { return _AutoScroll; }
+            set
+            {
+                if (_AutoScroll == value)
+                    return;
+                _AutoScroll = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 }

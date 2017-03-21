@@ -30,13 +30,13 @@ namespace Amatsukaze
 
             Amatsukaze.App app = new Amatsukaze.App();
 
-            if (Option.LaunchType == LaunchType.Server)
+            if (Option.LaunchType == LaunchType.Server || Option.LaunchType == LaunchType.Debug)
             {
-                app.StartupUri = new Uri("ServerWindow.xaml", UriKind.Relative);
+                app.StartupUri = new Uri("Views\\ServerWindow.xaml", UriKind.Relative);
             }
             else
             {
-                app.StartupUri = new Uri("MainWindow.xaml", UriKind.Relative);
+                app.StartupUri = new Uri("Views\\MainWindow.xaml", UriKind.Relative);
             }
 
             app.InitializeComponent();

@@ -32,6 +32,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public string WorkPath { get; set; }
 
+        [DataMember]
+        public string AlwaysShowDisk { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
     }
 

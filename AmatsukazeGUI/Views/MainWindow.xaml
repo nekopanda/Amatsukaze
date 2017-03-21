@@ -106,6 +106,9 @@
         <DataTemplate DataType="{x:Type vm:LogViewModel}">
             <v:LogPanel />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DiskFreeSpaceViewModel}">
+            <v:DiskFreeSpacePanel />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ClientLogViewModel}">
             <v:ClientLogPanel />
         </DataTemplate>
@@ -153,7 +156,7 @@
         </Grid>
 
         <GridSplitter HorizontalAlignment="Center" Grid.RowSpan="3" Grid.Column="1" Width="5" ResizeDirection="Columns"/>
-        <GridSplitter VerticalAlignment="Center" Grid.Row="1" Grid.Column="2" Height="5" ResizeDirection="Rows"/>
+        <GridSplitter VerticalAlignment="Center" Grid.Row="1" Grid.Column="2" Height="5" ResizeDirection="Rows" HorizontalAlignment="Stretch"/>
 
         <Grid Grid.Row="4" Grid.ColumnSpan="3">
             <Grid.ColumnDefinitions>
@@ -162,7 +165,8 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" />
+            <Button Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
+            <Button Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" Margin="50,0,0,0" />
             <TextBlock Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center"/>
             <TextBlock Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
             <Button Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">

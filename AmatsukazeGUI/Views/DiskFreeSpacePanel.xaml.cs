@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amatsukaze.ViewModels;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,6 +24,13 @@ namespace Amatsukaze.Views
         public DiskFreeSpacePanel()
         {
             InitializeComponent();
+        }
+
+        private void Rectangle_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var rect = sender as Rectangle;
+            var dc = rect.DataContext as DiskItemViewModel;
+            dc.TotalWidth = rect.ActualWidth;
         }
     }
 }

@@ -19,11 +19,11 @@
                             <RowDefinition Height="15"/>
                         </Grid.RowDefinitions>
                         <TextBlock>
-                            <Run Text="ディスク: "/>
-                            <Run Text="{Binding Model.Path}" />
+                            ディスク: <Run Text="{Binding Model.Path}"/>
+                            <Run Text="{Binding DisplayOccupied, Mode=OneWay}" />/<Run Text="{Binding DisplayCapacity, Mode=OneWay}" />
                         </TextBlock>
-                        <Rectangle Grid.Row="1" Fill="Gainsboro" Stroke="Gray" StrokeThickness="1" Width="{Binding TotalWidth, Mode=OneWayToSource}" />
-                        <Rectangle Grid.Row="1" Fill="DarkGray" Stroke="Gray" StrokeThickness="1" HorizontalAlignment="Left" Width="{Binding BarWidth}" />
+                        <Rectangle Grid.Row="1" Fill="#FFDADADA" Stroke="Gray" StrokeThickness="1" SizeChanged="Rectangle_SizeChanged" />
+                        <Rectangle Grid.Row="1" Fill="#FF498ED5" Stroke="Gray" StrokeThickness="1" HorizontalAlignment="Left" Width="{Binding BarWidth}" />
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>

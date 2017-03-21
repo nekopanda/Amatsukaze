@@ -47,6 +47,7 @@ namespace Amatsukaze.Views
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = e.Data.GetData(DataFormats.FileDrop) as string[];
+                bool filewarning = false;
                 if (files != null)
                 {
                     foreach (var path in files)
@@ -55,7 +56,16 @@ namespace Amatsukaze.Views
                         {
                             AddQueue(path);
                         }
+                        else if (File.Exists(path))
+                        {
+                            filewarning = true;
+                        }
                     }
+                }
+                if (filewarning)
+                {
+                    MessageBox.Show(Application.Current.MainWindow,
+                        "ファイルを直接追加することはできません。フォルダを追加して下さい。");
                 }
             }
             else if(e.Data.GetDataPresent(DataFormats.Text))

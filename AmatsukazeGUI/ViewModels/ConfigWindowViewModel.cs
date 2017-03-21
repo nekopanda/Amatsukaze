@@ -98,7 +98,8 @@ namespace Amatsukaze.ViewModels
                 Description = "ポート番号は数値でなければなりません";
                 return;
             }
-            model.SetServerAddress(_ServerPort, port);
+            model.SetServerAddress(_ServerIP, port);
+            Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
         }
         #endregion

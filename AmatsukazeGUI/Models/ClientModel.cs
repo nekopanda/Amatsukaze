@@ -327,6 +327,21 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region AlwaysShowDisk変更通知プロパティ
+        public string AlwaysShowDisk
+        {
+            get
+            { return setting.AlwaysShowDisk; }
+            set
+            {
+                if (setting.AlwaysShowDisk == value)
+                    return;
+                setting.AlwaysShowDisk = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ClientLog変更通知プロパティ
         private ObservableCollection<string> _ClientLog = new ObservableCollection<string>();
 
@@ -365,10 +380,6 @@ namespace Amatsukaze.Models
             AddLog("クライアント起動");
 
             LoadAppData();
-
-            // テスト用
-            appData.ServerIP = "localhost";
-            appData.ServerPort = 35224;
         }
 
         private void ConsoleText_TextChanged()
@@ -396,8 +407,8 @@ namespace Amatsukaze.Models
             else
             {
                 var connection = new ServerConnection(this, AskServerAddress);
-                CommTask = connection.Start();
                 Server = connection;
+                CommTask = connection.Start();
             }
         }
 
@@ -411,6 +422,14 @@ namespace Amatsukaze.Models
             }
         }
 
+        public void Reconnect()
+        {
+            if (Server is ServerConnection)
+            {
+                (Server as ServerConnection).Reconnect();
+            }
+        }
+
         public void Finish()
         {
             if (Server != null)
@@ -421,7 +440,7 @@ namespace Amatsukaze.Models
         }
 
         private bool firstAsked = true;
-        private void AskServerAddress(string reason)
+        private async Task AskServerAddress(string reason)
         {
             if (firstAsked)
             {
@@ -430,23 +449,30 @@ namespace Amatsukaze.Models
             }
             else
             {
-                ServerAddressRequired(this, reason);
+                await ServerAddressRequired(this, reason);
+                SaveAppData();
             }
         }
 
         private string GetSettingFilePath()
         {
-            return "AmatsukazeClient.xml";
+            return "config\\AmatsukazeClient.xml";
         }
 
         private void LoadAppData()
         {
-            if (File.Exists(GetSettingFilePath()) == false)
+            string path = GetSettingFilePath();
+            if (File.Exists(path) == false)
             {
                 appData = new ClientData();
+
+                // テスト用
+                appData.ServerIP = "localhost";
+                appData.ServerPort = 32768;
+
                 return;
             }
-            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Open))
+            using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(ClientData));
                 appData = (ClientData)s.ReadObject(fs);
@@ -455,7 +481,9 @@ namespace Amatsukaze.Models
 
         private void SaveAppData()
         {
-            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Create))
+            string path = GetSettingFilePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using (FileStream fs = new FileStream(path, FileMode.Create))
             {
                 var s = new DataContractSerializer(typeof(ClientData));
                 s.WriteObject(fs, appData);
@@ -535,6 +563,7 @@ namespace Amatsukaze.Models
             MuxerPath = setting.MuxerPath;
             TimelineEditorPath = setting.TimelineEditorPath;
             WorkPath = setting.WorkPath;
+            AlwaysShowDisk = setting.AlwaysShowDisk;
             return Task.FromResult(0);
         }
 
@@ -644,9 +673,17 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
+        private string GetDisplayServerNeme(State state)
+        {
+            if(Server is ServerConnection) {
+                return state.HostName + ":" + ServerPort;
+            }
+            return state.HostName;
+        }
+
         public Task OnState(State state)
         {
-            ServerHostName = state.HostName;
+            ServerHostName = GetDisplayServerNeme(state);
             IsPaused = state.Pause;
             IsRunning = state.Running;
             return Task.FromResult(0);

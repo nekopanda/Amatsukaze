@@ -24,5 +24,11 @@ namespace Amatsukaze.Views
         {
             InitializeComponent();
         }
+
+        private void MenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            Clipboard.SetText(string.Join("\r\n",
+                lst.SelectedItems.Cast<object>().Select(item => item.ToString())));
+        }
     }
 }

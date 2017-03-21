@@ -98,6 +98,7 @@ struct AudioDiffInfo {
 		double avgDiff = this->avgDiff() * 1000;
 		double maxDiff = this->maxDiff() * 1000;
 		int notIncluded = totalSrcFrames - totalUniquAudioFrames;
+    double maxDiffPos = maxPtsDiff > 0 ? elapsedTime(maxPtsDiffPos) : 0.0;
 
 		ss << "{ \"totalsrcframes\": " << totalSrcFrames 
 			<< ", \"totaloutframes\": " << totalAudioFrames
@@ -106,7 +107,7 @@ struct AudioDiffInfo {
 			<< ((double)notIncluded * 100 / totalSrcFrames)
 			<< ", \"avgdiff\": " << std::fixed << std::setprecision(3) << avgDiff
 			<< ", \"maxdiff\": " << std::fixed << std::setprecision(3) << maxDiff
-			<< ", \"maxdiffpos\": " << std::fixed << std::setprecision(3) << elapsedTime(maxPtsDiffPos)
+      << ", \"maxdiffpos\": " << std::fixed << std::setprecision(3) << maxDiffPos
 			<< " }";
 	}
 

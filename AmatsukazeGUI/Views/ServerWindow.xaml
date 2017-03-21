@@ -8,7 +8,7 @@
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:c="clr-namespace:Amatsukaze.Components" 
         xmlns:s="clr-namespace:Amatsukaze.Server" 
-        Title="AmatsukazeServer" Height="350" Width="525">
+        Title="{Binding WindowCaption}" Height="350" Width="525">
     
     <Window.DataContext>
         <vm:ServerViewModel/>
@@ -49,12 +49,13 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ListBox ItemsSource="{Binding Log}">
+        <ListBox x:Name="lst" ItemsSource="{Binding Log}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <i:Interaction.Behaviors>
                 <c:ListBoxAutoScrollBehavior AutoScroll="{Binding AutoScroll}" />
             </i:Interaction.Behaviors>
             <ListBox.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="選択項目をコピー" Click="MenuItem_Click" />
                     <MenuItem IsCheckable="True" IsChecked="{Binding AutoScroll, Mode=TwoWay}" Header="オートスクロール" />
                 </ContextMenu>
             </ListBox.ContextMenu>
@@ -76,12 +77,14 @@
                             <ColumnDefinition />
                             <ColumnDefinition />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="{Binding HostName, Mode=OneWay}" />
+                        <TextBlock Grid.Column="0">
+                            <Run Text="{Binding HostName, Mode=OneWay}" />:<Run Text="{Binding Port, Mode=OneWay}" />
+                        </TextBlock>
                         <TextBlock Grid.Column="1">
                             <Run Text="送信カウント" />
                             <Run Text="{Binding TotalSendCount}" />
                         </TextBlock>
-                        <TextBlock Grid.Column="1">
+                        <TextBlock Grid.Column="2">
                             <Run Text="受信カウント" />
                             <Run Text="{Binding TotalRecvCount}" />
                         </TextBlock>

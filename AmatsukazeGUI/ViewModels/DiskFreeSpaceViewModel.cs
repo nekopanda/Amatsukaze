@@ -73,7 +73,7 @@ namespace Amatsukaze.ViewModels
         }
 
         #region DiskItems変更通知プロパティ
-        private List<DiskItemViewModel> _DiskItems;
+        private List<DiskItemViewModel> _DiskItems = new List<DiskItemViewModel>();
 
         public List<DiskItemViewModel> DiskItems {
             get { return _DiskItems; }
@@ -131,5 +131,17 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
+
+        public string DisplayCapacity
+        {
+            get { return ((int)Math.Round(
+                (double)Model.Capacity / (1024*1024*1024))).ToString() + "GB"; }
+        }
+
+        public string DisplayOccupied
+        {
+            get { return ((int)Math.Round(
+                (double)(Model.Capacity - Model.Free) / (1024*1024*1024))).ToString() + "GB"; }
+        }
     }
 }

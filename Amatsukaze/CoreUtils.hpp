@@ -108,6 +108,9 @@ private:
 class CondWait : NonCopyable
 {
 public:
+  CondWait()
+    : cond_val_(CONDITION_VARIABLE_INIT)
+  { }
   void wait(CriticalSection& cs) {
     SleepConditionVariableCS(&cond_val_, &cs.critical_section_, INFINITE);
   }
@@ -118,7 +121,7 @@ public:
     WakeAllConditionVariable(&cond_val_);
   }
 private:
-  CONDITION_VARIABLE cond_val_ = CONDITION_VARIABLE_INIT;
+  CONDITION_VARIABLE cond_val_;
 };
 
 class Semaphore : NonCopyable

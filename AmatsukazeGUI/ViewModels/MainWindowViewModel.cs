@@ -100,15 +100,20 @@ namespace Amatsukaze.ViewModels
             {
                 InitializeVM(vm);
             }
+            foreach (var vm in InfoPanelMenu)
+            {
+                InitializeVM(vm);
+            }
 
             Model.ServerAddressRequired = ServerAddressRequired;
             Model.Start();
         }
 
-        private async Task ServerAddressRequired(object sender, string arg)
+        private async Task ServerAddressRequired(object sender, string reason)
         {
             // サーバIP・ポートを入力させる
             var config = new ConfigWindowViewModel(Model, Model.ServerIP, Model.ServerPort);
+            config.Description = reason;
             await Messenger.RaiseAsync(new TransitionMessage(
                 typeof(Views.ConfigWindow), config, TransitionMode.Modal, "FromMain"));
 
@@ -238,6 +243,7 @@ namespace Amatsukaze.ViewModels
                     return;
                 _InfoPanelSelectedIndex = value;
                 RaisePropertyChanged();
+                RaisePropertyChanged("InfoPanel");
             }
         }
 
@@ -260,7 +266,7 @@ namespace Amatsukaze.ViewModels
                 {
                     return "AmatsukazeGUI";
                 }
-                return "AmatsukazeGUI@" + hostName;
+                return "AmatsukazeClient@" + hostName;
             }
         }
         #endregion
@@ -306,6 +312,35 @@ namespace Amatsukaze.ViewModels
         public void Refresh()
         {
             Model.Server.RefreshRequest();
+        }
+        #endregion
+
+        #region ChangeServerCommand
+        private ViewModelCommand _ChangeServerCommand;
+
+        public ViewModelCommand ChangeServerCommand
+        {
+            get
+            {
+                if (_ChangeServerCommand == null)
+                {
+                    _ChangeServerCommand = new ViewModelCommand(ChangeServer);
+                }
+                return _ChangeServerCommand;
+            }
+        }
+
+        public async void ChangeServer()
+        {
+            // サーバIP・ポートを入力させる
+            var config = new ConfigWindowViewModel(Model, Model.ServerIP, Model.ServerPort);
+            await Messenger.RaiseAsync(new TransitionMessage(
+                typeof(Views.ConfigWindow), config, TransitionMode.Modal, "FromMain"));
+
+            if (config.Succeeded)
+            {
+                Model.Reconnect();
+            }
         }
         #endregion
 

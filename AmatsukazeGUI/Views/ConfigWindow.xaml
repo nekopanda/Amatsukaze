@@ -9,8 +9,9 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         mc:Ignorable="d" 
-        Title="サーバアドレス" Height="120" Width="240"
-        d:DataContext="{d:DesignInstance {x:Type vm:ConfigWindowViewModel}}">
+        Title="AmatsukazeClient" Width="244.889"
+        d:DataContext="{d:DesignInstance {x:Type vm:ConfigWindowViewModel}}"
+        SizeToContent="Height" >
 
     <i:Interaction.Triggers>
 
@@ -40,12 +41,19 @@
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <TextBlock x:Name="textBlock" HorizontalAlignment="Left" TextWrapping="Wrap" Text="サーバIP" VerticalAlignment="Top" Margin="0,1,0,0"/>
-        <TextBlock x:Name="textBlockPort" HorizontalAlignment="Left" Margin="0,23,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="50" Text="ポート"/>
-        <TextBox x:Name="textBox" HorizontalAlignment="Left" Height="18" Margin="0,0,-0.333,0" TextWrapping="Wrap" Text="{Binding ServerIP}" VerticalAlignment="Top" Width="183" Grid.Column="1" TabIndex="1"/>
-        <TextBox x:Name="textBoxPort" HorizontalAlignment="Left" Height="18" Margin="0,20,0,0" TextWrapping="Wrap" Text="{Binding ServerPort}" VerticalAlignment="Top" Width="183" Grid.Column="1" TabIndex="1"/>
-        <Button x:Name="button" Content="OK" Grid.Column="1" HorizontalAlignment="Left" Margin="28,66,0,0" VerticalAlignment="Top" Width="75" Command="{Binding OkCommand, Mode=OneWay}"/>
-        <Button x:Name="button1" Content="Cancel" Grid.Column="1" HorizontalAlignment="Left" Margin="108,66,0,0" VerticalAlignment="Top" Width="75">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Grid.ColumnSpan="2" Margin="5" Foreground="Red"/>
+
+        <TextBlock Grid.Row="1" Text="サーバアドレスを入力してください" Margin="6,5,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" HorizontalAlignment="Left" Width="217"/>
+        <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="サーバIP" VerticalAlignment="Top" Margin="0,26,0,0"/>
+        <TextBlock Grid.Row="1" HorizontalAlignment="Left" Margin="0,47,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="50" Text="ポート"/>
+        <TextBox Grid.Row="1" Height="18" Margin="0,24,5,0" TextWrapping="Wrap" Text="{Binding ServerIP}" VerticalAlignment="Top" Grid.Column="1" TabIndex="1"/>
+        <TextBox Grid.Row="1" Height="18" Margin="0,44,5,0" TextWrapping="Wrap" Text="{Binding ServerPort}" VerticalAlignment="Top" Grid.Column="1" TabIndex="1"/>
+        <Button Grid.Row="1" Content="OK" Grid.Column="1" Margin="0,67,85,10" VerticalAlignment="Top" Command="{Binding OkCommand, Mode=OneWay}" HorizontalAlignment="Right" Width="75"/>
+        <Button Grid.Row="1" Content="Cancel" Grid.Column="1" Margin="0,67,5,10" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75">
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="Click">
                     <l:WindowInteractionMessageAction>
@@ -56,7 +64,6 @@
                 </i:EventTrigger>
             </i:Interaction.Triggers>
         </Button>
-        <Label Content="{Binding Description}" HorizontalAlignment="Left" Margin="16,38,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" Width="217"/>
 
     </Grid>
 </Window>

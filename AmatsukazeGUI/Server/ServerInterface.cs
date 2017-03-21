@@ -133,7 +133,7 @@ namespace Amatsukaze.Server
             var serializer = new DataContractSerializer(type);
             serializer.WriteObject(ms, obj);
             var objbyes = ms.ToArray();
-            Debug.Print("Send: " + System.Text.Encoding.UTF8.GetString(objbyes));
+            //Debug.Print("Send: " + System.Text.Encoding.UTF8.GetString(objbyes));
             return Combine(
                 BitConverter.GetBytes((short)id),
                 BitConverter.GetBytes(objbyes.Length),
@@ -149,7 +149,7 @@ namespace Amatsukaze.Server
             if (csize > 0)
             {
                 var data = await RPCTypes.ReadBytes(ns, csize);
-                Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
+                //Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
                 var argType = RPCTypes.ArgumentTypes[id];
                 var s = new DataContractSerializer(argType);
                 var ms = new MemoryStream(data);
@@ -177,7 +177,8 @@ namespace Amatsukaze.Server
                     server.RequestQueue(),
                     server.RequestLog(),
                     server.RequestConsole(),
-                    server.RequestState());
+                    server.RequestState(),
+                    server.RequestFreeSpace());
         }
     }
 }

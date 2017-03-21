@@ -13,7 +13,8 @@ namespace Amatsukaze.Server
     public enum LaunchType {
         Standalone,
         Server,
-        Client
+        Client,
+        Debug
     };
 
     public class GUIOPtion
@@ -23,7 +24,7 @@ namespace Amatsukaze.Server
 
         public GUIOPtion(string[] args)
         {
-            for (int i = 1; i < args.Length; ++i)
+            for (int i = 0; i < args.Length; ++i)
             {
                 string arg = args[i];
                 if (arg == "-p" || arg == "--port")
@@ -42,8 +43,11 @@ namespace Amatsukaze.Server
                     {
                         LaunchType = LaunchType.Server;
                     }
-                    else
+                    else if(opt == "debug")
                     {
+                        LaunchType = LaunchType.Debug;
+                    }
+                    else {
                         LaunchType = LaunchType.Client;
                     }
                 }

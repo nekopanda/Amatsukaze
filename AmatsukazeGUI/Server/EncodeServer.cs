@@ -3,6 +3,7 @@ using Livet;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
@@ -108,8 +109,11 @@ namespace Amatsukaze.Server
 
         public ObservableCollection<Client> ClientList { get; private set; }
 
-        public ClientManager()
+        private IEncodeServer server;
+
+        public ClientManager(IEncodeServer server)
         {
+            this.server = server;
             ClientList = new ObservableCollection<Client>();
         }
 
@@ -171,13 +175,6 @@ namespace Amatsukaze.Server
                     OnClientClosed(client);
                 }
             }
-        }
-
-        private IEncodeServer server;
-
-        public ClientManager(IEncodeServer server)
-        {
-            this.server = server;
         }
 
         internal void OnRequestReceived(Client client, RPCMethodId methodId, object arg)
@@ -337,9 +334,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static string LOG_FILE = "Log.xml";
-        private static string LOG_DIR = "Logs";
-
         private IUserClient client;
         public Task ServerTask { get; private set; }
         private AppData appData;
@@ -395,6 +389,7 @@ namespace Amatsukaze.Server
                 var clientManager = new ClientManager(this);
                 ServerTask = clientManager.Listen(port);
                 this.client = clientManager;
+                RaisePropertyChanged("ClientManager");
             }
             ReadLog();
         }
@@ -408,12 +403,17 @@ namespace Amatsukaze.Server
 
         private string GetSettingFilePath()
         {
-            return "AmatsukazeServer.xml";
+            return "config\\AmatsukazeServer.xml";
+        }
+
+        private string GetHistoryFilePath()
+        {
+            return "data\\EncodeHistory.xml";
         }
 
         private string GetLogFilePath(DateTime start)
         {
-            return LOG_DIR + "\\" + start.ToString("yyyy-MM-dd_HHmmss.fff") + ".txt";
+            return "data\\logs\\" + start.ToString("yyyy-MM-dd_HHmmss.fff") + ".txt";
         }
 
         private string ReadLogFIle(DateTime start)
@@ -427,6 +427,12 @@ namespace Amatsukaze.Server
         }
         #endregion
 
+        private Task AddEncodeLog(string str)
+        {
+            Util.AddLog(str);
+            return client.OnOperationResult(str);
+        }
+
         public void Finish()
         {
             if (client != null)
@@ -438,7 +444,8 @@ namespace Amatsukaze.Server
 
         private void LoadAppData()
         {
-            if(File.Exists(GetSettingFilePath()) == false)
+            string path = GetSettingFilePath();
+            if (File.Exists(path) == false)
             {
                 appData = new AppData() {
                     setting = new Setting() {
@@ -450,7 +457,7 @@ namespace Amatsukaze.Server
                 };
                 return;
             }
-            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Open))
+            using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(AppData));
                 appData = (AppData)s.ReadObject(fs);
@@ -463,7 +470,9 @@ namespace Amatsukaze.Server
 
         private void SaveAppData()
         {
-            using (FileStream fs = new FileStream(GetSettingFilePath(), FileMode.Create))
+            string path = GetSettingFilePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using (FileStream fs = new FileStream(path, FileMode.Create))
             {
                 var s = new DataContractSerializer(typeof(AppData));
                 s.WriteObject(fs, appData);
@@ -472,7 +481,8 @@ namespace Amatsukaze.Server
 
         private void ReadLog()
         {
-            if (File.Exists(LOG_FILE) == false)
+            string path = GetHistoryFilePath();
+            if (File.Exists(path) == false)
             {
                 log = new LogData()
                 {
@@ -482,7 +492,7 @@ namespace Amatsukaze.Server
             }
             try
             {
-                using (FileStream fs = new FileStream(LOG_FILE, FileMode.Open))
+                using (FileStream fs = new FileStream(path, FileMode.Open))
                 {
                     var s = new DataContractSerializer(typeof(LogData));
                     log = (LogData)s.ReadObject(fs);
@@ -500,9 +510,11 @@ namespace Amatsukaze.Server
 
         private void WriteLog()
         {
+            string path = GetHistoryFilePath();
             try
             {
-                using (FileStream fs = new FileStream(LOG_FILE, FileMode.Create))
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                using (FileStream fs = new FileStream(path, FileMode.Create))
                 {
                     var s = new DataContractSerializer(typeof(LogData));
                     s.WriteObject(fs, log);
@@ -701,8 +713,9 @@ namespace Amatsukaze.Server
                 string json, logpath;
                 string args = MakeAmatsukazeArgs(src.Path, dst, out json, out logpath);
                 string exename = appData.setting.AmatsukazePath;
-                
-                Debug.Print("Args: " + exename + " " + args);
+
+                Util.AddLog("エンコード開始: " + src.Path);
+                Util.AddLog("Args: " + exename + " " + args);
 
                 DateTime start = DateTime.Now;
 
@@ -716,17 +729,25 @@ namespace Amatsukaze.Server
                 };
 
                 int exitCode = -1;
-                using (var p = Process.Start(psi))
+                try
                 {
-                    using (logWriter = File.Create(logpath))
+                    using (var p = Process.Start(psi))
                     {
-                        await Task.WhenAll(
-                            RedirectOut(p.StandardOutput.BaseStream),
-                            RedirectOut(p.StandardError.BaseStream),
-                            Task.Run(() => p.WaitForExit()));
-                    }
+                        using (logWriter = File.Create(logpath))
+                        {
+                            await Task.WhenAll(
+                                RedirectOut(p.StandardOutput.BaseStream),
+                                RedirectOut(p.StandardError.BaseStream),
+                                Task.Run(() => p.WaitForExit()));
+                        }
 
-                    exitCode = p.ExitCode;
+                        exitCode = p.ExitCode;
+                    }
+                }
+                catch (Win32Exception w32e)
+                {
+                    Util.AddLog("AmatsukazeCLIプロセス起動に失敗");
+                    throw w32e;
                 }
 
                 DateTime finish = DateTime.Now;
@@ -742,18 +763,25 @@ namespace Amatsukaze.Server
                 if (exitCode == 0)
                 {
                     // 成功
-                    //File.Move(src, succeeded + "\\");
-
+                    File.Move(src.Path, succeeded + "\\" + Path.GetFileName(src.Path));
                     log.Items.Add(LogFromJson(json, start, finish));
                     WriteLog();
                 }
                 else
                 {
                     // 失敗
-                    //File.Move(src, failed + "\\");
+                    File.Move(src.Path, failed + "\\" + Path.GetFileName(src.Path));
 
-                    // TODO:
-                    throw new InvalidProgramException("エンコードに失敗した");
+                    log.Items.Add(new LogItem() {
+                        Success = false,
+                        SrcPath = src.Path, 
+                        MachineName = Dns.GetHostName(),
+                        Reason = "AmatsukazeCLI.exeはコード" + exitCode + "で終了しました。"
+                    });
+                    WriteLog();
+
+                    waitList.Add(AddEncodeLog("エンコードに失敗したので30秒待機します。"));
+                    await Task.Delay(30 * 1000);
                 }
 
                 waitList.Add(UpdateItemState(false, true, src, dir));
@@ -798,7 +826,7 @@ namespace Amatsukaze.Server
             }
             catch(Exception e)
             {
-                waitList.Add(client.OnOperationResult(
+                waitList.Add(AddEncodeLog(
                     "エラーでエンコードが停止しました: " + e.Message));
             }
 
@@ -822,6 +850,25 @@ namespace Amatsukaze.Server
         private void RefrechDiskSpace()
         {
             diskMap = new SortedDictionary<string, DiskItem>();
+            if (string.IsNullOrEmpty(appData.setting.AlwaysShowDisk) == false)
+            {
+                foreach (var path in appData.setting.AlwaysShowDisk.Split(';'))
+                {
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        var diskPath = Path.GetPathRoot(path);
+                        diskMap.Add(diskPath, MakeDiskItem(diskPath));
+                    }
+                    catch (Exception e)
+                    {
+                        Util.AddLog("ディスク情報取得失敗: " + e.Message);
+                    }
+                }
+            }
             foreach(var item in queue)
             {
                 var diskPath = Path.GetPathRoot(item.Path);
@@ -837,8 +884,8 @@ namespace Amatsukaze.Server
             appData.setting = setting;
             SaveAppData();
             return Task.WhenAll(
-                RequestSetting(), 
-                client.OnOperationResult("設定を更新しました"));
+                RequestSetting(),
+                AddEncodeLog("設定を更新しました"));
         }
 
         public async Task AddQueue(string dirPath)

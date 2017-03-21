@@ -15,12 +15,13 @@ namespace Amatsukaze.Server
         private TcpClient client;
         private NetworkStream stream;
         private IUserClient userClient;
-        private Action<string> askServerAddress;
+        private Func<string, Task> askServerAddress;
         private string serverIp;
         private int port;
         private bool finished = false;
+        private bool reconnect = false;
 
-        public ServerConnection(IUserClient userClient, Action<string> askServerAddress)
+        public ServerConnection(IUserClient userClient, Func<string, Task> askServerAddress)
         {
             this.userClient = userClient;
             this.askServerAddress = askServerAddress;
@@ -38,11 +39,17 @@ namespace Amatsukaze.Server
             Close();
         }
 
+        public void Reconnect()
+        {
+            reconnect = true;
+            Close();
+        }
+
         private Task Connect()
         {
-            Debug.Print("Connect");
             Close();
             client = new TcpClient(serverIp, port);
+            Util.AddLog("サーバ(" + serverIp + ":" + port + ")に接続しました");
             stream = client.GetStream();
 
             // 接続後一通りデータを要求する
@@ -62,14 +69,21 @@ namespace Amatsukaze.Server
         public async Task Start()
         {
             string failReason = "";
+            int failCount = 0;
+            int nextWaitSec = 0;
             while (true)
             {
                 try
                 {
+                    if (nextWaitSec > 0)
+                    {
+                        await Task.Delay(nextWaitSec * 1000);
+                        nextWaitSec = 0;
+                    }
                     if(serverIp == null)
                     {
                         // 未初期化
-                        askServerAddress("アドレスを入力してください");
+                        await askServerAddress("アドレスを入力してください");
                         if(finished)
                         {
                             break;
@@ -79,15 +93,20 @@ namespace Amatsukaze.Server
                     if(client == null)
                     {
                         // 再接続
-                        askServerAddress(failReason);
+                        if (reconnect == false)
+                        {
+                            await askServerAddress(failReason);
+                        }
                         if (finished)
                         {
                             break;
                         }
+                        reconnect = false;
                         await Connect();
                     }
                     var rpc = await RPCTypes.Deserialize(stream);
                     OnRequestReceived(rpc.id, rpc.arg);
+                    failCount = 0;
                 }
                 catch (Exception e)
                 {
@@ -97,7 +116,14 @@ namespace Amatsukaze.Server
                     {
                         break;
                     }
-                    failReason = e.Message;
+                    if (reconnect == false)
+                    {
+                        nextWaitSec = failCount * 10;
+                        Util.AddLog("接続エラー: " + e.Message);
+                        Util.AddLog(nextWaitSec.ToString() + "秒後にリトライします");
+                        failReason = e.Message;
+                        ++failCount;
+                    }
                 }
             }
         }
