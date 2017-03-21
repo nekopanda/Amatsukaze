@@ -70,7 +70,9 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
-            file = new StreamWriter(new FileStream("ServerLog.log", FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
+            var logpath = GetServerLogPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(logpath));
+            file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
             Util.LogHandlers.Add(AddLog);
             Server = new EncodeServer(App.Option.ServerPort, null);
             RaisePropertyChanged("Server");
@@ -84,6 +86,11 @@ namespace Amatsukaze.ViewModels
                     Arguments = "--launch client",
                 });
             }
+        }
+
+        private string GetServerLogPath()
+        {
+            return "data\\Server.log";
         }
 
         private void AddLog(string text)

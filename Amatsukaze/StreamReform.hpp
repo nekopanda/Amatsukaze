@@ -506,6 +506,11 @@ private:
 		int64_t prevPTS = frames[0].PTS;
 		for (int i = 0; i < int(frames.size()); ++i) {
 			int64_t PTS = frames[i].PTS;
+			if (PTS == -1) {
+				// PTSがない
+				THROWF(FormatException,
+					"PTSがありません。処理できません。 %dフレーム目", i);
+			}
 			int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
 			modifiedPTS[i] = modPTS;
 			prevPTS = modPTS;

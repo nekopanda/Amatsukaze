@@ -395,12 +395,6 @@ namespace Amatsukaze.Server
         }
 
         #region Path
-        private string GetAmatsukzeCLIPath()
-        {
-            return Path.Combine(Path.GetDirectoryName(
-                typeof(EncodeServer).Assembly.Location), "AmatsukazeCLI.exe");
-        }
-
         private string GetSettingFilePath()
         {
             return "config\\AmatsukazeServer.xml";
@@ -746,7 +740,7 @@ namespace Amatsukaze.Server
                 }
                 catch (Win32Exception w32e)
                 {
-                    Util.AddLog("AmatsukazeCLIプロセス起動に失敗");
+                    Util.AddLog("Amatsukazeプロセス起動に失敗");
                     throw w32e;
                 }
 
@@ -776,7 +770,7 @@ namespace Amatsukaze.Server
                         Success = false,
                         SrcPath = src.Path, 
                         MachineName = Dns.GetHostName(),
-                        Reason = "AmatsukazeCLI.exeはコード" + exitCode + "で終了しました。"
+                        Reason = "Amatsukaze.exeはコード" + exitCode + "で終了しました。"
                     });
                     WriteLog();
 

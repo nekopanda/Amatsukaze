@@ -621,7 +621,7 @@ TEST_F(TestBase, encodeMpeg2Test)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, MPEG2VideoTsFile);
+		makeTranscodeSetting(srcDir, dstDir, LargeTsFile);
 
 	AMTContext ctx;
 	transcodeMain(ctx, setting);
@@ -632,7 +632,7 @@ TEST_F(TestBase, fileStreamInfoTest)
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
 	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, MPEG2VideoTsFile);
+		makeTranscodeSetting(srcDir, dstDir, LargeTsFile);
 
 	AMTContext ctx;
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
@@ -692,7 +692,7 @@ int main(int argc, char **argv)
 	// FFMPEGÉâÉCÉuÉâÉäèâä˙âª
 	av_register_all();
 
-	::testing::GTEST_FLAG(filter) = "*encodeMpeg2Test";
+	::testing::GTEST_FLAG(filter) = "*fileStreamInfoTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

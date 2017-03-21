@@ -125,10 +125,6 @@ public:
 			ctx.error("Audio PES Packet ‚ÉƒNƒƒbƒNî•ñ‚ª‚ ‚è‚Ü‚¹‚ñ");
 			return;
 		}
-		if (!packet.has_PTS()) {
-			ctx.error("Audio PES Packet ‚É PTS ‚ª‚ ‚è‚Ü‚¹‚ñ");
-			return;
-		}
 
 		int64_t PTS = packet.has_PTS() ? packet.PTS : -1;
 		int64_t DTS = packet.has_DTS() ? packet.DTS : PTS;

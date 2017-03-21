@@ -8,11 +8,17 @@
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:c="clr-namespace:Amatsukaze.Components" 
         xmlns:s="clr-namespace:Amatsukaze.Server" 
-        Title="{Binding WindowCaption}" Height="350" Width="525">
+        Title="{Binding WindowCaption}" Height="450" Width="400">
     
     <Window.DataContext>
         <vm:ServerViewModel/>
     </Window.DataContext>
+    
+    <i:Interaction.Behaviors>
+        <l:WindowCloseCancelBehavior CanClose="{Binding CanCloseWindow}"
+                                     CloseCanceledCallbackMethodTarget="{Binding}"
+                                     CloseCanceledCallbackMethodName="CloseCanceledCallback" />
+    </i:Interaction.Behaviors>
     
      <i:Interaction.Triggers>
      

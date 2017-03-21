@@ -111,6 +111,7 @@ public:
 		: AMTObject(ctx)
 		, hAacDec(NULL)
 		, bytesConsumed_(0)
+		, lastPTS_(-1)
 		, syncOK(false)
 	{
 		createChannelsMap();
@@ -148,7 +149,12 @@ public:
 			return false;
 		}
 
-		int64_t curPTS = PTS;
+		if (lastPTS_ == -1 && PTS >= 0) {
+			// 最初のPTS
+			lastPTS_ = PTS;
+			PTS = -1;
+		}
+
 		int ibytes = 0;
 		bytesConsumed_ = 0;
 		for ( ; ibytes < frame.length - 1; ++ibytes) {
@@ -200,14 +206,28 @@ public:
 						// PTSを計算
 						int64_t duration = 90000 * frameData.numSamples / frameData.format.sampleRate;
 						if (ibytes < prevDataSize) {
-							// フレームの開始が現在のパケット先頭より前だった場合は
+							// フレームの開始が現在のパケット先頭より前だった場合
+							// （つまり、PESパケットの境界とフレームの境界が一致しなかった場合）
 							// 現在のパケットのPTSは適用できないので前のパケットからの値を入れる
 							frameData.PTS = lastPTS_;
 							lastPTS_ += duration;
+							// 現在のパケットが来なければフレームを出力できなかったので、出力したフレームは現在のパケットの一部を含むはず
+								ASSERT(ibytes + header.frame_length > prevDataSize);
+							// つまり、PTSは（もしあれば）直後のフレームのPTSである
+							if (PTS >= 0) {
+								lastPTS_ = PTS;
+								PTS = -1;
+							}
 						}
 						else {
-							frameData.PTS = curPTS;
-							curPTS += duration;
+							// PESパケットの境界とフレームの境界が一致した場合
+							// もしくはPESパケットの2番目以降のフレーム
+							if (PTS >= 0) {
+								lastPTS_ = PTS;
+								PTS = -1;
+							}
+							frameData.PTS = lastPTS_;
+							lastPTS_ += duration;
 						}
 
 						info.push_back(frameData);
@@ -230,7 +250,6 @@ public:
 
 			}
 		}
-		lastPTS_ = curPTS;
 
 		// デコードデータのポインタを入れる
 		uint8_t* decodedData = decodedBuffer.get();
@@ -238,6 +257,7 @@ public:
 			info[i].decodedData = (uint16_t*)decodedData;
 			decodedData += info[i].decodedDataSize;
 		}
+		ASSERT(decodedData - decodedBuffer.get() == decodedBuffer.size());
 
 		return info.size() > 0;
 	}
