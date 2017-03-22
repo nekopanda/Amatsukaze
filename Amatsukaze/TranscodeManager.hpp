@@ -75,6 +75,23 @@ enum ENUM_ENCODER {
 	ENCODER_QSVENC,
 };
 
+struct BitrateSetting {
+  double a, b;
+  double h264;
+  double h265;
+
+  double getTargetBitrate(VIDEO_STREAM_FORMAT format, double srcBitrate) const {
+    double base = a * srcBitrate + b;
+    if (format == VS_H264) {
+      return base * h264;
+    }
+    else if (format == VS_H265) {
+      return base * h265;
+    }
+    return base;
+  }
+};
+
 static const char* encoderToString(ENUM_ENCODER encoder) {
 	switch (encoder) {
 	case ENCODER_X264: return "x264";
@@ -188,7 +205,10 @@ struct TranscoderSetting {
 	std::string encoderPath;
 	std::string encoderOptions;
 	std::string muxerPath;
-	std::string timelineditorPath;
+  std::string timelineditorPath;
+  bool twoPass;
+  bool autoBitrate;
+  BitrateSetting bitrate;
 	int serviceId;
 	// デバッグ用設定
 	bool dumpStreamInfo;
@@ -210,7 +230,14 @@ struct TranscoderSetting {
 		std::ostringstream ss;
 		ss << intFileBasePath << "-" << vindex << "-" << index << ".raw";
 		return ss.str();
-	}
+  }
+
+  std::string getEncStatsFilePath(int vindex, int index) const
+  {
+    std::ostringstream ss;
+    ss << intFileBasePath << "-" << vindex << "-" << index << "-stats.log";
+    return ss.str();
+  }
 
 	std::string getEnvTimecodeFilePath(int vindex, int index) const
 	{
@@ -255,7 +282,10 @@ struct TranscoderSetting {
 		ctx.info("EncoderPath: %s", encoderPath.c_str());
 		ctx.info("EncoderOptions: %s", encoderOptions.c_str());
 		ctx.info("MuxerPath: %s", muxerPath.c_str());
-		ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
+    ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
+    ctx.info("autoBitrate: %d", autoBitrate);
+    ctx.info("Bitrate: %f:%f:%f", bitrate.a, bitrate.b, bitrate.h264);
+    ctx.info("twoPass: %d", twoPass);
 		if (serviceId > 0) {
 			ctx.info("ServiceId: 0x%04x", serviceId);
 		}
@@ -345,7 +375,7 @@ protected:
 	int64_t srcFileSize_;
 
 	// データ
-	std::vector<VideoFrameInfo> videoFrameList_;
+  std::vector<VideoFrameInfo> videoFrameList_;
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<StreamEvent> streamEventList_;
 
@@ -459,7 +489,7 @@ protected:
 		PESPacket packet)
 	{
 		for (const VideoFrameInfo& frame : frames) {
-			videoFrameList_.push_back(frame);
+      videoFrameList_.push_back(frame);
 		}
 		psWriter.outVideoPesPacket(clock, frames, packet);
 	}
@@ -560,46 +590,53 @@ public:
 			return;
 		}
 
-		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex);
-		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
+    // ビットレート計算
+    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
+    int64_t srcBytes = 0, srcDuration = 0;
+    for (int i = 0; i < numEncoders; ++i) {
+      const auto& info = reformInfo_.getSrcVideoInfo(i, videoFileIndex);
+      srcBytes += info.first;
+      srcDuration += info.second;
+    }
+    double srcBitrate = ((double)srcBytes * 8 / 1000) / ((double)srcDuration / MPEG_CLOCK_HZ);
+    ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
-		// 初期化
-		encoders_ = new av::EncodeWriter[numEncoders];
-		SpVideoReader reader(this);
+    if (setting_.autoBitrate) {
+      ctx.info("目標映像ビットレート: %d kbps",
+        (int)setting_.bitrate.getTargetBitrate(srcFormat, srcBitrate));
+    }
 
-		for (int i = 0; i < numEncoders; ++i) {
-			const auto& format = reformInfo_.getFormat(i, videoFileIndex);
-			std::string args = makeEncoderArgs(
-				setting_.encoder,
-				setting_.encoderPath,
-				setting_.encoderOptions,
-				format.videoFormat,
-				setting_.getEncVideoFilePath(videoFileIndex, i));
-			ctx.info("[エンコーダ開始]");
-			ctx.info(args.c_str());
-			encoders_[i].start(args, format.videoFormat, bufsize);
-		}
+    auto getOptions = [&](int pass, int index) {
+      std::ostringstream ss;
+      ss << setting_.encoderOptions;
+      if (setting_.autoBitrate) {
+        double targetBitrate = setting_.bitrate.getTargetBitrate(srcFormat, srcBitrate);
+        ss << " --bitrate " << (int)targetBitrate;
+      }
+      if (pass >= 0) {
+        ss << " --pass " << pass;
+        ss << " --stats \"" << setting_.getEncStatsFilePath(videoFileIndex_, index) << "\"";
+      }
+      return ss.str();
+    };
 
-		// エンコードスレッド開始
-		thread_.start();
+    if (setting_.twoPass) {
+      ctx.info("1/2パス エンコード開始");
+      processAllData(getOptions, 1);
+      ctx.info("2/2パス エンコード開始");
+      processAllData(getOptions, 2);
 
-		// エンコード
-		std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex);
-		reader.readAll(intVideoFilePath);
-
-		// エンコードスレッドを終了して自分に引き継ぐ
-		thread_.join();
-
-		// 残ったフレームを処理
-		for (int i = 0; i < numEncoders; ++i) {
-			encoders_[i].finish();
-		}
-
-		// 終了
-		prevFrame_ = nullptr;
-		delete[] encoders_; encoders_ = NULL;
+      // 中間ファイル削除
+      for (int i = 0; i < numEncoders; ++i) {
+        remove(setting_.getEncStatsFilePath(videoFileIndex_, i).c_str());
+      }
+    }
+    else {
+      processAllData(getOptions, -1);
+    }
 
 		// 中間ファイル削除
+    std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
 		remove(intVideoFilePath.c_str());
 	}
 
@@ -641,6 +678,49 @@ private:
 	SpDataPumpThread thread_;
 
 	std::unique_ptr<av::Frame> prevFrame_;
+
+  void processAllData(std::function<std::string(int,int)> getOptions, int pass)
+  {
+    int numEncoders = reformInfo_.getNumEncoders(videoFileIndex_);
+    const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
+    int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
+
+    // 初期化
+    encoders_ = new av::EncodeWriter[numEncoders];
+    SpVideoReader reader(this);
+
+    for (int i = 0; i < numEncoders; ++i) {
+      const auto& format = reformInfo_.getFormat(i, videoFileIndex_);
+      std::string args = makeEncoderArgs(
+        setting_.encoder,
+        setting_.encoderPath,
+        getOptions(pass, i),
+        format.videoFormat,
+        setting_.getEncVideoFilePath(videoFileIndex_, i));
+      ctx.info("[エンコーダ開始]");
+      ctx.info(args.c_str());
+      encoders_[i].start(args, format.videoFormat, bufsize);
+    }
+
+    // エンコードスレッド開始
+    thread_.start();
+
+    // エンコード
+    std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
+    reader.readAll(intVideoFilePath);
+
+    // エンコードスレッドを終了して自分に引き継ぐ
+    thread_.join();
+
+    // 残ったフレームを処理
+    for (int i = 0; i < numEncoders; ++i) {
+      encoders_[i].finish();
+    }
+
+    // 終了
+    prevFrame_ = nullptr;
+    delete[] encoders_; encoders_ = NULL;
+  }
 
 	void onFrameDecoded(av::Frame& frame__) {
 		// フレームをコピーしてスレッドに渡す

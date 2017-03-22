@@ -15,6 +15,7 @@ using Amatsukaze.Models;
 using Amatsukaze.Server;
 using System.Threading.Tasks;
 using System.Collections.ObjectModel;
+using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {

@@ -311,6 +311,7 @@ public:
 		bool isGopStart = false;
 		PICTURE_TYPE picType = PIC_FRAME;
 		FRAME_TYPE type = FRAME_NO_INFO;
+    int codedDataSize = (int)frame.length;
 
 		for (int b = 0; b <= frame.length - 4; ++b) {
 			switch (read32(&frame.data[b])) {
@@ -319,7 +320,8 @@ public:
 					format.width = sequenceHeader.width();
 					format.height = sequenceHeader.height();
 					sequenceHeader.getSAR(format.sarWidth, format.sarHeight);
-					auto frameRate = sequenceHeader.frame_rate();
+          auto frameRate = sequenceHeader.frame_rate();
+          format.format = VS_MPEG2;
 					format.frameRateNum = frameRate.first;
 					format.frameRateDenom = frameRate.second;
 					format.fixedFrameRate = true;
@@ -421,6 +423,7 @@ public:
 					finfo.type = type;
 					finfo.DTS = DTS;
 					finfo.PTS = PTS;
+          finfo.codedDataSize = codedDataSize;
 					info.push_back(finfo);
 
 					// ‰Šú‰»‚µ‚Ä‚¨‚­
@@ -428,6 +431,7 @@ public:
 					isGopStart = false;
 					picType = PIC_FRAME;
 					type = FRAME_NO_INFO;
+          codedDataSize = 0;
 				}
 
 				break;

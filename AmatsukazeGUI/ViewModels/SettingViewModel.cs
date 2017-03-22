@@ -60,15 +60,20 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        private PropertyChangedEventListener EncoderChangedListener;
+        private PropertyChangedEventListener listener;
 
         public void Initialize()
         {
-            EncoderChangedListener = new PropertyChangedEventListener(Model);
-            EncoderChangedListener.Add(() => Model.EncoderName, (_, __) =>
+            listener = new PropertyChangedEventListener(Model);
+
+            listener.Add(() => Model.EncoderName, (_, __) =>
             {
                 EncoderSelectedIndex = _EncoderList.IndexOf(Model.EncoderName);
             });
+
+            listener.Add(() => Model.BitrateA, UpdateBitrate);
+            listener.Add(() => Model.BitrateB, UpdateBitrate);
+            listener.Add(() => Model.BitrateH264, UpdateBitrate);
         }
 
         #region SendSettingCommand
@@ -132,6 +137,41 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
+
+        private void UpdateBitrate(object sender, PropertyChangedEventArgs args)
+        {
+            RaisePropertyChanged("Bitrate18MPEG2");
+            RaisePropertyChanged("Bitrate12MPEG2");
+            RaisePropertyChanged("Bitrate7MPEG2");
+            RaisePropertyChanged("Bitrate18H264");
+            RaisePropertyChanged("Bitrate12H264");
+            RaisePropertyChanged("Bitrate7H264");
+        }
+
+        private double CalcBitrate(double src, int encoder)
+        {
+            double baseBitRate = Model.BitrateA * src + Model.BitrateB;
+            switch (encoder)
+            {
+                case 0:
+                    return baseBitRate;
+                case 1:
+                    return baseBitRate * Model.BitrateH264;
+            }
+            return 0;
+        }
+
+        private string BitrateString(double src, int encoder)
+        {
+            return ((int)CalcBitrate(src, encoder)).ToString() + "Kbps";
+        }
+
+        public string Bitrate18MPEG2 { get { return BitrateString(18000, 0); } }
+        public string Bitrate12MPEG2 { get { return BitrateString(12000, 0); } }
+        public string Bitrate7MPEG2 { get { return BitrateString(7000, 0); } }
+        public string Bitrate18H264 { get { return BitrateString(18000, 1); } }
+        public string Bitrate12H264 { get { return BitrateString(12000, 1); } }
+        public string Bitrate7H264 { get { return BitrateString(7000, 1); } }
 
     }
 }

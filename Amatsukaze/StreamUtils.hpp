@@ -513,10 +513,10 @@ private:
 	CRC32 crc;
 
 	void print(const char* fmt, va_list arg, TS_SPLITTER_LOG_LEVEL level) const {
-		// TODO:
-		char buf[300];
+    static const char* log_levels[] = { "debug", "info", "warn", "error" };
+		char buf[1024];
 		vsnprintf_s(buf, sizeof(buf), fmt, arg);
-		PRINTF("%s\n", buf);
+    PRINTF("AMT [%s] %s\n", log_levels[level], buf);
 	}
 };
 
@@ -590,6 +590,7 @@ double presenting_time(PICTURE_TYPE picType, double frameRate) {
 }
 
 struct VideoFormat {
+  VIDEO_STREAM_FORMAT format;
 	int width, height; // 横縦
 	int sarWidth, sarHeight; // アスペクト比
 	int frameRateNum, frameRateDenom; // フレームレート
@@ -621,6 +622,7 @@ struct VideoFrameInfo {
 	bool isGopStart;
 	PICTURE_TYPE pic;
 	FRAME_TYPE type; // 使わないけど参考情報
+  int codedDataSize; // 映像ビットストリームにおけるバイト数
 	VideoFormat format;
 };
 

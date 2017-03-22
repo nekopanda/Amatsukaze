@@ -446,7 +446,8 @@ namespace Amatsukaze.Server
                         EncoderName = "x264",
                         AmatsukazePath = Path.Combine(
                             Path.GetDirectoryName(GetType().Assembly.Location),
-                            "Amatsukaze.exe")
+                            "Amatsukaze.exe"),
+                        Bitrate = new BitrateSetting()
                     }
                 };
                 return;
@@ -458,6 +459,10 @@ namespace Amatsukaze.Server
                 if (appData.setting == null)
                 {
                     appData.setting = new Setting();
+                }
+                if (appData.setting.Bitrate == null)
+                {
+                    appData.setting.Bitrate = new BitrateSetting();
                 }
             }
         }
@@ -587,6 +592,21 @@ namespace Amatsukaze.Server
                 sb.Append(" -eo \"")
                     .Append(appData.setting.EncoderOption)
                     .Append("\"");
+            }
+
+            if (appData.setting.AutoBuffer)
+            {
+                sb.Append(" --bitrate ")
+                    .Append(appData.setting.Bitrate.A)
+                    .Append(":")
+                    .Append(appData.setting.Bitrate.B)
+                    .Append(":")
+                    .Append(appData.setting.Bitrate.H264);
+            }
+
+            if (appData.setting.TwoPass)
+            {
+                sb.Append(" --2pass");
             }
 
             return sb.ToString();

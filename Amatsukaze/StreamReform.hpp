@@ -151,6 +151,10 @@ public:
 		return numVideoFile_;
 	}
 
+  VIDEO_STREAM_FORMAT getVideoStreamFormat() const {
+    return videoFrameList_[0].format.format;
+  }
+
 	// PTS -> video frame index
 	int getVideoFrameIndex(int64_t PTS, int videoFileIndex) const {
 		auto it = framePtsMap_.find(PTS);
@@ -200,7 +204,13 @@ public:
 	const OutVideoFormat& getFormat(int encoderIndex, int videoFileIndex) const {
 		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
 		return outFormat_[formatId];
-	}
+  }
+
+  // 映像データサイズ（バイト）、時間（タイムスタンプ）のペア
+  std::pair<int64_t, int64_t> getSrcVideoInfo(int encoderIndex, int videoFileIndex) const {
+    int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
+    return std::make_pair(fileSrcSize_[formatId], fileSrcDuration_[formatId]);
+  }
 
 	const FileAudioFrameList& getFileAudioFrameList(
 		int encoderIndex, int videoFileIndex) const
@@ -310,12 +320,16 @@ private:
 	std::vector<OutVideoFormat> outFormat_;
 	// 中間映像ファイルごとのフォーマット開始インデックス
 	// サイズは中間映像ファイル数+1
-	std::vector<int> outFormatStartIndex_;
+  std::vector<int> outFormatStartIndex_;
 
 	// 2nd phase 入力
 	std::vector<int> frameFormatId_; // videoFrameList_と同じサイズ
 	std::map<int64_t, int> framePtsMap_;
 	std::vector<std::vector<int64_t>> timecodeList_;
+
+  // 出力ファイルごとの入力映像データサイズ、時間
+  std::vector<int64_t> fileSrcSize_;
+  std::vector<int64_t> fileSrcDuration_;
 
 	// 2nd phase 出力
 	std::vector<bool> encodedFrames_;
@@ -492,8 +506,26 @@ private:
 				THROWF(RuntimeException, "sectionId exceeds section count (%d >= %d) at frame %d",
 					sectionId, (int)sectionFormatList.size(), i);
 			}
-			frameFormatId_[i] = sectionFormatList[sectionId];
-		}
+			int fmtid = sectionFormatList[sectionId];
+      frameFormatId_[i] = fmtid;
+    }
+
+    // ビットレート計算
+    fileSrcSize_ = std::vector<int64_t>(outFormat_.size(), 0);
+    fileSrcDuration_ = std::vector<int64_t>(outFormat_.size(), 0);
+    for (int i = 0; i < (int)videoFrameList_.size(); ++i) {
+      int ordered = ordredVideoFrame_[i];
+      int formatId = frameFormatId_[ordered];
+      int next = (i + 1 < (int)videoFrameList_.size())
+        ? ordredVideoFrame_[i + 1]
+        : -1;
+      int64_t pts;
+      int64_t duration = getFrameDuration(ordered, next, pts);
+
+      const auto& frame = videoFrameList_[ordered];
+      fileSrcSize_[formatId] += frame.codedDataSize;
+      fileSrcDuration_[formatId] += duration;
+    }
 	}
 
 	template<typename I>
@@ -657,46 +689,58 @@ private:
 		}
 	}
 
+  int64_t getFrameDuration(int index, int nextIndex, int64_t& pts)
+  {
+    const auto& videoFrame = videoFrameList_[index];
+    int formatId = frameFormatId_[index];
+    const auto& format = outFormat_[formatId];
+
+    pts = modifiedPTS_[index];
+
+    int64_t duration;
+    if (isVFR_) { // VFR
+      if (nextIndex == -1) {
+        duration = 0; // 最後のフレーム
+      }
+      else {
+        duration = modifiedPTS_[nextIndex] - pts;
+      }
+    }
+    else { // CFR
+      duration = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
+
+      switch (videoFrame.pic) {
+      case PIC_FRAME:
+      case PIC_TFF:
+      case PIC_TFF_RFF:
+        break;
+      case PIC_FRAME_DOUBLING:
+        duration *= 2;
+        break;
+      case PIC_FRAME_TRIPLING:
+        duration *= 3;
+        break;
+      case PIC_BFF:
+        pts -= (duration / 2);
+        break;
+      case PIC_BFF_RFF:
+        pts -= (duration / 2);
+        duration *= 2;
+        break;
+      }
+    }
+
+    return duration;
+  }
+
 	// ファイルに映像フレームを１枚追加
 	// nextIndexはソース動画においてPTSで次のフレームの番号
-	void addVideoFrame(OutFileState& file, int index, int nextIndex) {
-		const auto& videoFrame = videoFrameList_[index];
-		int64_t pts = modifiedPTS_[index];
-		int formatId = frameFormatId_[index];
-		const auto& format = outFormat_[formatId];
+  void addVideoFrame(OutFileState& file, int index, int nextIndex) {
+    int formatId = frameFormatId_[index];
+    const auto& format = outFormat_[formatId];
 
-		int64_t duration;
-		if (isVFR_) { // VFR
-			if (nextIndex == -1) {
-				duration = 0; // 最後のフレーム
-			}
-			else {
-				duration = modifiedPTS_[nextIndex] - pts;
-			}
-		}
-		else { // CFR
-			duration = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
-
-			switch (videoFrame.pic) {
-			case PIC_FRAME:
-			case PIC_TFF:
-			case PIC_TFF_RFF:
-				break;
-			case PIC_FRAME_DOUBLING:
-				duration *= 2;
-				break;
-			case PIC_FRAME_TRIPLING:
-				duration *= 3;
-				break;
-			case PIC_BFF:
-				pts -= (duration / 2);
-				break;
-			case PIC_BFF_RFF:
-				pts -= (duration / 2);
-				duration *= 2;
-				break;
-			}
-		}
+    int64_t pts;
+    int64_t duration = getFrameDuration(index, nextIndex, pts);
 
 		// timecode出力
 		file.timecode.push_back(file.time);

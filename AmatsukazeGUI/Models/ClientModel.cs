@@ -86,7 +86,7 @@ namespace Amatsukaze.Models
         public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
         private ConsoleText consoleText = new ConsoleText();
-        private Setting setting = new Setting();
+        private Setting setting = new Setting() { Bitrate = new BitrateSetting() };
         private State state = new State();
 
         public Func<object, string, Task> ServerAddressRequired;
@@ -373,6 +373,81 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region AutoBuffer変更通知プロパティ
+        public bool AutoBuffer
+        {
+            get
+            { return setting.AutoBuffer; }
+            set
+            { 
+                if (setting.AutoBuffer == value)
+                    return;
+                setting.AutoBuffer = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region TwoPass変更通知プロパティ
+        public bool TwoPass
+        {
+            get
+            { return setting.TwoPass; }
+            set
+            {
+                if (setting.TwoPass == value)
+                    return;
+                setting.TwoPass = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateA変更通知プロパティ
+        public double BitrateA
+        {
+            get
+            { return setting.Bitrate.A; }
+            set
+            {
+                if (setting.Bitrate.A == value)
+                    return;
+                setting.Bitrate.A = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateB変更通知プロパティ
+        public double BitrateB
+        {
+            get
+            { return setting.Bitrate.B; }
+            set
+            {
+                if (setting.Bitrate.B == value)
+                    return;
+                setting.Bitrate.B = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateH264変更通知プロパティ
+        public double BitrateH264
+        {
+            get
+            { return setting.Bitrate.H264; }
+            set
+            {
+                if (setting.Bitrate.H264 == value)
+                    return;
+                setting.Bitrate.H264 = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public ClientModel()
         {
             Util.LogHandlers.Add(AddLog);
@@ -564,6 +639,11 @@ namespace Amatsukaze.Models
             TimelineEditorPath = setting.TimelineEditorPath;
             WorkPath = setting.WorkPath;
             AlwaysShowDisk = setting.AlwaysShowDisk;
+            AutoBuffer = setting.AutoBuffer;
+            BitrateA = setting.Bitrate.A;
+            BitrateB = setting.Bitrate.B;
+            BitrateH264 = setting.Bitrate.H264;
+            TwoPass = setting.TwoPass;
             return Task.FromResult(0);
         }
 

@@ -610,7 +610,12 @@ TranscoderSetting makeDamemojiSetting(
 	setting.encoderOptions = "--preset superfast --crf 23";
 	setting.muxerPath = "muxer.exe";
 	setting.timelineditorPath = "timelineeditor.exe";
-	setting.outInfoJsonPath = dstDir + "Mpeg2Test.json";
+  setting.outInfoJsonPath = dstDir + "Mpeg2Test.json";
+  setting.autoBitrate = true;
+  setting.bitrate.a = 0.2;
+  setting.bitrate.b = 600;
+  setting.bitrate.h264 = 1.6;
+  setting.twoPass = true;
 	setting.serviceId = 0x6038;
 	setting.dumpStreamInfo = true;
 	return setting;

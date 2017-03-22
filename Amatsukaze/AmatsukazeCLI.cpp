@@ -9,11 +9,15 @@
 
 int wmain(int argc, wchar_t* argv[]) {
 	try {
+    MessageBoxA(NULL, "AmatsukazeCLI", "AmatsukazeCLI", MB_OK);
+
 		printCopyright();
 
 		TranscoderSetting setting = parseArgs(argc, argv);
 
 		// FFMPEGƒ‰ƒCƒuƒ‰ƒŠ‰Šú‰»
+    InitializeCriticalSection(&g_log_crisec);
+    av_log_set_callback(amatsukaze_av_log_callback);
 		av_register_all();
 
 		return amatsukazeTranscodeMain(setting);

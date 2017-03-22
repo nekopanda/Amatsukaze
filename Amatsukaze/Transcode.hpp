@@ -340,7 +340,6 @@ private:
 			
 			// for debug
 			av_dump_format(outputCtx_(), 0, "-", 1);
-			fflush(stderr);
 
 			if (avformat_write_header(outputCtx_(), NULL) < 0) {
 				THROW(FormatException, "avformat_write_header failed");

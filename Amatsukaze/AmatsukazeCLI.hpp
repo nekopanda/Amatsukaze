@@ -15,11 +15,13 @@
 #ifdef _MSC_VER
 namespace std { typedef wstring tstring; }
 typedef wchar_t tchar;
+#define stscanf swscanf_s
 #define PRITSTR "ls"
 #define _T(s) L ## s
 #else
 namespace std { typedef string tstring; }
 typedef char tchar;
+#define stscanf sscanf
 #define PRITSTR "s"
 #define _T(s) s
 #endif
@@ -58,9 +60,14 @@ static void printHelp(const tchar* bin) {
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
 		"                      対応エンコーダ: x264,x265,QSVEnc\n"
 		"  -e|--encoder <パス> エンコーダパス[x264.exe]\n"
-		"  -eo|--encoder-opotion <オプション> エンコーダへ渡すオプション[--crf 23]\n"
+		"  -eo|--encoder-opotion <オプション> エンコーダへ渡すオプション[]\n"
 		"                      入力ファイルの解像度、アスペクト比、インタレースフラグ、\n"
 		"                      フレームレート、カラーマトリクス等は自動で追加されるので不要\n"
+    "  -b|--bitrate a:b:f  ビットレート計算式 映像ビットレートkbps = f*(a*s+b)\n"
+    "                      sは入力映像ビットレート、fは入力がH264の場合は入力されたfだが、\n"
+    "                      入力がMPEG2の場合はf=1とする\n"
+    "                      指定がない場合はビットレートオプションを追加しない\n"
+    "  --2pass              2passエンコード\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
@@ -121,9 +128,12 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	std::tstring outInfoJsonPath;
 	ENUM_ENCODER encoder = ENUM_ENCODER();
 	std::tstring encoderPath = _T("x264.exe");
-	std::tstring encoderOptions = _T("--crf 23");
+	std::tstring encoderOptions = _T("");
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
+  bool autoBitrate = bool();
+  BitrateSetting bitrate = BitrateSetting();
+  bool twoPass = bool();
 	int serviceId = -1;
 	bool dumpStreamInfo = bool();
 
@@ -151,7 +161,22 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
 			encoderOptions = getParam(argc, argv, i++);
-		}
+    }
+    else if (key == _T("-b") || key == _T("--bitrate")) {
+      const auto arg = getParam(argc, argv, i++);
+      int ret = stscanf(arg.c_str(), _T("%lf:%lf:%lf:%lf"),
+        &bitrate.a, &bitrate.b, &bitrate.h264, &bitrate.h265);
+      if (ret < 3) {
+        THROWF(ArgumentException, "--bitrateの指定が間違っています");
+      }
+      if (ret <= 3) {
+        bitrate.h265 = 2;
+      }
+      autoBitrate = true;
+    }
+    else if (key == _T("--2pass")) {
+      twoPass = true;
+    }
 		else if (key == _T("-m") || key == _T("--muxer")) {
 			muxerPath = getParam(argc, argv, i++);
 		}
@@ -201,10 +226,56 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	setting.encoderOptions = to_string(encoderOptions);
 	setting.muxerPath = to_string(muxerPath);
 	setting.timelineditorPath = to_string(timelineditorPath);
+  setting.autoBitrate = autoBitrate;
+  setting.bitrate = bitrate;
+  setting.twoPass = twoPass;
 	setting.serviceId = serviceId;
 	setting.dumpStreamInfo = dumpStreamInfo;
 
 	return setting;
+}
+
+static CRITICAL_SECTION g_log_crisec;
+static void amatsukaze_av_log_callback(
+  void* ptr, int level, const char* fmt, va_list vl)
+{
+  level &= 0xff;
+
+  if (level > av_log_get_level()) {
+    return;
+  }
+
+  char buf[1024];
+  vsnprintf(buf, sizeof(buf), fmt, vl);
+  int len = (int)strlen(buf);
+  if (len == 0) {
+    return;
+  }
+
+  static char* log_levels[] = {
+    "panic", "fatal", "error", "warn", "info", "verb", "debug", "trace"
+  };
+
+  EnterCriticalSection(&g_log_crisec);
+  
+  static bool print_prefix = true;
+  bool tmp_pp = print_prefix;
+  print_prefix = (buf[len - 1] == '\r' || buf[len - 1] == '\n');
+  if (tmp_pp) {
+    int logtype = level / 8;
+    const char* level_str =
+      (logtype >= sizeof(log_levels) / sizeof(log_levels[0]))
+      ? "unk" : log_levels[logtype];
+    printf("FFMPEG [%s] %s", level_str, buf);
+  }
+  else {
+    printf(buf);
+  }
+  if (print_prefix) {
+    fflush(stdout);
+  }
+
+  LeaveCriticalSection(&g_log_crisec);
 }
 
 static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {

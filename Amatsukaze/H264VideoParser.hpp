@@ -646,8 +646,13 @@ public:
 		int64_t DTS_from_SEI = -1;
 		int64_t PTS_from_SEI = -1;
 		int64_t next_bp_DTS = beffering_period_DTS;
+    int codedDataSize = 0;
 
-		int numNalUnits = (int)nalUnits.size();
+    int numNalUnits = (int)nalUnits.size();
+    for (int i = 0; i < numNalUnits; ++i) {
+      codedDataSize += nalUnits[i].length;
+    }
+
 		for (int i = 0; i < numNalUnits; ++i) {
 			NalUnit nalUnit = nalUnits[i];
 			int payloadLength = nalUnit.length;
@@ -754,6 +759,7 @@ public:
 						finfo.type = type;
 						finfo.DTS = (DTS != -1) ? DTS : DTS_from_SEI;
 						finfo.PTS = (PTS != -1) ? PTS : PTS_from_SEI;
+            finfo.codedDataSize = codedDataSize;
 						info.push_back(finfo);
 
 						// 初期化しておく
@@ -762,6 +768,7 @@ public:
 						picType = PIC_FRAME;
 						type = FRAME_NO_INFO;
 						PTS_from_SEI = -1;
+            codedDataSize = 0;
 
 						// 入力されたPTS,DTSは最初のフレームにしか適用されないので-1にしておく
 						DTS = PTS = -1;
@@ -773,6 +780,7 @@ public:
 					sei.updateSPS(&sps);
 
 					isGopStart = true;
+          format.format = VS_H264;
 					sps.getPicutureSize(format.width, format.height);
 					sps.getSAR(format.sarWidth, format.sarHeight);
 					sps.getFramteRate(format.frameRateNum, format.frameRateDenom, format.fixedFrameRate);

@@ -9,6 +9,19 @@ using System.Threading.Tasks;
 namespace Amatsukaze.Server
 {
     [DataContract]
+    public class BitrateSetting : IExtensibleDataObject
+    {
+        [DataMember]
+        public double A { get; set; }
+        [DataMember]
+        public double B { get; set; }
+        [DataMember]
+        public double H264 { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+    [DataContract]
     public class Setting : IExtensibleDataObject
     {
         [DataMember]
@@ -31,9 +44,15 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public string WorkPath { get; set; }
-
         [DataMember]
         public string AlwaysShowDisk { get; set; }
+
+        [DataMember]
+        public bool TwoPass { get; set; }
+        [DataMember]
+        public bool AutoBuffer { get; set; }
+        [DataMember]
+        public BitrateSetting Bitrate { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }
