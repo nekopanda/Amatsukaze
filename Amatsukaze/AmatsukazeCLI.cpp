@@ -9,8 +9,6 @@
 
 int wmain(int argc, wchar_t* argv[]) {
 	try {
-    MessageBoxA(NULL, "AmatsukazeCLI", "AmatsukazeCLI", MB_OK);
-
 		printCopyright();
 
 		TranscoderSetting setting = parseArgs(argc, argv);

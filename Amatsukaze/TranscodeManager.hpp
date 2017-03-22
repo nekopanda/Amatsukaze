@@ -590,6 +590,14 @@ public:
 			return;
 		}
 
+		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
+		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
+
+		// x265でインタレースの場合はフィールドモード
+		fieldMode_ = 
+			(setting_.encoder == ENCODER_X265 &&
+			 format0.videoFormat.progressive == false);
+
     // ビットレート計算
     VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
     int64_t srcBytes = 0, srcDuration = 0;
@@ -622,9 +630,9 @@ public:
 
     if (setting_.twoPass) {
       ctx.info("1/2パス エンコード開始");
-      processAllData(getOptions, 1);
+      processAllData(bufsize, getOptions, 1);
       ctx.info("2/2パス エンコード開始");
-      processAllData(getOptions, 2);
+      processAllData(bufsize, getOptions, 2);
 
       // 中間ファイル削除
       for (int i = 0; i < numEncoders; ++i) {
@@ -632,7 +640,7 @@ public:
       }
     }
     else {
-      processAllData(getOptions, -1);
+      processAllData(bufsize, getOptions, -1);
     }
 
 		// 中間ファイル削除
@@ -673,17 +681,25 @@ private:
 	StreamReformInfo& reformInfo_;
 
 	int videoFileIndex_;
+	bool fieldMode_;
 	av::EncodeWriter* encoders_;
 	
 	SpDataPumpThread thread_;
 
 	std::unique_ptr<av::Frame> prevFrame_;
 
-  void processAllData(std::function<std::string(int,int)> getOptions, int pass)
+	VideoFormat getEncoderInputVideoFormat(VideoFormat format) {
+		if (fieldMode_) {
+			// フィールドモードのときは解像度は縦1/2でFPSは2倍
+			format.height /= 2;
+			format.frameRateNum *= 2;
+		}
+		return format;
+	}
+
+  void processAllData(int bufsize, std::function<std::string(int,int)> getOptions, int pass)
   {
     int numEncoders = reformInfo_.getNumEncoders(videoFileIndex_);
-    const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
-    int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
 
     // 初期化
     encoders_ = new av::EncodeWriter[numEncoders];
@@ -699,7 +715,8 @@ private:
         setting_.getEncVideoFilePath(videoFileIndex_, i));
       ctx.info("[エンコーダ開始]");
       ctx.info(args.c_str());
-      encoders_[i].start(args, format.videoFormat, bufsize);
+      encoders_[i].start(args,
+				getEncoderInputVideoFormat(format.videoFormat), bufsize);
     }
 
     // エンコードスレッド開始
@@ -725,6 +742,20 @@ private:
 	void onFrameDecoded(av::Frame& frame__) {
 		// フレームをコピーしてスレッドに渡す
 		thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
+	}
+
+	void inputFrame(av::EncodeWriter& encoder, av::Frame& frame) {
+		if (fieldMode_) {
+			// フィールドモードのときはtop,bottomの2つに分けて出力
+			av::Frame top = av::Frame();
+			av::Frame bottom = av::Frame();
+			splitFrameToFields(frame, top, bottom);
+			encoder.inputFrame(top);
+			encoder.inputFrame(bottom);
+		}
+		else {
+			encoder.inputFrame(frame);
+		}
 	}
 
 	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
@@ -753,25 +784,25 @@ private:
 			case PIC_FRAME:
 			case PIC_TFF:
 			case PIC_TFF_RFF:
-				encoder.inputFrame(*frame);
+				inputFrame(encoder, *frame);
 				break;
 			case PIC_FRAME_DOUBLING:
-				encoder.inputFrame(*frame);
-				encoder.inputFrame(*frame);
+				inputFrame(encoder, *frame);
+				inputFrame(encoder, *frame);
 				break;
 			case PIC_FRAME_TRIPLING:
-				encoder.inputFrame(*frame);
-				encoder.inputFrame(*frame);
-				encoder.inputFrame(*frame);
+				inputFrame(encoder, *frame);
+				inputFrame(encoder, *frame);
+				inputFrame(encoder, *frame);
 				break;
 			case PIC_BFF:
-				encoder.inputFrame(*makeFrameFromFields(
+				inputFrame(encoder, *makeFrameFromFields(
 					(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
 				break;
 			case PIC_BFF_RFF:
-				encoder.inputFrame(*makeFrameFromFields(
+				inputFrame(encoder, *makeFrameFromFields(
 					(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
-				encoder.inputFrame(*frame);
+				inputFrame(encoder, *frame);
 				break;
 			}
 		}
@@ -780,6 +811,7 @@ private:
 		prevFrame_ = std::move(frame);
 	}
 
+	// 2つのフレームのトップフィールド、ボトムフィールドを合成
 	static std::unique_ptr<av::Frame> makeFrameFromFields(av::Frame& topframe, av::Frame& bottomframe)
 	{
 		auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
@@ -875,6 +907,104 @@ private:
 		}
 
 		return std::move(dstframe);
+	}
+
+	// 1つのフレームをトップフィールド、ボトムフィールドの2つのフレームに分解
+	static void splitFrameToFields(av::Frame& frame, av::Frame& topfield, av::Frame& bottomfield)
+	{
+		AVFrame* src = frame();
+		AVFrame* top = topfield();
+		AVFrame* bottom = bottomfield();
+
+		// フレームのプロパティをコピー
+		av_frame_copy_props(top, src);
+		av_frame_copy_props(bottom, src);
+
+		// メモリサイズに関する情報をコピー
+		top->format = bottom->format = src->format;
+		top->width = bottom->width = src->width;
+		top->height = bottom->height = src->height / 2;
+
+		// メモリ確保
+		if (av_frame_get_buffer(top, 64) != 0) {
+			THROW(RuntimeException, "failed to allocate frame buffer");
+		}
+		if (av_frame_get_buffer(bottom, 64) != 0) {
+			THROW(RuntimeException, "failed to allocate frame buffer");
+		}
+
+		// 中身をコピー
+		int bytesLumaLine;
+		int bytesChromaLine;
+		int chromaHeight;
+
+		switch (src->format) {
+		case AV_PIX_FMT_YUV420P:
+			bytesLumaLine = src->width;
+			bytesChromaLine = src->width / 2;
+			chromaHeight = src->height / 2;
+			break;
+		case AV_PIX_FMT_YUV420P9:
+		case AV_PIX_FMT_YUV420P10:
+		case AV_PIX_FMT_YUV420P12:
+		case AV_PIX_FMT_YUV420P14:
+		case AV_PIX_FMT_YUV420P16:
+			bytesLumaLine = src->width * 2;
+			bytesChromaLine = src->width * 2 / 2;
+			chromaHeight = src->height / 2;
+			break;
+		case AV_PIX_FMT_YUV422P:
+			bytesLumaLine = src->width;
+			bytesChromaLine = src->width / 2;
+			chromaHeight = src->height;
+			break;
+		case AV_PIX_FMT_YUV422P9:
+		case AV_PIX_FMT_YUV422P10:
+		case AV_PIX_FMT_YUV422P12:
+		case AV_PIX_FMT_YUV422P14:
+		case AV_PIX_FMT_YUV422P16:
+			bytesLumaLine = src->width * 2;
+			bytesChromaLine = src->width * 2 / 2;
+			chromaHeight = src->height;
+			break;
+		default:
+			THROWF(FormatException,
+				"makeFrameFromFields: unsupported pixel format (%d)", src->format);
+		}
+
+		uint8_t* ssty = src->data[0];
+		uint8_t* sstu = src->data[1];
+		uint8_t* sstv = src->data[2];
+		uint8_t* topy = top->data[0];
+		uint8_t* topu = top->data[1];
+		uint8_t* topv = top->data[2];
+		uint8_t* bottomy = bottom->data[0];
+		uint8_t* bottomu = bottom->data[1];
+		uint8_t* bottomv = bottom->data[2];
+
+		int stepssty = src->linesize[0];
+		int stepsstu = src->linesize[1];
+		int stepsstv = src->linesize[2];
+		int steptopy = top->linesize[0];
+		int steptopu = top->linesize[1];
+		int steptopv = top->linesize[2];
+		int stepbottomy = bottom->linesize[0];
+		int stepbottomu = bottom->linesize[1];
+		int stepbottomv = bottom->linesize[2];
+
+		// luma
+		for (int i = 0; i < src->height; i += 2) {
+			memcpy(topy + steptopy * (i / 2), ssty + stepssty * (i + 0), bytesLumaLine);
+			memcpy(bottomy + stepbottomy * (i / 2), ssty + stepssty * (i + 1), bytesLumaLine);
+		}
+
+		// chroma
+		for (int i = 0; i < chromaHeight; i += 2) {
+			memcpy(topu + steptopu * (i / 2), sstu + stepsstu * (i + 0), bytesChromaLine);
+			memcpy(bottomu + stepbottomu * (i / 2), sstu + stepsstu * (i + 1), bytesChromaLine);
+			memcpy(topv + steptopv * (i / 2), sstv + stepsstv * (i + 0), bytesChromaLine);
+			memcpy(bottomv + stepbottomv * (i / 2), sstv + stepsstv * (i + 1), bytesChromaLine);
+		}
 	}
 };
 

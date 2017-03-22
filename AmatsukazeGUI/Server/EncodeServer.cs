@@ -831,7 +831,7 @@ namespace Amatsukaze.Server
                     {
                         break;
                     }
-                    queue.RemoveAt(0);
+                    queue.Remove(dir);
                     waitList.Add(client.OnQueueUpdate(new QueueUpdate() {
                         Type = UpdateType.Remove,
                         DirPath = dir.Path,
