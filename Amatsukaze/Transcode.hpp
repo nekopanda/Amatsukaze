@@ -181,6 +181,7 @@ public:
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
 			THROW(FormatException, "avformat_find_stream_info failed");
 		}
+		onFileOpen(inputCtx());
     AVStream *videoStream = GetVideoStream(inputCtx());
 		if (videoStream == NULL) {
 			THROW(FormatException, "Could not find video stream ...");
@@ -230,9 +231,10 @@ public:
 	}
 
 protected:
-  virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) = 0;
-  virtual void onFrameDecoded(Frame& frame) = 0;
-  virtual void onAudioPacket(AVPacket& packet) = 0;
+	virtual void onFileOpen(AVFormatContext *fmt) { };
+	virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) { };
+  virtual void onFrameDecoded(Frame& frame) { };
+  virtual void onAudioPacket(AVPacket& packet) { };
 
 private:
   VideoFormat fmt_;

@@ -869,6 +869,14 @@ public:
     }
   }
 
+	int getAudioCount() const {
+		return audioCount_;
+	}
+
+	int64_t getSrcFileSize() const {
+		return srcFileSize_;
+	}
+
 private:
   class SpVideoReader : public av::VideoReader {
   public:
@@ -877,6 +885,9 @@ private:
       , this_(this_)
     { }
   protected:
+		virtual void onFileOpen(AVFormatContext *fmt) {
+			this_->onFileOpen(fmt);
+		}
     virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) {
       this_->onVideoFormat(stream, fmt);
     }
@@ -909,7 +920,28 @@ private:
   av::EncodeWriter encoder_;
   SpDataPumpThread thread_;
 
+	int audioCount_;
+	std::vector<std::unique_ptr<File>> audioFiles_;
+	std::vector<int> audioMap_;
+
+	int64_t srcFileSize_;
+
   int pass_;
+
+	void onFileOpen(AVFormatContext *fmt)
+	{
+		audioMap_ = std::vector<int>(fmt->nb_streams, -1);
+		audioCount_ = 0;
+		for (int i = 0; i < (int)fmt->nb_streams; ++i) {
+			if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+				audioMap_[i] = audioCount_++;
+			}
+		}
+		for (int i = 0; i < audioCount_; ++i) {
+			audioFiles_[i] = std::unique_ptr<File>(
+				new File(setting_.getIntAudioFilePath(0, 0, i), "wb"));
+		}
+	}
 
   void processAllData(int pass)
   {
@@ -926,14 +958,17 @@ private:
 
     // 残ったフレームを処理
     encoder_.finish();
+
+		audioFiles_.clear();
+		audioMap_.clear();
   }
 
   void onVideoFormat(AVStream *stream, VideoFormat fmt)
   {
     // ビットレート計算
     File file(setting_.tsFilePath, "rb");
-    int64_t file_size = file.size();
-    double srcBitrate = ((double)file_size * 8 / 1000) * AV_TIME_BASE / stream->duration;
+		srcFileSize_ = file.size();
+    double srcBitrate = ((double)srcFileSize_ * 8 / 1000) * AV_TIME_BASE / stream->duration;
     ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
     if (setting_.autoBitrate) {
@@ -972,7 +1007,12 @@ private:
 
   void onAudioPacket(AVPacket& packet)
   {
-    // TODO:
+		if (pass_ <= 1) { // 2パス目は出力しない
+			int audioIdx = audioMap_[packet.stream_index];
+			if (audioIdx >= 0) {
+				audioFiles_[audioIdx]->write(MemoryChunk(packet.data, packet.size));
+			}
+		}
   }
 };
 
@@ -1097,6 +1137,69 @@ private:
 	const StreamReformInfo& reformInfo_;
 
 	PacketCache audioCache_;
+	int64_t totalOutSize_;
+};
+
+class AMTSimpleMuxder : public AMTObject {
+public:
+	AMTSimpleMuxder(
+		AMTContext&ctx,
+		const TranscoderSetting& setting)
+		: AMTObject(ctx)
+		, setting_(setting)
+		, totalOutSize_(0)
+	{ }
+
+	void mux(int audioCount) {
+			// Mux
+		std::vector<std::string> audioFiles;
+		for (int i = 0; i < audioCount; ++i) {
+			audioFiles.push_back(setting_.getIntAudioFilePath(0, 0, i));
+		}
+		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0);
+		std::string outFilePath = setting_.getOutFilePath(0);
+		std::string args = makeMuxerArgs(
+			setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
+		ctx.info("[Mux開始]");
+		ctx.info(args.c_str());
+
+		{
+			MySubProcess muxer(args);
+			int ret = muxer.join();
+			if (ret != 0) {
+				THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
+			}
+		}
+
+		{ // 出力サイズ取得
+			File outfile(setting_.getOutFilePath(0), "rb");
+			totalOutSize_ += outfile.size();
+		}
+
+		// 中間ファイル削除
+		for (const std::string& audioFile : audioFiles) {
+			remove(audioFile.c_str());
+		}
+		remove(encVideoFile.c_str());
+	}
+
+	int64_t getTotalOutSize() const {
+		return totalOutSize_;
+	}
+
+private:
+	class MySubProcess : public EventBaseSubProcess {
+	public:
+		MySubProcess(const std::string& args) : EventBaseSubProcess(args) { }
+	protected:
+		virtual void onOut(bool isErr, MemoryChunk mc) {
+			// これはマルチスレッドで呼ばれるの注意
+			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+			fflush(isErr ? stderr : stdout);
+		}
+	};
+
+	const TranscoderSetting& setting_;
 	int64_t totalOutSize_;
 };
 
@@ -1241,7 +1344,34 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 static void transcodeMp4Main(AMTContext& ctx, const TranscoderSetting& setting)
 {
-  //
+	auto encoder = std::unique_ptr<AMTSimpleVideoEncoder>(new AMTSimpleVideoEncoder(ctx, setting));
+	encoder->encode();
+	int audioCount = encoder->getAudioCount();
+	int64_t srcFileSize = encoder->getSrcFileSize();
+	encoder = nullptr;
+
+	auto muxer = std::unique_ptr<AMTSimpleMuxder>(new AMTSimpleMuxder(ctx, setting));
+	muxer->mux(audioCount);
+	int64_t totalOutSize = muxer->getTotalOutSize();
+	muxer = nullptr;
+
+	// 出力結果を表示
+	ctx.info("完了");
+	if (setting.outInfoJsonPath.size() > 0) {
+		std::ostringstream ss;
+		ss << "{ \"srcpath\": \"" << toJsonString(setting.tsFilePath) << "\", ";
+		ss << "\"outpath\": [";
+		ss << "\"" << toJsonString(setting.getOutFilePath(0)) << "\"";
+		ss << "], ";
+		ss << "\"srcfilesize\": " << srcFileSize << ", ";
+		ss << "\"outfilesize\": " << totalOutSize << ", ";
+		ss << " }";
+
+		std::string str = ss.str();
+		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
+		File file(setting.outInfoJsonPath, "w");
+		file.write(mc);
+	}
 }
 
 

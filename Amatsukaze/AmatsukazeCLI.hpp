@@ -95,16 +95,27 @@ static std::tstring pathNormalize(std::tstring path) {
 	return path;
 }
 
-static std::tstring pathRemoveExtension(const std::tstring& path) {
+template <typename STR>
+static size_t pathGetExtensionSplitPos(const STR& path) {
 	size_t lastsplit = path.rfind(_T('/'));
-	size_t namebegin = (lastsplit == std::string::npos)
+	size_t namebegin = (lastsplit == STR::npos)
 		? 0
 		: lastsplit + 1;
 	size_t dotpos = path.find(_T('.'), namebegin);
-	size_t len = (dotpos == std::tstring::npos)
+	size_t len = (dotpos == STR::npos)
 		? path.size()
 		: dotpos;
-	return path.substr(0, len);
+	return len;
+}
+
+static std::tstring pathRemoveExtension(const std::tstring& path) {
+	return path.substr(0, pathGetExtensionSplitPos(path));
+}
+
+static std::string pathGetExtension(const std::string& path) {
+	auto ext = path.substr(pathGetExtensionSplitPos(path));
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	return ext;
 }
 
 static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
@@ -281,7 +292,15 @@ static void amatsukaze_av_log_callback(
 static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {
 	try {
 		AMTContext ctx;
-		transcodeMain(ctx, setting);
+
+		auto ext = pathGetExtension(setting.tsFilePath);
+		if (ext == ".ts") {
+			transcodeMain(ctx, setting);
+		}
+		else {
+			transcodeMp4Main(ctx, setting);
+		}
+
 		return 0;
 	}
 	catch (Exception e) {
