@@ -528,6 +528,7 @@ protected:
 };
 
 enum VIDEO_STREAM_FORMAT {
+  VS_UNKNOWN,
 	VS_MPEG2,
 	VS_H264,
 	VS_H265
