@@ -581,7 +581,8 @@ TranscoderSetting makeTranscodeSetting(
 	const std::string& srcfile)
 {
 	TranscoderSetting setting = TranscoderSetting();
-	setting.tsFilePath = srcDir + srcfile + ".ts";
+  setting.isTsMode = true;
+	setting.srcFilePath = srcDir + srcfile + ".ts";
 	setting.outVideoPath = dstDir + "Mpeg2Test";
 	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
 	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
@@ -600,8 +601,9 @@ TranscoderSetting makeDamemojiSetting(
 	const std::string& dstDir,
 	const std::string& srcfile)
 {
-	TranscoderSetting setting = TranscoderSetting();
-	setting.tsFilePath = srcDir + srcfile + ".ts";
+  TranscoderSetting setting = TranscoderSetting();
+  setting.isTsMode = true;
+	setting.srcFilePath = srcDir + srcfile + ".ts";
 	setting.outVideoPath = dstDir + "ー ソ\\十 表";
 	setting.intFileBasePath = dstDir + "ー ソ\\十 表Int";
 	setting.audioFilePath = dstDir + "ー ソ\\十 表Audio.dat";

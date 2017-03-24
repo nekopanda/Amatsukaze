@@ -261,10 +261,19 @@ private:
 
   void onFirstFrame(AVStream *stream, AVFrame *frame)
   {
-    // TODO:
     VIDEO_STREAM_FORMAT srcFormat = VS_UNKNOWN;
+    switch (stream->codecpar->codec_id) {
+    case AV_CODEC_ID_H264:
+      srcFormat = VS_H264;
+      break;
+    case AV_CODEC_ID_HEVC:
+      srcFormat = VS_H265;
+      break;
+    case AV_CODEC_ID_MPEG2VIDEO:
+      srcFormat = VS_MPEG2;
+      break;
+    }
     
-    //
     fmt_.format = srcFormat;
     fmt_.progressive = !(frame->interlaced_frame);
     fmt_.width = frame->width;

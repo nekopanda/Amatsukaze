@@ -50,11 +50,14 @@ static void printCopyright() {
 }
 
 static void printHelp(const tchar* bin) {
-	PRINTF(
-		"%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
-		"オプション []はデフォルト値 \n"
-		"  -i|--input  <パス>  入力TSファイルパス\n"
-		"  -o|--output <パス>  出力MP4ファイルパス\n"
+  PRINTF(
+    "%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
+    "オプション []はデフォルト値 \n"
+    "  -i|--input  <パス>  入力TSファイルパス\n"
+    "  -o|--output <パス>  出力MP4ファイルパス\n"
+    "  --mode <モード>     処理モード[ts]\n"
+    "                      ts : MPGE2-TSを入力する詳細解析モード"
+    "                      g  : FFMPEGを利用した一般ファイルモード"
 		"  -s|--serviceid <数値> 処理するサービスIDを指定[]\n"
 		"  -w|--work   <パス>  一時ファイルパス[./]\n"
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
@@ -133,7 +136,7 @@ static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
 
 static TranscoderSetting parseArgs(int argc, tchar* argv[])
 {
-	std::tstring tsFilePath;
+	std::tstring srcFilePath;
 	std::tstring outVideoPath;
 	std::tstring workDir = _T("./");
 	std::tstring outInfoJsonPath;
@@ -142,6 +145,7 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	std::tstring encoderOptions = _T("");
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
+  bool isTsMode = true;
   bool autoBitrate = bool();
   BitrateSetting bitrate = BitrateSetting();
   bool twoPass = bool();
@@ -151,12 +155,24 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	for (int i = 1; i < argc; ++i) {
 		std::tstring key = argv[i];
 		if (key == _T("-i") || key == _T("--input")) {
-			tsFilePath = pathNormalize(getParam(argc, argv, i++));
+			srcFilePath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-o") || key == _T("--output")) {
 			outVideoPath =
 				pathRemoveExtension(pathNormalize(getParam(argc, argv, i++)));
 		}
+    else if (key == _T("--mode")) {
+      std::tstring mode = getParam(argc, argv, i++);
+      if (mode == _T("ts")) {
+        isTsMode = true;
+      }
+      else if (mode == _T("g")) {
+        isTsMode = false;
+      }
+      else {
+        PRINTF("--modeの指定が間違っています: %" PRITSTR "\n", mode.c_str());
+      }
+    }
 		else if (key == _T("-w") || key == _T("--work")) {
 			workDir = pathNormalize(getParam(argc, argv, i++));
 		}
@@ -219,7 +235,7 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 		}
 	}
 
-	if (tsFilePath.size() == 0) {
+	if (srcFilePath.size() == 0) {
 		THROWF(ArgumentException, "入力ファイルを指定してください");
 	}
 	if (outVideoPath.size() == 0) {
@@ -227,7 +243,8 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	}
 
 	TranscoderSetting setting = TranscoderSetting();
-	setting.tsFilePath = to_string(tsFilePath);
+  setting.isTsMode = isTsMode;
+	setting.srcFilePath = to_string(srcFilePath);
 	setting.outVideoPath = to_string(outVideoPath);
 	setting.intFileBasePath = to_string(workDir) + "/amt" + std::to_string(time(NULL));
 	setting.audioFilePath = setting.intFileBasePath + "-audio.dat";
@@ -293,12 +310,11 @@ static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {
 	try {
 		AMTContext ctx;
 
-		auto ext = pathGetExtension(setting.tsFilePath);
-		if (ext == ".ts") {
+    if (setting.isTsMode) {
 			transcodeMain(ctx, setting);
 		}
 		else {
-			transcodeMp4Main(ctx, setting);
+      transcodeSimpleMain(ctx, setting);
 		}
 
 		return 0;

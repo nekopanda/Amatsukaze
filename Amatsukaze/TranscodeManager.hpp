@@ -190,8 +190,9 @@ static std::string makeTimelineEditorArgs(
 }
 
 struct TranscoderSetting {
+  bool isTsMode;
 	// 入力ファイルパス（拡張子を含む）
-	std::string tsFilePath;
+	std::string srcFilePath;
 	// 出力ファイルパス（拡張子を除く）
 	std::string outVideoPath;
 	// 中間ファイルプリフィックス
@@ -232,7 +233,7 @@ struct TranscoderSetting {
 		return ss.str();
   }
 
-  std::string getEncStatsFilePath(int vindex, int index) const
+  std::string getEncStasrcFilePath(int vindex, int index) const
   {
     std::ostringstream ss;
     ss << intFileBasePath << "-" << vindex << "-" << index << "-stats.log";
@@ -283,14 +284,14 @@ struct TranscoderSetting {
     }
     if (pass >= 0) {
       ss << " --pass " << pass;
-      ss << " --stats \"" << getEncStatsFilePath(0, 0) << "\"";
+      ss << " --stats \"" << getEncStasrcFilePath(0, 0) << "\"";
     }
     return ss.str();
   }
 
 	void dump(AMTContext& ctx) const {
 		ctx.info("[設定]");
-		ctx.info("Input: %s", tsFilePath.c_str());
+		ctx.info("Input: %s", srcFilePath.c_str());
 		ctx.info("Output: %s", outVideoPath.c_str());
 		ctx.info("IntVideo: %s", intFileBasePath.c_str());
 		ctx.info("IntAudio: %s", audioFilePath.c_str());
@@ -400,7 +401,7 @@ protected:
 		enum { BUFSIZE = 4 * 1024 * 1024 };
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-		File srcfile(setting_.tsFilePath, "rb");
+		File srcfile(setting_.srcFilePath, "rb");
 		srcFileSize_ = srcfile.size();
 		size_t readBytes;
 		do {
@@ -643,7 +644,7 @@ public:
 
       // 中間ファイル削除
       for (int i = 0; i < numEncoders; ++i) {
-        remove(setting_.getEncStatsFilePath(videoFileIndex_, i).c_str());
+        remove(setting_.getEncStasrcFilePath(videoFileIndex_, i).c_str());
       }
     }
     else {
@@ -862,7 +863,7 @@ public:
       processAllData(2);
 
       // 中間ファイル削除
-      remove(setting_.getEncStatsFilePath(0, 0).c_str());
+      remove(setting_.getEncStasrcFilePath(0, 0).c_str());
     }
     else {
       processAllData(-1);
@@ -938,8 +939,8 @@ private:
 			}
 		}
 		for (int i = 0; i < audioCount_; ++i) {
-			audioFiles_[i] = std::unique_ptr<File>(
-				new File(setting_.getIntAudioFilePath(0, 0, i), "wb"));
+			audioFiles_.emplace_back(
+        new File(setting_.getIntAudioFilePath(0, 0, i), "wb"));
 		}
 	}
 
@@ -951,7 +952,7 @@ private:
     thread_.start();
 
     // エンコード
-    reader_.readAll(setting_.tsFilePath);
+    reader_.readAll(setting_.srcFilePath);
 
     // エンコードスレッドを終了して自分に引き継ぐ
     thread_.join();
@@ -966,9 +967,9 @@ private:
   void onVideoFormat(AVStream *stream, VideoFormat fmt)
   {
     // ビットレート計算
-    File file(setting_.tsFilePath, "rb");
+    File file(setting_.srcFilePath, "rb");
 		srcFileSize_ = file.size();
-    double srcBitrate = ((double)srcFileSize_ * 8 / 1000) * AV_TIME_BASE / stream->duration;
+    double srcBitrate = ((double)srcFileSize_ * 8 / 1000) / (stream->duration * av_q2d(stream->time_base));
     ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
     if (setting_.autoBitrate) {
@@ -1010,7 +1011,16 @@ private:
 		if (pass_ <= 1) { // 2パス目は出力しない
 			int audioIdx = audioMap_[packet.stream_index];
 			if (audioIdx >= 0) {
-				audioFiles_[audioIdx]->write(MemoryChunk(packet.data, packet.size));
+
+        AdtsHeader header;
+        if (header.parse(packet.data, packet.size) == false) {
+          printf("!!!");
+        }
+        if (header.frame_length > packet.size) {
+          printf("!!!");
+        }
+
+        audioFiles_[audioIdx]->write(MemoryChunk(packet.data, header.frame_length));
 			}
 		}
   }
@@ -1314,7 +1324,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	// 出力結果JSON出力
 	if (setting.outInfoJsonPath.size() > 0) {
 		std::ostringstream ss;
-		ss << "{ \"srcpath\": \"" << toJsonString(setting.tsFilePath) << "\", ";
+		ss << "{ \"srcpath\": \"" << toJsonString(setting.srcFilePath) << "\", ";
 		ss << "\"outpath\": [";
 		for (int i = 0; i < reformInfo.getNumOutFiles(); ++i) {
 			if (i > 0) {
@@ -1342,7 +1352,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	}
 }
 
-static void transcodeMp4Main(AMTContext& ctx, const TranscoderSetting& setting)
+static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	auto encoder = std::unique_ptr<AMTSimpleVideoEncoder>(new AMTSimpleVideoEncoder(ctx, setting));
 	encoder->encode();
@@ -1359,7 +1369,7 @@ static void transcodeMp4Main(AMTContext& ctx, const TranscoderSetting& setting)
 	ctx.info("完了");
 	if (setting.outInfoJsonPath.size() > 0) {
 		std::ostringstream ss;
-		ss << "{ \"srcpath\": \"" << toJsonString(setting.tsFilePath) << "\", ";
+		ss << "{ \"srcpath\": \"" << toJsonString(setting.srcFilePath) << "\", ";
 		ss << "\"outpath\": [";
 		ss << "\"" << toJsonString(setting.getOutFilePath(0)) << "\"";
 		ss << "], ";
