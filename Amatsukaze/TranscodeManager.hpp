@@ -149,7 +149,7 @@ static std::string makeEncoderArgs(
 		ss << " --y4m --input -";
 		break;
 	case ENCODER_QSVENC:
-		ss << " --y4m -i -";
+		ss << " --format raw --y4m -i -";
 		break;
 	}
 	
@@ -159,16 +159,25 @@ static std::string makeEncoderArgs(
 static std::string makeMuxerArgs(
 	const std::string& binpath,
 	const std::string& inVideo,
+	const VideoFormat& videoFormat,
 	const std::vector<std::string>& inAudios,
 	const std::string& outpath)
 {
 	std::ostringstream ss;
 
 	ss << "\"" << binpath << "\"";
-	ss << " -i \"" << inVideo << "\"";
+	if (videoFormat.fixedFrameRate) {
+		ss << " -i \"" << inVideo << "?fps="
+			 << videoFormat.frameRateNum << "/"
+			 << videoFormat.frameRateDenom << "\"";
+	}
+	else {
+		ss << " -i \"" << inVideo << "\"";
+	}
 	for (const auto& inAudio : inAudios) {
 		ss << " -i \"" << inAudio << "\"";
 	}
+	ss << " --optimize-pd";
 	ss << " -o \"" << outpath << "\"";
 
 	return ss.str();
@@ -660,7 +669,7 @@ private:
 	class SpVideoReader : public av::VideoReader {
 	public:
 		SpVideoReader(AMTVideoEncoder* this_)
-			: VideoReader()
+			: VideoReader(this_->ctx)
 			, this_(this_)
 		{ }
   protected:
@@ -878,11 +887,15 @@ public:
 		return srcFileSize_;
 	}
 
+	VideoFormat getVideoFormat() const {
+		return videoFormat_;
+	}
+
 private:
   class SpVideoReader : public av::VideoReader {
   public:
     SpVideoReader(AMTSimpleVideoEncoder* this_)
-      : VideoReader()
+      : VideoReader(this_->ctx)
       , this_(this_)
     { }
   protected:
@@ -916,16 +929,31 @@ private:
     AMTSimpleVideoEncoder* this_;
   };
 
+	class AudioFileWriter : public av::AudioWriter {
+	public:
+		AudioFileWriter(AVStream* stream, const std::string& filename, int bufsize)
+			: AudioWriter(stream, bufsize)
+			, file_(filename, "wb")
+		{ }
+	protected:
+		virtual void onWrite(MemoryChunk mc) {
+			file_.write(mc);
+		}
+	private:
+		File file_;
+	};
+
   const TranscoderSetting& setting_;
   SpVideoReader reader_;
   av::EncodeWriter encoder_;
   SpDataPumpThread thread_;
 
 	int audioCount_;
-	std::vector<std::unique_ptr<File>> audioFiles_;
+	std::vector<std::unique_ptr<AudioFileWriter>> audioFiles_;
 	std::vector<int> audioMap_;
 
 	int64_t srcFileSize_;
+	VideoFormat videoFormat_;
 
   int pass_;
 
@@ -935,12 +963,10 @@ private:
 		audioCount_ = 0;
 		for (int i = 0; i < (int)fmt->nb_streams; ++i) {
 			if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+				audioFiles_.emplace_back(new AudioFileWriter(
+					fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_), 8 * 1024));
 				audioMap_[i] = audioCount_++;
 			}
-		}
-		for (int i = 0; i < audioCount_; ++i) {
-			audioFiles_.emplace_back(
-        new File(setting_.getIntAudioFilePath(0, 0, i), "wb"));
 		}
 	}
 
@@ -959,6 +985,9 @@ private:
 
     // 残ったフレームを処理
     encoder_.finish();
+		for (int i = 0; i < audioCount_; ++i) {
+			audioFiles_[i]->flush();
+		}
 
 		audioFiles_.clear();
 		audioMap_.clear();
@@ -966,6 +995,8 @@ private:
 
   void onVideoFormat(AVStream *stream, VideoFormat fmt)
   {
+		videoFormat_ = fmt;
+
     // ビットレート計算
     File file(setting_.srcFilePath, "rb");
 		srcFileSize_ = file.size();
@@ -1012,6 +1043,7 @@ private:
 			int audioIdx = audioMap_[packet.stream_index];
 			if (audioIdx >= 0) {
 
+				/*
         AdtsHeader header;
         if (header.parse(packet.data, packet.size) == false) {
           printf("!!!");
@@ -1019,8 +1051,9 @@ private:
         if (header.frame_length > packet.size) {
           printf("!!!");
         }
+				*/
 
-        audioFiles_[audioIdx]->write(MemoryChunk(packet.data, header.frame_length));
+				audioFiles_[audioIdx]->inputFrame(packet);
 			}
 		}
   }
@@ -1069,7 +1102,9 @@ public:
 				? setting_.getVfrTmpFilePath(outFileIndex)
 				: setting_.getOutFilePath(outFileIndex);
 			std::string args = makeMuxerArgs(
-				setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
+				setting_.muxerPath, encVideoFile,
+				reformInfo_.getFormat(i, videoFileIndex).videoFormat,
+				audioFiles, outFilePath);
 			ctx.info("[Mux開始]");
 			ctx.info(args.c_str());
 
@@ -1160,7 +1195,7 @@ public:
 		, totalOutSize_(0)
 	{ }
 
-	void mux(int audioCount) {
+	void mux(VideoFormat videoFormat, int audioCount) {
 			// Mux
 		std::vector<std::string> audioFiles;
 		for (int i = 0; i < audioCount; ++i) {
@@ -1169,7 +1204,7 @@ public:
 		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0);
 		std::string outFilePath = setting_.getOutFilePath(0);
 		std::string args = makeMuxerArgs(
-			setting_.muxerPath, encVideoFile, audioFiles, outFilePath);
+			setting_.muxerPath, encVideoFile, videoFormat, audioFiles, outFilePath);
 		ctx.info("[Mux開始]");
 		ctx.info(args.c_str());
 
@@ -1358,10 +1393,11 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 	encoder->encode();
 	int audioCount = encoder->getAudioCount();
 	int64_t srcFileSize = encoder->getSrcFileSize();
+	VideoFormat videoFormat = encoder->getVideoFormat();
 	encoder = nullptr;
 
 	auto muxer = std::unique_ptr<AMTSimpleMuxder>(new AMTSimpleMuxder(ctx, setting));
-	muxer->mux(audioCount);
+	muxer->mux(videoFormat, audioCount);
 	int64_t totalOutSize = muxer->getTotalOutSize();
 	muxer = nullptr;
 
@@ -1374,7 +1410,7 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 		ss << "\"" << toJsonString(setting.getOutFilePath(0)) << "\"";
 		ss << "], ";
 		ss << "\"srcfilesize\": " << srcFileSize << ", ";
-		ss << "\"outfilesize\": " << totalOutSize << ", ";
+		ss << "\"outfilesize\": " << totalOutSize;
 		ss << " }";
 
 		std::string str = ss.str();

@@ -287,18 +287,6 @@ namespace Amatsukaze.Server
 
     public class EncodeServer : NotificationObject, IEncodeServer
     {
-        private class TargetDirectory
-        {
-            public string DirPath { get; private set; }
-            public List<string> TsFiles {get;private set;}
-
-            public TargetDirectory(string dirPath)
-            {
-                DirPath = dirPath;
-                TsFiles = Directory.GetFiles(DirPath, "*.ts").ToList();
-            }
-        }
-
         [DataContract]
         private class AppData : IExtensibleDataObject
         {
@@ -545,7 +533,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private string MakeAmatsukazeArgs(string src, string dst, out string json, out string log)
+        private string MakeAmatsukazeArgs(bool isGeneric, string src, string dst, out string json, out string log)
         {
             string workPath = string.IsNullOrEmpty(appData.setting.WorkPath)
                 ? "./" : appData.setting.WorkPath;
@@ -569,6 +557,10 @@ namespace Amatsukaze.Server
             }
 
             StringBuilder sb = new StringBuilder();
+            if(isGeneric)
+            {
+                sb.Append("--mode g ");
+            }
             sb.Append("-i \"")
                 .Append(src)
                 .Append("\" -o \"")
@@ -642,13 +634,26 @@ namespace Amatsukaze.Server
             }
         }
 
-        private LogItem LogFromJson(string jsonpath, DateTime start, DateTime finish)
+        private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish)
         {
             var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
             var outpath = new List<string>();
             foreach (var path in json.outpath)
             {
                 outpath.Add(path);
+            }
+            if(isGeneric)
+            {
+                return new LogItem() {
+                    Success = true,
+                    SrcPath = json.srcpath,
+                    OutPath = outpath,
+                    SrcFileSize = (long)json.srcfilesize,
+                    OutFileSize = (long)json.outfilesize,
+                    MachineName = Dns.GetHostName(),
+                    EncodeStartDate = start,
+                    EncodeFinishDate = finish
+                };
             }
             return new LogItem() {
                 Success = true,
@@ -706,11 +711,20 @@ namespace Amatsukaze.Server
             Directory.CreateDirectory(failed);
             Directory.CreateDirectory(encoded);
 
+            int failCount = 0;
+
             // 待たなくてもいいタスクリスト
             var waitList = new List<Task>();
 
             foreach (var src in dir.Items)
             {
+                if(failCount > 0)
+                {
+                    int waitSec = (failCount * 10 + 10);
+                    waitList.Add(AddEncodeLog("エンコードに失敗したので"+ waitSec + "秒待機します。"));
+                    await Task.Delay(waitSec * 1000);
+                }
+
                 waitList.Add(UpdateItemState(true, false, src, dir));
 
                 if (File.Exists(src.Path) == false)
@@ -723,9 +737,10 @@ namespace Amatsukaze.Server
                     continue;
                 }
 
+                bool isMp4 = src.Path.ToLower().EndsWith(".mp4");
                 string dst = Path.Combine(encoded, Path.GetFileName(src.Path));
                 string json, logpath;
-                string args = MakeAmatsukazeArgs(src.Path, dst, out json, out logpath);
+                string args = MakeAmatsukazeArgs(isMp4, src.Path, dst, out json, out logpath);
                 string exename = appData.setting.AmatsukazePath;
 
                 Util.AddLog("エンコード開始: " + src.Path);
@@ -778,8 +793,10 @@ namespace Amatsukaze.Server
                 {
                     // 成功
                     File.Move(src.Path, succeeded + "\\" + Path.GetFileName(src.Path));
-                    log.Items.Add(LogFromJson(json, start, finish));
+                    log.Items.Add(LogFromJson(isMp4, json, start, finish));
                     WriteLog();
+
+                    failCount = 0;
                 }
                 else
                 {
@@ -794,8 +811,7 @@ namespace Amatsukaze.Server
                     });
                     WriteLog();
 
-                    waitList.Add(AddEncodeLog("エンコードに失敗したので30秒待機します。"));
-                    await Task.Delay(30 * 1000);
+                    ++failCount;
                 }
 
                 waitList.Add(UpdateItemState(false, true, src, dir));
@@ -910,10 +926,13 @@ namespace Amatsukaze.Server
                     "すでに同じパスが追加されています。パス:" + dirPath);
                 return;
             }
+
             var target = new QueueDirectory() {
                 Path = dirPath,
-                Items = Directory.GetFiles(dirPath, "*.ts").
-                Select(f => new QueueItem() { Path = f }).ToList()
+                Items = Directory.GetFiles(dirPath).Where(s => {
+                    string lower = s.ToLower();
+                    return lower.EndsWith(".ts") || lower.EndsWith(".m2t") || lower.EndsWith(".mp4");
+                }).Select(f => new QueueItem() { Path = f }).ToList()
             };
             if (target.Items.Count == 0)
             {

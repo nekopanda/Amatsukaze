@@ -151,16 +151,18 @@ private:
 
 class OutputContext : NonCopyable {
 public:
-	OutputContext(WriteIOContext& ioCtx)
+	OutputContext(WriteIOContext& ioCtx, const char* format)
 		: ctx_()
 	{
-		if (avformat_alloc_output_context2(&ctx_, NULL, "yuv4mpegpipe", "-") < 0) {
+		if (avformat_alloc_output_context2(&ctx_, NULL, format, "-") < 0) {
 			THROW(FormatException, "avformat_alloc_output_context2 failed");
 		}
 		if (ctx_->pb != NULL) {
 			THROW(FormatException, "pb already has ...");
 		}
 		ctx_->pb = ioCtx();
+		// 10bit以上YUV4MPEG対応
+		ctx_->strict_std_compliance = FF_COMPLIANCE_UNOFFICIAL;
 	}
 	~OutputContext() {
 		avformat_free_context(ctx_);
@@ -172,9 +174,15 @@ private:
 	AVFormatContext* ctx_;
 };
 
-class VideoReader : NonCopyable
+class VideoReader : AMTObject
 {
 public:
+	VideoReader(AMTContext& ctx)
+		: AMTObject(ctx)
+		, fmt_()
+		, fieldMode_()
+	{ }
+
 	void readAll(const std::string& src)
 	{
 		InputContext inputCtx(src);
@@ -211,7 +219,7 @@ public:
             onFirstFrame(videoStream, frame());
             first = false;
           }
-					onFrameDecoded(frame);
+					onFrame(frame);
 				}
 			}
       else {
@@ -225,7 +233,7 @@ public:
 			THROW(FormatException, "avcodec_send_packet failed");
 		}
 		while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
-			onFrameDecoded(frame);
+			onFrame(frame);
 		}
 
 	}
@@ -243,9 +251,23 @@ private:
 
   void onFrame(Frame& frame) {
     if (fieldMode_) {
-      // TODO: インタレースかチェック
-      if (prevFrame_ == nullptr) {
-        prevFrame_ = std::unique_ptr<av::Frame>(new av::Frame(frame));
+			if (frame()->interlaced_frame == false) {
+				// フレームがインタレースでなかったらそのまま出力
+				prevFrame_ = nullptr;
+				onFrameDecoded(frame);
+			}
+			else if (prevFrame_ == nullptr) {
+				// トップフィールドでなかったら破棄
+				// 仕様かどうかは不明だけどFFMPEG ver.3.2.2現在
+				// top_field_first=1: top field
+				// top_field_first=0: bottom field
+				// となっているようである
+				if (frame()->top_field_first) {
+					prevFrame_ = std::unique_ptr<av::Frame>(new av::Frame(frame));
+				}
+				else {
+					ctx.warn("トップフィールドを想定していたがそうではなかったのでフィールドを破棄");
+				}
       }
       else {
         // 2枚のフィールドを合成
@@ -349,7 +371,7 @@ class VideoWriter : NonCopyable
 public:
 	VideoWriter(VideoFormat fmt, int bufsize)
 		: ioCtx_(this, bufsize)
-		, outputCtx_(ioCtx_)
+		, outputCtx_(ioCtx_, "yuv4mpegpipe")
 		, codecCtx_(avcodec_find_encoder_by_name("wrapped_avframe"))
 		, fmt_(fmt)
 		, initialized_(false)
@@ -466,6 +488,72 @@ private:
 			initialized_ = true;
 		}
 	}
+};
+
+class AudioWriter : NonCopyable
+{
+public:
+	AudioWriter(AVStream* src, int bufsize)
+		: ioCtx_(this, bufsize)
+		, outputCtx_(ioCtx_, "adts")
+		, frameCount_(0)
+	{
+		AVStream* st = avformat_new_stream(outputCtx_(), NULL);
+		if (st == NULL) {
+			THROW(FormatException, "avformat_new_stream failed");
+		}
+
+		// コーデックパラメータをコピー
+		avcodec_parameters_copy(st->codecpar, src->codecpar);
+
+		// for debug
+		av_dump_format(outputCtx_(), 0, "-", 1);
+
+		if (avformat_write_header(outputCtx_(), NULL) < 0) {
+			THROW(FormatException, "avformat_write_header failed");
+		}
+	}
+
+	void inputFrame(AVPacket& frame) {
+		// av_interleaved_write_frameにpacketのownershipを渡すので
+		AVPacket outpacket = AVPacket();
+		av_packet_ref(&outpacket, &frame);
+		outpacket.stream_index = 0;
+		outpacket.pos = -1;
+		if (av_interleaved_write_frame(outputCtx_(), &outpacket) < 0) {
+			THROW(FormatException, "av_interleaved_write_frame failed");
+		}
+	}
+
+	void flush() {
+		// flush muxer
+		if(av_interleaved_write_frame(outputCtx_(), NULL) < 0) {
+			THROW(FormatException, "av_interleaved_write_frame failed");
+		}
+	}
+
+protected:
+	virtual void onWrite(MemoryChunk mc) = 0;
+
+private:
+	class TransWriteContext : public WriteIOContext {
+	public:
+		TransWriteContext(AudioWriter* this_, int bufsize)
+			: WriteIOContext(bufsize)
+			, this_(this_)
+		{ }
+	protected:
+		virtual void onWrite(MemoryChunk mc) {
+			this_->onWrite(mc);
+		}
+	private:
+		AudioWriter* this_;
+	};
+
+	TransWriteContext ioCtx_;
+	OutputContext outputCtx_;
+
+	int frameCount_;
 };
 
 class EncodeWriter : NonCopyable
@@ -624,9 +712,12 @@ private:
 };
 
 // エンコーダテスト用クラス
-class MultiOutTranscoder
+class MultiOutTranscoder : AMTObject
 {
 public:
+	MultiOutTranscoder(AMTContext& ctx)
+		: AMTObject(ctx)
+	{ }
 
 	void encode(
 		const std::string& srcpath,
@@ -662,7 +753,7 @@ private:
 	class MyVideoReader : public VideoReader {
 	public:
 		MyVideoReader(MultiOutTranscoder* this_)
-			: VideoReader()
+			: VideoReader(this_->ctx)
 			, this_(this_)
 		{ }
 	protected:

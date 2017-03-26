@@ -523,7 +523,6 @@ private:
 class AMTObject {
 public:
 	AMTObject(AMTContext& ctx) : ctx(ctx) { }
-protected:
 	AMTContext& ctx;
 };
 

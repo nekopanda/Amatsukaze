@@ -172,9 +172,10 @@ namespace Amatsukaze.Server
         public string DisplayEncodeStart { get { return EncodeStartDate.ToGUIString(); } }
         public string DisplayEncodeFinish { get { return EncodeFinishDate.ToGUIString(); } }
         public string DisplayEncodeDuration { get { return EncodeDuration.ToGUIString(); } }
-        public string DisplaySrcDurationo { get { return SrcVideoDuration.ToGUIString(); } }
-        public string DisplayOutDuration { get { return OutVideoDuration.ToGUIString(); } }
+        public string DisplaySrcDurationo { get { return (SrcVideoDuration != null) ? SrcVideoDuration.ToGUIString() : null; } }
+        public string DisplayOutDuration { get { return (OutVideoDuration != null) ? OutVideoDuration.ToGUIString() : null; } }
         public string DisplayVideoNotIncluded { get {
+            if (SrcVideoDuration == null) return null;
             var s = SrcVideoDuration.TotalMilliseconds;
             var o = OutVideoDuration.TotalMilliseconds;
             return ((double)(s - o) / (double)s * 100.0).ToString("F2");
@@ -184,16 +185,22 @@ namespace Amatsukaze.Server
         public string DisplayOutFileSize { get { return ((double)OutFileSize / (1024 * 1024)).ToString("F2"); } }
         public string DisplayIntVideoRate { get { return ((double)IntVideoFileSize / (double)SrcFileSize * 100).ToString("F2"); } }
         public string DisplayCompressionRate { get { return ((double)OutFileSize / (double)SrcFileSize * 100).ToString("F2"); } }
-        public string DisplaySrcAudioFrames { get { return AudioDiff.TotalSrcFrames.ToString(); } }
-        public string DisplayOutAudioFrames { get { return AudioDiff.TotalOutFrames.ToString(); } }
-        public string DisplayAudioNotIncluded { get { return AudioDiff.NotIncludedPer.ToString("F3"); } }
-        public string DisplayAvgAudioDiff { get { return AudioDiff.AvgDiff.ToString("F2"); } }
+        public string DisplaySrcAudioFrames { get { return (AudioDiff != null) ? AudioDiff.TotalSrcFrames.ToString() : null; } }
+        public string DisplayOutAudioFrames { get { return (AudioDiff != null) ? AudioDiff.TotalOutFrames.ToString() : null; } }
+        public string DisplayAudioNotIncluded { get { return (AudioDiff != null) ? AudioDiff.NotIncludedPer.ToString("F3") : null; } }
+        public string DisplayAvgAudioDiff { get { return (AudioDiff != null) ? AudioDiff.AvgDiff.ToString("F2") : null; } }
         public string DisplayReason { get { return Reason; } }
-        public string DisplayAudioMaxDiff { get { return AudioDiff.MaxDiff.ToString("F2"); } }
-        public string DisplayAudioMaxDiffPos { get { return AudioDiff.MaxDiffPos.ToString("F2"); } }
-        public string DisplayEncodeSpeed { get { return (SrcVideoDuration.TotalSeconds / EncodeDuration.TotalSeconds).ToString("F2"); } }
-        public string DisplaySrcBitrate { get { return ((double)SrcFileSize / (SrcVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3"); } }
-        public string DisplayOutBitrate { get { return ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3"); } }
+        public string DisplayAudioMaxDiff { get { return (AudioDiff != null) ? AudioDiff.MaxDiff.ToString("F2") : null; } }
+        public string DisplayAudioMaxDiffPos { get { return (AudioDiff != null) ? AudioDiff.MaxDiffPos.ToString("F2") : null; } }
+        public string DisplayEncodeSpeed { get { return (SrcVideoDuration != null)
+                    ? (SrcVideoDuration.TotalSeconds / EncodeDuration.TotalSeconds).ToString("F2")
+                    : null; } }
+        public string DisplaySrcBitrate { get { return (SrcVideoDuration != null)
+                    ? ((double)SrcFileSize / (SrcVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
+                    : null; } }
+        public string DisplayOutBitrate { get { return (SrcVideoDuration != null)
+                    ? ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
+                    : null; } }
     }
 
     [DataContract]
