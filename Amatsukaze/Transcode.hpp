@@ -713,12 +713,33 @@ private:
 };
 
 // 映像内容解析
-class VideoAnalyzer : public VideoReader
+class VideoAnalyzer : protected VideoReader, DataPumpThread<std::unique_ptr<av::Frame>>
 {
 public:
   VideoAnalyzer(AMTContext& ctx)
     : VideoReader(ctx)
+		, DataPumpThread(8)
+		, curSummary_()
+		, nframes_(0)
   { }
+
+	void readAll(const std::string& src)
+	{
+		// 解析スレッド開始
+		start();
+
+		VideoReader::readAll(src);
+
+		// 解析スレッド終了
+		join();
+		
+		if (nframes_ > 0) {
+			curSummary_.div(nframes_);
+			frames_.push_back(curSummary_);
+			curSummary_ = DctSummary();
+			nframes_ = 0;
+		}
+	}
 
   void dump() {
     FILE* fp = fopen("dct.txt", "w");
@@ -739,14 +760,18 @@ protected:
   };
 
   virtual void onFrameDecoded(Frame& frame) {
-    if (prevFrame_ != nullptr) {
-      analyzeFrame(frame(), (*prevFrame_)());
-      printf("frame=%d\n", frames_.size());
-    }
-    prevFrame_ = std::unique_ptr<av::Frame>(new av::Frame(frame));
+		// フレームをコピーしてスレッドに渡す
+		put(std::unique_ptr<av::Frame>(new av::Frame(frame)), 1);
   };
 
   virtual void onAudioPacket(AVPacket& packet) { };
+
+	virtual void OnDataReceived(std::unique_ptr<av::Frame>&& frame) {
+		if (prevFrame_ != nullptr) {
+			analyzeFrame((*frame)(), (*prevFrame_)());
+		}
+		prevFrame_ = std::move(frame);
+	}
 
 private:
   enum { DCT_N = 8 };
@@ -754,16 +779,31 @@ private:
 
   struct DctSummary {
     enum { LEN = DCT_N * 2 - 1 };
-    float summary[LEN];
+    float summary[DCT_N * 2];
 
     void print(FILE* fp) const {
       for (int i = 0; i < LEN; ++i) {
         fprintf(fp, (i == LEN - 1) ? "%f\n" : "%f,", summary[i]);
       }
     }
+
+		void div(int n) {
+			float inv = 1.0f / n;
+			for (int i = 0; i < LEN; ++i) {
+				summary[i] *= inv;
+			}
+		}
+
+		void add(const DctSummary& o) {
+			for (int i = 0; i < LEN; ++i) {
+				summary[i] += o.summary[i];
+			}
+		}
   };
 
   std::vector<DctSummary> frames_;
+	DctSummary curSummary_;
+	int nframes_;
 
   template <typename T>
   void fill_block(float block[][DCT_N], uint8_t* cptr, int cline, uint8_t* pptr, int pline)
@@ -787,20 +827,42 @@ private:
     }
   }
 
+	void addToSummary_AVX(float block[][DCT_N], DctSummary& s)
+	{
+		const __m256 signmask = _mm256_set1_ps(-0.0f);
+
+#define PROC_Y(y) \
+		_mm256_storeu_ps(s.summary + y, \
+			_mm256_add_ps( \
+				_mm256_loadu_ps(s.summary + y), \
+				_mm256_andnot_ps( \
+					signmask, \
+					_mm256_loadu_ps(block[y]))))
+
+		PROC_Y(0);
+		PROC_Y(1);
+		PROC_Y(2);
+		PROC_Y(3);
+		PROC_Y(4);
+		PROC_Y(5);
+		PROC_Y(6);
+		PROC_Y(7);
+	}
+
   void analyzeFrame(AVFrame* cur, AVFrame* prev)
   {
     const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(cur->format));
-    int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+		const int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
 
-    DctSummary summary = DctSummary();
-
+		int nb = 0;
+		DctSummary s = DctSummary();
     for (int i = 0; i < 3; ++i) {
-      int hshift = (i > 0) ? desc->log2_chroma_w : 0;
-      int vshift = (i > 0) ? desc->log2_chroma_h : 0;
-      int width = cur->width >> hshift;
-      int height = cur->height >> vshift;
+      const int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+			const int vshift = (i > 0) ? desc->log2_chroma_h : 0;
+			const int width = cur->width >> hshift;
+			const int height = cur->height >> vshift;
 
-      for (int y = 0; y <= (height - DCT_N * 2); y += DCT_N * 2) {
+		  for (int y = 0; y <= (height - DCT_N * 2); y += DCT_N * 2) {
         int cline = cur->linesize[i];
         int pline = prev->linesize[i];
         uint8_t* cptr = cur->data[i] + cline * y;
@@ -817,14 +879,22 @@ private:
             fill_block<uint16_t>(src, cptr, cline, pptr, pline);
           }
 
-          dct_.transform_AVX(src, dct);
+          dct_.transform_AVX_8x8(src, dct);
 
-          addToSummary(dct, summary);
+					addToSummary_AVX(dct, s);
+					++nb;
         }
       }
     }
+		s.div(nb);
+		curSummary_.add(s);
 
-    frames_.push_back(summary);
+		if (++nframes_ >= 60) {
+			curSummary_.div(nframes_);
+			frames_.push_back(curSummary_);
+			curSummary_ = DctSummary();
+			nframes_ = 0;
+		}
   }
 };
 
