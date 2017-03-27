@@ -13,6 +13,7 @@
 
 #include "StreamUtils.hpp"
 #include "ProcessThread.hpp"
+#include "DCT.h"
 
 // libffmpeg
 extern "C" {
@@ -708,6 +709,122 @@ private:
         memcpy(dst1, src1, wbytes);
       }
     }
+  }
+};
+
+// âfëúì‡óeâêÕ
+class VideoAnalyzer : public VideoReader
+{
+public:
+  VideoAnalyzer(AMTContext& ctx)
+    : VideoReader(ctx)
+  { }
+
+  void dump() {
+    FILE* fp = fopen("dct.txt", "w");
+    for (const auto& s : frames_) {
+      s.print(fp);
+    }
+    fclose(fp);
+  }
+
+protected:
+  VideoFormat fmt_;
+  std::unique_ptr<av::Frame> prevFrame_;
+
+  virtual void onFileOpen(AVFormatContext *fmt) { };
+  
+  virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) {
+    fmt_ = fmt;
+  };
+
+  virtual void onFrameDecoded(Frame& frame) {
+    if (prevFrame_ != nullptr) {
+      analyzeFrame(frame(), (*prevFrame_)());
+      printf("frame=%d\n", frames_.size());
+    }
+    prevFrame_ = std::unique_ptr<av::Frame>(new av::Frame(frame));
+  };
+
+  virtual void onAudioPacket(AVPacket& packet) { };
+
+private:
+  enum { DCT_N = 8 };
+  Dct2d<DCT_N> dct_;
+
+  struct DctSummary {
+    enum { LEN = DCT_N * 2 - 1 };
+    float summary[LEN];
+
+    void print(FILE* fp) const {
+      for (int i = 0; i < LEN; ++i) {
+        fprintf(fp, (i == LEN - 1) ? "%f\n" : "%f,", summary[i]);
+      }
+    }
+  };
+
+  std::vector<DctSummary> frames_;
+
+  template <typename T>
+  void fill_block(float block[][DCT_N], uint8_t* cptr, int cline, uint8_t* pptr, int pline)
+  {
+    for (int sy = 0, dy = 0; dy < DCT_N; sy += 2, dy += 1) {
+      T* cptr_line = (T*)(cptr + sy * cline);
+      T* pptr_line = (T*)(pptr + sy * pline);
+
+      for (int sx = 0, dx = 0; dx < DCT_N; sx += 2, dx += 1) {
+        block[dy][dx] = std::abs((float)cptr_line[sx] - (float)pptr_line[sx]);
+      }
+    }
+  }
+
+  void addToSummary(float block[][DCT_N], DctSummary& s)
+  {
+    for (int y = 0; y < DCT_N; ++y) {
+      for (int x = 0; x < DCT_N; ++x) {
+        s.summary[y + x] += std::abs(block[y][x]);
+      }
+    }
+  }
+
+  void analyzeFrame(AVFrame* cur, AVFrame* prev)
+  {
+    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(cur->format));
+    int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+
+    DctSummary summary = DctSummary();
+
+    for (int i = 0; i < 3; ++i) {
+      int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+      int vshift = (i > 0) ? desc->log2_chroma_h : 0;
+      int width = cur->width >> hshift;
+      int height = cur->height >> vshift;
+
+      for (int y = 0; y <= (height - DCT_N * 2); y += DCT_N * 2) {
+        int cline = cur->linesize[i];
+        int pline = prev->linesize[i];
+        uint8_t* cptr = cur->data[i] + cline * y;
+        uint8_t* pptr = prev->data[i] + pline * y;
+
+        for (int x = 0; x <= (width - DCT_N * 2); x += DCT_N * 2) {
+          float src[DCT_N][DCT_N] = { 0 };
+          float dct[DCT_N][DCT_N];
+
+          if (pixel_shift == 0) {
+            fill_block<uint8_t>(src, cptr, cline, pptr, pline);
+          }
+          else {
+            fill_block<uint16_t>(src, cptr, cline, pptr, pline);
+          }
+
+          dct_.transform_AVX(src, dct);
+
+          addToSummary(dct, summary);
+        }
+      }
+    }
+
+    frames_.push_back(summary);
   }
 };
 

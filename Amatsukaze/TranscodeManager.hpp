@@ -617,6 +617,14 @@ public:
 			return;
 		}
 
+    {
+      av::VideoAnalyzer va(ctx);
+
+      std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
+      va.readAll(intVideoFilePath);
+      va.dump();
+    }
+
 		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
 		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
 
