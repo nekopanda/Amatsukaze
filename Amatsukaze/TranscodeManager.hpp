@@ -198,8 +198,14 @@ static std::string makeTimelineEditorArgs(
 	return ss.str();
 }
 
+enum AMT_CLI_MODE {
+  AMT_CLI_TS,
+  AMT_CLI_GENERIC,
+  AMT_CLI_ANALYZE,
+};
+
 struct TranscoderSetting {
-  bool isTsMode;
+  AMT_CLI_MODE mode;
 	// 入力ファイルパス（拡張子を含む）
 	std::string srcFilePath;
 	// 出力ファイルパス（拡張子を除く）
@@ -622,7 +628,7 @@ public:
 
       std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
       va.readAll(intVideoFilePath);
-      va.dump();
+      va.dump("dct.txt");
     }
 
 		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
@@ -1427,5 +1433,32 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 		file.write(mc);
 	}
 }
+
+static void analyzeMain(AMTContext& ctx, const TranscoderSetting& setting)
+{
+  auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
+  if (setting.serviceId > 0) {
+    splitter->setServiceId(setting.serviceId);
+  }
+  StreamReformInfo reformInfo = splitter->split();
+  splitter = nullptr;
+
+  if (setting.dumpStreamInfo) {
+    reformInfo.serialize(setting.getStreamInfoPath());
+  }
+
+  reformInfo.prepareEncode();
+
+  for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
+    int numEncoders = reformInfo.getNumEncoders(i);
+    if (numEncoders == 0) continue;
+    av::VideoAnalyzer va(ctx);
+    std::string intfilepath = setting.getIntVideoFilePath(i);
+    va.readAll(intfilepath);
+    va.dump(setting.getOutFilePath(0));
+    remove(intfilepath.c_str());
+  }
+}
+
 
 

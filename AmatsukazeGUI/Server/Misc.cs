@@ -105,6 +105,122 @@ namespace Amatsukaze.Server
             out ulong lpFreeBytesAvailable, 
             out ulong lpTotalNumberOfBytes, 
             out ulong lpTotalNumberOfFreeBytes);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct PROCESSORCORE
+        {
+            public byte Flags;
+        };
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct NUMANODE
+        {
+            public uint NodeNumber;
+        }
+
+        public enum PROCESSOR_CACHE_TYPE
+        {
+            CacheUnified,
+            CacheInstruction,
+            CacheData,
+            CacheTrace
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct CACHE_DESCRIPTOR
+        {
+            public byte Level;
+            public byte Associativity;
+            public ushort LineSize;
+            public uint Size;
+            public PROCESSOR_CACHE_TYPE Type;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        public struct SYSTEM_LOGICAL_PROCESSOR_INFORMATION_UNION
+        {
+            [FieldOffset(0)]
+            public PROCESSORCORE ProcessorCore;
+            [FieldOffset(0)]
+            public NUMANODE NumaNode;
+            [FieldOffset(0)]
+            public CACHE_DESCRIPTOR Cache;
+            [FieldOffset(0)]
+            private UInt64 Reserved1;
+            [FieldOffset(8)]
+            private UInt64 Reserved2;
+        }
+
+        public enum LOGICAL_PROCESSOR_RELATIONSHIP
+        {
+            RelationProcessorCore,
+            RelationNumaNode,
+            RelationCache,
+            RelationProcessorPackage,
+            RelationGroup,
+            RelationAll = 0xffff
+        }
+
+        public struct SYSTEM_LOGICAL_PROCESSOR_INFORMATION
+        {
+            public UIntPtr ProcessorMask;
+            public LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
+            public SYSTEM_LOGICAL_PROCESSOR_INFORMATION_UNION ProcessorInformation;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool GetLogicalProcessorInformation(
+            IntPtr Buffer,
+            ref uint ReturnLength
+        );
+
+        private const int ERROR_INSUFFICIENT_BUFFER = 122;
+
+        public static SYSTEM_LOGICAL_PROCESSOR_INFORMATION[] GetLogicalProcessorInformationMarshal()
+        {
+            uint ReturnLength = 0;
+            GetLogicalProcessorInformation(IntPtr.Zero, ref ReturnLength);
+            if (Marshal.GetLastWin32Error() != ERROR_INSUFFICIENT_BUFFER)
+            {
+                throw new Exception("GetLogicalProcessorInformationがERROR_INSUFFICIENT_BUFFERを返さなかった");
+            }
+            IntPtr Ptr = Marshal.AllocHGlobal((int)ReturnLength);
+            try
+            {
+                if (GetLogicalProcessorInformation(Ptr, ref ReturnLength) == false)
+                {
+                    throw new Exception("GetLogicalProcessorInformationに失敗");
+                }
+                int size = Marshal.SizeOf(typeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+                int len = (int)ReturnLength / size;
+                SYSTEM_LOGICAL_PROCESSOR_INFORMATION[] Buffer = new SYSTEM_LOGICAL_PROCESSOR_INFORMATION[len];
+                IntPtr Item = Ptr;
+                for (int i = 0; i < len; i++)
+                {
+                    Buffer[i] = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION)Marshal.PtrToStructure(Item, typeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+                    Item += size;
+                }
+                return Buffer;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(Ptr);
+            }
+        }
+        /*
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool GetProcessAffinityMask(
+            IntPtr hProcess,
+            ref ulong lpProcessAffinityMask,
+            ref ulong lpSystemAffinityMask
+        );
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetProcessAffinityMask(
+            IntPtr hProcess,
+            ulong dwProcessAffinityMask
+        );
+         * */
     }
 
     public abstract class ConsoleTextBase
@@ -147,6 +263,109 @@ namespace Amatsukaze.Server
                     rawtext.Add(buf[i]);
                 }
             }
+        }
+    }
+
+    public class AffinityCreator
+    {
+        private List<int> ordered = new List<int>();
+        private int np;
+
+        public void SetNumProcess(int np)
+        {
+            int[] cpulist = new int[64];
+
+            foreach (var info in Util.GetLogicalProcessorInformationMarshal())
+            {
+                int gid = BitScan(info.ProcessorMask.ToUInt64());
+                int shift = -1;
+                switch (info.Relationship)
+                {
+                    case Util.LOGICAL_PROCESSOR_RELATIONSHIP.RelationNumaNode:
+                        shift = 24;
+                        break;
+                    case Util.LOGICAL_PROCESSOR_RELATIONSHIP.RelationCache:
+                        shift = 16;
+                        break;
+                    case Util.LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorCore:
+                        shift = 8;
+                        break;
+                }
+                if(shift > 0) {
+                    int tmp = gid << shift;
+                    ulong mask = info.ProcessorMask.ToUInt64();
+                    for (int i = 0; i < 64; ++i)
+                    {
+                        if ((mask & (1ul << i)) != 0)
+                        {
+                            cpulist[i] |= tmp;
+                        }
+                    }
+                }
+            }
+
+            ulong avail = (ulong)Process.GetCurrentProcess().ProcessorAffinity.ToInt64();
+            ordered.Clear();
+            for (int i = 0; i < 64; ++i)
+            {
+                if ((avail & (1ul << i)) != 0)
+                {
+                    ordered.Add(cpulist[i] | i);
+                }
+            }
+            ordered.Sort();
+
+            this.np = np;
+        }
+
+        public ulong GetMask(int pid)
+        {
+            int per = ordered.Count / np;
+            int rem = ordered.Count - (per * np);
+            int from = per * pid + Math.Max(pid, rem);
+            int len = (pid < rem) ? per + 1 : per;
+            ulong mask = 0;
+            for (int i = from; i < from + len; ++i)
+            {
+                int cpuid = ordered[i] & 0xFF;
+                mask |= 1ul << cpuid;
+            }
+            return mask;
+        }
+
+        public static List<int> MaskToList(ulong bitmask)
+        {
+            var list = new List<int>();
+            for (int i = 0; i < 64; ++i)
+            {
+                if ((bitmask & (1ul << i)) != 0)
+                {
+                    list.Add(i);
+                }
+            }
+            return list;
+        }
+
+        public static ulong ListToMask(List<int> list)
+        {
+            ulong mask = 0;
+            foreach (var i in list)
+            {
+                mask |= 1ul << i;
+            }
+            return mask;
+        }
+
+        private static int BitScan(ulong bitmask)
+        {
+            for (int i = 0; i < 64; ++i)
+            {
+                if ((bitmask & (1ul << i)) != 0)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 }

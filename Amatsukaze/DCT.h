@@ -11,7 +11,12 @@
 
 #include <immintrin.h> // AVX
 
-template <int N>
+extern "C" {
+#include <libavformat/avformat.h>
+}
+
+// SIMD: 0=no simd, 1=sse, 2=avx
+template <int N, int SIMD, bool debug>
 class Dct2d
 {
 public:
@@ -40,6 +45,22 @@ public:
   }
 
   void transform(const float orig[][N], float dct[][N]) const
+  {
+    if (SIMD == 2 && N == 8) {
+      transform_AVX_8x8(orig, dct);
+    }
+    else if (SIMD == 2) {
+      transform_AVX(orig, dct);
+    }
+    else {
+      transform_scalar(orig, dct);
+    }
+    if (debug) {
+      checkDct(orig, dct);
+    }
+  }
+
+  void transform_scalar(const float orig[][N], float dct[][N]) const
 	{
     for (int v = 0; v < N; ++v) {
       for (int u = 0; u < N; ++u) {
@@ -52,7 +73,6 @@ public:
         dct[v][u] = cc[v][u] * s;
       }
     }
-    //checkDct(orig, dct);
   }
 
   void transform_AVX(const float orig[][N], float dct[][N]) const
@@ -79,7 +99,6 @@ public:
       _mm256_storeu_ps(dct[v], 
         _mm256_mul_ps(_mm256_loadu_ps(cc[v]), s));
     }
-    //checkDct(orig, dct);
   }
 
 	void transform_AVX_8x8(const float orig[][N], float dct[][N]) const
@@ -135,7 +154,7 @@ public:
 		//checkDct(orig, dct);
 	}
 
-  void inverse(const float dct[][N], float orig[][N]) {
+  void inverse(const float dct[][N], float orig[][N]) const {
     for (int y = 0; y < N; ++y) {
       for (int x = 0; x < N; ++x) {
         float s = 0;
@@ -149,7 +168,7 @@ public:
     }
   }
 
-  void checkDct(const float orig[][N], const float dct[][N]) {
+  void checkDct(const float orig[][N], const float dct[][N]) const {
     float check[N][N];
     inverse(dct, check);
     for (int y = 0; y < N; ++y) {
@@ -165,4 +184,184 @@ private:
   float cc[N][N];
   float cs[N][N];
   float cs_xu[N][N];
+};
+
+template <int N>
+struct DctSummary {
+  enum { LEN = N * 2 - 1 };
+  float summary[N * 2];
+
+  void print(FILE* fp) const {
+    for (int i = 0; i < LEN; ++i) {
+      fprintf(fp, (i == LEN - 1) ? "%f\n" : "%f,", summary[i]);
+    }
+  }
+
+  void div(int n) {
+    float inv = 1.0f / n;
+    for (int i = 0; i < LEN; ++i) {
+      summary[i] *= inv;
+    }
+  }
+
+  void add(const DctSummary& o) {
+    for (int i = 0; i < LEN; ++i) {
+      summary[i] += o.summary[i];
+    }
+  }
+};
+
+class FrameAnalyzer
+{
+public:
+  enum { N = 8 };
+  virtual DctSummary<N> analyzeFrame(AVFrame* cur, AVFrame* prev) = 0;
+};
+
+template <int SIMD>
+class FrameAnalyzerImpl : public FrameAnalyzer
+{
+public:
+  virtual DctSummary<N> analyzeFrame(AVFrame* cur, AVFrame* prev)
+  {
+    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(cur->format));
+    const int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+
+    int nb = 0;
+    DctSummary<N> s = DctSummary<N>();
+    for (int i = 0; i < 3; ++i) {
+      const int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+      const int vshift = (i > 0) ? desc->log2_chroma_h : 0;
+      const int width = cur->width >> hshift;
+      const int height = cur->height >> vshift;
+
+      for (int y = 0; y <= (height - N * 2); y += N * 2) {
+        int cline = cur->linesize[i];
+        int pline = prev->linesize[i];
+        uint8_t* cptr = cur->data[i] + cline * y;
+        uint8_t* pptr = prev->data[i] + pline * y;
+
+        for (int x = 0; x <= (width - N * 2); x += N * 2) {
+          float src[N][N] = { 0 };
+          float dct[N][N];
+
+          if (pixel_shift == 0) {
+            if (SIMD == 55) {
+              fill_block_uint8_AVX(src, cptr, cline, pptr, pline);
+            }
+            else {
+              fill_block<uint8_t>(src, cptr, cline, pptr, pline);
+            }
+          }
+          else {
+            if (SIMD == 55) {
+              fill_block_uint16_AVX(src, cptr, cline, pptr, pline);
+            }
+            else {
+              fill_block<uint16_t>(src, cptr, cline, pptr, pline);
+            }
+          }
+
+          dct_.transform(src, dct);
+
+          if (SIMD == 55) {
+            addToSummary_AVX(dct, s);
+          }
+          else {
+            addToSummary(dct, s);
+          }
+          ++nb;
+        }
+      }
+    }
+    s.div(nb);
+
+    return s;
+  }
+
+private:
+  Dct2d<N, SIMD, false> dct_;
+
+  template <typename T>
+  void fill_block(float block[][N], uint8_t* cptr, int cline, uint8_t* pptr, int pline)
+  {
+    for (int sy = 0, dy = 0; dy < N; sy += 2, dy += 1) {
+      T* cptr_line = (T*)(cptr + sy * cline);
+      T* pptr_line = (T*)(pptr + sy * pline);
+
+      for (int sx = 0, dx = 0; dx < N; sx += 2, dx += 1) {
+        block[dy][dx] = std::abs((float)cptr_line[sx] - (float)pptr_line[sx]);
+      }
+    }
+  }
+
+  void fill_block_uint8_AVX(float block[][N], uint8_t* cptr, int cline, uint8_t* pptr, int pline)
+  {
+    __declspec(align(32)) const __m128 signmask = _mm_set1_ps(-0.0f);
+    __declspec(align(32)) const __m128i mask = _mm_set_epi32(0xFF, 0xFF, 0xFF, 0xFF);
+
+    // AVX2‚Í‚Ü‚¾Žg‚¢‚½‚­‚È‚¢‚Ì‚ÅSSE‚ÅŽÀ‘•
+    for (int sy = 0, dy = 0; dy < N; sy += 2, dy += 1) {
+      uint8_t* cptr_line = cptr + sy * cline;
+      uint8_t* pptr_line = pptr + sy * pline;
+
+      _mm_storeu_ps(&block[dy][0], _mm_andnot_ps(signmask, _mm_sub_ps(
+        _mm_cvtepi32_ps(_mm_and_si128(mask, _mm_cvtepu16_epi32(_mm_loadu_si128((__m128i*)(cptr_line + 0))))),
+        _mm_cvtepi32_ps(_mm_and_si128(mask, _mm_cvtepu16_epi32(_mm_loadu_si128((__m128i*)(pptr_line + 0))))))));
+
+      _mm_storeu_ps(&block[dy][4], _mm_andnot_ps(signmask, _mm_sub_ps(
+        _mm_cvtepi32_ps(_mm_and_si128(mask, _mm_cvtepu16_epi32(_mm_loadu_si128((__m128i*)(cptr_line + 8))))),
+        _mm_cvtepi32_ps(_mm_and_si128(mask, _mm_cvtepu16_epi32(_mm_loadu_si128((__m128i*)(pptr_line + 8))))))));
+
+    }
+  }
+
+  void fill_block_uint16_AVX(float block[][N], uint8_t* cptr, int cline, uint8_t* pptr, int pline)
+  {
+    __declspec(align(32)) const __m256 signmask = _mm256_set1_ps(-0.0f);
+    __declspec(align(32)) const __m256i mask = _mm256_set_epi32(0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF);
+
+    for (int sy = 0, dy = 0; dy < N; sy += 2, dy += 1) {
+      uint8_t* cptr_line = cptr + sy * cline;
+      uint8_t* pptr_line = pptr + sy * pline;
+
+      _mm256_storeu_ps(block[dy], _mm256_andnot_ps(signmask, _mm256_sub_ps(
+        _mm256_cvtepi32_ps(_mm256_and_si256(mask, _mm256_loadu_si256((__m256i*)cptr_line))),
+        _mm256_cvtepi32_ps(_mm256_and_si256(mask, _mm256_loadu_si256((__m256i*)pptr_line))))));
+
+    }
+  }
+
+  void addToSummary(float block[][N], DctSummary<N>& s)
+  {
+    for (int y = 0; y < N; ++y) {
+      for (int x = 0; x < N; ++x) {
+        s.summary[y + x] += std::abs(block[y][x]);
+      }
+    }
+  }
+
+  void addToSummary_AVX(float block[][N], DctSummary<N>& s)
+  {
+    const __m256 signmask = _mm256_set1_ps(-0.0f);
+
+#define PROC_Y(y) \
+		_mm256_storeu_ps(s.summary + y, \
+			_mm256_add_ps( \
+				_mm256_loadu_ps(s.summary + y), \
+				_mm256_andnot_ps( \
+					signmask, \
+					_mm256_loadu_ps(block[y]))))
+
+    PROC_Y(0);
+    PROC_Y(1);
+    PROC_Y(2);
+    PROC_Y(3);
+    PROC_Y(4);
+    PROC_Y(5);
+    PROC_Y(6);
+    PROC_Y(7);
+
+#undef PROC_Y
+  }
 };

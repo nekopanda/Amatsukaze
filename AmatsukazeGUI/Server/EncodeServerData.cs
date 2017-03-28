@@ -54,6 +54,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public BitrateSetting Bitrate { get; set; }
 
+        [DataMember]
+        public int NumParallel { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
     }
 

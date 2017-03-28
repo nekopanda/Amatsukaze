@@ -721,7 +721,13 @@ public:
 		, DataPumpThread(8)
 		, curSummary_()
 		, nframes_(0)
-  { }
+  {
+    analyzer_ = new FrameAnalyzerImpl<2>();
+  }
+
+  ~VideoAnalyzer() {
+    delete analyzer_;
+  }
 
 	void readAll(const std::string& src)
 	{
@@ -736,13 +742,13 @@ public:
 		if (nframes_ > 0) {
 			curSummary_.div(nframes_);
 			frames_.push_back(curSummary_);
-			curSummary_ = DctSummary();
+			curSummary_ = Summary_t();
 			nframes_ = 0;
 		}
 	}
 
-  void dump() {
-    FILE* fp = fopen("dct.txt", "w");
+  void dump(const std::string& path) {
+    FILE* fp = fopen(path.c_str(), "w");
     for (const auto& s : frames_) {
       s.print(fp);
     }
@@ -774,125 +780,22 @@ protected:
 	}
 
 private:
-  enum { DCT_N = 8 };
-  Dct2d<DCT_N> dct_;
+  enum { DCT_N = FrameAnalyzer::N };
+  typedef DctSummary<DCT_N> Summary_t;
 
-  struct DctSummary {
-    enum { LEN = DCT_N * 2 - 1 };
-    float summary[DCT_N * 2];
+  FrameAnalyzer* analyzer_;
 
-    void print(FILE* fp) const {
-      for (int i = 0; i < LEN; ++i) {
-        fprintf(fp, (i == LEN - 1) ? "%f\n" : "%f,", summary[i]);
-      }
-    }
-
-		void div(int n) {
-			float inv = 1.0f / n;
-			for (int i = 0; i < LEN; ++i) {
-				summary[i] *= inv;
-			}
-		}
-
-		void add(const DctSummary& o) {
-			for (int i = 0; i < LEN; ++i) {
-				summary[i] += o.summary[i];
-			}
-		}
-  };
-
-  std::vector<DctSummary> frames_;
-	DctSummary curSummary_;
+  std::vector<Summary_t> frames_;
+  Summary_t curSummary_;
 	int nframes_;
-
-  template <typename T>
-  void fill_block(float block[][DCT_N], uint8_t* cptr, int cline, uint8_t* pptr, int pline)
-  {
-    for (int sy = 0, dy = 0; dy < DCT_N; sy += 2, dy += 1) {
-      T* cptr_line = (T*)(cptr + sy * cline);
-      T* pptr_line = (T*)(pptr + sy * pline);
-
-      for (int sx = 0, dx = 0; dx < DCT_N; sx += 2, dx += 1) {
-        block[dy][dx] = std::abs((float)cptr_line[sx] - (float)pptr_line[sx]);
-      }
-    }
-  }
-
-  void addToSummary(float block[][DCT_N], DctSummary& s)
-  {
-    for (int y = 0; y < DCT_N; ++y) {
-      for (int x = 0; x < DCT_N; ++x) {
-        s.summary[y + x] += std::abs(block[y][x]);
-      }
-    }
-  }
-
-	void addToSummary_AVX(float block[][DCT_N], DctSummary& s)
-	{
-		const __m256 signmask = _mm256_set1_ps(-0.0f);
-
-#define PROC_Y(y) \
-		_mm256_storeu_ps(s.summary + y, \
-			_mm256_add_ps( \
-				_mm256_loadu_ps(s.summary + y), \
-				_mm256_andnot_ps( \
-					signmask, \
-					_mm256_loadu_ps(block[y]))))
-
-		PROC_Y(0);
-		PROC_Y(1);
-		PROC_Y(2);
-		PROC_Y(3);
-		PROC_Y(4);
-		PROC_Y(5);
-		PROC_Y(6);
-		PROC_Y(7);
-	}
 
   void analyzeFrame(AVFrame* cur, AVFrame* prev)
   {
-    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(cur->format));
-		const int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
-
-		int nb = 0;
-		DctSummary s = DctSummary();
-    for (int i = 0; i < 3; ++i) {
-      const int hshift = (i > 0) ? desc->log2_chroma_w : 0;
-			const int vshift = (i > 0) ? desc->log2_chroma_h : 0;
-			const int width = cur->width >> hshift;
-			const int height = cur->height >> vshift;
-
-		  for (int y = 0; y <= (height - DCT_N * 2); y += DCT_N * 2) {
-        int cline = cur->linesize[i];
-        int pline = prev->linesize[i];
-        uint8_t* cptr = cur->data[i] + cline * y;
-        uint8_t* pptr = prev->data[i] + pline * y;
-
-        for (int x = 0; x <= (width - DCT_N * 2); x += DCT_N * 2) {
-          float src[DCT_N][DCT_N] = { 0 };
-          float dct[DCT_N][DCT_N];
-
-          if (pixel_shift == 0) {
-            fill_block<uint8_t>(src, cptr, cline, pptr, pline);
-          }
-          else {
-            fill_block<uint16_t>(src, cptr, cline, pptr, pline);
-          }
-
-          dct_.transform_AVX_8x8(src, dct);
-
-					addToSummary_AVX(dct, s);
-					++nb;
-        }
-      }
-    }
-		s.div(nb);
-		curSummary_.add(s);
-
+    curSummary_.add(analyzer_->analyzeFrame(cur, prev));
 		if (++nframes_ >= 60) {
 			curSummary_.div(nframes_);
 			frames_.push_back(curSummary_);
-			curSummary_ = DctSummary();
+      curSummary_ = Summary_t();
 			nframes_ = 0;
 		}
   }

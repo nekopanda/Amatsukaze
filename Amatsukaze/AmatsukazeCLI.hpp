@@ -53,11 +53,12 @@ static void printHelp(const tchar* bin) {
   PRINTF(
     "%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
     "オプション []はデフォルト値 \n"
-    "  -i|--input  <パス>  入力TSファイルパス\n"
-    "  -o|--output <パス>  出力MP4ファイルパス\n"
+    "  -i|--input  <パス>  入力ファイルパス\n"
+    "  -o|--output <パス>  出力ファイルパス\n"
     "  --mode <モード>     処理モード[ts]\n"
     "                      ts : MPGE2-TSを入力する詳細解析モード\n"
     "                      g  : FFMPEGを利用した一般ファイルモード\n"
+    "                      a  : 映像解析モード\n"
 		"  -s|--serviceid <数値> 処理するサービスIDを指定[]\n"
 		"  -w|--work   <パス>  一時ファイルパス[./]\n"
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
@@ -145,7 +146,7 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	std::tstring encoderOptions = _T("");
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
-  bool isTsMode = true;
+  AMT_CLI_MODE mode = AMT_CLI_TS;
   bool autoBitrate = bool();
   BitrateSetting bitrate = BitrateSetting();
   bool twoPass = bool();
@@ -162,15 +163,18 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 				pathRemoveExtension(pathNormalize(getParam(argc, argv, i++)));
 		}
     else if (key == _T("--mode")) {
-      std::tstring mode = getParam(argc, argv, i++);
-      if (mode == _T("ts")) {
-        isTsMode = true;
+      std::tstring modeStr = getParam(argc, argv, i++);
+      if (modeStr == _T("ts")) {
+        mode = AMT_CLI_TS;
       }
-      else if (mode == _T("g")) {
-        isTsMode = false;
+      else if (modeStr == _T("g")) {
+        mode = AMT_CLI_GENERIC;
+      }
+      else if (modeStr == _T("a")) {
+        mode = AMT_CLI_ANALYZE;
       }
       else {
-        PRINTF("--modeの指定が間違っています: %" PRITSTR "\n", mode.c_str());
+        PRINTF("--modeの指定が間違っています: %" PRITSTR "\n", modeStr.c_str());
       }
     }
 		else if (key == _T("-w") || key == _T("--work")) {
@@ -243,7 +247,7 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	}
 
 	TranscoderSetting setting = TranscoderSetting();
-  setting.isTsMode = isTsMode;
+  setting.mode = mode;
 	setting.srcFilePath = to_string(srcFilePath);
 	setting.outVideoPath = to_string(outVideoPath);
 	setting.intFileBasePath = to_string(workDir) + "/amt" + std::to_string(time(NULL));
@@ -310,12 +314,17 @@ static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {
 	try {
 		AMTContext ctx;
 
-    if (setting.isTsMode) {
-			transcodeMain(ctx, setting);
-		}
-		else {
+    switch (setting.mode) {
+    case AMT_CLI_TS:
+      transcodeMain(ctx, setting);
+      break;
+    case AMT_CLI_GENERIC:
       transcodeSimpleMain(ctx, setting);
-		}
+      break;
+    case AMT_CLI_ANALYZE:
+      analyzeMain(ctx, setting);
+      break;
+    }
 
 		return 0;
 	}
