@@ -9,6 +9,7 @@
 
 #include <cmath>
 
+#include <intrin.h>
 #include <immintrin.h> // AVX
 
 extern "C" {
@@ -188,19 +189,13 @@ private:
 
 template <int N>
 struct DctSummary {
-  enum { LEN = N * 2 - 1 };
-  float summary[N * 2];
+  enum { LEN = 4 };
+  int summary[LEN];
+	int pixels;
 
   void print(FILE* fp) const {
     for (int i = 0; i < LEN; ++i) {
-      fprintf(fp, (i == LEN - 1) ? "%f\n" : "%f,", summary[i]);
-    }
-  }
-
-  void div(int n) {
-    float inv = 1.0f / n;
-    for (int i = 0; i < LEN; ++i) {
-      summary[i] *= inv;
+      fprintf(fp, (i == LEN - 1) ? "%d\n" : "%d,", summary[i]);
     }
   }
 
@@ -208,6 +203,7 @@ struct DctSummary {
     for (int i = 0; i < LEN; ++i) {
       summary[i] += o.summary[i];
     }
+		pixels += o.pixels;
   }
 };
 
@@ -274,7 +270,7 @@ public:
         }
       }
     }
-    s.div(nb);
+		s.pixels = nb * N * N;
 
     return s;
   }
@@ -334,34 +330,50 @@ private:
 
   void addToSummary(float block[][N], DctSummary<N>& s)
   {
+		const float T0 = 0.5;
+		const float T1 = 1;
+		const float T2 = 2;
+		const float T3 = 4;
+
     for (int y = 0; y < N; ++y) {
       for (int x = 0; x < N; ++x) {
-        s.summary[y + x] += std::abs(block[y][x]);
+				s.summary[0] += (std::abs(block[y][x]) >= T0);
+				s.summary[1] += (std::abs(block[y][x]) >= T1);
+				s.summary[2] += (std::abs(block[y][x]) >= T2);
+				s.summary[3] += (std::abs(block[y][x]) >= T3);
       }
     }
   }
 
   void addToSummary_AVX(float block[][N], DctSummary<N>& s)
   {
-    const __m256 signmask = _mm256_set1_ps(-0.0f);
+		const __m256 signmask = _mm256_set1_ps(-0.0f);
+		const __m256 T0 = _mm256_set1_ps(0.5);
+		const __m256 T1 = _mm256_set1_ps(1);
+		const __m256 T2 = _mm256_set1_ps(2);
+		const __m256 T3 = _mm256_set1_ps(4);
+
+		__m128i sum = _mm_loadu_si128((__m128i*)s.summary);
 
 #define PROC_Y(y) \
-		_mm256_storeu_ps(s.summary + y, \
-			_mm256_add_ps( \
-				_mm256_loadu_ps(s.summary + y), \
-				_mm256_andnot_ps( \
-					signmask, \
-					_mm256_loadu_ps(block[y]))))
+		auto t ## y = _mm256_loadu_ps(block[y]); \
+		sum = _mm_add_epi32(sum, _mm_setr_epi32( \
+			__popcnt(_mm256_movemask_ps(_mm256_cmp_ps(_mm256_andnot_ps(signmask, t ## y), T0, _CMP_GE_OS))), \
+			__popcnt(_mm256_movemask_ps(_mm256_cmp_ps(_mm256_andnot_ps(signmask, t ## y), T1, _CMP_GE_OS))), \
+			__popcnt(_mm256_movemask_ps(_mm256_cmp_ps(_mm256_andnot_ps(signmask, t ## y), T2, _CMP_GE_OS))), \
+			__popcnt(_mm256_movemask_ps(_mm256_cmp_ps(_mm256_andnot_ps(signmask, t ## y), T3, _CMP_GE_OS)))))
 
-    PROC_Y(0);
-    PROC_Y(1);
-    PROC_Y(2);
-    PROC_Y(3);
-    PROC_Y(4);
-    PROC_Y(5);
-    PROC_Y(6);
-    PROC_Y(7);
+		PROC_Y(0);
+		PROC_Y(1);
+		PROC_Y(2);
+		PROC_Y(3);
+		PROC_Y(4);
+		PROC_Y(5);
+		PROC_Y(6);
+		PROC_Y(7);
 
 #undef PROC_Y
+
+			_mm_storeu_si128((__m128i*)s.summary, sum);
   }
 };

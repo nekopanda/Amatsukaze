@@ -740,7 +740,6 @@ public:
 		join();
 		
 		if (nframes_ > 0) {
-			curSummary_.div(nframes_);
 			frames_.push_back(curSummary_);
 			curSummary_ = Summary_t();
 			nframes_ = 0;
@@ -793,7 +792,6 @@ private:
   {
     curSummary_.add(analyzer_->analyzeFrame(cur, prev));
 		if (++nframes_ >= 60) {
-			curSummary_.div(nframes_);
 			frames_.push_back(curSummary_);
       curSummary_ = Summary_t();
 			nframes_ = 0;
