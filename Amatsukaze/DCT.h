@@ -246,7 +246,7 @@ public:
           float dct[N][N];
 
           if (pixel_shift == 0) {
-            if (SIMD == 55) {
+            if (SIMD == 2) {
               fill_block_uint8_AVX(src, cptr, cline, pptr, pline);
             }
             else {
@@ -254,7 +254,7 @@ public:
             }
           }
           else {
-            if (SIMD == 55) {
+            if (SIMD == 2) {
               fill_block_uint16_AVX(src, cptr, cline, pptr, pline);
             }
             else {
@@ -264,7 +264,7 @@ public:
 
           dct_.transform(src, dct);
 
-          if (SIMD == 55) {
+          if (SIMD == 2) {
             addToSummary_AVX(dct, s);
           }
           else {

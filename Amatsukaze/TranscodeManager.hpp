@@ -287,6 +287,14 @@ struct TranscoderSetting {
 		return ss.str();
 	}
 
+	std::string getOutSummaryPath() const
+	{
+		std::ostringstream ss;
+		ss << outVideoPath;
+		ss << ".txt";
+		return ss.str();
+	}
+
   std::string getOptions(
     VIDEO_STREAM_FORMAT srcFormat, double srcBitrate,
     int pass, int vindex, int index) const 
@@ -1455,7 +1463,7 @@ static void analyzeMain(AMTContext& ctx, const TranscoderSetting& setting)
     av::VideoAnalyzer va(ctx);
     std::string intfilepath = setting.getIntVideoFilePath(i);
     va.readAll(intfilepath);
-    va.dump(setting.getOutFilePath(0));
+    va.dump(setting.getOutSummaryPath());
     remove(intfilepath.c_str());
   }
 }
