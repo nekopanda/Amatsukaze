@@ -67,6 +67,8 @@ static void printHelp(const tchar* bin) {
 		"  -eo|--encoder-opotion <オプション> エンコーダへ渡すオプション[]\n"
 		"                      入力ファイルの解像度、アスペクト比、インタレースフラグ、\n"
 		"                      フレームレート、カラーマトリクス等は自動で追加されるので不要\n"
+    "  -a|--analyzer <パス> 解析用エンコーダパス。x264のみ対応\n"
+    "  -ao|--analyzer-option <オプション> 解析用エンコーダへ渡すオプション[]\n"
     "  -b|--bitrate a:b:f  ビットレート計算式 映像ビットレートkbps = f*(a*s+b)\n"
     "                      sは入力映像ビットレート、fは入力がH264の場合は入力されたfだが、\n"
     "                      入力がMPEG2の場合はf=1とする\n"
@@ -143,7 +145,9 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	std::tstring outInfoJsonPath;
 	ENUM_ENCODER encoder = ENUM_ENCODER();
 	std::tstring encoderPath = _T("x264.exe");
-	std::tstring encoderOptions = _T("");
+  std::tstring encoderOptions = _T("");
+  std::tstring analyzerPath = _T("x264.exe");
+  std::tstring analyzerOptions = _T("");
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
   AMT_CLI_MODE mode = AMT_CLI_TS;
@@ -192,6 +196,12 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
 			encoderOptions = getParam(argc, argv, i++);
+    }
+    else if (key == _T("-a") || key == _T("--analyzer")) {
+      analyzerPath = getParam(argc, argv, i++);
+    }
+    else if (key == _T("-ao") || key == _T("--analyzer-option")) {
+      analyzerOptions = getParam(argc, argv, i++);
     }
     else if (key == _T("-b") || key == _T("--bitrate")) {
       const auto arg = getParam(argc, argv, i++);
@@ -255,7 +265,9 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	setting.outInfoJsonPath = to_string(outInfoJsonPath);
 	setting.encoder = encoder;
 	setting.encoderPath = to_string(encoderPath);
-	setting.encoderOptions = to_string(encoderOptions);
+  setting.encoderOptions = to_string(encoderOptions);
+  setting.analyzerPath = to_string(analyzerPath);
+  setting.analyzerOptions = to_string(analyzerOptions);
 	setting.muxerPath = to_string(muxerPath);
 	setting.timelineditorPath = to_string(timelineditorPath);
   setting.autoBitrate = autoBitrate;
@@ -316,13 +328,11 @@ static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {
 
     switch (setting.mode) {
     case AMT_CLI_TS:
+    case AMT_CLI_ANALYZE:
       transcodeMain(ctx, setting);
       break;
     case AMT_CLI_GENERIC:
       transcodeSimpleMain(ctx, setting);
-      break;
-    case AMT_CLI_ANALYZE:
-      analyzeMain(ctx, setting);
       break;
     }
 

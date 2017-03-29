@@ -423,6 +423,14 @@ public:
 		}
 	}
 
+  int getFrameCount() const {
+    return frameCount_;
+  }
+
+  AVRational getAvgFrameRate() const {
+    return av_make_q(fmt_.frameRateNum, fmt_.frameRateDenom);
+  }
+
 protected:
 	virtual void onWrite(MemoryChunk mc) = 0;
 
@@ -615,6 +623,14 @@ public:
 			}
 		}
 	}
+
+  int getFrameCount() const {
+    return videoWriter_->getFrameCount();
+  }
+
+  AVRational getFrameRate() const {
+    return videoWriter_->getAvgFrameRate();
+  }
 
 private:
 	class MyVideoWriter : public VideoWriter {

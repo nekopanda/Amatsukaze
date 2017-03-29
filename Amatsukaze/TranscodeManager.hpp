@@ -11,6 +11,7 @@
 #include <sstream>
 #include <iomanip>
 #include <memory>
+#include <limits>
 
 #include "StreamUtils.hpp"
 #include "TsSplitter.hpp"
@@ -219,7 +220,9 @@ struct TranscoderSetting {
 	// エンコーダ設定
 	ENUM_ENCODER encoder;
 	std::string encoderPath;
-	std::string encoderOptions;
+  std::string encoderOptions;
+  std::string analyzerPath;
+  std::string analyzerOptions;
 	std::string muxerPath;
   std::string timelineditorPath;
   bool twoPass;
@@ -304,6 +307,7 @@ struct TranscoderSetting {
     if (autoBitrate) {
       double targetBitrate = bitrate.getTargetBitrate(srcFormat, srcBitrate);
       ss << " --bitrate " << (int)targetBitrate;
+      ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
     }
     if (pass >= 0) {
       ss << " --pass " << pass;
@@ -314,7 +318,8 @@ struct TranscoderSetting {
 
 	void dump(AMTContext& ctx) const {
 		ctx.info("[設定]");
-		ctx.info("Input: %s", srcFilePath.c_str());
+    ctx.info("Mode: %d", mode);
+    ctx.info("Input: %s", srcFilePath.c_str());
 		ctx.info("Output: %s", outVideoPath.c_str());
 		ctx.info("IntVideo: %s", intFileBasePath.c_str());
 		ctx.info("IntAudio: %s", audioFilePath.c_str());
@@ -604,6 +609,13 @@ protected:
 	}
 };
 
+struct EncodeFileInfo {
+  double srcBitrate;
+  double targetBitrate1st;
+  double targetBitrate;
+  double analyzeBitrate;
+};
+
 class AMTVideoEncoder : public AMTObject {
 public:
 	AMTVideoEncoder(
@@ -622,22 +634,11 @@ public:
 		delete[] encoders_; encoders_ = NULL;
 	}
 
-	void encode(int videoFileIndex) {
+  std::vector<EncodeFileInfo> peform(int videoFileIndex, bool analyze, bool encode)
+  {
 		videoFileIndex_ = videoFileIndex;
-
-		int numEncoders = reformInfo_.getNumEncoders(videoFileIndex);
-		if (numEncoders == 0) {
-			ctx.warn("numEncoders == 0 ...");
-			return;
-		}
-
-    {
-      av::VideoAnalyzer va(ctx);
-
-      std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-      va.readAll(intVideoFilePath);
-      va.dump("dct.txt");
-    }
+    numEncoders_ = reformInfo_.getNumEncoders(videoFileIndex);
+    efi_ = std::vector<EncodeFileInfo>(numEncoders_, EncodeFileInfo());
 
 		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
 		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
@@ -648,43 +649,56 @@ public:
 			 format0.videoFormat.progressive == false);
 
     // ビットレート計算
-    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
-    int64_t srcBytes = 0, srcDuration = 0;
-    for (int i = 0; i < numEncoders; ++i) {
-      const auto& info = reformInfo_.getSrcVideoInfo(i, videoFileIndex);
-      srcBytes += info.first;
-      srcDuration += info.second;
-    }
-    double srcBitrate = ((double)srcBytes * 8 / 1000) / ((double)srcDuration / MPEG_CLOCK_HZ);
+    double srcBitrate = getSourceBitrate();
     ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
+    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
+    double targetBitrate = std::numeric_limits<float>::quiet_NaN();
     if (setting_.autoBitrate) {
-      ctx.info("目標映像ビットレート: %d kbps",
-        (int)setting_.bitrate.getTargetBitrate(srcFormat, srcBitrate));
+      targetBitrate = setting_.bitrate.getTargetBitrate(srcFormat, srcBitrate);
+      ctx.info("目標映像ビットレート: %d kbps", (int)targetBitrate);
+    }
+    for (int i = 0; i < numEncoders_; ++i) {
+      efi_[i].srcBitrate = srcBitrate;
+      efi_[i].targetBitrate1st = targetBitrate;
+      efi_[i].analyzeBitrate = std::numeric_limits<float>::quiet_NaN();
+      efi_[i].targetBitrate = std::numeric_limits<float>::quiet_NaN();
     }
 
     auto getOptions = [&](int pass, int index) {
       return setting_.getOptions(srcFormat, srcBitrate, pass, videoFileIndex_, index);
     };
 
-    if (setting_.twoPass) {
-      ctx.info("1/2パス エンコード開始");
-      processAllData(fieldMode, bufsize, getOptions, 1);
-      ctx.info("2/2パス エンコード開始");
-      processAllData(fieldMode, bufsize, getOptions, 2);
+    if (analyze) {
+      ctx.info("解析開始");
+      processAllData(false, bufsize, getOptions, -1, true);
 
-      // 中間ファイル削除
-      for (int i = 0; i < numEncoders; ++i) {
-        remove(setting_.getEncStasrcFilePath(videoFileIndex_, i).c_str());
+      ctx.info("目標映像ビットレート修正: %d kbps",
+        (int)setting_.bitrate.getTargetBitrate(srcFormat, srcBitrate));
+    }
+
+    if (encode) {
+      if (setting_.twoPass) {
+        ctx.info("1/2パス エンコード開始");
+        processAllData(fieldMode, bufsize, getOptions, 1, false);
+        ctx.info("2/2パス エンコード開始");
+        processAllData(fieldMode, bufsize, getOptions, 2, false);
+
+        // 中間ファイル削除
+        for (int i = 0; i < numEncoders_; ++i) {
+          remove(setting_.getEncStasrcFilePath(videoFileIndex_, i).c_str());
+        }
+      }
+      else {
+        processAllData(fieldMode, bufsize, getOptions, -1, false);
       }
     }
-    else {
-      processAllData(fieldMode, bufsize, getOptions, -1);
-    }
 
-		// 中間ファイル削除
+    // 中間ファイル削除
     std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-		remove(intVideoFilePath.c_str());
+    remove(intVideoFilePath.c_str());
+
+    return efi_;
 	}
 
 private:
@@ -722,25 +736,25 @@ private:
 	StreamReformInfo& reformInfo_;
 
 	int videoFileIndex_;
+  int numEncoders_;
 	av::EncodeWriter* encoders_;
+  std::vector<EncodeFileInfo> efi_;
 	
 	SpDataPumpThread thread_;
 
 	std::unique_ptr<av::Frame> prevFrame_;
 
-  void processAllData(bool fieldMode, int bufsize, std::function<std::string(int,int)> getOptions, int pass)
+  void processAllData(bool fieldMode, int bufsize, std::function<std::string(int,int)> getOptions, int pass, bool analyze)
   {
-    int numEncoders = reformInfo_.getNumEncoders(videoFileIndex_);
-
     // 初期化
-    encoders_ = new av::EncodeWriter[numEncoders];
+    encoders_ = new av::EncodeWriter[numEncoders_];
     SpVideoReader reader(this);
 
-    for (int i = 0; i < numEncoders; ++i) {
+    for (int i = 0; i < numEncoders_; ++i) {
       const auto& format = reformInfo_.getFormat(i, videoFileIndex_);
       std::string args = makeEncoderArgs(
-        setting_.encoder,
-        setting_.encoderPath,
+        analyze ? ENCODER_X264 : setting_.encoder,
+        analyze ? setting_.analyzerPath : setting_.encoderPath,
         getOptions(pass, i),
         format.videoFormat,
         setting_.getEncVideoFilePath(videoFileIndex_, i));
@@ -760,13 +774,47 @@ private:
     thread_.join();
 
     // 残ったフレームを処理
-    for (int i = 0; i < numEncoders; ++i) {
+    for (int i = 0; i < numEncoders_; ++i) {
       encoders_[i].finish();
+    }
+
+    // 解析
+    if (analyze) {
+      analyzeOutput();
     }
 
     // 終了
     prevFrame_ = nullptr;
     delete[] encoders_; encoders_ = NULL;
+  }
+
+  void analyzeOutput()
+  {
+    for (int i = 0; i < numEncoders_; ++i) {
+      std::string vfilepath = setting_.getEncVideoFilePath(videoFileIndex_, i);
+      File vfile(vfilepath, "rb");
+      int64_t vfsize = vfile.size();
+      int frameCount = encoders_[i].getFrameCount();
+      AVRational frameRate = encoders_[i].getFrameRate();
+      double vfdur = double(frameRate.num) * frameCount / frameRate.den;
+      double bitrate = (vfsize / vfdur) * 8 / 1000;
+
+      efi_[i].analyzeBitrate = bitrate;
+      efi_[i].targetBitrate = std::min(efi_[i].targetBitrate1st, bitrate);
+    }
+  }
+
+  double getSourceBitrate()
+  {
+    // ビットレート計算
+    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
+    int64_t srcBytes = 0, srcDuration = 0;
+    for (int i = 0; i < numEncoders_; ++i) {
+      const auto& info = reformInfo_.getSrcVideoInfo(i, videoFileIndex_);
+      srcBytes += info.first;
+      srcDuration += info.second;
+    }
+    return ((double)srcBytes * 8 / 1000) / ((double)srcDuration / MPEG_CLOCK_HZ);
   }
 
 	void onFrameDecoded(av::Frame& frame__) {
@@ -1356,20 +1404,35 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	reformInfo.prepareEncode();
 
 	auto encoder = std::unique_ptr<AMTVideoEncoder>(new AMTVideoEncoder(ctx, setting, reformInfo));
+  
+  // TODO: とりあえず解析用
+  bool analyze = (setting.mode == AMT_CLI_ANALYZE);
+  bool encode = !analyze;
+
+  std::vector<EncodeFileInfo> bitrateInfo;
 	for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
-		encoder->encode(i);
+    if (reformInfo.getNumEncoders(i) == 0) {
+      ctx.warn("numEncoders == 0 ...");
+    }
+    else {
+      auto efi = encoder->peform(i, analyze, encode);
+      bitrateInfo.insert(bitrateInfo.end(), efi.begin(), efi.end());
+    }
 	}
 	encoder = nullptr;
 
 	auto audioDiffInfo = reformInfo.prepareMux();
 	audioDiffInfo.printAudioPtsDiff(ctx);
 
-	auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
-	for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
-		muxer->mux(i);
-	}
-	int64_t totalOutSize = muxer->getTotalOutSize();
-	muxer = nullptr;
+  int64_t totalOutSize = 0;
+  if (setting.mode != AMT_CLI_ANALYZE) {
+    auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
+    for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
+      muxer->mux(i);
+    }
+    totalOutSize = muxer->getTotalOutSize();
+    muxer = nullptr;
+  }
 
 	// 中間ファイルを削除
 	remove(setting.audioFilePath.c_str());
@@ -1389,7 +1452,19 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 			}
 			ss << "\"" << toJsonString(setting.getOutFilePath(i)) << "\"";
 		}
-		ss << "], ";
+    ss << "], ";
+    ss << "\"bitrate\": [";
+    for (int i = 0; i < (int)bitrateInfo.size(); ++i) {
+      auto info = bitrateInfo[i];
+      if (i > 0) {
+        ss << ", ";
+      }
+      ss << "{ \"src\": " << (int)info.srcBitrate
+        << ", \"tgt1st\": " << (int)info.targetBitrate1st
+        << ", \"anlyze\": " << (int)info.analyzeBitrate
+        << ", \"tgt2st\": " << (int)info.targetBitrate << "}, ";
+    }
+    ss << "], ";
 		ss << "\"srcfilesize\": " << srcFileSize << ", ";
 		ss << "\"intvideofilesize\": " << totalIntVideoSize << ", ";
 		ss << "\"outfilesize\": " << totalOutSize << ", ";
