@@ -9,7 +9,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:ConsoleViewModel}}">
-    <ListBox x:Name="lst" ItemsSource="{Binding Model.ConsoleTextLines}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Extended">
+    <ListBox x:Name="lst" ItemsSource="{Binding Model.TextLines}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Extended">
         <i:Interaction.Behaviors>
             <c:ListBoxAutoScrollBehavior AutoScroll="{Binding AutoScroll}" />
         </i:Interaction.Behaviors>

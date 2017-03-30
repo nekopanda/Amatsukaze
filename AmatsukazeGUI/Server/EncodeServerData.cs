@@ -89,6 +89,8 @@ namespace Amatsukaze.Server
         public string Path { get; set; }
         [DataMember]
         public List<QueueItem> Items { get; set; }
+        [DataMember]
+        public int CurrentHead { get; set; }
     }
 
     [DataContract]
@@ -240,5 +242,23 @@ namespace Amatsukaze.Server
     {
         [DataMember]
         public List<DiskItem> Disks { get; set; }
+    }
+    
+    [DataContract]
+    public class ConsoleData
+    {
+        [DataMember]
+        public int index { get; set; }
+        [DataMember]
+        public List<string> text { get; set; }
+    }
+    
+    [DataContract]
+    public class ConsoleUpdate
+    {
+        [DataMember]
+        public int index { get; set; }
+        [DataMember]
+        public byte[] data { get; set; }
     }
 }

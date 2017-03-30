@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Livet;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -223,7 +224,7 @@ namespace Amatsukaze.Server
          * */
     }
 
-    public abstract class ConsoleTextBase
+    public abstract class ConsoleTextBase : NotificationObject
     {
         public abstract void OnAddLine(string text);
         public abstract void OnReplaceLine(string text);

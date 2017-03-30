@@ -157,10 +157,10 @@ namespace Amatsukaze.Server
                     userClient.OnLogUpdate((LogItem)arg);
                     break;
                 case RPCMethodId.OnConsole:
-                    userClient.OnConsole((List<string>)arg);
+                    userClient.OnConsole((ConsoleData)arg);
                     break;
                 case RPCMethodId.OnConsoleUpdate:
-                    userClient.OnConsoleUpdate((byte[])arg);
+                    userClient.OnConsoleUpdate((ConsoleUpdate)arg);
                     break;
                 case RPCMethodId.OnLogFile:
                     userClient.OnLogFile((string)arg);

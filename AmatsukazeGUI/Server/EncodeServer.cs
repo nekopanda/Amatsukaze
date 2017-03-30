@@ -253,12 +253,12 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnLogUpdate, newLog);
         }
 
-        public Task OnConsole(List<string> str)
+        public Task OnConsole(ConsoleData str)
         {
             return Send(RPCMethodId.OnConsole, str);
         }
 
-        public Task OnConsoleUpdate(byte[] str)
+        public Task OnConsoleUpdate(ConsoleUpdate str)
         {
             return Send(RPCMethodId.OnConsoleUpdate, str);
         }
@@ -328,7 +328,7 @@ namespace Amatsukaze.Server
 
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private LogData log;
-        private ConsoleText consoleText = new ConsoleText();
+        private List<ConsoleText> consoleList = new List<ConsoleText>();
         private SortedDictionary<string, DiskItem> diskMap = new SortedDictionary<string, DiskItem>();
 
         private FileStream logWriter;
@@ -604,7 +604,7 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
-        private async Task RedirectOut(Stream stream)
+        private async Task RedirectOut(int index, Stream stream)
         {
             try
             {
@@ -621,11 +621,15 @@ namespace Amatsukaze.Server
                     {
                         logWriter.Write(buffer, 0, readBytes);
                     }
-                    consoleText.AddBytes(buffer, 0, readBytes);
+                    while (consoleList.Count <= index)
+                    {
+                        consoleList.Add(new ConsoleText());
+                    }
+                    consoleList[index].AddBytes(buffer, 0, readBytes);
 
                     byte[] newbuf = new byte[readBytes];
                     Array.Copy(buffer, newbuf, readBytes);
-                    await client.OnConsoleUpdate(newbuf);
+                    await client.OnConsoleUpdate(new ConsoleUpdate() { index = index, data = newbuf });
                 }
             }
             catch (Exception e)
@@ -702,7 +706,7 @@ namespace Amatsukaze.Server
             });
         }
 
-        private async Task ProcessDiretoryItem(QueueDirectory dir)
+        private async Task ProcessDiretoryItem(int parallelId, QueueDirectory dir)
         {
             string succeeded = Path.Combine(dir.Path, "succeeded");
             string failed = Path.Combine(dir.Path, "failed");
@@ -716,7 +720,8 @@ namespace Amatsukaze.Server
             // 待たなくてもいいタスクリスト
             var waitList = new List<Task>();
 
-            foreach (var src in dir.Items)
+            var itemList = dir.Items.ToArray();
+            while (dir.CurrentHead < itemList.Length)
             {
                 if(failCount > 0)
                 {
@@ -724,6 +729,12 @@ namespace Amatsukaze.Server
                     waitList.Add(AddEncodeLog("エンコードに失敗したので"+ waitSec + "秒待機します。"));
                     await Task.Delay(waitSec * 1000);
                 }
+
+                if (dir.CurrentHead >= itemList.Length)
+                {
+                    break;
+                }
+                var src = itemList[dir.CurrentHead++];
 
                 waitList.Add(UpdateItemState(true, false, src, dir));
 
@@ -765,8 +776,8 @@ namespace Amatsukaze.Server
                         using (logWriter = File.Create(logpath))
                         {
                             await Task.WhenAll(
-                                RedirectOut(p.StandardOutput.BaseStream),
-                                RedirectOut(p.StandardError.BaseStream),
+                                RedirectOut(parallelId, p.StandardOutput.BaseStream),
+                                RedirectOut(parallelId, p.StandardError.BaseStream),
                                 Task.Run(() => p.WaitForExit()));
                         }
 
@@ -842,7 +853,14 @@ namespace Amatsukaze.Server
                 while (queue.Count > 0)
                 {
                     var dir = queue[0];
-                    await ProcessDiretoryItem(dir);
+
+                    Task[] tasks = new Task[appData.setting.NumParallel];
+                    for (int i = 0; i < tasks.Length; ++i)
+                    {
+                        tasks[i] = ProcessDiretoryItem(i, dir);
+                    }
+                    await Task.WhenAll(tasks);
+
                     if (encodePaused)
                     {
                         break;
@@ -1002,7 +1020,16 @@ namespace Amatsukaze.Server
 
         public Task RequestConsole()
         {
-            return client.OnConsole(consoleText.TextLines as List<string>);
+            Task[] tasks = new Task[consoleList.Count];
+            for (int i = 0; i < consoleList.Count; ++i)
+            {
+                tasks[i] = client.OnConsole(new ConsoleData()
+                {
+                    index = i,
+                    text = consoleList[i].TextLines as List<string>
+                });
+            }
+            return Task.WhenAll(tasks);
         }
 
         public Task RequestLogFile(LogItem item)

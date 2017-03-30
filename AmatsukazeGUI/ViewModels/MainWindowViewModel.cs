@@ -65,8 +65,8 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; private set; }
 
-        private PropertyChangedEventListener hostNameListener;
-        private PropertyChangedEventListener isRunningListener;
+        private PropertyChangedEventListener modelListener;
+        private CollectionChangedEventListener consoleListListener;
 
         public MainWindowViewModel()
         {
@@ -74,7 +74,6 @@ namespace Amatsukaze.ViewModels
             MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
             MainPanelMenu.Add(new SettingViewModel() { Name = "設定", Model = Model });
-            ConsolePanelMenu.Add(new ConsoleViewModel() { Name = "コンソール", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
@@ -87,10 +86,11 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
-            isRunningListener = new PropertyChangedEventListener(Model);
-            isRunningListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
-            hostNameListener = new PropertyChangedEventListener(Model);
-            hostNameListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
+            modelListener = new PropertyChangedEventListener(Model);
+            modelListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
+            modelListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
+
+            consoleListListener = new CollectionChangedEventListener(Model.ConsoleList, (_, __) => UpdateNumConsole());
 
             // 他のVMのInitializeを読んでやる
             foreach (var vm in MainPanelMenu)
@@ -108,6 +108,16 @@ namespace Amatsukaze.ViewModels
 
             Model.ServerAddressRequired = ServerAddressRequired;
             Model.Start();
+        }
+
+        private void UpdateNumConsole()
+        {
+            while (ConsolePanelMenu.Count < Model.ConsoleList.Count - 1)
+            {
+                int index = ConsolePanelMenu.Count - 2;
+                ConsolePanelMenu.Insert(index,
+                    new ConsoleViewModel() { Name = "コンソール" + (index + 1), Model = Model.ConsoleList[index] });
+            }
         }
 
         private async Task ServerAddressRequired(object sender, string reason)

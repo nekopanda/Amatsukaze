@@ -30,6 +30,57 @@ namespace Amatsukaze.Models
         }
     }
 
+    public class ConsoleText : ConsoleTextBase
+    {
+        #region TextLines変更通知プロパティ
+        private ObservableCollection<string> _TextLines = new ObservableCollection<string>();
+
+        public ObservableCollection<string> TextLines
+        {
+            get
+            { return _TextLines; }
+            set
+            {
+                if (_TextLines == value)
+                    return;
+                _TextLines = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        public override void OnAddLine(string text)
+        {
+            if (TextLines.Count > 400)
+            {
+                TextLines.RemoveAt(0);
+            }
+            TextLines.Add(text);
+        }
+
+        public override void OnReplaceLine(string text)
+        {
+            if (TextLines.Count == 0)
+            {
+                TextLines.Add(text);
+            }
+            else
+            {
+                TextLines[TextLines.Count - 1] = text;
+            }
+        }
+
+        public void SetTextLines(List<string> lines)
+        {
+            Clear();
+            TextLines.Clear();
+            foreach (var s in lines)
+            {
+                TextLines.Add(s);
+            }
+        }
+    }
+
     public class ClientModel : NotificationObject, IUserClient
     {
         /*
@@ -46,46 +97,9 @@ namespace Amatsukaze.Models
             public ExtensionDataObject ExtensionData { get; set; }
         }
 
-        private class ConsoleText : ConsoleTextBase
-        {
-            public ObservableCollection<string> TextLines = new ObservableCollection<string>();
-
-            public override void OnAddLine(string text)
-            {
-                if (TextLines.Count > 400)
-                {
-                    TextLines.RemoveAt(0);
-                }
-                TextLines.Add(text);
-            }
-
-            public override void OnReplaceLine(string text)
-            {
-                if (TextLines.Count == 0)
-                {
-                    TextLines.Add(text);
-                }
-                else
-                {
-                    TextLines[TextLines.Count - 1] = text;
-                }
-            }
-
-            public void SetTextLines(List<string> lines)
-            {
-                Clear();
-                TextLines.Clear();
-                foreach(var s in lines)
-                {
-                    TextLines.Add(s);
-                }
-            }
-        }
-
         private ClientData appData;
         public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
-        private ConsoleText consoleText = new ConsoleText();
         private Setting setting = new Setting() { Bitrate = new BitrateSetting() };
         private State state = new State();
 
@@ -102,12 +116,15 @@ namespace Amatsukaze.Models
         }
 
         #region ConsoleTextLines変更通知プロパティ
-        public ObservableCollection<string> ConsoleTextLines {
-            get { return consoleText.TextLines; }
-            set { 
-                if (consoleText.TextLines == value)
+        private ObservableCollection<ConsoleText> consoleList_ = new ObservableCollection<ConsoleText>();
+
+        public ObservableCollection<ConsoleText> ConsoleList
+        {
+            get { return consoleList_; }
+            set {
+                if (consoleList_ == value)
                     return;
-                consoleText.TextLines = value;
+                consoleList_ = value;
                 RaisePropertyChanged();
             }
         }
@@ -647,15 +664,26 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnConsole(List<string> str)
+        private void ensureConsoleNum(int index)
         {
-            consoleText.SetTextLines(str);
+            int numRequire = index + 1;
+            while (consoleList_.Count < numRequire)
+            {
+                consoleList_.Add(new ConsoleText());
+            }
+        }
+
+        public Task OnConsole(ConsoleData data)
+        {
+            ensureConsoleNum(data.index);
+            consoleList_[data.index].SetTextLines(data.text);
             return Task.FromResult(0);
         }
 
-        public Task OnConsoleUpdate(byte[] str)
+        public Task OnConsoleUpdate(ConsoleUpdate update)
         {
-            consoleText.AddBytes(str, 0, str.Length);
+            ensureConsoleNum(update.index);
+            consoleList_[update.index].AddBytes(update.data, 0, update.data.Length);
             return Task.FromResult(0);
         }
 

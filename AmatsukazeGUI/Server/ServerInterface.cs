@@ -36,8 +36,8 @@ namespace Amatsukaze.Server
         Task OnQueueUpdate(QueueUpdate update);
         Task OnLogData(LogData data);
         Task OnLogUpdate(LogItem newLog);
-        Task OnConsole(List<string> str);
-        Task OnConsoleUpdate(byte[] str);
+        Task OnConsole(ConsoleData str);
+        Task OnConsoleUpdate(ConsoleUpdate str);
         Task OnLogFile(string str);
         Task OnState(State state);
         Task OnFreeSpace(DiskFreeSpace space);
