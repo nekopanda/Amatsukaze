@@ -13,7 +13,6 @@
 
 #include "StreamUtils.hpp"
 #include "ProcessThread.hpp"
-#include "DCT.h"
 
 // libffmpeg
 extern "C" {
@@ -725,93 +724,6 @@ private:
         memcpy(dst1, src1, wbytes);
       }
     }
-  }
-};
-
-// 映像内容解析
-class VideoAnalyzer : protected VideoReader, DataPumpThread<std::unique_ptr<av::Frame>>
-{
-public:
-  VideoAnalyzer(AMTContext& ctx)
-    : VideoReader(ctx)
-		, DataPumpThread(8)
-		, curSummary_()
-		, nframes_(0)
-  {
-    analyzer_ = new FrameAnalyzerImpl<2>();
-  }
-
-  ~VideoAnalyzer() {
-    delete analyzer_;
-  }
-
-	void readAll(const std::string& src)
-	{
-		// 解析スレッド開始
-		start();
-
-		VideoReader::readAll(src);
-
-		// 解析スレッド終了
-		join();
-		
-		if (nframes_ > 0) {
-			frames_.push_back(curSummary_);
-			curSummary_ = Summary_t();
-			nframes_ = 0;
-		}
-	}
-
-  void dump(const std::string& path) {
-    FILE* fp = fopen(path.c_str(), "w");
-    for (const auto& s : frames_) {
-      s.print(fp);
-    }
-    fclose(fp);
-  }
-
-protected:
-  VideoFormat fmt_;
-  std::unique_ptr<av::Frame> prevFrame_;
-
-  virtual void onFileOpen(AVFormatContext *fmt) { };
-  
-  virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) {
-    fmt_ = fmt;
-  };
-
-  virtual void onFrameDecoded(Frame& frame) {
-		// フレームをコピーしてスレッドに渡す
-		put(std::unique_ptr<av::Frame>(new av::Frame(frame)), 1);
-  };
-
-  virtual void onAudioPacket(AVPacket& packet) { };
-
-	virtual void OnDataReceived(std::unique_ptr<av::Frame>&& frame) {
-		if (prevFrame_ != nullptr) {
-			analyzeFrame((*frame)(), (*prevFrame_)());
-		}
-		prevFrame_ = std::move(frame);
-	}
-
-private:
-  enum { DCT_N = FrameAnalyzer::N };
-  typedef DctSummary<DCT_N> Summary_t;
-
-  FrameAnalyzer* analyzer_;
-
-  std::vector<Summary_t> frames_;
-  Summary_t curSummary_;
-	int nframes_;
-
-  void analyzeFrame(AVFrame* cur, AVFrame* prev)
-  {
-    curSummary_.add(analyzer_->analyzeFrame(cur, prev));
-		if (++nframes_ >= 60) {
-			frames_.push_back(curSummary_);
-      curSummary_ = Summary_t();
-			nframes_ = 0;
-		}
   }
 };
 

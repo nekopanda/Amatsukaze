@@ -66,9 +66,6 @@
     <ClInclude Include="AmatsukazeCLI.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="DCT.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AmatsukazeCLI.cpp">

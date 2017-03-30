@@ -146,8 +146,6 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	ENUM_ENCODER encoder = ENUM_ENCODER();
 	std::tstring encoderPath = _T("x264.exe");
   std::tstring encoderOptions = _T("");
-  std::tstring analyzerPath = _T("x264.exe");
-  std::tstring analyzerOptions = _T("");
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
   AMT_CLI_MODE mode = AMT_CLI_TS;
@@ -174,9 +172,6 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
       else if (modeStr == _T("g")) {
         mode = AMT_CLI_GENERIC;
       }
-      else if (modeStr == _T("a")) {
-        mode = AMT_CLI_ANALYZE;
-      }
       else {
         PRINTF("--mode‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %" PRITSTR "\n", modeStr.c_str());
       }
@@ -196,12 +191,6 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
 			encoderOptions = getParam(argc, argv, i++);
-    }
-    else if (key == _T("-a") || key == _T("--analyzer")) {
-      analyzerPath = getParam(argc, argv, i++);
-    }
-    else if (key == _T("-ao") || key == _T("--analyzer-option")) {
-      analyzerOptions = getParam(argc, argv, i++);
     }
     else if (key == _T("-b") || key == _T("--bitrate")) {
       const auto arg = getParam(argc, argv, i++);
@@ -266,8 +255,6 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 	setting.encoder = encoder;
 	setting.encoderPath = to_string(encoderPath);
   setting.encoderOptions = to_string(encoderOptions);
-  setting.analyzerPath = to_string(analyzerPath);
-  setting.analyzerOptions = to_string(analyzerOptions);
 	setting.muxerPath = to_string(muxerPath);
 	setting.timelineditorPath = to_string(timelineditorPath);
   setting.autoBitrate = autoBitrate;
@@ -328,7 +315,6 @@ static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {
 
     switch (setting.mode) {
     case AMT_CLI_TS:
-    case AMT_CLI_ANALYZE:
       transcodeMain(ctx, setting);
       break;
     case AMT_CLI_GENERIC:
