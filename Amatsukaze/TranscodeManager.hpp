@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <memory>
 #include <limits>
+#include <direct.h>
 
 #include "StreamUtils.hpp"
 #include "TsSplitter.hpp"
@@ -204,75 +205,195 @@ enum AMT_CLI_MODE {
   AMT_CLI_GENERIC,
 };
 
-struct TranscoderSetting {
-  AMT_CLI_MODE mode;
-	// 入力ファイルパス（拡張子を含む）
-	std::string srcFilePath;
-	// 出力ファイルパス（拡張子を除く）
-	std::string outVideoPath;
-	// 中間ファイルプリフィックス
-	std::string intFileBasePath;
-	// 一時音声ファイルパス（拡張子を含む）
-	std::string audioFilePath;
-	// 結果情報JSON出力パス
-	std::string outInfoJsonPath;
-	// エンコーダ設定
-	ENUM_ENCODER encoder;
-	std::string encoderPath;
-  std::string encoderOptions;
-	std::string muxerPath;
-  std::string timelineditorPath;
-  bool twoPass;
-  bool autoBitrate;
-  BitrateSetting bitrate;
-	int serviceId;
-	// デバッグ用設定
-	bool dumpStreamInfo;
+class TempDirectory : AMTObject, NonCopyable
+{
+public:
+	TempDirectory(AMTContext& ctx, const std::string& tmpdir)
+		: AMTObject(ctx)
+	{
+		for (int code = (int)time(NULL) & 0xFFFFFF; code > 0; ++code) {
+			auto path = genPath(tmpdir, code);
+			if (_mkdir(path.c_str()) == 0) {
+				path_ = path;
+				break;
+			}
+			if (errno != EEXIST) {
+				break;
+			}
+		}
+		if (path_.size() == 0) {
+			throw IOException("一時ディレクトリ作成失敗");
+		}
+	}
+	~TempDirectory() {
+		if (_rmdir(path_.c_str()) != 0) {
+			ctx.warn("一時ディレクトリ削除に失敗: ", path_.c_str());
+		}
+	}
+
+	std::string path() const {
+		return path_;
+	}
+
+private:
+	std::string path_;
+
+	std::string genPath(const std::string& base, int code)
+	{
+		std::ostringstream ss;
+		ss << base << "/amt" << code;
+		return ss.str();
+	}
+};
+
+class TranscoderSetting : public AMTObject
+{
+public:
+	TranscoderSetting(
+			AMTContext& ctx,
+			std::string workDir,
+			AMT_CLI_MODE mode,
+			std::string srcFilePath,
+			std::string outVideoPath,
+			std::string outInfoJsonPath,
+			ENUM_ENCODER encoder,
+			std::string encoderPath,
+			std::string encoderOptions,
+			std::string muxerPath,
+			std::string timelineditorPath,
+			bool twoPass,
+			bool autoBitrate,
+			BitrateSetting bitrate,
+			int serviceId,
+			bool dumpStreamInfo)
+		: AMTObject(ctx)
+		, tmpDir(ctx, workDir)
+		, mode(mode)
+		, srcFilePath(srcFilePath)
+		, outVideoPath(outVideoPath)
+		, outInfoJsonPath(outInfoJsonPath)
+		, encoder(encoder)
+		, encoderPath(encoderPath)
+		, encoderOptions(encoderOptions)
+		, muxerPath(muxerPath)
+		, timelineditorPath(timelineditorPath)
+		, twoPass(twoPass)
+		, autoBitrate(autoBitrate)
+		, bitrate(bitrate)
+		, serviceId(serviceId)
+		, dumpStreamInfo(dumpStreamInfo)
+	{
+		//
+	}
+
+	AMT_CLI_MODE getMode() const {
+		return mode;
+	}
+
+	std::string getSrcFilePath() const {
+		return srcFilePath;
+	}
+
+	std::string getOutInfoJsonPath() const {
+		return outInfoJsonPath;
+	}
+
+	ENUM_ENCODER getEncoder() const {
+		return encoder;
+	}
+
+	std::string getEncoderPath() const {
+		return encoderPath;
+	}
+
+	std::string getMuxerPath() const {
+		return muxerPath;
+	}
+
+	std::string getTimelineEditorPath() const {
+		return timelineditorPath;
+	}
+
+	bool isTwoPass() const {
+		return twoPass;
+	}
+
+	bool isAutoBitrate() const {
+		return autoBitrate;
+	}
+
+	BitrateSetting getBitrate() const {
+		return bitrate;
+	}
+
+	int getServiceId() const {
+		return serviceId;
+	}
+
+	bool isDumpStreamInfo() const {
+		return dumpStreamInfo;
+	}
+
+	std::string getAudioFilePath() const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/audio.dat";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
 
 	std::string getIntVideoFilePath(int index) const
 	{
 		std::ostringstream ss;
-		ss << intFileBasePath << "-" << index << ".mpg";
+		ss << tmpDir.path() << "/i" << index << ".mpg";
+		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
 	std::string getStreamInfoPath() const
 	{
-		return intFileBasePath + "-streaminfo.dat";
+		return outVideoPath + "-streaminfo.dat";
 	}
 
 	std::string getEncVideoFilePath(int vindex, int index) const
 	{
 		std::ostringstream ss;
-		ss << intFileBasePath << "-" << vindex << "-" << index << ".raw";
+		ss << tmpDir.path() << "/v" << vindex << "-" << index << ".raw";
+		ctx.registerTmpFile(ss.str());
 		return ss.str();
   }
 
-  std::string getEncStasrcFilePath(int vindex, int index) const
+  std::string getEncStatsFilePath(int vindex, int index) const
   {
     std::ostringstream ss;
-    ss << intFileBasePath << "-" << vindex << "-" << index << "-stats.log";
+    ss << tmpDir.path() << "/s" << vindex << "-" << index << ".log";
+		ctx.registerTmpFile(ss.str());
+		// x264は.mbtreeも生成するので
+		ctx.registerTmpFile(ss.str() + ".mbtree");
     return ss.str();
   }
 
 	std::string getEnvTimecodeFilePath(int vindex, int index) const
 	{
 		std::ostringstream ss;
-		ss << intFileBasePath << "-" << vindex << "-" << index << "-tc.txt";
+		ss << tmpDir.path() << "/tc" << vindex << "-" << index << ".txt";
+		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
 	std::string getIntAudioFilePath(int vindex, int index, int aindex) const
 	{
 		std::ostringstream ss;
-		ss << intFileBasePath << "-" << vindex << "-" << index << "-" << aindex << ".aac";
+		ss << tmpDir.path() << "/a" << vindex << "-" << index << "-" << aindex << ".aac";
+		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
 	std::string getVfrTmpFilePath(int index) const
 	{
 		std::ostringstream ss;
-		ss << intFileBasePath << "-" << index << ".mp4";
+		ss << tmpDir.path() << "/t" << index << ".mp4";
+		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
@@ -309,18 +430,17 @@ struct TranscoderSetting {
     }
     if (pass >= 0) {
       ss << " --pass " << pass;
-      ss << " --stats \"" << getEncStasrcFilePath(0, 0) << "\"";
+      ss << " --stats \"" << getEncStatsFilePath(vindex, index) << "\"";
     }
     return ss.str();
   }
 
-	void dump(AMTContext& ctx) const {
+	void dump() const {
 		ctx.info("[設定]");
     ctx.info("Mode: %d", mode);
     ctx.info("Input: %s", srcFilePath.c_str());
 		ctx.info("Output: %s", outVideoPath.c_str());
-		ctx.info("IntVideo: %s", intFileBasePath.c_str());
-		ctx.info("IntAudio: %s", audioFilePath.c_str());
+		ctx.info("WorkDir: %s", tmpDir.path().c_str());
 		ctx.info("OutJson: %s", outInfoJsonPath.c_str());
 		ctx.info("Encoder: %s", encoderToString(encoder));
 		ctx.info("EncoderPath: %s", encoderPath.c_str());
@@ -338,8 +458,30 @@ struct TranscoderSetting {
 		}
 		ctx.info("DumpStreamInfo: %d", dumpStreamInfo);
 	}
-};
 
+private:
+	TempDirectory tmpDir;
+
+	AMT_CLI_MODE mode;
+	// 入力ファイルパス（拡張子を含む）
+	std::string srcFilePath;
+	// 出力ファイルパス（拡張子を除く）
+	std::string outVideoPath;
+	// 結果情報JSON出力パス
+	std::string outInfoJsonPath;
+	// エンコーダ設定
+	ENUM_ENCODER encoder;
+	std::string encoderPath;
+	std::string encoderOptions;
+	std::string muxerPath;
+	std::string timelineditorPath;
+	bool twoPass;
+	bool autoBitrate;
+	BitrateSetting bitrate;
+	int serviceId;
+	// デバッグ用設定
+	bool dumpStreamInfo;
+};
 
 class AMTSplitter : public TsSplitter {
 public:
@@ -348,7 +490,7 @@ public:
 		, setting_(setting)
 		, psWriter(ctx)
 		, writeHandler(*this)
-		, audioFile_(setting.audioFilePath, "wb")
+		, audioFile_(setting.getAudioFilePath(), "wb")
 		, videoFileCount_(0)
 		, videoStreamType_(-1)
 		, audioStreamType_(-1)
@@ -427,7 +569,7 @@ protected:
 		enum { BUFSIZE = 4 * 1024 * 1024 };
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-		File srcfile(setting_.srcFilePath, "rb");
+		File srcfile(setting_.getSrcFilePath(), "rb");
 		srcFileSize_ = srcfile.size();
 		size_t readBytes;
 		do {
@@ -641,7 +783,7 @@ public:
 
 		// x265でインタレースの場合はフィールドモード
 		bool fieldMode = 
-			(setting_.encoder == ENCODER_X265 &&
+			(setting_.getEncoder() == ENCODER_X265 &&
 			 format0.videoFormat.progressive == false);
 
     // ビットレート計算
@@ -650,8 +792,8 @@ public:
 
     VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
     double targetBitrate = std::numeric_limits<float>::quiet_NaN();
-    if (setting_.autoBitrate) {
-      targetBitrate = setting_.bitrate.getTargetBitrate(srcFormat, srcBitrate);
+    if (setting_.isAutoBitrate()) {
+      targetBitrate = setting_.getBitrate().getTargetBitrate(srcFormat, srcBitrate);
       ctx.info("目標映像ビットレート: %d kbps", (int)targetBitrate);
     }
     for (int i = 0; i < numEncoders_; ++i) {
@@ -664,24 +806,15 @@ public:
 				srcFormat, srcBitrate, pass, videoFileIndex_, index);
 		};
 
-    if (setting_.twoPass) {
+    if (setting_.isTwoPass()) {
       ctx.info("1/2パス エンコード開始");
       processAllData(fieldMode, bufsize, getOptions, 1);
       ctx.info("2/2パス エンコード開始");
       processAllData(fieldMode, bufsize, getOptions, 2);
-
-      // 中間ファイル削除
-      for (int i = 0; i < numEncoders_; ++i) {
-        remove(setting_.getEncStasrcFilePath(videoFileIndex_, i).c_str());
-      }
     }
     else {
       processAllData(fieldMode, bufsize, getOptions, -1);
     }
-
-    // 中間ファイル削除
-    std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-    remove(intVideoFilePath.c_str());
 
     return efi_;
 	}
@@ -738,11 +871,11 @@ private:
     for (int i = 0; i < numEncoders_; ++i) {
       const auto& format = reformInfo_.getFormat(i, videoFileIndex_);
       std::string args = makeEncoderArgs(
-        setting_.encoder,
-        setting_.encoderPath,
+        setting_.getEncoder(),
+        setting_.getEncoderPath(),
         getOptions(pass, i),
         format.videoFormat,
-        setting_.getEncVideoFilePath(videoFileIndex_, i));
+				setting_.getEncVideoFilePath(videoFileIndex_, i));
       ctx.info("[エンコーダ開始]");
       ctx.info(args.c_str());
       encoders_[i].start(args, format.videoFormat, fieldMode, bufsize);
@@ -899,14 +1032,11 @@ public:
 
   void encode()
   {
-    if (setting_.twoPass) {
+    if (setting_.isTwoPass()) {
       ctx.info("1/2パス エンコード開始");
       processAllData(1);
       ctx.info("2/2パス エンコード開始");
       processAllData(2);
-
-      // 中間ファイル削除
-      remove(setting_.getEncStasrcFilePath(0, 0).c_str());
     }
     else {
       processAllData(-1);
@@ -1012,7 +1142,7 @@ private:
     thread_.start();
 
     // エンコード
-    reader_.readAll(setting_.srcFilePath);
+    reader_.readAll(setting_.getSrcFilePath());
 
     // エンコードスレッドを終了して自分に引き継ぐ
     thread_.join();
@@ -1032,20 +1162,20 @@ private:
 		videoFormat_ = fmt;
 
     // ビットレート計算
-    File file(setting_.srcFilePath, "rb");
+    File file(setting_.getSrcFilePath(), "rb");
 		srcFileSize_ = file.size();
     double srcBitrate = ((double)srcFileSize_ * 8 / 1000) / (stream->duration * av_q2d(stream->time_base));
     ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
-    if (setting_.autoBitrate) {
+    if (setting_.isAutoBitrate()) {
       ctx.info("目標映像ビットレート: %d kbps",
-        (int)setting_.bitrate.getTargetBitrate(fmt.format, srcBitrate));
+        (int)setting_.getBitrate().getTargetBitrate(fmt.format, srcBitrate));
     }
 
     // 初期化
     std::string args = makeEncoderArgs(
-      setting_.encoder,
-      setting_.encoderPath,
+      setting_.getEncoder(),
+      setting_.getEncoderPath(),
       setting_.getOptions(
 				fmt.format, srcBitrate, pass_, 0, 0),
       fmt,
@@ -1056,7 +1186,7 @@ private:
 
     // x265でインタレースの場合はフィールドモード
     bool dstFieldMode =
-      (setting_.encoder == ENCODER_X265 && fmt.progressive == false);
+      (setting_.getEncoder() == ENCODER_X265 && fmt.progressive == false);
 
     int bufsize = fmt.width * fmt.height * 3;
     encoder_.start(args, fmt, dstFieldMode, bufsize);
@@ -1103,7 +1233,7 @@ public:
 		: AMTObject(ctx)
 		, setting_(setting)
 		, reformInfo_(reformInfo)
-		, audioCache_(ctx, setting.audioFilePath, reformInfo.getAudioFileOffsets(), 12, 4)
+		, audioCache_(ctx, setting.getAudioFilePath(), reformInfo.getAudioFileOffsets(), 12, 4)
 		, totalOutSize_(0)
 	{ }
 
@@ -1137,7 +1267,7 @@ public:
 				? setting_.getVfrTmpFilePath(outFileIndex)
 				: setting_.getOutFilePath(outFileIndex);
 			std::string args = makeMuxerArgs(
-				setting_.muxerPath, encVideoFile,
+				setting_.getMuxerPath(), encVideoFile,
 				reformInfo_.getFormat(i, videoFileIndex).videoFormat,
 				audioFiles, outFilePath);
 			ctx.info("[Mux開始]");
@@ -1169,7 +1299,7 @@ public:
 					file.write(mc);
 				}
 				std::string args = makeTimelineEditorArgs(
-					setting_.timelineditorPath, outFilePath, outWithTimeFilePath, encTimecodeFile);
+					setting_.getTimelineEditorPath(), outFilePath, outWithTimeFilePath, encTimecodeFile);
 				ctx.info("[タイムコード埋め込み開始]");
 				ctx.info(args.c_str());
 				{
@@ -1179,21 +1309,12 @@ public:
 						THROWF(RuntimeException, "timelineeditor failed (exit code: %d)", ret);
 					}
 				}
-				// 中間ファイル削除
-				remove(encTimecodeFile.c_str());
-				remove(outFilePath.c_str());
 			}
 
 			{ // 出力サイズ取得
 				File outfile(setting_.getOutFilePath(outFileIndex), "rb");
 				totalOutSize_ += outfile.size();
 			}
-
-			// 中間ファイル削除
-			for (const std::string& audioFile : audioFiles) {
-				remove(audioFile.c_str());
-			}
-			remove(encVideoFile.c_str());
 		}
 	}
 
@@ -1239,7 +1360,7 @@ public:
 		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0);
 		std::string outFilePath = setting_.getOutFilePath(0);
 		std::string args = makeMuxerArgs(
-			setting_.muxerPath, encVideoFile, videoFormat, audioFiles, outFilePath);
+			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath);
 		ctx.info("[Mux開始]");
 		ctx.info(args.c_str());
 
@@ -1255,12 +1376,6 @@ public:
 			File outfile(setting_.getOutFilePath(0), "rb");
 			totalOutSize_ += outfile.size();
 		}
-
-		// 中間ファイル削除
-		for (const std::string& audioFile : audioFiles) {
-			remove(audioFile.c_str());
-		}
-		remove(encVideoFile.c_str());
 	}
 
 	int64_t getTotalOutSize() const {
@@ -1351,18 +1466,18 @@ static std::string toJsonString(const std::string str) {
 
 static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 {
-	setting.dump(ctx);
+	setting.dump();
 
 	auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
-	if (setting.serviceId > 0) {
-		splitter->setServiceId(setting.serviceId);
+	if (setting.getServiceId() > 0) {
+		splitter->setServiceId(setting.getServiceId());
 	}
 	StreamReformInfo reformInfo = splitter->split();
 	int64_t totalIntVideoSize = splitter->getTotalIntVideoSize();
 	int64_t srcFileSize = splitter->getSrcFileSize();
 	splitter = nullptr;
 
-	if (setting.dumpStreamInfo) {
+	if (setting.isDumpStreamInfo()) {
 		reformInfo.serialize(setting.getStreamInfoPath());
 	}
 
@@ -1392,16 +1507,16 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
   muxer = nullptr;
 
 	// 中間ファイルを削除
-	remove(setting.audioFilePath.c_str());
+	ctx.clearTmpFiles();
 
 	// 出力結果を表示
 	ctx.info("完了");
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
 
 	// 出力結果JSON出力
-	if (setting.outInfoJsonPath.size() > 0) {
+	if (setting.getOutInfoJsonPath().size() > 0) {
 		std::ostringstream ss;
-		ss << "{ \"srcpath\": \"" << toJsonString(setting.srcFilePath) << "\", ";
+		ss << "{ \"srcpath\": \"" << toJsonString(setting.getSrcFilePath()) << "\", ";
 		ss << "\"outpath\": [";
 		for (int i = 0; i < reformInfo.getNumOutFiles(); ++i) {
 			if (i > 0) {
@@ -1434,7 +1549,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 		std::string str = ss.str();
 		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
-		File file(setting.outInfoJsonPath, "w");
+		File file(setting.getOutInfoJsonPath(), "w");
 		file.write(mc);
 	}
 }
@@ -1455,9 +1570,9 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 
 	// 出力結果を表示
 	ctx.info("完了");
-	if (setting.outInfoJsonPath.size() > 0) {
+	if (setting.getOutInfoJsonPath().size() > 0) {
 		std::ostringstream ss;
-		ss << "{ \"srcpath\": \"" << toJsonString(setting.srcFilePath) << "\", ";
+		ss << "{ \"srcpath\": \"" << toJsonString(setting.getSrcFilePath()) << "\", ";
 		ss << "\"outpath\": [";
 		ss << "\"" << toJsonString(setting.getOutFilePath(0)) << "\"";
 		ss << "], ";
@@ -1467,7 +1582,7 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 
 		std::string str = ss.str();
 		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
-		File file(setting.outInfoJsonPath, "w");
+		File file(setting.getOutInfoJsonPath(), "w");
 		file.write(mc);
 	}
 }

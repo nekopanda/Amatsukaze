@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <set>
 
 #include "CoreUtils.hpp"
 
@@ -508,9 +509,22 @@ public:
 		va_end(arg);
 	}
 
+	void registerTmpFile(const std::string& path) {
+		tmpFiles.insert(path);
+	}
+
+	void clearTmpFiles() {
+		for (auto& path : tmpFiles) {
+			remove(path.c_str());
+		}
+		tmpFiles.clear();
+	}
+
 private:
 	bool debugEnabled;
 	CRC32 crc;
+
+	std::set<std::string> tmpFiles;
 
 	void print(const char* fmt, va_list arg, TS_SPLITTER_LOG_LEVEL level) const {
     static const char* log_levels[] = { "debug", "info", "warn", "error" };

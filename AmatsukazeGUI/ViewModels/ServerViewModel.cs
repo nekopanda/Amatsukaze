@@ -68,6 +68,8 @@ namespace Amatsukaze.ViewModels
 
         private StreamWriter file;
 
+        private bool disposed = false;
+
         public void Initialize()
         {
             var logpath = GetServerLogPath();
@@ -85,6 +87,19 @@ namespace Amatsukaze.ViewModels
                     FileName = Assembly.GetEntryAssembly().Location,
                     Arguments = "--launch client",
                 });
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (!disposed)
+            {
+                if (disposing)
+                {
+                    Server.Dispose();
+                }
+                disposed = true;
             }
         }
 

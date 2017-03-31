@@ -45,6 +45,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Windows.Interactivity">
       <SpecificVersion>False</SpecificVersion>
@@ -69,6 +70,8 @@
     <Compile Include="ViewModels\NamedViewModel.cs" />
     <Compile Include="ViewModels\ServerViewModel.cs" />
     <Compile Include="ViewModels\SettingViewModel.cs" />
+    <Compile Include="ViewModels\SummaryItemViewModel.cs" />
+    <Compile Include="ViewModels\SummaryViewModel.cs" />
     <Compile Include="Views\ClientLogPanel.xaml.cs">
       <DependentUpon>ClientLogPanel.xaml</DependentUpon>
     </Compile>
@@ -86,6 +89,9 @@
     </Compile>
     <Compile Include="Views\SettingPanel.xaml.cs">
       <DependentUpon>SettingPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SummaryPanel.xaml.cs">
+      <DependentUpon>SummaryPanel.xaml</DependentUpon>
     </Compile>
     <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -158,6 +164,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SettingPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SummaryPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

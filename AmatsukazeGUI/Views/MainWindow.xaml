@@ -109,6 +109,9 @@
         <DataTemplate DataType="{x:Type vm:DiskFreeSpaceViewModel}">
             <v:DiskFreeSpacePanel />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SummaryViewModel}">
+            <v:SummaryPanel />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ClientLogViewModel}">
             <v:ClientLogPanel />
         </DataTemplate>

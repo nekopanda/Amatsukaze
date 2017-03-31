@@ -507,7 +507,8 @@ TEST_F(TestBase, ffmpegEncode) {
 
 	std::map<int64_t, int> dummy;
 
-	av::MultiOutTranscoder trans;
+	AMTContext ctx;
+	av::MultiOutTranscoder trans(ctx);
 	trans.encode(srcFile, fmts, args, dummy, fmt.width * fmt.height * 3);
 }
 
@@ -581,7 +582,7 @@ TranscoderSetting makeTranscodeSetting(
 	const std::string& srcfile)
 {
 	TranscoderSetting setting = TranscoderSetting();
-  setting.isTsMode = true;
+  setting.mode = AMT_CLI_TS;
 	setting.srcFilePath = srcDir + srcfile + ".ts";
 	setting.outVideoPath = dstDir + "Mpeg2Test";
 	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
@@ -602,7 +603,7 @@ TranscoderSetting makeDamemojiSetting(
 	const std::string& srcfile)
 {
   TranscoderSetting setting = TranscoderSetting();
-  setting.isTsMode = true;
+	setting.mode = AMT_CLI_TS;
 	setting.srcFilePath = srcDir + srcfile + ".ts";
 	setting.outVideoPath = dstDir + "ー ソ\\十 表";
 	setting.intFileBasePath = dstDir + "ー ソ\\十 表Int";

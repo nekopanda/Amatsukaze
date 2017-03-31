@@ -12,14 +12,16 @@ int wmain(int argc, wchar_t* argv[]) {
 	try {
 		printCopyright();
 
-		TranscoderSetting setting = parseArgs(argc, argv);
+		AMTContext ctx;
+
+		auto setting = parseArgs(ctx, argc, argv);
 
 		// FFMPEGライブラリ初期化
     InitializeCriticalSection(&g_log_crisec);
     av_log_set_callback(amatsukaze_av_log_callback);
 		av_register_all();
 
-		return amatsukazeTranscodeMain(setting);
+		return amatsukazeTranscodeMain(ctx, *setting);
 	}
 	catch (Exception e) {
 		// parseArgsでエラー

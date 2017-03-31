@@ -19,33 +19,36 @@
         </Grid.RowDefinitions>
 
         <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコーダ" VerticalAlignment="Top" Margin="0,7,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="追加オプション" VerticalAlignment="Top" Margin="0,63,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Amatsukazeパス" VerticalAlignment="Top" Margin="0,123,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,151,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x264パス" VerticalAlignment="Top" Margin="0,179,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x265パス" VerticalAlignment="Top" Margin="0,207,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="QSVEncパス" VerticalAlignment="Top" Margin="0,235,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Muxerパス" VerticalAlignment="Top" Margin="0,263,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="TimelineEditorパス" VerticalAlignment="Top" Margin="0,290,0,0"/>
-        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="常時表示ディスク" VerticalAlignment="Top" Margin="0,318,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,34,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="追加オプション" VerticalAlignment="Top" Margin="0,86,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Amatsukazeパス" VerticalAlignment="Top" Margin="0,146,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,174,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x264パス" VerticalAlignment="Top" Margin="0,202,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="x265パス" VerticalAlignment="Top" Margin="0,230,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="QSVEncパス" VerticalAlignment="Top" Margin="0,258,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="Muxerパス" VerticalAlignment="Top" Margin="0,286,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="TimelineEditorパス" VerticalAlignment="Top" Margin="0,313,0,0"/>
+        <TextBlock HorizontalAlignment="Left" TextWrapping="Wrap" Text="常時表示ディスク" VerticalAlignment="Top" Margin="0,341,0,0"/>
 
         <ComboBox Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding EncoderList}" SelectedIndex="{Binding EncoderSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-        <TextBox Grid.Column="1" Height="85" Margin="10,32,10,0" TextWrapping="Wrap" Text="{Binding Model.EncoderOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,122,10,0" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,150,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,178,10,0" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,206,10,0" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,234,10,0" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,262,10,0" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,290,10,0" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-        <TextBox Grid.Column="1" Height="23" Margin="10,318,10,0" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <Slider Grid.Column="1" Margin="10.333,32,34,0" VerticalAlignment="Top" SmallChange="1" Maximum="8" Minimum="1" Value="{Binding Model.NumParallel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <TextBlock Grid.Column="1" Margin="0,32,10,0" TextWrapping="Wrap" Text="{Binding Model.NumParallel}" VerticalAlignment="Top" HorizontalAlignment="Right" Width="7"/>
+        <TextBox Grid.Column="1" Height="85" Margin="10.667,55,10,0" TextWrapping="Wrap" Text="{Binding Model.EncoderOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,145,10,0" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,173,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,201,10,0" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,229,10,0" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,257,10,0" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,285,10,0" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,313,10,0" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+        <TextBox Grid.Column="1" Height="23" Margin="10.667,341,10,0" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
 
 
         <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコード設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
 
         <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,7,0,0" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}"/>
         <CheckBox Name="abc"  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="10,30,0,0" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}"/>
-        
+
         <TextBlock Grid.Row="1" Grid.Column="1" Text="a" Margin="5,58,0,0" />
         <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="15,55,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
         <TextBlock Grid.Row="1" Grid.Column="1" Text="b" Margin="70,58,0,0" />
@@ -88,7 +91,7 @@
         <TextBlock Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Left" TextWrapping="Wrap"
                    Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"
                    VerticalAlignment="Top" Margin="0,7,0,0"/>
-        
+
         <Button Content="適用" Grid.Column="1" Margin="0,5,9,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="60" Command="{Binding SendSettingCommand}"/>
 
     </Grid>

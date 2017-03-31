@@ -285,7 +285,7 @@ namespace Amatsukaze.Server
         #endregion
     }
 
-    public class EncodeServer : NotificationObject, IEncodeServer
+    public class EncodeServer : NotificationObject, IEncodeServer, IDisposable
     {
         [DataContract]
         private class AppData : IExtensibleDataObject
@@ -300,9 +300,22 @@ namespace Amatsukaze.Server
         {
             public List<string> TextLines = new List<string>();
 
+            private int maxLines;
+
+            public ConsoleText(int maxLines)
+            {
+                this.maxLines = maxLines;
+            }
+
+            public override void Clear()
+            {
+                base.Clear();
+                TextLines.Clear();
+            }
+
             public override void OnAddLine(string text)
             {
-                if(TextLines.Count > 500)
+                if(TextLines.Count > maxLines)
                 {
                     TextLines.RemoveRange(0, 100);
                 }
@@ -322,16 +335,33 @@ namespace Amatsukaze.Server
             }
         }
 
+        private class EncodeTask
+        {
+            public int id;
+            public Process process;
+            public FileStream logWriter;
+            public ConsoleText consoleText;
+            public ConsoleText logText;
+
+            public void KillProcess()
+            {
+                if(process != null)
+                {
+                    process.Kill();
+                }
+            }
+        }
+
         private IUserClient client;
         public Task ServerTask { get; private set; }
         private AppData appData;
 
+        private List<EncodeTask> taskList = new List<EncodeTask>();
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private LogData log;
-        private List<ConsoleText> consoleList = new List<ConsoleText>();
         private SortedDictionary<string, DiskItem> diskMap = new SortedDictionary<string, DiskItem>();
 
-        private FileStream logWriter;
+        private AffinityCreator affinityCreator = new AffinityCreator();
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -382,6 +412,50 @@ namespace Amatsukaze.Server
             ReadLog();
         }
 
+        #region IDisposable Support
+        private bool disposedValue = false; // 重複する呼び出しを検出するには
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
+
+                    // 終了時にプロセスが残らないようにする
+                    foreach(var task in taskList)
+                    {
+                        if(task != null)
+                        {
+                            task.KillProcess();
+                        }
+                    }
+                }
+
+                // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
+                // TODO: 大きなフィールドを null に設定します。
+
+                disposedValue = true;
+            }
+        }
+
+        // TODO: 上の Dispose(bool disposing) にアンマネージ リソースを解放するコードが含まれる場合にのみ、ファイナライザーをオーバーライドします。
+        // ~EncodeServer() {
+        //   // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+        //   Dispose(false);
+        // }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(true);
+            // TODO: 上のファイナライザーがオーバーライドされる場合は、次の行のコメントを解除してください。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
+
         #region Path
         private string GetSettingFilePath()
         {
@@ -393,14 +467,14 @@ namespace Amatsukaze.Server
             return "data\\EncodeHistory.xml";
         }
 
-        private string GetLogFilePath(DateTime start)
+        private string GetLogFileBase(DateTime start)
         {
-            return "data\\logs\\" + start.ToString("yyyy-MM-dd_HHmmss.fff") + ".txt";
+            return "data\\logs\\" + start.ToString("yyyy-MM-dd_HHmmss.fff");
         }
 
         private string ReadLogFIle(DateTime start)
         {
-            var logpath = GetLogFilePath(start);
+            var logpath = GetLogFileBase(start) + ".txt";
             if(File.Exists(logpath) == false)
             {
                 return "ログファイルが見つかりません。パス: " + logpath;
@@ -435,6 +509,7 @@ namespace Amatsukaze.Server
                         AmatsukazePath = Path.Combine(
                             Path.GetDirectoryName(GetType().Assembly.Location),
                             "Amatsukaze.exe"),
+                        NumParallel = 1,
                         Bitrate = new BitrateSetting()
                     }
                 };
@@ -604,7 +679,7 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
-        private async Task RedirectOut(int index, Stream stream)
+        private async Task RedirectOut(EncodeTask task, Stream stream)
         {
             try
             {
@@ -617,19 +692,12 @@ namespace Amatsukaze.Server
                         // 終了
                         return;
                     }
-                    if (logWriter != null)
-                    {
-                        logWriter.Write(buffer, 0, readBytes);
-                    }
-                    while (consoleList.Count <= index)
-                    {
-                        consoleList.Add(new ConsoleText());
-                    }
-                    consoleList[index].AddBytes(buffer, 0, readBytes);
+                    task.consoleText.AddBytes(buffer, 0, readBytes);
+                    task.logText.AddBytes(buffer, 0, readBytes);
 
                     byte[] newbuf = new byte[readBytes];
                     Array.Copy(buffer, newbuf, readBytes);
-                    await client.OnConsoleUpdate(new ConsoleUpdate() { index = index, data = newbuf });
+                    await client.OnConsoleUpdate(new ConsoleUpdate() { index = task.id, data = newbuf });
                 }
             }
             catch (Exception e)
@@ -706,7 +774,7 @@ namespace Amatsukaze.Server
             });
         }
 
-        private async Task ProcessDiretoryItem(int parallelId, QueueDirectory dir)
+        private async Task ProcessDiretoryItem(EncodeTask task, QueueDirectory dir)
         {
             string succeeded = Path.Combine(dir.Path, "succeeded");
             string failed = Path.Combine(dir.Path, "failed");
@@ -726,8 +794,13 @@ namespace Amatsukaze.Server
                 if(failCount > 0)
                 {
                     int waitSec = (failCount * 10 + 10);
-                    waitList.Add(AddEncodeLog("エンコードに失敗したので"+ waitSec + "秒待機します。"));
+                    waitList.Add(AddEncodeLog("エンコードに失敗したので" + waitSec + "秒待機します。(parallel=" + task.id + ")"));
                     await Task.Delay(waitSec * 1000);
+
+                    if (encodePaused)
+                    {
+                        break;
+                    }
                 }
 
                 if (dir.CurrentHead >= itemList.Length)
@@ -754,8 +827,8 @@ namespace Amatsukaze.Server
                 string args = MakeAmatsukazeArgs(isMp4, src.Path, dst, out json, out logpath);
                 string exename = appData.setting.AmatsukazePath;
 
-                Util.AddLog("エンコード開始: " + src.Path);
-                Util.AddLog("Args: " + exename + " " + args);
+                Util.AddLog(task.id, "エンコード開始: " + src.Path);
+                Util.AddLog(task.id, "Args: " + exename + " " + args);
 
                 DateTime start = DateTime.Now;
 
@@ -768,16 +841,27 @@ namespace Amatsukaze.Server
                     CreateNoWindow = true
                 };
 
+                IntPtr affinityMask = new IntPtr((long)affinityCreator.GetMask(task.id));
+                Util.AddLog(task.id, "AffinityMask: " + affinityMask.ToInt64());
+
                 int exitCode = -1;
+                task.logText.Clear();
+
                 try
                 {
                     using (var p = Process.Start(psi))
                     {
-                        using (logWriter = File.Create(logpath))
+                        // アフィニティを設定
+                        p.ProcessorAffinity = affinityMask;
+                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
+
+                        task.process = p;
+
+                        using (task.logWriter = File.Create(logpath))
                         {
                             await Task.WhenAll(
-                                RedirectOut(parallelId, p.StandardOutput.BaseStream),
-                                RedirectOut(parallelId, p.StandardError.BaseStream),
+                                RedirectOut(task, p.StandardOutput.BaseStream),
+                                RedirectOut(task, p.StandardError.BaseStream),
                                 Task.Run(() => p.WaitForExit()));
                         }
 
@@ -786,18 +870,36 @@ namespace Amatsukaze.Server
                 }
                 catch (Win32Exception w32e)
                 {
-                    Util.AddLog("Amatsukazeプロセス起動に失敗");
+                    Util.AddLog(task.id, "Amatsukazeプロセス起動に失敗");
                     throw w32e;
+                }
+                finally
+                {
+                    task.logWriter = null;
+                    task.process = null;
                 }
 
                 DateTime finish = DateTime.Now;
 
+                if (exitCode == 0)
+                {
+                    // 成功ならログを整形したテキストに置き換える
+                    using (var fs = new StreamWriter(File.Create(logpath)))
+                    {
+                        foreach(var str in task.logText.TextLines)
+                        {
+                            fs.WriteLine(str);
+                        }
+                    }
+                }
+
                 // ログファイルを専用フォルダにコピー
                 if (File.Exists(logpath))
                 {
-                    string logstorepath = GetLogFilePath(start);
-                    Directory.CreateDirectory(Path.GetDirectoryName(logstorepath));
-                    File.Copy(logpath, logstorepath);
+                    string logbase = GetLogFileBase(start);
+                    Directory.CreateDirectory(Path.GetDirectoryName(logbase));
+                    File.Copy(logpath, logbase + ".txt");
+                    File.Copy(json, logbase + ".json");
                 }
 
                 if (exitCode == 0)
@@ -852,12 +954,39 @@ namespace Amatsukaze.Server
             {
                 while (queue.Count > 0)
                 {
+                    // 不正な設定は強制的に直しちゃう
+                    if (appData.setting.NumParallel <= 0 ||
+                        appData.setting.NumParallel > 64)
+                    {
+                        appData.setting.NumParallel = 1;
+                    }
+
+                    int numParallel = appData.setting.NumParallel;
+
+                    // 足りない場合は追加
+                    while (taskList.Count < numParallel)
+                    {
+                        taskList.Add(new EncodeTask() {
+                            id = taskList.Count,
+                            consoleText = new ConsoleText(500),
+                            logText = new ConsoleText(1 * 1024 * 1024)
+                        });
+                    }
+                    // 多すぎる場合は削除
+                    while (taskList.Count > numParallel)
+                    {
+                        taskList.RemoveAt(taskList.Count - 1);
+                    }
+
+                    affinityCreator.NumProcess = numParallel;
+
                     var dir = queue[0];
 
-                    Task[] tasks = new Task[appData.setting.NumParallel];
-                    for (int i = 0; i < tasks.Length; ++i)
+
+                    Task[] tasks = new Task[numParallel];
+                    for (int i = 0; i < numParallel; ++i)
                     {
-                        tasks[i] = ProcessDiretoryItem(i, dir);
+                        tasks[i] = ProcessDiretoryItem(taskList[i], dir);
                     }
                     await Task.WhenAll(tasks);
 
@@ -1020,16 +1149,12 @@ namespace Amatsukaze.Server
 
         public Task RequestConsole()
         {
-            Task[] tasks = new Task[consoleList.Count];
-            for (int i = 0; i < consoleList.Count; ++i)
-            {
-                tasks[i] = client.OnConsole(new ConsoleData()
-                {
-                    index = i,
-                    text = consoleList[i].TextLines as List<string>
+            return Task.WhenAll(taskList.Select(task => {
+                return client.OnConsole(new ConsoleData() {
+                    index = task.id,
+                    text = task.consoleText.TextLines as List<string>
                 });
-            }
-            return Task.WhenAll(tasks);
+            }));
         }
 
         public Task RequestLogFile(LogItem item)
@@ -1054,5 +1179,6 @@ namespace Amatsukaze.Server
                 Disks = diskMap.Values.ToList()
             });
         }
+
     }
 }

@@ -81,7 +81,7 @@ namespace Amatsukaze.Models
         }
     }
 
-    public class ClientModel : NotificationObject, IUserClient
+    public class ClientModel : NotificationObject, IUserClient, IDisposable
     {
         /*
          * NotificationObjectはプロパティ変更通知の仕組みを実装したオブジェクトです。
@@ -146,7 +146,7 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-
+        
         #region LogItems変更通知プロパティ
         private ObservableCollection<LogItem> _LogItems = new ObservableCollection<LogItem>();
 
@@ -231,6 +231,18 @@ namespace Amatsukaze.Models
                 if (state.Running == value)
                     return;
                 state.Running = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NumParallel変更通知プロパティ
+        public int NumParallel {
+            get { return setting.NumParallel; }
+            set { 
+                if (setting.NumParallel == value)
+                    return;
+                setting.NumParallel = value;
                 RaisePropertyChanged();
             }
         }
@@ -474,6 +486,45 @@ namespace Amatsukaze.Models
             LoadAppData();
         }
 
+        #region IDisposable Support
+        private bool disposedValue = false; // 重複する呼び出しを検出するには
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
+                    if (Server is EncodeServer)
+                    {
+                        (Server as EncodeServer).Dispose();
+                    }
+                }
+
+                // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
+                // TODO: 大きなフィールドを null に設定します。
+
+                disposedValue = true;
+            }
+        }
+
+        // TODO: 上の Dispose(bool disposing) にアンマネージ リソースを解放するコードが含まれる場合にのみ、ファイナライザーをオーバーライドします。
+        // ~ClientModel() {
+        //   // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+        //   Dispose(false);
+        // }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(true);
+            // TODO: 上のファイナライザーがオーバーライドされる場合は、次の行のコメントを解除してください。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
+
         private void ConsoleText_TextChanged()
         {
             RaisePropertyChanged("ConsoleText");
@@ -615,7 +666,7 @@ namespace Amatsukaze.Models
             };
             sw.WriteLine(string.Join(",", header));
 
-            foreach (var item in LogItems)
+            foreach (var item in LogItems.Reverse())
             {
                 var row = new string[] {
                     item.Success ? "〇" : "×",
@@ -646,6 +697,7 @@ namespace Amatsukaze.Models
 
         public Task OnSetting(Setting setting)
         {
+            NumParallel = setting.NumParallel;
             AmatsukazePath = setting.AmatsukazePath;
             X264Path = setting.X264Path;
             X265Path = setting.X265Path;
@@ -690,7 +742,7 @@ namespace Amatsukaze.Models
         public Task OnLogData(LogData data)
         {
             LogItems.Clear();
-            foreach (var item in data.Items)
+            foreach (var item in data.Items.Reverse<LogItem>())
             {
                 LogItems.Add(item);
             }
@@ -705,7 +757,7 @@ namespace Amatsukaze.Models
 
         public Task OnLogUpdate(LogItem newLog)
         {
-            LogItems.Add(newLog);
+            LogItems.Insert(0, newLog);
             return Task.FromResult(0);
         }
 

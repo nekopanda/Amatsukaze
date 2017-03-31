@@ -137,7 +137,7 @@ static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
 	return (ENUM_ENCODER)-1;
 }
 
-static TranscoderSetting parseArgs(int argc, tchar* argv[])
+static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, tchar* argv[])
 {
 	std::tstring srcFilePath;
 	std::tstring outVideoPath;
@@ -245,25 +245,23 @@ static TranscoderSetting parseArgs(int argc, tchar* argv[])
 		THROWF(ArgumentException, "出力ファイルを指定してください");
 	}
 
-	TranscoderSetting setting = TranscoderSetting();
-  setting.mode = mode;
-	setting.srcFilePath = to_string(srcFilePath);
-	setting.outVideoPath = to_string(outVideoPath);
-	setting.intFileBasePath = to_string(workDir) + "/amt" + std::to_string(time(NULL));
-	setting.audioFilePath = setting.intFileBasePath + "-audio.dat";
-	setting.outInfoJsonPath = to_string(outInfoJsonPath);
-	setting.encoder = encoder;
-	setting.encoderPath = to_string(encoderPath);
-  setting.encoderOptions = to_string(encoderOptions);
-	setting.muxerPath = to_string(muxerPath);
-	setting.timelineditorPath = to_string(timelineditorPath);
-  setting.autoBitrate = autoBitrate;
-  setting.bitrate = bitrate;
-  setting.twoPass = twoPass;
-	setting.serviceId = serviceId;
-	setting.dumpStreamInfo = dumpStreamInfo;
-
-	return setting;
+	return std::unique_ptr<TranscoderSetting>(new TranscoderSetting(
+		ctx,
+		to_string(workDir),
+		mode,
+		to_string(srcFilePath),
+		to_string(outVideoPath),
+		to_string(outInfoJsonPath),
+		encoder,
+		to_string(encoderPath),
+		to_string(encoderOptions),
+		to_string(muxerPath),
+		to_string(timelineditorPath),
+		twoPass,
+		autoBitrate,
+		bitrate,
+		serviceId,
+		dumpStreamInfo));
 }
 
 static CRITICAL_SECTION g_log_crisec;
@@ -309,11 +307,9 @@ static void amatsukaze_av_log_callback(
   LeaveCriticalSection(&g_log_crisec);
 }
 
-static int amatsukazeTranscodeMain(const TranscoderSetting& setting) {
+static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& setting) {
 	try {
-		AMTContext ctx;
-
-    switch (setting.mode) {
+    switch (setting.getMode()) {
     case AMT_CLI_TS:
       transcodeMain(ctx, setting);
       break;

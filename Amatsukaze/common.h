@@ -28,6 +28,7 @@ inline void assertion_failed(const char* line, const char* file, int lineNum) {
 	char buf[500];
 	sprintf_s(buf, "Assertion failed!! %s (%s:%d)", line, file, lineNum);
 	PRINTF("%s\n", buf);
+	//MessageBox(NULL, "Error", "Amatsukaze", MB_OK);
 	throw buf;
 }
 

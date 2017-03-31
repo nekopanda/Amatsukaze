@@ -69,6 +69,11 @@ namespace Amatsukaze.Server
     {
         public static List<Action<string>> LogHandlers = new List<Action<string>>();
 
+        public static void AddLog(int parallelId, string log)
+        {
+            AddLog("[" + parallelId + "] " + log);
+        }
+
         public static void AddLog(string log)
         {
             foreach (var handler in LogHandlers)
@@ -232,7 +237,7 @@ namespace Amatsukaze.Server
         private List<byte> rawtext = new List<byte>();
         private bool isCR = false;
 
-        public void Clear()
+        public virtual void Clear()
         {
             rawtext.Clear();
             isCR = false;
@@ -246,16 +251,7 @@ namespace Amatsukaze.Server
                 {
                     if (rawtext.Count > 0)
                     {
-                        string text = Encoding.Default.GetString(rawtext.ToArray());
-                        if (isCR)
-                        {
-                            OnReplaceLine(text);
-                        }
-                        else
-                        {
-                            OnAddLine(text);
-                        }
-                        rawtext.Clear();
+                        OutLine();
                     }
                     isCR = (buf[i] == '\r');
                 }
@@ -265,41 +261,86 @@ namespace Amatsukaze.Server
                 }
             }
         }
+
+        public void Flush()
+        {
+            OutLine();
+            isCR = false;
+        }
+
+        private void OutLine()
+        {
+            string text = Encoding.Default.GetString(rawtext.ToArray());
+            if (isCR)
+            {
+                OnReplaceLine(text);
+            }
+            else
+            {
+                OnAddLine(text);
+            }
+            rawtext.Clear();
+        }
     }
 
     public class AffinityCreator
     {
-        private List<int> ordered = new List<int>();
-        private int np;
+        private List<long> ordered = new List<long>();
 
-        public void SetNumProcess(int np)
+        public int NumProcess { get; set; }
+
+        public AffinityCreator()
         {
-            int[] cpulist = new int[64];
+            // 下位ビットから cpu コア L2 L3 L4 Numa
+            long[] cpulist = new long[64];
 
-            foreach (var info in Util.GetLogicalProcessorInformationMarshal())
+            Util.AddLog(" CPU構成を検出");
+            var procInfo = Util.GetLogicalProcessorInformationMarshal();
+            foreach (var info in procInfo)
             {
                 int gid = BitScan(info.ProcessorMask.ToUInt64());
                 int shift = -1;
                 switch (info.Relationship)
                 {
                     case Util.LOGICAL_PROCESSOR_RELATIONSHIP.RelationNumaNode:
-                        shift = 24;
+                        Util.AddLog(" NUMA: " + info.ProcessorMask);
+                        shift = 40;
                         break;
                     case Util.LOGICAL_PROCESSOR_RELATIONSHIP.RelationCache:
-                        shift = 16;
+                        if(info.ProcessorInformation.Cache.Type == Util.PROCESSOR_CACHE_TYPE.CacheUnified)
+                        {
+                            switch (info.ProcessorInformation.Cache.Level)
+                            {
+                                case 2:
+                                    Util.AddLog(" L2: " + info.ProcessorMask);
+                                    shift = 16;
+                                    break;
+                                case 3:
+                                    Util.AddLog(" L3: " + info.ProcessorMask);
+                                    shift = 24;
+                                    break;
+                                case 4:
+                                    Util.AddLog(" L4: " + info.ProcessorMask);
+                                    shift = 32;
+                                    break;
+                            }
+                        }
                         break;
                     case Util.LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorCore:
+                        Util.AddLog(" Core: " + info.ProcessorMask);
                         shift = 8;
                         break;
                 }
-                if(shift > 0) {
-                    int tmp = gid << shift;
+                if (shift > 0)
+                {
+                    long tmp = (long)gid << shift;
+                    long rmask = ~(0xFFL << shift);
                     ulong mask = info.ProcessorMask.ToUInt64();
                     for (int i = 0; i < 64; ++i)
                     {
                         if ((mask & (1ul << i)) != 0)
                         {
-                            cpulist[i] |= tmp;
+                            cpulist[i] = (cpulist[i] & rmask) | tmp;
                         }
                     }
                 }
@@ -311,24 +352,26 @@ namespace Amatsukaze.Server
             {
                 if ((avail & (1ul << i)) != 0)
                 {
-                    ordered.Add(cpulist[i] | i);
+                    ordered.Add(cpulist[i] | (long)i);
                 }
             }
             ordered.Sort();
-
-            this.np = np;
         }
 
         public ulong GetMask(int pid)
         {
-            int per = ordered.Count / np;
-            int rem = ordered.Count - (per * np);
-            int from = per * pid + Math.Max(pid, rem);
+            if(pid >= ordered.Count)
+            {
+                throw new IndexOutOfRangeException();
+            }
+            int per = ordered.Count / NumProcess;
+            int rem = ordered.Count - (per * NumProcess);
+            int from = per * pid + Math.Min(pid, rem);
             int len = (pid < rem) ? per + 1 : per;
             ulong mask = 0;
             for (int i = from; i < from + len; ++i)
             {
-                int cpuid = ordered[i] & 0xFF;
+                int cpuid = (int)ordered[i] & 0xFF;
                 mask |= 1ul << cpuid;
             }
             return mask;

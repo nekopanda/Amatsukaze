@@ -68,6 +68,141 @@ namespace Amatsukaze.ViewModels
         private PropertyChangedEventListener modelListener;
         private CollectionChangedEventListener consoleListListener;
 
+        private bool disposed = false;
+
+
+        #region MainPanelMenu変更通知プロパティ
+        private ObservableCollection<ViewModel> _MainPanelMenu = new ObservableCollection<ViewModel>();
+
+        public ObservableCollection<ViewModel> MainPanelMenu {
+            get { return _MainPanelMenu; }
+            set {
+                if (_MainPanelMenu == value)
+                    return;
+                _MainPanelMenu = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ConsolePanelMenu変更通知プロパティ
+        private ObservableCollection<ViewModel> _ConsolePanelMenu = new ObservableCollection<ViewModel>();
+
+        public ObservableCollection<ViewModel> ConsolePanelMenu {
+            get { return _ConsolePanelMenu; }
+            set {
+                if (_ConsolePanelMenu == value)
+                    return;
+                _ConsolePanelMenu = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region InfoPanelMenu変更通知プロパティ
+        private ObservableCollection<ViewModel> _InfoPanelMenu = new ObservableCollection<ViewModel>();
+
+        public ObservableCollection<ViewModel> InfoPanelMenu {
+            get { return _InfoPanelMenu; }
+            set {
+                if (_InfoPanelMenu == value)
+                    return;
+                _InfoPanelMenu = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MainPanelSelectedIndex変更通知プロパティ
+        private int _MainPanelSelectedIndex;
+
+        public int MainPanelSelectedIndex {
+            get { return _MainPanelSelectedIndex; }
+            set {
+                if (_MainPanelSelectedIndex == value)
+                    return;
+                _MainPanelSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("MainPanel");
+            }
+        }
+
+        public ViewModel MainPanel {
+            get {
+                if (_MainPanelSelectedIndex >= 0 && _MainPanelSelectedIndex < _MainPanelMenu.Count)
+                {
+                    return _MainPanelMenu[_MainPanelSelectedIndex];
+                }
+                return null;
+            }
+        }
+        #endregion
+
+        #region ConsolePanelSelectedIndex変更通知プロパティ
+        private int _ConsolePanelSelectedIndex;
+
+        public int ConsolePanelSelectedIndex {
+            get { return _ConsolePanelSelectedIndex; }
+            set {
+                if (_ConsolePanelSelectedIndex == value)
+                    return;
+                _ConsolePanelSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("ConsolePanel");
+            }
+        }
+
+        public ViewModel ConsolePanel {
+            get {
+                if (ConsolePanelSelectedIndex >= 0 && ConsolePanelSelectedIndex < _ConsolePanelMenu.Count)
+                {
+                    return _ConsolePanelMenu[ConsolePanelSelectedIndex];
+                }
+                return null;
+            }
+        }
+        #endregion
+
+        #region InfoPanelSelectedIndex変更通知プロパティ
+        private int _InfoPanelSelectedIndex;
+
+        public int InfoPanelSelectedIndex {
+            get { return _InfoPanelSelectedIndex; }
+            set {
+                if (_InfoPanelSelectedIndex == value)
+                    return;
+                _InfoPanelSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("InfoPanel");
+            }
+        }
+
+        public ViewModel InfoPanel {
+            get {
+                if (InfoPanelSelectedIndex >= 0 && InfoPanelSelectedIndex < _InfoPanelMenu.Count)
+                {
+                    return _InfoPanelMenu[InfoPanelSelectedIndex];
+                }
+                return null;
+            }
+        }
+        #endregion
+
+        #region WindowCaption変更通知プロパティ
+        public string WindowCaption {
+            get {
+                var hostName = Model.ServerHostName;
+                if (hostName == null)
+                {
+                    return "AmatsukazeGUI";
+                }
+                return "AmatsukazeClient@" + hostName;
+            }
+        }
+        #endregion
+
+        public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
+
         public MainWindowViewModel()
         {
             Model = new ClientModel();
@@ -76,6 +211,7 @@ namespace Amatsukaze.ViewModels
             MainPanelMenu.Add(new SettingViewModel() { Name = "設定", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
+            InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 
@@ -110,11 +246,24 @@ namespace Amatsukaze.ViewModels
             Model.Start();
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (!disposed)
+            {
+                if (disposing)
+                {
+                    Model.Dispose();
+                }
+                disposed = true;
+            }
+        }
+
         private void UpdateNumConsole()
         {
-            while (ConsolePanelMenu.Count < Model.ConsoleList.Count - 1)
+            while (ConsolePanelMenu.Count < Model.ConsoleList.Count + 1)
             {
-                int index = ConsolePanelMenu.Count - 2;
+                int index = ConsolePanelMenu.Count - 1;
                 ConsolePanelMenu.Insert(index,
                     new ConsoleViewModel() { Name = "コンソール" + (index + 1), Model = Model.ConsoleList[index] });
             }
@@ -135,154 +284,6 @@ namespace Amatsukaze.ViewModels
                 return;
             }
         }
-
-        #region MainPanelMenu変更通知プロパティ
-        private ObservableCollection<ViewModel> _MainPanelMenu = new ObservableCollection<ViewModel>();
-
-        public ObservableCollection<ViewModel> MainPanelMenu
-        {
-            get
-            { return _MainPanelMenu; }
-            set
-            { 
-                if (_MainPanelMenu == value)
-                    return;
-                _MainPanelMenu = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region ConsolePanelMenu変更通知プロパティ
-        private ObservableCollection<ViewModel> _ConsolePanelMenu = new ObservableCollection<ViewModel>();
-
-        public ObservableCollection<ViewModel> ConsolePanelMenu
-        {
-            get
-            { return _ConsolePanelMenu; }
-            set
-            { 
-                if (_ConsolePanelMenu == value)
-                    return;
-                _ConsolePanelMenu = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region InfoPanelMenu変更通知プロパティ
-        private ObservableCollection<ViewModel> _InfoPanelMenu = new ObservableCollection<ViewModel>();
-
-        public ObservableCollection<ViewModel> InfoPanelMenu {
-            get { return _InfoPanelMenu; }
-            set { 
-                if (_InfoPanelMenu == value)
-                    return;
-                _InfoPanelMenu = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region MainPanelSelectedIndex変更通知プロパティ
-        private int _MainPanelSelectedIndex;
-
-        public int MainPanelSelectedIndex
-        {
-            get
-            { return _MainPanelSelectedIndex; }
-            set
-            { 
-                if (_MainPanelSelectedIndex == value)
-                    return;
-                _MainPanelSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("MainPanel");
-            }
-        }
-
-        public ViewModel MainPanel
-        {
-            get
-            {
-                if (_MainPanelSelectedIndex >= 0 && _MainPanelSelectedIndex < _MainPanelMenu.Count)
-                {
-                    return _MainPanelMenu[_MainPanelSelectedIndex];
-                }
-                return null;
-            }
-        }
-        #endregion
-
-        #region ConsolePanelSelectedIndex変更通知プロパティ
-        private int _ConsolePanelSelectedIndex;
-
-        public int ConsolePanelSelectedIndex
-        {
-            get
-            { return _ConsolePanelSelectedIndex; }
-            set
-            { 
-                if (_ConsolePanelSelectedIndex == value)
-                    return;
-                _ConsolePanelSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("ConsolePanel");
-            }
-        }
-
-        public ViewModel ConsolePanel
-        {
-            get
-            {
-                if (ConsolePanelSelectedIndex >= 0 && ConsolePanelSelectedIndex < _ConsolePanelMenu.Count)
-                {
-                    return _ConsolePanelMenu[ConsolePanelSelectedIndex];
-                }
-                return null;
-            }
-        }
-        #endregion
-
-        #region InfoPanelSelectedIndex変更通知プロパティ
-        private int _InfoPanelSelectedIndex;
-
-        public int InfoPanelSelectedIndex {
-            get { return _InfoPanelSelectedIndex; }
-            set { 
-                if (_InfoPanelSelectedIndex == value)
-                    return;
-                _InfoPanelSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("InfoPanel");
-            }
-        }
-
-        public ViewModel InfoPanel {
-            get {
-                if (InfoPanelSelectedIndex >= 0 && InfoPanelSelectedIndex < _InfoPanelMenu.Count)
-                {
-                    return _InfoPanelMenu[InfoPanelSelectedIndex];
-                }
-                return null;
-            }
-        }
-        #endregion
-
-        #region WindowCaption変更通知プロパティ
-        public string WindowCaption {
-            get {
-                var hostName = Model.ServerHostName;
-                if (hostName == null)
-                {
-                    return "AmatsukazeGUI";
-                }
-                return "AmatsukazeClient@" + hostName;
-            }
-        }
-        #endregion
-
-        public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
 
         #region TogglePauseCommand
         private ViewModelCommand _TogglePauseCommand;
