@@ -61,5 +61,15 @@ namespace Amatsukaze
         //
         //    Environment.Exit(1);
         //}
+
+        public static void SetClipboardText(string str)
+        {
+            // RealVNCクライアント使ってると失敗する？ので
+            try
+            {
+                Clipboard.SetText(str);
+            }
+            catch { }
+        }
     }
 }

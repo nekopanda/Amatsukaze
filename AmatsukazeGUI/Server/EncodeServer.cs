@@ -342,6 +342,13 @@ namespace Amatsukaze.Server
             public FileStream logWriter;
             public ConsoleText consoleText;
             public ConsoleText logText;
+            public Dictionary<string, byte[]> hashList;
+            public string tmpBase;
+
+            private string succeeded;
+            private string failed;
+            private string encoded;
+            private List<Task> waitList;
 
             public void KillProcess()
             {
@@ -349,6 +356,328 @@ namespace Amatsukaze.Server
                 {
                     process.Kill();
                 }
+            }
+
+            private LogItem FailLogItem(string srcpath, string reason, DateTime start, DateTime finish)
+            {
+                return new LogItem() {
+                    Success = false,
+                    Reason = reason,
+                    SrcPath = srcpath,
+                    MachineName = Dns.GetHostName(),
+                    EncodeStartDate = start,
+                    EncodeFinishDate = finish
+                };
+            }
+
+            private async Task RedirectOut(EncodeServer server, Stream stream)
+            {
+                try
+                {
+                    byte[] buffer = new byte[1024];
+                    while (true)
+                    {
+                        var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
+                        if (readBytes == 0)
+                        {
+                            // 終了
+                            return;
+                        }
+                        consoleText.AddBytes(buffer, 0, readBytes);
+                        logText.AddBytes(buffer, 0, readBytes);
+
+                        byte[] newbuf = new byte[readBytes];
+                        Array.Copy(buffer, newbuf, readBytes);
+                        await server.client.OnConsoleUpdate(new ConsoleUpdate() { index = id, data = newbuf });
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.Print("RedirectOut exception " + e.Message);
+                }
+            }
+
+            private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish)
+            {
+                var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
+                var outpath = new List<string>();
+                foreach (var path in json.outpath)
+                {
+                    outpath.Add(path);
+                }
+                if (isGeneric)
+                {
+                    return new LogItem() {
+                        Success = true,
+                        SrcPath = json.srcpath,
+                        OutPath = outpath,
+                        SrcFileSize = (long)json.srcfilesize,
+                        OutFileSize = (long)json.outfilesize,
+                        MachineName = Dns.GetHostName(),
+                        EncodeStartDate = start,
+                        EncodeFinishDate = finish
+                    };
+                }
+                return new LogItem() {
+                    Success = true,
+                    SrcPath = json.srcpath,
+                    OutPath = outpath,
+                    SrcFileSize = (long)json.srcfilesize,
+                    IntVideoFileSize = (long)json.intvideofilesize,
+                    OutFileSize = (long)json.outfilesize,
+                    SrcVideoDuration = TimeSpan.FromSeconds(json.srcduration),
+                    OutVideoDuration = TimeSpan.FromSeconds(json.outduration),
+                    EncodeStartDate = start,
+                    EncodeFinishDate = finish,
+                    MachineName = Dns.GetHostName(),
+                    AudioDiff = new AudioDiff() {
+                        TotalSrcFrames = (int)json.audiodiff.totalsrcframes,
+                        TotalOutFrames = (int)json.audiodiff.totaloutframes,
+                        TotalOutUniqueFrames = (int)json.audiodiff.totaloutuniqueframes,
+                        NotIncludedPer = json.audiodiff.notincludedper,
+                        AvgDiff = json.audiodiff.avgdiff,
+                        MaxDiff = json.audiodiff.maxdiff,
+                        MaxDiffPos = json.audiodiff.maxdiffpos
+                    }
+                };
+            }
+
+            private async Task<LogItem> ProcessItem(EncodeServer server, QueueItem src)
+            {
+                DateTime now = DateTime.Now;
+
+                if (File.Exists(src.Path) == false)
+                {
+                    return FailLogItem(src.Path, "入力ファイルが見つかりません", now, now);
+                }
+
+                bool isMp4 = src.Path.ToLower().EndsWith(".mp4");
+                string dstpath = Path.Combine(encoded, Path.GetFileName(src.Path));
+                string srcpath = src.Path;
+                string localsrc = null;
+                string localdst = dstpath;
+
+                // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
+                if (hashList != null)
+                {
+                    localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
+                    string name = Path.GetFileName(srcpath);
+                    if (hashList.ContainsKey(name) == false)
+                    {
+                        return FailLogItem(src.Path, "入力ファイルのハッシュがありません", now, now);
+                    }
+
+                    byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
+                    var refhash = hashList[name];
+                    if(hash.SequenceEqual(refhash) == false)
+                    {
+                        File.Delete(localsrc);
+                        return FailLogItem(src.Path, "コピーしたファイルのハッシュが一致しません", now, now);
+                    }
+
+                    srcpath = localsrc;
+                    localdst = tmpBase + "-out.mp4";
+                }
+
+                string json = Path.Combine(
+                    Path.GetDirectoryName(localdst),
+                    Path.GetFileNameWithoutExtension(localdst)) + "-enc.json";
+                string logpath = Path.Combine(
+                    Path.GetDirectoryName(dstpath),
+                    Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
+                string args = server.MakeAmatsukazeArgs(isMp4, srcpath, localdst, json);
+                string exename = server.appData.setting.AmatsukazePath;
+
+                Util.AddLog(id, "エンコード開始: " + src.Path);
+                Util.AddLog(id, "Args: " + exename + " " + args);
+
+                DateTime start = DateTime.Now;
+
+                var psi = new ProcessStartInfo(exename, args) {
+                    UseShellExecute = false,
+                    WorkingDirectory = Directory.GetCurrentDirectory(),
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardInput = false,
+                    CreateNoWindow = true
+                };
+
+                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
+                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
+
+                int exitCode = -1;
+                logText.Clear();
+
+                try
+                {
+                    using (var p = Process.Start(psi))
+                    {
+                        // アフィニティを設定
+                        p.ProcessorAffinity = affinityMask;
+                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
+
+                        process = p;
+
+                        using (logWriter = File.Create(logpath))
+                        {
+                            await Task.WhenAll(
+                                RedirectOut(server, p.StandardOutput.BaseStream),
+                                RedirectOut(server, p.StandardError.BaseStream),
+                                Task.Run(() => p.WaitForExit()));
+                        }
+
+                        exitCode = p.ExitCode;
+                    }
+                }
+                catch (Win32Exception w32e)
+                {
+                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
+                    throw w32e;
+                }
+                finally
+                {
+                    logWriter = null;
+                    process = null;
+                }
+
+                DateTime finish = DateTime.Now;
+
+                if(hashList != null)
+                {
+                    File.Delete(localsrc);
+                }
+
+                if (exitCode == 0)
+                {
+                    // 成功ならログを整形したテキストに置き換える
+                    using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
+                    {
+                        foreach (var str in logText.TextLines)
+                        {
+                            fs.WriteLine(str);
+                        }
+                    }
+                }
+
+                // ログファイルを専用フォルダにコピー
+                if (File.Exists(logpath))
+                {
+                    string logbase = server.GetLogFileBase(start);
+                    Directory.CreateDirectory(Path.GetDirectoryName(logbase));
+                    string dstlog = logbase + ".txt";
+                    File.Copy(logpath, dstlog);
+
+                    if (File.Exists(json))
+                    {
+                        string dstjson = logbase + ".json";
+                        File.Move(json, dstjson);
+                        json = dstjson;
+                    }
+                }
+
+                if (exitCode == 0)
+                {
+                    // 成功
+                    var log = LogFromJson(isMp4, json, start, finish);
+
+                    // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
+                    if (hashList != null)
+                    {
+                        log.SrcPath = src.Path;
+                        string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
+                        for (int i = 0; i < log.OutPath.Count; ++i)
+                        {
+                            string outext = Path.GetExtension(log.OutPath[i]);
+                            string outpath = outbase + ((i == 0) ? outext : ("-" + i + outext));
+                            var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
+                            string name = Path.GetFileName(outpath);
+                            HashUtil.AppendHash(Path.Combine(encoded, "_mp4.hash"), name, hash);
+                            File.Delete(log.OutPath[i]);
+                            log.OutPath[i] = outpath;
+                        }
+                    }
+
+                    return log;
+                }
+                else
+                {
+                    // 失敗
+                    return FailLogItem(src.Path,
+                        "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
+                }
+            }
+
+            public async Task ProcessDiretoryItem(EncodeServer server, QueueDirectory dir)
+            {
+                succeeded = Path.Combine(dir.Path, "succeeded");
+                failed = Path.Combine(dir.Path, "failed");
+                encoded = Path.Combine(dir.Path, "encoded");
+                Directory.CreateDirectory(succeeded);
+                Directory.CreateDirectory(failed);
+                Directory.CreateDirectory(encoded);
+
+                int failCount = 0;
+
+                // 待たなくてもいいタスクリスト
+                waitList = new List<Task>();
+
+                var itemList = dir.Items.ToArray();
+                while (dir.CurrentHead < itemList.Length)
+                {
+                    if (failCount > 0)
+                    {
+                        int waitSec = (failCount * 10 + 10);
+                        waitList.Add(server.AddEncodeLog("エンコードに失敗したので" + waitSec + "秒待機します。(parallel=" + id + ")"));
+                        await Task.Delay(waitSec * 1000);
+
+                        if (server.encodePaused)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (dir.CurrentHead >= itemList.Length)
+                    {
+                        break;
+                    }
+                    var src = itemList[dir.CurrentHead++];
+
+                    waitList.Add(server.UpdateItemState(true, false, src, dir));
+
+                    var logItem = await ProcessItem(server, src);
+
+                    if(logItem.Success)
+                    {
+                        File.Move(src.Path, succeeded + "\\" + Path.GetFileName(src.Path));
+                        failCount = 0;
+                    }
+                    else
+                    {
+                        File.Move(src.Path, failed + "\\" + Path.GetFileName(src.Path));
+                        ++failCount;
+                    }
+
+                    server.log.Items.Add(logItem);
+                    server.WriteLog();
+                    waitList.Add(server.UpdateItemState(false, true, src, dir));
+                    waitList.Add(server.client.OnLogUpdate(server.log.Items.Last()));
+                    waitList.Add(server.RequestFreeSpace());
+
+                    if (server.encodePaused)
+                    {
+                        break;
+                    }
+                }
+
+                await Task.WhenAll(waitList.ToArray());
+            }
+        }
+
+        private class EncodeException : Exception
+        {
+            public EncodeException(string message)
+                :base(message)
+            {
             }
         }
 
@@ -483,11 +812,6 @@ namespace Amatsukaze.Server
         }
         #endregion
 
-        private Task AddEncodeLog(string str)
-        {
-            Util.AddLog(str);
-            return client.OnOperationResult(str);
-        }
 
         public void Finish()
         {
@@ -608,15 +932,11 @@ namespace Amatsukaze.Server
             }
         }
 
-        private string MakeAmatsukazeArgs(bool isGeneric, string src, string dst, out string json, out string log)
+        private string MakeAmatsukazeArgs(bool isGeneric, string src, string dst, string json)
         {
             string workPath = string.IsNullOrEmpty(appData.setting.WorkPath)
                 ? "./" : appData.setting.WorkPath;
             string encoderPath = GetEncoderPath();
-            json = Path.Combine(workPath, "amt-" + Process.GetCurrentProcess().Id.ToString() + ".json");
-            log = Path.Combine(
-                Path.GetDirectoryName(dst),
-                Path.GetFileNameWithoutExtension(dst)) + "-enc.log";
             
             if (string.IsNullOrEmpty(encoderPath))
             {
@@ -679,89 +999,6 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
-        private async Task RedirectOut(EncodeTask task, Stream stream)
-        {
-            try
-            {
-                byte[] buffer = new byte[1024];
-                while (true)
-                {
-                    var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if(readBytes == 0)
-                    {
-                        // 終了
-                        return;
-                    }
-                    task.consoleText.AddBytes(buffer, 0, readBytes);
-                    task.logText.AddBytes(buffer, 0, readBytes);
-
-                    byte[] newbuf = new byte[readBytes];
-                    Array.Copy(buffer, newbuf, readBytes);
-                    await client.OnConsoleUpdate(new ConsoleUpdate() { index = task.id, data = newbuf });
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.Print("RedirectOut exception " + e.Message);
-            }
-        }
-
-        private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish)
-        {
-            var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
-            var outpath = new List<string>();
-            foreach (var path in json.outpath)
-            {
-                outpath.Add(path);
-            }
-            if(isGeneric)
-            {
-                return new LogItem() {
-                    Success = true,
-                    SrcPath = json.srcpath,
-                    OutPath = outpath,
-                    SrcFileSize = (long)json.srcfilesize,
-                    OutFileSize = (long)json.outfilesize,
-                    MachineName = Dns.GetHostName(),
-                    EncodeStartDate = start,
-                    EncodeFinishDate = finish
-                };
-            }
-            return new LogItem() {
-                Success = true,
-                SrcPath = json.srcpath,
-                OutPath = outpath,
-                SrcFileSize = (long)json.srcfilesize,
-                IntVideoFileSize = (long)json.intvideofilesize,
-                OutFileSize = (long)json.outfilesize,
-                SrcVideoDuration = TimeSpan.FromSeconds(json.srcduration),
-                OutVideoDuration = TimeSpan.FromSeconds(json.outduration),
-                EncodeStartDate = start,
-                EncodeFinishDate = finish,
-                MachineName = Dns.GetHostName(),
-                AudioDiff = new AudioDiff() {
-                    TotalSrcFrames = (int)json.audiodiff.totalsrcframes,
-                    TotalOutFrames = (int)json.audiodiff.totaloutframes,
-                    TotalOutUniqueFrames = (int)json.audiodiff.totaloutuniqueframes,
-                    NotIncludedPer = json.audiodiff.notincludedper,
-                    AvgDiff = json.audiodiff.avgdiff,
-                    MaxDiff = json.audiodiff.maxdiff,
-                    MaxDiffPos = json.audiodiff.maxdiffpos
-                }
-            };
-        }
-
-        private LogItem FailLogItem(string reason, DateTime start, DateTime finish)
-        {
-            return new LogItem()
-            {
-                Success = false,
-                Reason = reason,
-                EncodeStartDate = start,
-                EncodeFinishDate = finish
-            };
-        }
-
         private Task UpdateItemState(bool isEncoding, bool isComplete, QueueItem item, QueueDirectory dir)
         {
             item.IsEncoding = isEncoding;
@@ -774,170 +1011,10 @@ namespace Amatsukaze.Server
             });
         }
 
-        private async Task ProcessDiretoryItem(EncodeTask task, QueueDirectory dir)
+        private Task AddEncodeLog(string str)
         {
-            string succeeded = Path.Combine(dir.Path, "succeeded");
-            string failed = Path.Combine(dir.Path, "failed");
-            string encoded = Path.Combine(dir.Path, "encoded");
-            Directory.CreateDirectory(succeeded);
-            Directory.CreateDirectory(failed);
-            Directory.CreateDirectory(encoded);
-
-            int failCount = 0;
-
-            // 待たなくてもいいタスクリスト
-            var waitList = new List<Task>();
-
-            var itemList = dir.Items.ToArray();
-            while (dir.CurrentHead < itemList.Length)
-            {
-                if(failCount > 0)
-                {
-                    int waitSec = (failCount * 10 + 10);
-                    waitList.Add(AddEncodeLog("エンコードに失敗したので" + waitSec + "秒待機します。(parallel=" + task.id + ")"));
-                    await Task.Delay(waitSec * 1000);
-
-                    if (encodePaused)
-                    {
-                        break;
-                    }
-                }
-
-                if (dir.CurrentHead >= itemList.Length)
-                {
-                    break;
-                }
-                var src = itemList[dir.CurrentHead++];
-
-                waitList.Add(UpdateItemState(true, false, src, dir));
-
-                if (File.Exists(src.Path) == false)
-                {
-                    DateTime now = DateTime.Now;
-                    log.Items.Add(FailLogItem("入力ファイルが見つかりません", now, now));
-                    WriteLog();
-                    waitList.Add(UpdateItemState(false, true, src, dir));
-                    waitList.Add(client.OnLogUpdate(log.Items.Last()));
-                    continue;
-                }
-
-                bool isMp4 = src.Path.ToLower().EndsWith(".mp4");
-                string dst = Path.Combine(encoded, Path.GetFileName(src.Path));
-                string json, logpath;
-                string args = MakeAmatsukazeArgs(isMp4, src.Path, dst, out json, out logpath);
-                string exename = appData.setting.AmatsukazePath;
-
-                Util.AddLog(task.id, "エンコード開始: " + src.Path);
-                Util.AddLog(task.id, "Args: " + exename + " " + args);
-
-                DateTime start = DateTime.Now;
-
-                var psi = new ProcessStartInfo(exename, args) {
-                    UseShellExecute = false,
-                    WorkingDirectory = Directory.GetCurrentDirectory(),
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardInput = false,
-                    CreateNoWindow = true
-                };
-
-                IntPtr affinityMask = new IntPtr((long)affinityCreator.GetMask(task.id));
-                Util.AddLog(task.id, "AffinityMask: " + affinityMask.ToInt64());
-
-                int exitCode = -1;
-                task.logText.Clear();
-
-                try
-                {
-                    using (var p = Process.Start(psi))
-                    {
-                        // アフィニティを設定
-                        p.ProcessorAffinity = affinityMask;
-                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
-
-                        task.process = p;
-
-                        using (task.logWriter = File.Create(logpath))
-                        {
-                            await Task.WhenAll(
-                                RedirectOut(task, p.StandardOutput.BaseStream),
-                                RedirectOut(task, p.StandardError.BaseStream),
-                                Task.Run(() => p.WaitForExit()));
-                        }
-
-                        exitCode = p.ExitCode;
-                    }
-                }
-                catch (Win32Exception w32e)
-                {
-                    Util.AddLog(task.id, "Amatsukazeプロセス起動に失敗");
-                    throw w32e;
-                }
-                finally
-                {
-                    task.logWriter = null;
-                    task.process = null;
-                }
-
-                DateTime finish = DateTime.Now;
-
-                if (exitCode == 0)
-                {
-                    // 成功ならログを整形したテキストに置き換える
-                    using (var fs = new StreamWriter(File.Create(logpath)))
-                    {
-                        foreach(var str in task.logText.TextLines)
-                        {
-                            fs.WriteLine(str);
-                        }
-                    }
-                }
-
-                // ログファイルを専用フォルダにコピー
-                if (File.Exists(logpath))
-                {
-                    string logbase = GetLogFileBase(start);
-                    Directory.CreateDirectory(Path.GetDirectoryName(logbase));
-                    File.Copy(logpath, logbase + ".txt");
-                    File.Copy(json, logbase + ".json");
-                }
-
-                if (exitCode == 0)
-                {
-                    // 成功
-                    File.Move(src.Path, succeeded + "\\" + Path.GetFileName(src.Path));
-                    log.Items.Add(LogFromJson(isMp4, json, start, finish));
-                    WriteLog();
-
-                    failCount = 0;
-                }
-                else
-                {
-                    // 失敗
-                    File.Move(src.Path, failed + "\\" + Path.GetFileName(src.Path));
-
-                    log.Items.Add(new LogItem() {
-                        Success = false,
-                        SrcPath = src.Path, 
-                        MachineName = Dns.GetHostName(),
-                        Reason = "Amatsukaze.exeはコード" + exitCode + "で終了しました。"
-                    });
-                    WriteLog();
-
-                    ++failCount;
-                }
-
-                waitList.Add(UpdateItemState(false, true, src, dir));
-                waitList.Add(client.OnLogUpdate(log.Items.Last()));
-                waitList.Add(RequestFreeSpace());
-
-                if (encodePaused)
-                {
-                    break;
-                }
-            }
-
-            await Task.WhenAll(waitList.ToArray());
+            Util.AddLog(str);
+            return client.OnOperationResult(str);
         }
 
         private async Task StartEncode()
@@ -982,13 +1059,32 @@ namespace Amatsukaze.Server
 
                     var dir = queue[0];
 
+                    Dictionary<string, byte[]> hashList = null;
+                    if (dir.Path.StartsWith("\\\\"))
+                    {
+                        var hashpath = dir.Path + ".hash";
+                        if (File.Exists(hashpath) == false)
+                        {
+                            throw new IOException("ハッシュファイルがありません: " + hashpath + "\r\n" +
+                                "ネットワーク経由の場合はBatchHashCheckerによるハッシュファイル生成が必須です。");
+                        }
+                        hashList = HashUtil.ReadHashFile(hashpath);
+                    }
 
                     Task[] tasks = new Task[numParallel];
                     for (int i = 0; i < numParallel; ++i)
                     {
-                        tasks[i] = ProcessDiretoryItem(taskList[i], dir);
+                        taskList[i].hashList = hashList;
+                        taskList[i].tmpBase = Util.CreateTmpFile(appData.setting.WorkPath);
+                        tasks[i] = taskList[i].ProcessDiretoryItem(this, dir);
                     }
+
                     await Task.WhenAll(tasks);
+
+                    for (int i = 0; i < numParallel; ++i)
+                    {
+                        File.Delete(taskList[i].tmpBase);
+                    }
 
                     if (encodePaused)
                     {

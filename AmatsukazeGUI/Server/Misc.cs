@@ -3,11 +3,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Amatsukaze.Server
 {
@@ -213,20 +216,23 @@ namespace Amatsukaze.Server
                 Marshal.FreeHGlobal(Ptr);
             }
         }
-        /*
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool GetProcessAffinityMask(
-            IntPtr hProcess,
-            ref ulong lpProcessAffinityMask,
-            ref ulong lpSystemAffinityMask
-        );
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool SetProcessAffinityMask(
-            IntPtr hProcess,
-            ulong dwProcessAffinityMask
-        );
-         * */
+        public static string CreateTmpFile(string baseDir)
+        {
+            for(int code = Environment.TickCount & 0xFFFFFF; code >= 0; ++code)
+            {
+                string path = baseDir + "\\amt" + code;
+                try
+                {
+                    using (FileStream fs = new FileStream(path, FileMode.CreateNew))
+                    {
+                        return path;
+                    }
+                }
+                catch (IOException) { }
+            }
+            throw new IOException("一時ファイル作成に失敗");
+        }
     }
 
     public abstract class ConsoleTextBase : NotificationObject
@@ -410,6 +416,158 @@ namespace Amatsukaze.Server
                 }
             }
             return -1;
+        }
+    }
+
+    public static class HashUtil
+    {
+        private static readonly int HASH_LENGTH = 64;
+
+        private class Buffer
+        {
+            public byte[] buffer;
+            public int size;
+        }
+
+        private static async Task ReadFile(BufferBlock<Buffer> bufferQ, BufferBlock<Buffer> computeQ, FileStream src)
+        {
+            while (true)
+            {
+                var buf = await bufferQ.ReceiveAsync();
+                buf.size = await src.ReadAsync(buf.buffer, 0, buf.buffer.Length);
+                if(buf.size == 0)
+                {
+                    computeQ.Complete();
+                    break;
+                }
+                computeQ.Post(buf);
+            }
+        }
+
+        private static async Task ComputeHash(BufferBlock<Buffer> computeQ, BufferBlock<Buffer> writeQ, HashAlgorithm hash)
+        {
+            while (await computeQ.OutputAvailableAsync())
+            {
+                var buf = await computeQ.ReceiveAsync();
+                await Task.Run(() => hash.TransformBlock(buf.buffer, 0, buf.size, null, 0));
+                writeQ.Post(buf);
+            }
+
+            hash.TransformFinalBlock(new byte[0], 0, 0);
+            writeQ.Complete();
+        }
+
+        private static async Task WriteFile(BufferBlock<Buffer> writeQ, BufferBlock<Buffer> bufferQ, FileStream dst)
+        {
+            while (await writeQ.OutputAvailableAsync())
+            {
+                var buf = await writeQ.ReceiveAsync();
+                await dst.WriteAsync(buf.buffer, 0, buf.size);
+                bufferQ.Post(buf);
+            }
+        }
+
+        public static async Task<byte[]> CopyWithHash(string srcpath, string dstpath)
+        {
+            var bufferQ = new BufferBlock<Buffer>();
+            var computeQ = new BufferBlock<Buffer>();
+            var writeQ = new BufferBlock<Buffer>();
+
+            // バッファは適当に4つ
+            for(int i = 0; i < 4; ++i)
+            {
+                bufferQ.Post(new Buffer() { buffer = new byte[2 * 1024 * 1024] });
+            }
+
+            var sha512 = new SHA512Managed();
+
+            using (var src = File.OpenRead(srcpath))
+            using (var dst = File.Create(dstpath))
+                await Task.WhenAll(
+                    ReadFile(bufferQ, computeQ, src),
+                    ComputeHash(computeQ, writeQ, sha512),
+                    WriteFile(writeQ, bufferQ, dst));
+
+            return sha512.Hash;
+        }
+
+        private static readonly byte[] HexCharToNum = new byte[0x100] {
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 255, 255, 255, 255, 255, 255,
+            255, 10, 11, 12, 13, 14, 15, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 10, 11, 12, 13, 14, 15, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        };
+
+        private static byte[] ReadHex(string str)
+        {
+            byte[] dst = new byte[str.Length / 2];
+            for (int i = 0; i < dst.Length; i++)
+            {
+                byte c1 = HexCharToNum[str[2 * i]];
+                byte c2 = HexCharToNum[str[2 * i + 1]];
+                if (c1 == 0xFF || c2 == 0xFF) throw new FormatException("16進数ではありません");
+                dst[i] = (byte)((c1 << 4) | c2);
+            }
+            return dst;
+        }
+
+        private static readonly char[] NumToHexChar = new char[0x10] {
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+        };
+
+        private static string WriteHex(byte[] bin)
+        {
+            char[] str = new char[bin.Length * 2];
+            for (int i = 0; i < bin.Length; i++)
+            {
+                str[2 * i] = NumToHexChar[bin[i] >> 4];
+                str[2 * i + 1] = NumToHexChar[bin[i] & 0xF];
+            }
+            return new string(str);
+        }
+
+        public static Dictionary<string, byte[]> ReadHashFile(string path)
+        {
+            // 簡易版なのでハッシュチェックなし
+            var dic = new Dictionary<string, byte[]>();
+            string[] lines = File.ReadAllLines(path);
+            for(int i = 0; i < lines.Length; ++i)
+            {
+                string line = lines[i];
+                if(i + 1 == lines.Length && line.Length <= HASH_LENGTH * 2 + 2)
+                {
+                    // 正常終了
+                    break;
+                }
+                if(line.Length <= HASH_LENGTH * 2 + 2)
+                {
+                    throw new IOException("ハッシュファイルが破損しています");
+                }
+                byte[] hash = ReadHex(line.Substring(0, HASH_LENGTH * 2));
+                string name = line.Substring(HASH_LENGTH * 2 + 2);
+                dic.Add(name, hash);
+            }
+            return dic;
+        }
+
+        public static void AppendHash(string path, string name, byte[] hash)
+        {
+            using(var fs = new StreamWriter(File.Open(path, FileMode.Append), Encoding.UTF8))
+            {
+                fs.WriteLine(WriteHex(hash) + "  " + name);
+            }
         }
     }
 }

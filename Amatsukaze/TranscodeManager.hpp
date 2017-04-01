@@ -612,6 +612,7 @@ protected:
 		// PTSでソート
 		std::sort(modifiedPTS.begin(), modifiedPTS.end());
 
+		/*
 		// フレームリストを出力
 		FILE* framesfp = fopen("frames.txt", "w");
 		fprintf(framesfp, "FrameNumber,DecodeFrameNumber,PTS,Duration,FRAME_TYPE,PIC_TYPE,IsGOPStart\n");
@@ -633,6 +634,7 @@ protected:
 				i, decodeIndex, PTS, PTSdiff, FrameTypeString(frame.type), PictureTypeString(frame.pic), frame.isGopStart ? 1 : 0);
 		}
 		fclose(framesfp);
+		*/
 
 		// PTS間隔を出力
 		struct Integer {
