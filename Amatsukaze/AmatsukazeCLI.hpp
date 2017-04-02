@@ -70,7 +70,9 @@ static void printHelp(const tchar* bin) {
     "                      sは入力映像ビットレート、fは入力がH264の場合は入力されたfだが、\n"
     "                      入力がMPEG2の場合はf=1とする\n"
     "                      指定がない場合はビットレートオプションを追加しない\n"
-    "  --2pass              2passエンコード\n"
+		"  --2pass             2passエンコード\n"
+		"  --pulldown          ソフトテレシネを解除しないでそのままエンコード\n"
+		"                      エンコーダの--pdfile-inオプションへの対応が必要\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
@@ -149,6 +151,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
   bool autoBitrate = bool();
   BitrateSetting bitrate = BitrateSetting();
   bool twoPass = bool();
+	bool pulldown = bool();
 	int serviceId = -1;
 	bool dumpStreamInfo = bool();
 
@@ -204,6 +207,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
     else if (key == _T("--2pass")) {
       twoPass = true;
     }
+		else if (key == _T("--pulldown")) {
+			pulldown = true;
+		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
 			muxerPath = getParam(argc, argv, i++);
 		}
@@ -256,6 +262,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 		to_string(timelineditorPath),
 		twoPass,
 		autoBitrate,
+		pulldown,
 		bitrate,
 		serviceId,
 		dumpStreamInfo));

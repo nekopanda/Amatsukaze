@@ -319,6 +319,7 @@ public:
 
 		int receivedField = 0;
 		bool isGopStart = false;
+		bool progressive = false;
 		PICTURE_TYPE picType = PIC_FRAME;
 		FRAME_TYPE type = FRAME_NO_INFO;
     int codedDataSize = (int)frame.length;
@@ -398,6 +399,7 @@ public:
 							type = FRAME_B;
 							break;
 						}
+						progressive = (picHeader.progressive_frame != 0);
 					}
 					else {
 						// 2枚目はチェック可能だけど面倒なので見ない
@@ -429,6 +431,7 @@ public:
 					VideoFrameInfo finfo;
 					finfo.format = format;
 					finfo.isGopStart = isGopStart;
+					finfo.progressive = progressive;
 					finfo.pic = picType;
 					finfo.type = type;
 					finfo.DTS = DTS;

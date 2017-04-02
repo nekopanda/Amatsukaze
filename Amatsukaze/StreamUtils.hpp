@@ -659,6 +659,7 @@ struct VideoFrameInfo {
 	// MPEG2の場合 sequence header がある
 	// H264の場合 SPS がある
 	bool isGopStart;
+	bool progressive;
 	PICTURE_TYPE pic;
 	FRAME_TYPE type; // 使わないけど参考情報
   int codedDataSize; // 映像ビットストリームにおけるバイト数

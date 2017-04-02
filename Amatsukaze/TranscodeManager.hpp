@@ -263,6 +263,7 @@ public:
 			std::string timelineditorPath,
 			bool twoPass,
 			bool autoBitrate,
+		  bool pulldown,
 			BitrateSetting bitrate,
 			int serviceId,
 			bool dumpStreamInfo)
@@ -279,6 +280,7 @@ public:
 		, timelineditorPath(timelineditorPath)
 		, twoPass(twoPass)
 		, autoBitrate(autoBitrate)
+		, pulldown(pulldown)
 		, bitrate(bitrate)
 		, serviceId(serviceId)
 		, dumpStreamInfo(dumpStreamInfo)
@@ -320,6 +322,10 @@ public:
 
 	bool isAutoBitrate() const {
 		return autoBitrate;
+	}
+
+	bool isPulldownEnabled() const {
+		return pulldown;
 	}
 
 	BitrateSetting getBitrate() const {
@@ -373,10 +379,18 @@ public:
     return ss.str();
   }
 
-	std::string getEnvTimecodeFilePath(int vindex, int index) const
+	std::string getEncTimecodeFilePath(int vindex, int index) const
 	{
 		std::ostringstream ss;
 		ss << tmpDir.path() << "/tc" << vindex << "-" << index << ".txt";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getEncPulldownFilePath(int vindex, int index) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/pd" << vindex << "-" << index << ".txt";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
@@ -428,6 +442,9 @@ public:
 			ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
 			ss << " --vbv-bufsize 31250"; // high profile level 4.1
     }
+		if (pulldown) {
+			ss << " --pdfile-in \"" << getEncPulldownFilePath(vindex, index) << "\"";
+		}
     if (pass >= 0) {
       ss << " --pass " << pass;
       ss << " --stats \"" << getEncStatsFilePath(vindex, index) << "\"";
@@ -477,6 +494,7 @@ private:
 	std::string timelineditorPath;
 	bool twoPass;
 	bool autoBitrate;
+	bool pulldown;
 	BitrateSetting bitrate;
 	int serviceId;
 	// デバッグ用設定
@@ -783,6 +801,11 @@ public:
 		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
 		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
 
+		// pulldownファイル生成
+		if (setting_.isPulldownEnabled()) {
+			generatePulldownFile(bufsize);
+		}
+
 		// x265でインタレースの場合はフィールドモード
 		bool fieldMode = 
 			(setting_.getEncoder() == ENCODER_X265 &&
@@ -858,6 +881,7 @@ private:
 	int videoFileIndex_;
   int numEncoders_;
 	av::EncodeWriter* encoders_;
+	std::stringstream* pd_data_;
   std::vector<EncodeFileInfo> efi_;
 	
 	SpDataPumpThread thread_;
@@ -903,6 +927,34 @@ private:
     delete[] encoders_; encoders_ = NULL;
   }
 
+	void generatePulldownFile(int bufsize)
+	{
+		// 初期化
+		pd_data_ = new std::stringstream[numEncoders_];
+		SpVideoReader reader(this);
+
+		// エンコードスレッド開始
+		thread_.start();
+
+		// エンコード
+		std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
+		reader.readAll(intVideoFilePath);
+
+		// エンコードスレッドを終了して自分に引き継ぐ
+		thread_.join();
+
+		// ファイル出力
+		for (int i = 0; i < numEncoders_; ++i) {
+			std::string str = pd_data_[i].str();
+			MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
+			File file(setting_.getEncPulldownFilePath(videoFileIndex_, i), "w");
+			file.write(mc);
+		}
+
+		// 終了
+		delete[] pd_data_; pd_data_ = NULL;
+	}
+
   double getSourceBitrate()
   {
     // ビットレート計算
@@ -921,6 +973,19 @@ private:
 		thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
 	}
 
+	const char* toPulldownFlag(PICTURE_TYPE pic, bool progressive) {
+		switch (pic) {
+		case PIC_FRAME: return "SGL";
+		case PIC_FRAME_DOUBLING: return "DBL";
+		case PIC_FRAME_TRIPLING: return "TPL";
+		case PIC_TFF: return progressive ? "PTB" : "TB";
+		case PIC_BFF: return progressive ? "PBT" : "BT";
+		case PIC_TFF_RFF: return "TBT";
+		case PIC_BFF_RFF: return "BTB";
+		default: THROWF(FormatException, "Unknown PICTURE_TYPE %d", pic);
+		}
+	}
+
 	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
 
 		// ffmpegがどうptsをwrapするか分からないので入力データの
@@ -934,10 +999,20 @@ private:
 		}
 
 		const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
-		auto& encoder = encoders_[reformInfo_.getEncoderIndex(frameIndex)];
+		int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
 
-		if (reformInfo_.isVFR()) {
+		if (pd_data_ != NULL) {
+			// pulldownファイル生成中
+			auto& ss = pd_data_[encoderIndex];
+			ss << toPulldownFlag(info.pic, info.progressive) << std::endl;
+			return;
+		}
+
+		auto& encoder = encoders_[encoderIndex];
+
+		if (reformInfo_.isVFR() || setting_.isPulldownEnabled()) {
 			// VFRの場合は必ず１枚だけ出力
+			// プルダウンが有効な場合はフラグで処理するので１枚だけ出力
 			encoder.inputFrame(*frame);
 		}
 		else {
@@ -968,10 +1043,11 @@ private:
         encoder.inputFrame(*frame);
 				break;
 			}
+
+			prevFrame_ = std::move(frame);
 		}
 
 		reformInfo_.frameEncoded(frameIndex);
-		prevFrame_ = std::move(frame);
 	}
 
 	// 2つのフレームのトップフィールド、ボトムフィールドを合成
@@ -1286,7 +1362,7 @@ public:
 			// VFRの場合はタイムコードを埋め込む
 			if (reformInfo_.isVFR()) {
 				std::string outWithTimeFilePath = setting_.getOutFilePath(outFileIndex);
-				std::string encTimecodeFile = setting_.getEnvTimecodeFilePath(videoFileIndex, i);
+				std::string encTimecodeFile = setting_.getEncTimecodeFilePath(videoFileIndex, i);
 				{ // タイムコードファイルを生成
 					std::ostringstream ss;
 					ss << "# timecode format v2" << std::endl;
