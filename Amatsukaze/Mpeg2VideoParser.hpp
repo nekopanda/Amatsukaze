@@ -13,6 +13,16 @@
 #define PICTURE_START_CODE 0x00000100
 #define EXTENSION_START_CODE 0x000001B5
 
+static bool mpeg2_next_start_code(BitReader& reader) {
+	reader.byteAlign();
+	while (reader.next<24>() != 1) {
+		if (reader.read<8>() != 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
 struct MPEG2SequenceHeader {
 
 	bool parse(uint8_t *data, int length) {
@@ -37,7 +47,7 @@ struct MPEG2SequenceHeader {
 			if (reader.read<1>()) { // load_non_intra_quantiser_matrix
 				reader.skip(8 * 64);
 			}
-			reader.byteAlign();
+			if (!mpeg2_next_start_code(reader)) return false;
 
 			// Sequence extension
 			uint32_t extension_start_code = reader.read<32>();
@@ -59,7 +69,7 @@ struct MPEG2SequenceHeader {
 			low_delay = reader.read<1>();
 			frame_rate_extension_n = reader.read<2>();
 			frame_rate_extension_d = reader.read<5>();
-			reader.byteAlign();
+			if (!mpeg2_next_start_code(reader)) return false;
 
 			numReadBytes = reader.numReadBytes();
 
@@ -84,7 +94,7 @@ struct MPEG2SequenceHeader {
 			display_horizontal_size = reader.read<14>();
 			reader.read<1>(); // marker_bit
 			display_vertical_size = reader.read<14>();
-			reader.byteAlign();
+			if (!mpeg2_next_start_code(reader)) return false;
 
 			numReadBytes = reader.numReadBytes();
 		}
@@ -239,7 +249,7 @@ struct MPEG2PictureHeader {
 				reader.skip(4);
 			}
 			while (reader.read<1>()) reader.skip(8);
-			reader.byteAlign();
+			if (!mpeg2_next_start_code(reader)) return false;
 
 			// Picture Coding Extension
 			uint32_t _extension_start_code = reader.read<32>();

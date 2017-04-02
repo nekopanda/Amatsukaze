@@ -200,6 +200,8 @@ public:
 		return (filled + (data.length - offset) * 8) >= bits;
 	}
 
+	// bitsビット読んで進める
+	// bits <= 32
 	template <int bits>
 	uint32_t read() {
 		return readn(bits);
@@ -214,6 +216,24 @@ public:
 			throw EOFException("BitReader.readでオーバーラン");
 		}
 		return read_(bits);
+	}
+
+	// bitsビット読むだけ
+	// bits <= 32
+	template <int bits>
+	uint32_t next() {
+		return nextn(bits);
+	}
+
+	uint32_t nextn(int bits) {
+		if (bits <= filled) {
+			return next_(bits);
+		}
+		fill();
+		if (bits > filled) {
+			throw EOFException("BitReader.nextでオーバーラン");
+		}
+		return next_(bits);
 	}
 
 	int32_t readExpGolomSigned() {
@@ -297,6 +317,11 @@ private:
 	uint32_t read_(int bits) {
 		int shift = filled - bits;
 		filled -= bits;
+		return (uint32_t)bsm(current, shift, bits);
+	}
+
+	uint32_t next_(int bits) {
+		int shift = filled - bits;
 		return (uint32_t)bsm(current, shift, bits);
 	}
 };

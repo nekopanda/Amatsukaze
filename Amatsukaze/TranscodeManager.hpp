@@ -222,7 +222,7 @@ public:
 			}
 		}
 		if (path_.size() == 0) {
-			throw IOException("一時ディレクトリ作成失敗");
+			THROW(IOException, "一時ディレクトリ作成失敗");
 		}
 	}
 	~TempDirectory() {

@@ -479,7 +479,7 @@ namespace Amatsukaze.Server
                 bufferQ.Post(new Buffer() { buffer = new byte[2 * 1024 * 1024] });
             }
 
-            var sha512 = new SHA512Managed();
+            var sha512 = new SHA512Cng();
 
             using (var src = File.OpenRead(srcpath))
             using (var dst = File.Create(dstpath))

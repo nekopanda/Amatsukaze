@@ -383,6 +383,10 @@ namespace Amatsukaze.Server
                             // 終了
                             return;
                         }
+                        if(logWriter != null)
+                        {
+                            logWriter.Write(buffer, 0, readBytes);
+                        }
                         consoleText.AddBytes(buffer, 0, readBytes);
                         logText.AddBytes(buffer, 0, readBytes);
 
