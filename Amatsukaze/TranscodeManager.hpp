@@ -784,6 +784,7 @@ public:
 		, setting_(setting)
 		, reformInfo_(reformInfo)
 		, thread_(this, 8)
+		, pd_data_(NULL)
 	{
 		//
 	}
@@ -1285,17 +1286,6 @@ private:
 		if (pass_ <= 1) { // 2ƒpƒX–Ú‚Ío—Í‚µ‚È‚¢
 			int audioIdx = audioMap_[packet.stream_index];
 			if (audioIdx >= 0) {
-
-				/*
-        AdtsHeader header;
-        if (header.parse(packet.data, packet.size) == false) {
-          printf("!!!");
-        }
-        if (header.frame_length > packet.size) {
-          printf("!!!");
-        }
-				*/
-
 				audioFiles_[audioIdx]->inputFrame(packet);
 			}
 		}
