@@ -131,6 +131,7 @@ public:
 		, audioFrameList_(std::move(audioFrameList))
 		, streamEventList_(std::move(streamEventList))
 		, isVFR_(false)
+		, hasRFF_(false)
 		, srcTotalDuration_()
 		, outTotalDuration_()
 		, adiff_()
@@ -238,6 +239,10 @@ public:
 		return isVFR_;
 	}
 
+	bool hasRFF() const {
+		return hasRFF_;
+	}
+
 	std::pair<int64_t, int64_t> getInOutDuration() const {
 		return std::make_pair(srcTotalDuration_, outTotalDuration_);
 	}
@@ -308,6 +313,7 @@ private:
 
 	// 計算データ
 	bool isVFR_;
+	bool hasRFF_;
 	std::vector<int64_t> modifiedPTS_; // ラップアラウンドしないPTS
 	std::vector<int64_t> modifiedAudioPTS_; // ラップアラウンドしないPTS
 	std::vector<int> audioFrameDuration_; // 各音声フレームの時間
@@ -520,7 +526,8 @@ private:
         ? ordredVideoFrame_[i + 1]
         : -1;
       int64_t pts;
-      int64_t duration = getFrameDuration(ordered, next, pts);
+			double actualDuration;
+      int64_t duration = getFrameDuration(ordered, next, pts, actualDuration);
 
       const auto& frame = videoFrameList_[ordered];
       fileSrcSize_[formatId] += frame.codedDataSize;
@@ -601,6 +608,7 @@ private:
 	struct OutFileState {
 		int formatId; // デバッグ出力用
 		int64_t time; // 追加された映像フレームの合計時間
+		double actualTime; // 追加された映像フレームの合計時間（BFF修正なし）
 		std::vector<AudioState> audioState;
 		std::unique_ptr<FileAudioFrameList> audioFrameList;
 		std::vector<int64_t> timecode;
@@ -631,6 +639,7 @@ private:
 			int numAudio = (int)outFormat_[i].audioFormat.size();
 			file.formatId = i;
 			file.time = 0;
+			file.actualTime = 0;
 			file.audioState.resize(numAudio);
 			file.audioFrameList =
 				std::unique_ptr<FileAudioFrameList>(new FileAudioFrameList(numAudio));
@@ -689,7 +698,7 @@ private:
 		}
 	}
 
-  int64_t getFrameDuration(int index, int nextIndex, int64_t& pts)
+  int64_t getFrameDuration(int index, int nextIndex, int64_t& pts, double& actualDuration)
   {
     const auto& videoFrame = videoFrameList_[index];
     int formatId = frameFormatId_[index];
@@ -705,27 +714,41 @@ private:
       else {
         duration = modifiedPTS_[nextIndex] - pts;
       }
+			actualDuration = (double)duration;
     }
     else { // CFR
-      duration = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
-
+			int frameDiff = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
+      
       switch (videoFrame.pic) {
       case PIC_FRAME:
       case PIC_TFF:
+				duration = frameDiff;
+				actualDuration = frameDiff;
+				break;
       case PIC_TFF_RFF:
+				duration = frameDiff;
+				actualDuration = frameDiff * 1.5;
         break;
       case PIC_FRAME_DOUBLING:
-        duration *= 2;
+				duration = frameDiff * 2;
+				actualDuration = frameDiff * 2;
+				hasRFF_ = true;
         break;
       case PIC_FRAME_TRIPLING:
-        duration *= 3;
+				duration = frameDiff * 3;
+				actualDuration = frameDiff * 3;
+				hasRFF_ = true;
         break;
       case PIC_BFF:
-        pts -= (duration / 2);
+        pts -= (frameDiff / 2);
+				duration = frameDiff;
+				actualDuration = frameDiff;
         break;
       case PIC_BFF_RFF:
-        pts -= (duration / 2);
-        duration *= 2;
+        pts -= (frameDiff / 2);
+				duration = frameDiff * 2;
+				actualDuration = frameDiff * 1.5;
+				hasRFF_ = true;
         break;
       }
     }
@@ -740,13 +763,15 @@ private:
     const auto& format = outFormat_[formatId];
 
     int64_t pts;
-    int64_t duration = getFrameDuration(index, nextIndex, pts);
+		double actualDuration;
+    int64_t duration = getFrameDuration(index, nextIndex, pts, actualDuration);
 
 		// timecode出力
-		file.timecode.push_back(file.time);
+		file.timecode.push_back((int64_t)std::round(file.actualTime));
 
 		int64_t endPts = pts + duration;
 		file.time += duration;
+		file.actualTime += actualDuration;
 
 		ASSERT(format.audioFormat.size() == file.audioFrameList->size());
 		ASSERT(format.audioFormat.size() == file.audioState.size());

@@ -630,7 +630,7 @@ protected:
 		// PTSでソート
 		std::sort(modifiedPTS.begin(), modifiedPTS.end());
 
-		/*
+#if 0
 		// フレームリストを出力
 		FILE* framesfp = fopen("frames.txt", "w");
 		fprintf(framesfp, "FrameNumber,DecodeFrameNumber,PTS,Duration,FRAME_TYPE,PIC_TYPE,IsGOPStart\n");
@@ -652,7 +652,7 @@ protected:
 				i, decodeIndex, PTS, PTSdiff, FrameTypeString(frame.type), PictureTypeString(frame.pic), frame.isGopStart ? 1 : 0);
 		}
 		fclose(framesfp);
-		*/
+#endif
 
 		// PTS間隔を出力
 		struct Integer {
@@ -768,6 +768,116 @@ protected:
 		streamEventList_.push_back(ev);
 	}
 };
+
+class RFFExtractor
+{
+public:
+	void clear() {
+		prevFrame_ = nullptr;
+	}
+
+	void inputFrame(av::EncodeWriter& encoder, std::unique_ptr<av::Frame>&& frame, PICTURE_TYPE pic) {
+
+		// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
+		switch (pic) {
+		case PIC_FRAME:
+		case PIC_TFF:
+		case PIC_TFF_RFF:
+			encoder.inputFrame(*frame);
+			break;
+		case PIC_FRAME_DOUBLING:
+			encoder.inputFrame(*frame);
+			encoder.inputFrame(*frame);
+			break;
+		case PIC_FRAME_TRIPLING:
+			encoder.inputFrame(*frame);
+			encoder.inputFrame(*frame);
+			encoder.inputFrame(*frame);
+			break;
+		case PIC_BFF:
+			encoder.inputFrame(*mixFields(
+				(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
+			break;
+		case PIC_BFF_RFF:
+			encoder.inputFrame(*mixFields(
+				(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
+			encoder.inputFrame(*frame);
+			break;
+		}
+
+		prevFrame_ = std::move(frame);
+	}
+
+private:
+	std::unique_ptr<av::Frame> prevFrame_;
+
+	// 2つのフレームのトップフィールド、ボトムフィールドを合成
+	static std::unique_ptr<av::Frame> mixFields(av::Frame& topframe, av::Frame& bottomframe)
+	{
+		auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
+
+		AVFrame* top = topframe();
+		AVFrame* bottom = bottomframe();
+		AVFrame* dst = (*dstframe)();
+
+		// フレームのプロパティをコピー
+		av_frame_copy_props(dst, top);
+
+		// メモリサイズに関する情報をコピー
+		dst->format = top->format;
+		dst->width = top->width;
+		dst->height = top->height;
+
+		// メモリ確保
+		if (av_frame_get_buffer(dst, 64) != 0) {
+			THROW(RuntimeException, "failed to allocate frame buffer");
+		}
+
+		const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(dst->format));
+		int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+
+		for (int i = 0; i < 3; ++i) {
+			int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+			int vshift = (i > 0) ? desc->log2_chroma_h : 0;
+			int wbytes = (dst->width >> hshift) << pixel_shift;
+			int height = dst->height >> vshift;
+
+			for (int y = 0; y < height; y += 2) {
+				uint8_t* dst0 = dst->data[i] + dst->linesize[i] * (y + 0);
+				uint8_t* dst1 = dst->data[i] + dst->linesize[i] * (y + 1);
+				uint8_t* src0 = top->data[i] + top->linesize[i] * (y + 0);
+				uint8_t* src1 = bottom->data[i] + bottom->linesize[i] * (y + 1);
+				memcpy(dst0, src0, wbytes);
+				memcpy(dst1, src1, wbytes);
+			}
+		}
+
+		return std::move(dstframe);
+	}
+};
+
+static PICTURE_TYPE getPictureTypeFromAVFrame(AVFrame* frame)
+{
+	bool interlaced = frame->interlaced_frame != 0;
+	bool tff = frame->top_field_first != 0;
+	int repeat = frame->repeat_pict;
+	if (interlaced == false) {
+		switch (repeat) {
+		case 0: return PIC_FRAME;
+		case 1: return tff ? PIC_TFF_RFF : PIC_BFF_RFF;
+		case 2: return PIC_FRAME_DOUBLING;
+		case 4: return PIC_FRAME_TRIPLING;
+		default: THROWF(FormatException, "Unknown repeat count: %d", repeat);
+		}
+		return PIC_FRAME;
+	}
+	else {
+		if (repeat) {
+			THROW(FormatException, "interlaced and repeat ???");
+		}
+		return tff ? PIC_TFF : PIC_BFF;
+	}
+}
 
 struct EncodeFileInfo {
   double srcBitrate;
@@ -887,7 +997,8 @@ private:
 	
 	SpDataPumpThread thread_;
 
-	std::unique_ptr<av::Frame> prevFrame_;
+	RFFExtractor rffExtractor_;
+
 
   void processAllData(bool fieldMode, int bufsize, std::function<std::string(int,int)> getOptions, int pass)
   {
@@ -924,7 +1035,7 @@ private:
     }
 
     // 終了
-    prevFrame_ = nullptr;
+		rffExtractor_.clear();
     delete[] encoders_; encoders_ = NULL;
   }
 
@@ -985,6 +1096,7 @@ private:
 		case PIC_BFF_RFF: return "BTB";
 		default: THROWF(FormatException, "Unknown PICTURE_TYPE %d", pic);
 		}
+		return NULL;
 	}
 
 	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
@@ -1002,6 +1114,14 @@ private:
 		const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
 		int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
 
+		/*
+		// for debug
+		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
+		if (pic != info.pic) {
+			printf("!!! %s\n", PictureTypeString(pic));
+		}
+		*/
+
 		if (pd_data_ != NULL) {
 			// pulldownファイル生成中
 			auto& ss = pd_data_[encoderIndex];
@@ -1018,82 +1138,12 @@ private:
 		}
 		else {
 			// RFFフラグ処理
-			// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
-			switch (info.pic) {
-			case PIC_FRAME:
-			case PIC_TFF:
-			case PIC_TFF_RFF:
-        encoder.inputFrame(*frame);
-				break;
-			case PIC_FRAME_DOUBLING:
-        encoder.inputFrame(*frame);
-        encoder.inputFrame(*frame);
-				break;
-			case PIC_FRAME_TRIPLING:
-        encoder.inputFrame(*frame);
-        encoder.inputFrame(*frame);
-        encoder.inputFrame(*frame);
-				break;
-			case PIC_BFF:
-        encoder.inputFrame(*mixFields(
-					(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
-				break;
-			case PIC_BFF_RFF:
-        encoder.inputFrame(*mixFields(
-					(prevFrame_ != nullptr) ? *prevFrame_ : *frame, *frame));
-        encoder.inputFrame(*frame);
-				break;
-			}
-
-			prevFrame_ = std::move(frame);
+			rffExtractor_.inputFrame(encoder, std::move(frame), info.pic);
 		}
 
 		reformInfo_.frameEncoded(frameIndex);
 	}
 
-	// 2つのフレームのトップフィールド、ボトムフィールドを合成
-	static std::unique_ptr<av::Frame> mixFields(av::Frame& topframe, av::Frame& bottomframe)
-	{
-		auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
-
-		AVFrame* top = topframe();
-		AVFrame* bottom = bottomframe();
-		AVFrame* dst = (*dstframe)();
-
-		// フレームのプロパティをコピー
-		av_frame_copy_props(dst, top);
-
-		// メモリサイズに関する情報をコピー
-		dst->format = top->format;
-		dst->width = top->width;
-		dst->height = top->height;
-
-		// メモリ確保
-		if (av_frame_get_buffer(dst, 64) != 0) {
-			THROW(RuntimeException, "failed to allocate frame buffer");
-		}
-
-    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(dst->format));
-    int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
-
-    for (int i = 0; i < 3; ++i) {
-      int hshift = (i > 0) ? desc->log2_chroma_w : 0;
-      int vshift = (i > 0) ? desc->log2_chroma_h : 0;
-      int wbytes = (dst->width >> hshift) << pixel_shift;
-      int height = dst->height >> vshift;
-
-      for (int y = 0; y < height; y += 2) {
-        uint8_t* dst0 = dst->data[i] + dst->linesize[i] * (y + 0);
-        uint8_t* dst1 = dst->data[i] + dst->linesize[i] * (y + 1);
-        uint8_t* src0 = top->data[i] + top->linesize[i] * (y + 0);
-        uint8_t* src1 = bottom->data[i] + bottom->linesize[i] * (y + 1);
-        memcpy(dst0, src0, wbytes);
-        memcpy(dst1, src1, wbytes);
-      }
-    }
-
-		return std::move(dstframe);
-	}
 };
 
 class AMTSimpleVideoEncoder : public AMTObject {
@@ -1197,6 +1247,7 @@ private:
 
 	int64_t srcFileSize_;
 	VideoFormat videoFormat_;
+	RFFExtractor rffExtractor_;
 
   int pass_;
 
@@ -1232,6 +1283,7 @@ private:
 			audioFiles_[i]->flush();
 		}
 
+		rffExtractor_.clear();
 		audioFiles_.clear();
 		audioMap_.clear();
   }
@@ -1278,7 +1330,13 @@ private:
 
   void onFrameReceived(std::unique_ptr<av::Frame>&& frame)
   {
-    encoder_.inputFrame(*frame);
+		// RFFフラグ処理
+		// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
+		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
+		printf("%s\n", PictureTypeString(pic));
+		rffExtractor_.inputFrame(encoder_, std::move(frame), pic);
+
+    //encoder_.inputFrame(*frame);
   }
 
   void onAudioPacket(AVPacket& packet)
@@ -1328,10 +1386,14 @@ public:
 				}
 			}
 
+			// タイムコードを埋め込む必要があるか
+			bool needTimecode = reformInfo_.isVFR() ||
+				(reformInfo_.hasRFF() && setting_.isPulldownEnabled());
+
 			// Mux
 			int outFileIndex = reformInfo_.getOutFileIndex(i, videoFileIndex);
 			std::string encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
-			std::string outFilePath = reformInfo_.isVFR()
+			std::string outFilePath = needTimecode
 				? setting_.getVfrTmpFilePath(outFileIndex)
 				: setting_.getOutFilePath(outFileIndex);
 			std::string args = makeMuxerArgs(
@@ -1349,8 +1411,7 @@ public:
 				}
 			}
 
-			// VFRの場合はタイムコードを埋め込む
-			if (reformInfo_.isVFR()) {
+			if (needTimecode) {
 				std::string outWithTimeFilePath = setting_.getOutFilePath(outFileIndex);
 				std::string encTimecodeFile = setting_.getEncTimecodeFilePath(videoFileIndex, i);
 				{ // タイムコードファイルを生成
