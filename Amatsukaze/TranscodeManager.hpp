@@ -1114,13 +1114,13 @@ private:
 		const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
 		int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
 
-		/*
+#if 0
 		// for debug
 		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
 		if (pic != info.pic) {
 			printf("!!! %s\n", PictureTypeString(pic));
 		}
-		*/
+#endif
 
 		if (pd_data_ != NULL) {
 			// pulldownファイル生成中
@@ -1238,7 +1238,7 @@ private:
 
   const TranscoderSetting& setting_;
   SpVideoReader reader_;
-  av::EncodeWriter encoder_;
+  av::EncodeWriter* encoder_;
   SpDataPumpThread thread_;
 
 	int audioCount_;
@@ -1255,11 +1255,13 @@ private:
 	{
 		audioMap_ = std::vector<int>(fmt->nb_streams, -1);
 		audioCount_ = 0;
-		for (int i = 0; i < (int)fmt->nb_streams; ++i) {
-			if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-				audioFiles_.emplace_back(new AudioFileWriter(
-					fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_), 8 * 1024));
-				audioMap_[i] = audioCount_++;
+		if (pass_ <= 1) { // 2パス目は出力しない
+			for (int i = 0; i < (int)fmt->nb_streams; ++i) {
+				if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+					audioFiles_.emplace_back(new AudioFileWriter(
+						fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_), 8 * 1024));
+					audioMap_[i] = audioCount_++;
+				}
 			}
 		}
 	}
@@ -1267,6 +1269,8 @@ private:
   void processAllData(int pass)
   {
     pass_ = pass;
+
+		encoder_ = new av::EncodeWriter();
 
     // エンコードスレッド開始
     thread_.start();
@@ -1278,14 +1282,18 @@ private:
     thread_.join();
 
     // 残ったフレームを処理
-    encoder_.finish();
-		for (int i = 0; i < audioCount_; ++i) {
-			audioFiles_[i]->flush();
+    encoder_->finish();
+
+		if (pass_ <= 1) { // 2パス目は出力しない
+			for (int i = 0; i < audioCount_; ++i) {
+				audioFiles_[i]->flush();
+			}
+			audioFiles_.clear();
 		}
 
 		rffExtractor_.clear();
-		audioFiles_.clear();
 		audioMap_.clear();
+		delete encoder_; encoder_ = NULL;
   }
 
   void onVideoFormat(AVStream *stream, VideoFormat fmt)
@@ -1320,7 +1328,7 @@ private:
       (setting_.getEncoder() == ENCODER_X265 && fmt.progressive == false);
 
     int bufsize = fmt.width * fmt.height * 3;
-    encoder_.start(args, fmt, dstFieldMode, bufsize);
+    encoder_->start(args, fmt, dstFieldMode, bufsize);
   }
 
   void onFrameDecoded(av::Frame& frame__) {
@@ -1333,8 +1341,8 @@ private:
 		// RFFフラグ処理
 		// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
 		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
-		printf("%s\n", PictureTypeString(pic));
-		rffExtractor_.inputFrame(encoder_, std::move(frame), pic);
+		//printf("%s\n", PictureTypeString(pic));
+		rffExtractor_.inputFrame(*encoder_, std::move(frame), pic);
 
     //encoder_.inputFrame(*frame);
   }
