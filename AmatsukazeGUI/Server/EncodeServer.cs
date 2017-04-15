@@ -829,17 +829,33 @@ namespace Amatsukaze.Server
             }
         }
 
+        private static string GetExePath(string basePath, string pattern)
+        {
+            foreach(var path in Directory.GetFiles(basePath))
+            {
+                var fname = Path.GetFileName(path);
+                if(fname.StartsWith(pattern) && fname.EndsWith(".exe"))
+                {
+                    return path;
+                }
+            }
+            return null;
+        }
+
         private void LoadAppData()
         {
             string path = GetSettingFilePath();
             if (File.Exists(path) == false)
             {
+                string basePath = Path.GetDirectoryName(GetType().Assembly.Location);
                 appData = new AppData() {
                     setting = new Setting() {
                         EncoderName = "x264",
-                        AmatsukazePath = Path.Combine(
-                            Path.GetDirectoryName(GetType().Assembly.Location),
-                            "Amatsukaze.exe"),
+                        AmatsukazePath = Path.Combine(basePath, "Amatsukaze.exe"),
+                        X264Path = GetExePath(basePath, "x264"),
+                        X265Path = GetExePath(basePath, "x265"),
+                        MuxerPath = Path.Combine(basePath, "muxer.exe"),
+                        TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
                         NumParallel = 1,
                         Bitrate = new BitrateSetting()
                     }
