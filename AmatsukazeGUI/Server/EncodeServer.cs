@@ -442,7 +442,10 @@ namespace Amatsukaze.Server
                         AvgDiff = json.audiodiff.avgdiff,
                         MaxDiff = json.audiodiff.maxdiff,
                         MaxDiffPos = json.audiodiff.maxdiffpos
-                    }
+                    },
+                    Pulldown = ((int)json.pulldown != 0),
+                    Timecode = ((int)json.timecode != 0),
+                    Incident = (int)json.incident
                 };
             }
 
@@ -998,6 +1001,10 @@ namespace Amatsukaze.Server
             if (appData.setting.TwoPass)
             {
                 sb.Append(" --2pass");
+            }
+            if (appData.setting.Pulldown)
+            {
+                sb.Append(" --pulldown");
             }
 
             return sb.ToString();

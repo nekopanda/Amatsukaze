@@ -252,6 +252,12 @@ public:
 		return timecodeList_[formatId];
 	}
 
+	const std::pair<int, int> getTimebase(int encoderIndex, int videoFileIndex) const {
+		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
+		const auto& fmt = outFormat_[formatId].videoFormat;
+		return std::make_pair(fmt.frameRateNum * 2, fmt.frameRateDenom);
+	}
+
 	void printOutputMapping(std::function<std::string(int)> getFileName) const
 	{
 		ctx.info("[出力ファイル]");
@@ -536,7 +542,7 @@ private:
 	}
 
 	template<typename I>
-	static void makeModifiedPTS(std::vector<int64_t>& modifiedPTS, const std::vector<I>& frames)
+	void makeModifiedPTS(std::vector<int64_t>& modifiedPTS, const std::vector<I>& frames)
 	{
 		// 前後のフレームのPTSに6時間以上のずれがあると正しく処理できない
 
@@ -558,10 +564,10 @@ private:
 		// ストリームが戻っている場合は処理できないのでエラーとする
 		for (int i = 1; i < int(frames.size()); ++i) {
 			if (modifiedPTS[i] - modifiedPTS[i - 1] < -60 * MPEG_CLOCK_HZ) {
-				// 1分以上戻っていたらエラーとする
-				THROWF(FormatException,
-					"PTSが戻っています。処理できません。 %llu -> %llu",
-					modifiedPTS[i - 1], modifiedPTS[i]);
+				// 1分以上戻っている
+				ctx.incrementCounter("incident");
+				ctx.warn("PTSが戻っています。正しく処理できないかもしれません。 [%d] %llu -> %llu",
+					i, modifiedPTS[i - 1], modifiedPTS[i]);
 			}
 		}
 	}
@@ -608,7 +614,7 @@ private:
 	struct OutFileState {
 		int formatId; // デバッグ出力用
 		int64_t time; // 追加された映像フレームの合計時間
-		double actualTime; // 追加された映像フレームの合計時間（BFF修正なし）
+		double actualts; // 追加された映像フレームの合計時間（BFF修正なしでフレームレートの2倍の解像度）
 		std::vector<AudioState> audioState;
 		std::unique_ptr<FileAudioFrameList> audioFrameList;
 		std::vector<int64_t> timecode;
@@ -639,7 +645,7 @@ private:
 			int numAudio = (int)outFormat_[i].audioFormat.size();
 			file.formatId = i;
 			file.time = 0;
-			file.actualTime = 0;
+			file.actualts = 0;
 			file.audioState.resize(numAudio);
 			file.audioFrameList =
 				std::unique_ptr<FileAudioFrameList>(new FileAudioFrameList(numAudio));
@@ -698,11 +704,12 @@ private:
 		}
 	}
 
-  int64_t getFrameDuration(int index, int nextIndex, int64_t& pts, double& actualDuration)
+  int64_t getFrameDuration(int index, int nextIndex, int64_t& pts, double& actualts)
   {
     const auto& videoFrame = videoFrameList_[index];
     int formatId = frameFormatId_[index];
     const auto& format = outFormat_[formatId];
+		int frameDiff = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
 
     pts = modifiedPTS_[index];
 
@@ -714,40 +721,39 @@ private:
       else {
         duration = modifiedPTS_[nextIndex] - pts;
       }
-			actualDuration = (double)duration;
+			actualts = 2.0 * duration / frameDiff;
     }
     else { // CFR
-			int frameDiff = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / format.videoFormat.frameRateNum;
       
       switch (videoFrame.pic) {
       case PIC_FRAME:
       case PIC_TFF:
 				duration = frameDiff;
-				actualDuration = frameDiff;
+				actualts = 2;
 				break;
       case PIC_TFF_RFF:
 				duration = frameDiff;
-				actualDuration = frameDiff * 1.5;
+				actualts = 3;
         break;
       case PIC_FRAME_DOUBLING:
 				duration = frameDiff * 2;
-				actualDuration = frameDiff * 2;
+				actualts = 4;
 				hasRFF_ = true;
         break;
       case PIC_FRAME_TRIPLING:
 				duration = frameDiff * 3;
-				actualDuration = frameDiff * 3;
+				actualts = 6;
 				hasRFF_ = true;
         break;
       case PIC_BFF:
         pts -= (frameDiff / 2);
 				duration = frameDiff;
-				actualDuration = frameDiff;
+				actualts = 2;
         break;
       case PIC_BFF_RFF:
         pts -= (frameDiff / 2);
 				duration = frameDiff * 2;
-				actualDuration = frameDiff * 1.5;
+				actualts = 3;
 				hasRFF_ = true;
         break;
       }
@@ -763,15 +769,15 @@ private:
     const auto& format = outFormat_[formatId];
 
     int64_t pts;
-		double actualDuration;
-    int64_t duration = getFrameDuration(index, nextIndex, pts, actualDuration);
+		double actualts;
+    int64_t duration = getFrameDuration(index, nextIndex, pts, actualts);
 
 		// timecode出力
-		file.timecode.push_back((int64_t)std::round(file.actualTime));
+		file.timecode.push_back((int64_t)std::round(file.actualts));
 
 		int64_t endPts = pts + duration;
 		file.time += duration;
-		file.actualTime += actualDuration;
+		file.actualts += actualts;
 
 		ASSERT(format.audioFormat.size() == file.audioFrameList->size());
 		ASSERT(format.audioFormat.size() == file.audioState.size());

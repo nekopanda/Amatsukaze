@@ -53,6 +53,8 @@ namespace Amatsukaze.Server
         public bool AutoBuffer { get; set; }
         [DataMember]
         public BitrateSetting Bitrate { get; set; }
+        [DataMember]
+        public bool Pulldown { get; set; }
 
         [DataMember]
         public int NumParallel { get; set; }
@@ -167,13 +169,22 @@ namespace Amatsukaze.Server
         [DataMember]
         public string MachineName { get; set; }
 
+        [DataMember]
+        public bool Pulldown { get; set; }
+        [DataMember]
+        public bool Timecode { get; set; }
+        [DataMember]
+        public int Incident { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         // アクセサ
         public TimeSpan EncodeDuration { get { return EncodeFinishDate - EncodeStartDate; } }
-        public string DisplayResult { get { return Success ? "〇" : "×"; } }
+        public string DisplayResult { get { return Success ? ((Incident > 0) ? "△" : "〇") : "×"; } }
         public string DisplaySrcDirectory { get { return Path.GetDirectoryName(SrcPath); } }
         public string DisplaySrcFileName { get { return Path.GetFileName(SrcPath); } }
+        public string DisplayOutNum { get { return OutPath.Count.ToString(); } }
+        public string DisplayNumIncident { get { return Incident.ToString(); } }
         public string DisplayEncodeStart { get { return EncodeStartDate.ToGUIString(); } }
         public string DisplayEncodeFinish { get { return EncodeFinishDate.ToGUIString(); } }
         public string DisplayEncodeDuration { get { return EncodeDuration.ToGUIString(); } }
@@ -206,6 +217,9 @@ namespace Amatsukaze.Server
         public string DisplayOutBitrate { get { return (SrcVideoDuration != null)
                     ? ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
                     : null; } }
+
+        public string DisplayPulldown { get { return Pulldown ? "Y" : ""; } }
+        public string DisplayTimecode { get { return Timecode ? "Y" : ""; } }
     }
 
     [DataContract]

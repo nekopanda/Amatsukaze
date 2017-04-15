@@ -432,6 +432,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region Pulldown変更通知プロパティ
+        public bool Pulldown {
+            get { return setting.Pulldown; }
+            set {
+                if (setting.Pulldown == value)
+                    return;
+                setting.Pulldown = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region BitrateA変更通知プロパティ
         public double BitrateA
         {
@@ -647,11 +659,15 @@ namespace Amatsukaze.Models
                 "メッセージ",
                 "入力ファイル",
                 "出力ファイル",
+                "出力ファイル数",
                 "エンコード開始",
                 "エンコード終了",
                 "エンコード時間（秒）",
                 "入力ファイル時間（秒）",
                 "出力ファイル時間（秒）",
+                "インシデント数",
+                "プルダウン",
+                "タイムコード",
                 "入力ファイルサイズ",
                 "中間ファイルサイズ",
                 "出力ファイルサイズ",
@@ -669,15 +685,19 @@ namespace Amatsukaze.Models
             foreach (var item in LogItems.Reverse())
             {
                 var row = new string[] {
-                    item.Success ? "〇" : "×",
+                    item.Success ? ((item.Incident > 0) ? "△" : "〇") : "×",
                     item.Reason,
                     item.SrcPath,
                     string.Join(":", item.OutPath),
+                    item.OutPath.Count.ToString(),
                     item.DisplayEncodeStart,
                     item.DisplayEncodeFinish,
                     (item.EncodeFinishDate - item.EncodeStartDate).TotalSeconds.ToString(),
                     item.SrcVideoDuration.TotalSeconds.ToString(),
                     item.OutVideoDuration.TotalSeconds.ToString(),
+                    item.Incident.ToString(),
+                    item.DisplayPulldown,
+                    item.DisplayTimecode,
                     item.SrcFileSize.ToString(),
                     item.IntVideoFileSize.ToString(),
                     item.OutFileSize.ToString(),
@@ -713,6 +733,7 @@ namespace Amatsukaze.Models
             BitrateB = setting.Bitrate.B;
             BitrateH264 = setting.Bitrate.H264;
             TwoPass = setting.TwoPass;
+            Pulldown = setting.Pulldown;
             return Task.FromResult(0);
         }
 

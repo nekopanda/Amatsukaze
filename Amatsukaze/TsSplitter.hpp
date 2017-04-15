@@ -30,7 +30,7 @@ public:
 		, videoStreamFormat(VS_MPEG2)
 		, videoFormat()
 		, mpeg2parser()
-		, h264parser()
+		, h264parser(ctx)
 		, parser(&mpeg2parser)
 	{ }
 

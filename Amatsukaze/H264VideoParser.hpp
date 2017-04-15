@@ -617,12 +617,21 @@ public:
 };
 
 
-class H264VideoParser : public IVideoParser {
+class H264VideoParser : public AMTObject, public IVideoParser {
 	struct NalUnit {
 		int offset;
 		int length; // rbsp_trailing_bitsを除いた長さ
 	};
 public:
+
+	H264VideoParser(AMTContext& ctx)
+		: AMTObject(ctx)
+		, beffering_period_DTS()
+		, sps()
+		, pps()
+		, sei()
+		, format()
+	{ }
 
 	virtual void reset() {
 		beffering_period_DTS = -1;
@@ -691,12 +700,15 @@ public:
 								DTS_from_SEI = beffering_period_DTS + (int)std::round(DTS_delay * 90000);
 								PTS_from_SEI = beffering_period_DTS + (int)std::round((DTS_delay + PTS_delay) * 90000);
 
+								// 33bit化
+								DTS_from_SEI &= (int64_t(1) << 33) - 1;
+								PTS_from_SEI &= (int64_t(1) << 33) - 1;
+
 								if (PTS != -1) {
 									// PESパケットのPTSと一致しているかチェック
-									//if (PTS != PTS_from_SEI) {
 									if (std::abs(PTS - PTS_from_SEI) > 1) {
-										//
-										THROW(FormatException, "PTSが一致しません");
+										ctx.incrementCounter("incident");
+										ctx.warn("[H264パーサ] PTSが一致しません");
 									}
 								}
 							}

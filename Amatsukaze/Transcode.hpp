@@ -307,8 +307,8 @@ private:
     fmt_.colorSpace = frame->colorspace;
     // 今のところ固定フレームレートしか対応しない
     fmt_.fixedFrameRate = true;
-    fmt_.frameRateNum = stream->avg_frame_rate.num;
-    fmt_.frameRateDenom = stream->avg_frame_rate.den;
+    fmt_.frameRateNum = stream->r_frame_rate.num;
+    fmt_.frameRateDenom = stream->r_frame_rate.den;
 
     // x265でインタレースの場合はfield mode
     fieldMode_ = (fmt_.format == VS_H265 && fmt_.progressive == false);

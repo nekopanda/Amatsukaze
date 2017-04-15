@@ -46,17 +46,18 @@
 
         <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコード設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
 
-        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,7,0,0" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}"/>
-        <CheckBox Name="abc"  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="10,30,0,0" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}"/>
+        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="プルダウン保持（専用エンコーダが必要）" Margin="10,4,0,0" IsChecked="{Binding Model.Pulldown, Mode=TwoWay}"/>
+        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,27,0,0" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}"/>
+        <CheckBox Name="abc"  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="10,50,0,0" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="a" Margin="5,58,0,0" />
-        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="15,55,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="b" Margin="70,58,0,0" />
-        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="80,55,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="h264" Margin="135,58,0,0" />
-        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="165,55,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="a" Margin="5,78,0,0" />
+        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="15,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="b" Margin="70,78,0,0" />
+        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="80,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="h264" Margin="135,78,0,0" />
+        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="165,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
 
-        <Grid Grid.Row="1" Grid.Column="1" Margin="0,85,0,0" Width="240" HorizontalAlignment="Left">
+        <Grid Grid.Row="1" Grid.Column="1" Margin="0,105,0,0" Width="240" HorizontalAlignment="Left">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition/>

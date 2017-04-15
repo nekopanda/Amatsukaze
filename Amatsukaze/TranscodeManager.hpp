@@ -189,12 +189,15 @@ static std::string makeTimelineEditorArgs(
 	const std::string& binpath,
 	const std::string& inpath,
 	const std::string& outpath,
-	const std::string& timecodepath)
+	const std::string& timecodepath,
+	std::pair<int, int> timebase)
 {
 	std::ostringstream ss;
 	ss << "\"" << binpath << "\"";
 	ss << " --track 1";
 	ss << " --timecode \"" << timecodepath << "\"";
+	ss << " --media-timescale " << timebase.first;
+	ss << " --media-timebase " << timebase.second;
 	ss << " \"" << inpath << "\"";
 	ss << " \"" << outpath << "\"";
 	return ss.str();
@@ -431,7 +434,7 @@ public:
 	}
 
   std::string getOptions(
-    VIDEO_STREAM_FORMAT srcFormat, double srcBitrate,
+    VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
     int pass, int vindex, int index) const 
   {
     std::ostringstream ss;
@@ -913,7 +916,9 @@ public:
 		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
 
 		// pulldownファイル生成
-		if (setting_.isPulldownEnabled()) {
+		bool pulldown = (setting_.isPulldownEnabled() && reformInfo_.hasRFF());
+		ctx.setCounter("pulldown", (int)pulldown);
+		if (pulldown) {
 			generatePulldownFile(bufsize);
 		}
 
@@ -921,6 +926,7 @@ public:
 		bool fieldMode = 
 			(setting_.getEncoder() == ENCODER_X265 &&
 			 format0.videoFormat.progressive == false);
+		ctx.setCounter("fieldmode", (int)fieldMode);
 
     // ビットレート計算
     double srcBitrate = getSourceBitrate();
@@ -939,7 +945,7 @@ public:
 
 		auto getOptions = [&](int pass, int index) {
 			return setting_.getOptions(
-				srcFormat, srcBitrate, pass, videoFileIndex_, index);
+				srcFormat, srcBitrate, pulldown, pass, videoFileIndex_, index);
 		};
 
     if (setting_.isTwoPass()) {
@@ -1114,14 +1120,6 @@ private:
 		const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
 		int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
 
-#if 0
-		// for debug
-		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
-		if (pic != info.pic) {
-			printf("!!! %s\n", PictureTypeString(pic));
-		}
-#endif
-
 		if (pd_data_ != NULL) {
 			// pulldownファイル生成中
 			auto& ss = pd_data_[encoderIndex];
@@ -1254,8 +1252,8 @@ private:
 	void onFileOpen(AVFormatContext *fmt)
 	{
 		audioMap_ = std::vector<int>(fmt->nb_streams, -1);
-		audioCount_ = 0;
 		if (pass_ <= 1) { // 2パス目は出力しない
+			audioCount_ = 0;
 			for (int i = 0; i < (int)fmt->nb_streams; ++i) {
 				if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
 					audioFiles_.emplace_back(new AudioFileWriter(
@@ -1316,7 +1314,7 @@ private:
       setting_.getEncoder(),
       setting_.getEncoderPath(),
       setting_.getOptions(
-				fmt.format, srcBitrate, pass_, 0, 0),
+				fmt.format, srcBitrate, false, pass_, 0, 0),
       fmt,
       setting_.getEncVideoFilePath(0, 0));
 
@@ -1397,6 +1395,7 @@ public:
 			// タイムコードを埋め込む必要があるか
 			bool needTimecode = reformInfo_.isVFR() ||
 				(reformInfo_.hasRFF() && setting_.isPulldownEnabled());
+			ctx.setCounter("timecode", (int)needTimecode);
 
 			// Mux
 			int outFileIndex = reformInfo_.getOutFileIndex(i, videoFileIndex);
@@ -1422,13 +1421,14 @@ public:
 			if (needTimecode) {
 				std::string outWithTimeFilePath = setting_.getOutFilePath(outFileIndex);
 				std::string encTimecodeFile = setting_.getEncTimecodeFilePath(videoFileIndex, i);
+				auto timebase = reformInfo_.getTimebase(i, videoFileIndex);
 				{ // タイムコードファイルを生成
 					std::ostringstream ss;
 					ss << "# timecode format v2" << std::endl;
 					const auto& timecode = reformInfo_.getTimecode(i, videoFileIndex);
 					for (int64_t pts : timecode) {
-						double ms = ((double)pts / (MPEG_CLOCK_HZ / 1000));
-						ss << (int)std::round(ms) << std::endl;
+						double dpts = (double)pts * timebase.second / timebase.first * 1000.0;
+						ss << std::fixed << std::setprecision(2) << dpts << std::endl;
 					}
 					std::string str = ss.str();
 					MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
@@ -1436,7 +1436,7 @@ public:
 					file.write(mc);
 				}
 				std::string args = makeTimelineEditorArgs(
-					setting_.getTimelineEditorPath(), outFilePath, outWithTimeFilePath, encTimecodeFile);
+					setting_.getTimelineEditorPath(), outFilePath, outWithTimeFilePath, encTimecodeFile, timebase);
 				ctx.info("[タイムコード埋め込み開始]");
 				ctx.info(args.c_str());
 				{
@@ -1682,6 +1682,9 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 			 << ((double)duration.second / MPEG_CLOCK_HZ) << ", ";
 		ss << "\"audiodiff\": ";
 		audioDiffInfo.printToJson(ss);
+		for (const auto& pair : ctx.getCounter()) {
+			ss << ", \"" << pair.first << "\": " << pair.second;
+		}
 		ss << " }";
 
 		std::string str = ss.str();
@@ -1704,6 +1707,9 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 	muxer->mux(videoFormat, audioCount);
 	int64_t totalOutSize = muxer->getTotalOutSize();
 	muxer = nullptr;
+
+	// 中間ファイルを削除
+	ctx.clearTmpFiles();
 
 	// 出力結果を表示
 	ctx.info("完了");

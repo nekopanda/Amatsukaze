@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <map>
 #include <set>
 
 #include "CoreUtils.hpp"
@@ -506,7 +507,9 @@ class AMTContext {
 public:
 	AMTContext()
 		: debugEnabled(true)
-	{ }
+	{
+		counter["incident"] = 0;
+	}
 
 	const CRC32* getCRC() const {
 		return &crc;
@@ -545,11 +548,29 @@ public:
 		tmpFiles.clear();
 	}
 
+	void setCounter(const std::string& key, int value) {
+		counter[key] = value;
+	}
+
+	void incrementCounter(const std::string& key) {
+		if (counter.find(key) == counter.end()) {
+			counter[key] = 1;
+		}
+		else {
+			counter[key]++;
+		}
+	}
+
+	const std::map<std::string, int>& getCounter() const {
+		return counter;
+	}
+
 private:
 	bool debugEnabled;
 	CRC32 crc;
 
 	std::set<std::string> tmpFiles;
+	std::map<std::string, int> counter;
 
 	void print(const char* fmt, va_list arg, TS_SPLITTER_LOG_LEVEL level) const {
     static const char* log_levels[] = { "debug", "info", "warn", "error" };
