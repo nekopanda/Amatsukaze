@@ -1,5 +1,5 @@
 # Amatsukaze
-Automated MPEG2-TS Transcode Utility
+Automated MPEG2-TS Transcoder
 
 # これは何？
 TSファイルをエンコしてmp4にするだけの単機能プログラム。
