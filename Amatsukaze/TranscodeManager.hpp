@@ -897,6 +897,7 @@ public:
 		, setting_(setting)
 		, reformInfo_(reformInfo)
 		, thread_(this, 8)
+		, prevFrameIndex_()
 		, pd_data_(NULL)
 	{
 		//
@@ -1002,6 +1003,7 @@ private:
   std::vector<EncodeFileInfo> efi_;
 	
 	SpDataPumpThread thread_;
+	int prevFrameIndex_;
 
 	RFFExtractor rffExtractor_;
 
@@ -1114,10 +1116,15 @@ private:
 
 		int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
 		if (frameIndex == -1) {
-			THROWF(FormatException, "Unknown PTS frame %lld", pts);
+			frameIndex = prevFrameIndex_;
+			ctx.incrementCounter("incident");
+			ctx.warn("Unknown PTS frame %lld", pts);
+		}
+		else {
+			prevFrameIndex_ = frameIndex;
 		}
 
-		const VideoFrameInfo& info = reformInfo_.getVideoFrameInfo(frameIndex);
+		VideoFrameInfo info = reformInfo_.getVideoFrameInfo(frameIndex);
 		int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
 
 		if (pd_data_ != NULL) {

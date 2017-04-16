@@ -422,8 +422,10 @@ namespace Amatsukaze.Server
                         EncodeFinishDate = finish
                     };
                 }
+                int incident = (int)json.incident;
                 return new LogItem() {
-                    Success = true,
+                    Success = (incident < 10),
+                    Reason = (incident < 10) ? "" : "インシデントが多すぎます",
                     SrcPath = json.srcpath,
                     OutPath = outpath,
                     SrcFileSize = (long)json.srcfilesize,
@@ -445,7 +447,7 @@ namespace Amatsukaze.Server
                     },
                     Pulldown = ((int)json.pulldown != 0),
                     Timecode = ((int)json.timecode != 0),
-                    Incident = (int)json.incident
+                    Incident = incident
                 };
             }
 

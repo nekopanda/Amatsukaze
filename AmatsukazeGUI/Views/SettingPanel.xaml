@@ -46,7 +46,7 @@
 
         <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコード設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
 
-        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="プルダウン保持（専用エンコーダが必要）" Margin="10,4,0,0" IsChecked="{Binding Model.Pulldown, Mode=TwoWay}"/>
+        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="ソフトテレシネ保持（専用エンコーダが必要）" Margin="10,4,0,0" IsChecked="{Binding Model.Pulldown, Mode=TwoWay}"/>
         <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,27,0,0" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}"/>
         <CheckBox Name="abc"  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="10,50,0,0" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}"/>
 
