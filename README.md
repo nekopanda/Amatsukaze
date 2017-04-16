@@ -83,3 +83,11 @@ AmatsukazeGUI.exeはAmatsukaze.exeを呼び出すGUI。サーバ、クライア�
 エンコードするには、設定を済ませた後、キューパネルにエンコしたいTSファイルの入っているフォルダをドラッグ＆ドロップする。処理が開始されると、フォルダにencoded,failed,succeededという3つのフォルダが作られ、encodedにエンコード済みmp4ファイル、succeededに成功したTSファイル、failedに失敗したTSファイルが入れられる。
 
 ネットワーク越しのフォルダを追加すると、ネットワーク越しの転送によるデータ化けを防ぐため、入力ファイルのハッシュチェック、出力ファイルのハッシュ生成がONになる。BatchHashChecker（まだ公開してない・・・）でファイルハッシュを生成しておく必要がある。
+
+# ビルド方法
+FFmpegのincludeとlibが必要。Windowsビルドのdev版を落として、includeフォルダの中身をプロジェクトのincludeフィルダへコピー、libの中身をプロジェクトのlib/x64(or x86)フォルダへコピーする。
+
+単体テストプロジェクト(AmatsukazeUnitTest)は、他にgoogletestのライブラリが必要。サブモジュールでgoogletestは追加してあるので、git submodule updateでコードを落として、googletest/googletest/msvc/gtest-md.slnを開いて、ビルドする。できたgtest.lib/gtestd.libをlib/x64(or x86)へコピー。
+
+単体テストプロジェクト(AmatsukazeUnitTest)は、他にOpenCVも使っているので、OpenCV 3.2.0をビルドしてこれもlibをlib/x64(or x86)へコピーしよう。
+
