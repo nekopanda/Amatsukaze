@@ -576,78 +576,83 @@ TEST(Process, SimpleProcessTest)
 
 // Encode Test
 
-TranscoderSetting makeTranscodeSetting(
+std::unique_ptr<TranscoderSetting> makeTranscodeSetting(
+	AMTContext& ctx,
 	const std::string& srcDir, 
 	const std::string& dstDir, 
 	const std::string& srcfile)
 {
-	TranscoderSetting setting = TranscoderSetting();
-  setting.mode = AMT_CLI_TS;
-	setting.srcFilePath = srcDir + srcfile + ".ts";
-	setting.outVideoPath = dstDir + "Mpeg2Test";
-	setting.intFileBasePath = dstDir + "Mpeg2TestInt";
-	setting.audioFilePath = dstDir + "Mpeg2TestAudio.dat";
-	setting.encoder = ENCODER_X264;
-	setting.encoderPath = "x264.exe";
-	setting.encoderOptions = "--preset superfast --crf 23";
-	setting.muxerPath = "muxer.exe";
-	setting.timelineditorPath = "timelineeditor.exe";
-	setting.outInfoJsonPath = dstDir + "Mpeg2Test.json";
-	setting.dumpStreamInfo = true;
-	return setting;
+	return std::unique_ptr<TranscoderSetting>(new TranscoderSetting(
+		ctx,
+		dstDir,
+		AMT_CLI_TS,
+		srcDir + srcfile + ".ts",
+		dstDir + "Mpeg2Test",
+		dstDir + "Mpeg2Test.json",
+		ENCODER_X264,
+		"x264.exe",
+		"--preset superfast --crf 23",
+		"muxer.exe",
+		"timelineeditor.exe",
+		false,
+		false,
+		false,
+		BitrateSetting(),
+		0,
+		true));
 }
 
-TranscoderSetting makeDamemojiSetting(
+std::unique_ptr<TranscoderSetting> makeDamemojiSetting(
+	AMTContext& ctx,
 	const std::string& srcDir,
 	const std::string& dstDir,
 	const std::string& srcfile)
 {
-  TranscoderSetting setting = TranscoderSetting();
-	setting.mode = AMT_CLI_TS;
-	setting.srcFilePath = srcDir + srcfile + ".ts";
-	setting.outVideoPath = dstDir + "ー ソ\\十 表";
-	setting.intFileBasePath = dstDir + "ー ソ\\十 表Int";
-	setting.audioFilePath = dstDir + "ー ソ\\十 表Audio.dat";
-	setting.encoder = ENCODER_X264;
-	setting.encoderPath = "x264.exe";
-	setting.encoderOptions = "--preset superfast --crf 23";
-	setting.muxerPath = "muxer.exe";
-	setting.timelineditorPath = "timelineeditor.exe";
-  setting.outInfoJsonPath = dstDir + "Mpeg2Test.json";
-  setting.autoBitrate = true;
-  setting.bitrate.a = 0.2;
-  setting.bitrate.b = 600;
-  setting.bitrate.h264 = 1.6;
-  setting.twoPass = true;
-	setting.serviceId = 0x6038;
-	setting.dumpStreamInfo = true;
-	return setting;
+	BitrateSetting bitrate = { 0.2, 600, 1.6 };
+	return std::unique_ptr<TranscoderSetting>(new TranscoderSetting(
+		ctx,
+		dstDir,
+		AMT_CLI_TS,
+		srcDir + srcfile + ".ts",
+		dstDir + "ー ソ\\十 表",
+		dstDir + "Mpeg2Test.json",
+		ENCODER_X264,
+		"x264.exe",
+		"--preset superfast --crf 23",
+		"muxer.exe",
+		"timelineeditor.exe",
+		true,
+		true,
+		true,
+		bitrate,
+		0x6038,
+		true));
 }
 
 TEST_F(TestBase, encodeMpeg2Test)
 {
+	AMTContext ctx;
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
-	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, LargeTsFile);
+	std::unique_ptr<TranscoderSetting> setting =
+		makeTranscodeSetting(ctx, srcDir, dstDir, LargeTsFile);
 
-	AMTContext ctx;
-	transcodeMain(ctx, setting);
+	transcodeMain(ctx, *setting);
 }
 
 TEST_F(TestBase, fileStreamInfoTest)
 {
+	AMTContext ctx;
 	std::string srcDir = TestDataDir + "\\";
 	std::string dstDir = TestWorkDir + "\\";
-	TranscoderSetting setting =
-		makeTranscodeSetting(srcDir, dstDir, LargeTsFile);
+	std::unique_ptr<TranscoderSetting> setting =
+		makeTranscodeSetting(ctx, srcDir, dstDir, LargeTsFile);
 
-	AMTContext ctx;
-	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
+	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting->getStreamInfoPath());
 	reformInfo.prepareEncode();
 	reformInfo.makeAllframgesEncoded();
 	reformInfo.prepareMux();
-	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
+	reformInfo.printOutputMapping([&](int index) { return setting->getOutFilePath(index); });
 }
 
 TEST(CLI, ArgumentTest)
@@ -678,13 +683,13 @@ TEST(CLI, ArgumentTest)
 	};
 	printCopyright();
 	AMTContext ctx;
-	parseArgs(sizeof(argv) / sizeof(argv[0]), argv).dump(ctx);
+	parseArgs(ctx, sizeof(argv) / sizeof(argv[0]), argv)->dump();
 
 	argv[2] = _T("0x6308");
-	parseArgs(sizeof(argv) / sizeof(argv[0]), argv).dump(ctx);
+	parseArgs(ctx, sizeof(argv) / sizeof(argv[0]), argv)->dump();
 
 	argv[1] = _T("--ourput");
-	EXPECT_ANY_THROW(parseArgs(sizeof(argv) / sizeof(argv[0]), argv));
+	EXPECT_ANY_THROW(parseArgs(ctx, sizeof(argv) / sizeof(argv[0]), argv));
 	printHelp(argv[0]);
 }
 
