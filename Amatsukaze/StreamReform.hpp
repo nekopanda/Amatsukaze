@@ -450,7 +450,6 @@ private:
 
 		OutVideoFormat curFormat = OutVideoFormat();
 		int64_t curFromPTS = -1;
-		bool formatChanged = false;
 		curFormat.videoFileId = -1;
 		for (int i = 0; i < (int)streamEventList_.size(); ++i) {
 			auto& ev = streamEventList_[i];
@@ -459,23 +458,21 @@ private:
 				// 後ろに映像がなければ意味がない
 				continue;
 			}
-			if (curFromPTS == -1) { // 最初
-				curFromPTS = pts;
-			}
-			else if (formatChanged && curFromPTS + CHANGE_TORELANCE < pts) {
+			if (curFromPTS != -1 && curFromPTS + CHANGE_TORELANCE < pts) {
 				// 区間を追加
 				registerOrGetFormat(curFormat);
 				sectionFormatList.push_back(curFormat.formatId);
 				startPtsList.push_back(curFromPTS);
-				curFromPTS = pts;
-				formatChanged = false;
+				curFromPTS = -1;
 			}
 			// 変更を反映
 			switch (ev.type) {
 			case PID_TABLE_CHANGED:
 				if (curFormat.audioFormat.size() != ev.numAudio) {
 					curFormat.audioFormat.resize(ev.numAudio);
-					formatChanged = true;
+					if (curFromPTS == -1) {
+						curFromPTS = pts;
+					}
 				}
 				break;
 			case VIDEO_FORMAT_CHANGED:
@@ -485,19 +482,20 @@ private:
 				curFormat.videoFormat = videoFrameList_[ev.frameIdx].format;
 				// 映像フォーマットの変更時刻を優先させる
 				curFromPTS = dataPTS_[ev.frameIdx];
-				formatChanged = true;
 				break;
 			case AUDIO_FORMAT_CHANGED:
 				if (ev.audioIdx >= curFormat.audioFormat.size()) {
 					THROW(FormatException, "StreamEvent's audioIdx exceeds numAudio of the previous table change event");
 				}
 				curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.frameIdx].format;
-				formatChanged = true;
+				if (curFromPTS == -1) {
+					curFromPTS = pts;
+				}
 				break;
 			}
 		}
 		// 最後の区間を追加
-		if (formatChanged) {
+		if (curFromPTS != -1) {
 			registerOrGetFormat(curFormat);
 			sectionFormatList.push_back(curFormat.formatId);
 			startPtsList.push_back(curFromPTS);

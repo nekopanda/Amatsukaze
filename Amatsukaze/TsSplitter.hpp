@@ -382,6 +382,11 @@ protected:
 				this_.tsPacketParser.setHandler(&this_.tsPacketHandler);
 				this_.tsPacketSelector.resetParser();
 				this_.tsSystemClock.backTs();
+
+				int64_t startClock = this_.tsSystemClock.getClock(0);
+				this_.ctx.info("開始Clock: %lld", startClock);
+				this_.tsPacketSelector.setStartClock(startClock);
+				
 				this_.tsPacketParser.backAndInput();
 				// もう必要ないのでバッファリングはOFF
 				this_.tsPacketParser.setEnableBuffering(false);
@@ -507,7 +512,7 @@ protected:
 		while (audioParsers.size() < numAudios) {
 			int audioIdx = int(audioParsers.size());
 			audioParsers.push_back(new SpAudioFrameParser(ctx, *this, audioIdx));
-			ctx.debug("音声パーサ %d を追加", audioIdx);
+			ctx.info("音声パーサ %d を追加", audioIdx);
 		}
 	}
 

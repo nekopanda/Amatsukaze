@@ -704,12 +704,12 @@ protected:
 	}
 
 	virtual void onVideoFormatChanged(VideoFormat fmt) {
-		ctx.debug("[映像フォーマット変更]");
+		ctx.info("[映像フォーマット変更]");
 		if (fmt.fixedFrameRate) {
-			ctx.debug("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
+			ctx.info("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
 		}
 		else {
-			ctx.debug("サイズ: %dx%d FPS: VFR", fmt.width, fmt.height);
+			ctx.info("サイズ: %dx%d FPS: VFR", fmt.width, fmt.height);
 		}
 
 		// 出力ファイルを変更
@@ -743,8 +743,8 @@ protected:
 	}
 
 	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
-		ctx.debug("[音声%dフォーマット変更]", audioIdx);
-		ctx.debug("チャンネル: %s サンプルレート: %d",
+		ctx.info("[音声%dフォーマット変更]", audioIdx);
+		ctx.info("チャンネル: %s サンプルレート: %d",
 			getAudioChannelString(fmt.channels), fmt.sampleRate);
 
 		StreamEvent ev = StreamEvent();

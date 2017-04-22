@@ -55,9 +55,6 @@ static void printHelp(const tchar* bin) {
     "オプション []はデフォルト値 \n"
     "  -i|--input  <パス>  入力ファイルパス\n"
     "  -o|--output <パス>  出力ファイルパス\n"
-    "  --mode <モード>     処理モード[ts]\n"
-    "                      ts : MPGE2-TSを入力する詳細解析モード\n"
-    "                      g  : FFMPEGを利用した一般ファイルモード\n"
 		"  -s|--serviceid <数値> 処理するサービスIDを指定[]\n"
 		"  -w|--work   <パス>  一時ファイルパス[./]\n"
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
@@ -76,6 +73,11 @@ static void printHelp(const tchar* bin) {
 		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
+    "  --mode <モード>     処理モード[ts]\n"
+    "                      ts : MPGE2-TSを入力する詳細解析モード\n"
+    "                      g  : MPEG2-TS以外の入力ファイルを処理する一般ファイルモード\n"
+		"                           一般ファイルモードはFFMPEGでデコードするため音ズレ補正\n"
+		"                           などの処理は一切ないので、MPEG2-TSには使用しないように\n"
 		"  --dump              処理途中のデータをダンプ（デバッグ用）\n",
 		bin);
 }

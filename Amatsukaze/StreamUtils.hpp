@@ -506,7 +506,7 @@ enum TS_SPLITTER_LOG_LEVEL {
 class AMTContext {
 public:
 	AMTContext()
-		: debugEnabled(true)
+		: debugEnabled(false)
 	{
 		counter["incident"] = 0;
 	}
@@ -518,7 +518,7 @@ public:
 	void debug(const char *fmt, ...) const {
 		if (!debugEnabled) return;
 		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, TS_SPLITTER_INFO);
+		print(fmt, arg, TS_SPLITTER_DEBUG);
 		va_end(arg);
 	}
 	void info(const char *fmt, ...) const {

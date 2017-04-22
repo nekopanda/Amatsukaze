@@ -738,6 +738,7 @@ public:
 		, PsiParserPMT(ctx, *this)
 		, pmtPid(-1)
 		, videoDelegator(*this)
+		, startClock(-1)
 	{
 		curHandlerTable = new PidHandlerTable(&PsiParserPAT);
 		nextHandlerTable = new PidHandlerTable(&PsiParserPAT);
@@ -755,6 +756,11 @@ public:
 		selectorHandler = handler;
 	}
 
+	// 表示用
+	void setStartClock(int64_t startClock) {
+		this->startClock = startClock;
+	}
+
 	// PSIパーサ内部バッファをクリア
 	void resetParser() {
 		PsiParserPAT.clear();
@@ -763,6 +769,7 @@ public:
 
 	void inputTsPacket(int64_t clock, TsPacket packet) {
 
+		currentClock = clock;
 		if (waitingNewVideo && packet.PID() == videoEs.pid) {
 			// 待っていた映像パケット来たのでテーブル変更
 			waitingNewVideo = false;
@@ -830,6 +837,10 @@ private:
 	PidHandlerTable *nextHandlerTable;
 
 	TsPacketSelectorHandler *selectorHandler;
+
+	// 27MHzクロック
+	int64_t startClock;
+	int64_t currentClock;
 
 	void onPatUpdated(PsiSection section) {
 		if (selectorHandler == NULL) {
@@ -974,7 +985,14 @@ private:
 	}
 
 	void printPMT(const PMT& pmt) {
-		ctx.info("[PMT更新]");
+		if (currentClock == -1 || startClock == -1) {
+			ctx.info("[PMT更新]");
+		}
+		else {
+			double sec = (currentClock - startClock) / 27000000.0;
+			ctx.info("[PMT更新] ストリーム時刻: %.2f 秒", sec);
+		}
+
 		const char* content = NULL;
 		for (int i = 0; i < pmt.numElems(); ++i) {
 			PMTElement elem = pmt.get(i);
