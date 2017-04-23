@@ -536,6 +536,30 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region Mpeg2DecoderInt変更通知プロパティ
+        public int Mpeg2DecoderInt {
+            get { return (int)setting.Mpeg2Decoder; }
+            set { 
+                if ((int)setting.Mpeg2Decoder == value)
+                    return;
+                setting.Mpeg2Decoder = (DecoderType)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region H264DecoderInt変更通知プロパティ
+        public int H264DecoderInt {
+            get { return (int)setting.H264Deocder; }
+            set {
+                if ((int)setting.H264Deocder == value)
+                    return;
+                setting.H264Deocder = (DecoderType)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region SettingWarningText変更通知プロパティ
         private string _SettingWarningText;
 
@@ -817,6 +841,8 @@ namespace Amatsukaze.Models
             BitrateH264 = setting.Bitrate.H264;
             TwoPass = setting.TwoPass;
             Pulldown = setting.Pulldown;
+            Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
+            H264DecoderInt = (int)setting.H264Deocder;
             return Task.FromResult(0);
         }
 

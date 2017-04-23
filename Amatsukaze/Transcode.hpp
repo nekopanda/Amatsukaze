@@ -183,7 +183,8 @@ public:
 		, fieldMode_()
 	{ }
 
-	void readAll(const std::string& src)
+	void readAll(const std::string& src,
+		DECODER_TYPE mpeg2decoder, DECODER_TYPE h264decoder, DECODER_TYPE hevcdecoder)
 	{
 		InputContext inputCtx(src);
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
@@ -194,7 +195,12 @@ public:
 		if (videoStream == NULL) {
 			THROW(FormatException, "Could not find video stream ...");
 		}
-		AVCodec *pCodec = avcodec_find_decoder(videoStream->codecpar->codec_id);
+		AVCodecID vcodecId = videoStream->codecpar->codec_id;
+		AVCodec *pCodec = getHWAccelCodec(vcodecId, mpeg2decoder, h264decoder, hevcdecoder);
+		if (pCodec == NULL) {
+			ctx.warn("指定されたデコーダが使用できないためデフォルトデコーダを使います");
+			pCodec = avcodec_find_decoder(vcodecId);
+		}
 		if (pCodec == NULL) {
 			THROW(FormatException, "Could not find decoder ...");
 		}
@@ -248,6 +254,38 @@ private:
   VideoFormat fmt_;
   bool fieldMode_;
   std::unique_ptr<av::Frame> prevFrame_;
+
+	AVCodec* getHWAccelCodec(AVCodecID vcodecId,
+		DECODER_TYPE mpeg2decoder, DECODER_TYPE h264decoder, DECODER_TYPE hevcdecoder)
+	{
+		switch (vcodecId) {
+		case AV_CODEC_ID_MPEG2VIDEO:
+			switch (mpeg2decoder) {
+			case DECODER_QSV:
+				return avcodec_find_decoder_by_name("mpeg2_qsv");
+			case DECODER_CUVID:
+				return avcodec_find_decoder_by_name("mpeg2_cuvid");
+			}
+			break;
+		case AV_CODEC_ID_H264:
+			switch (h264decoder) {
+			case DECODER_QSV:
+				return avcodec_find_decoder_by_name("h264_qsv");
+			case DECODER_CUVID:
+				return avcodec_find_decoder_by_name("h264_cuvid");
+			}
+			break;
+		case AV_CODEC_ID_HEVC:
+			switch (hevcdecoder) {
+			case DECODER_QSV:
+				return avcodec_find_decoder_by_name("hevc_qsv");
+			case DECODER_CUVID:
+				return avcodec_find_decoder_by_name("hevc_cuvid");
+			}
+			break;
+		}
+		return avcodec_find_decoder(vcodecId);
+	}
 
   void onFrame(Frame& frame) {
     if (fieldMode_) {
@@ -345,9 +383,10 @@ private:
 
     const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(dst->format));
     int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+		int nplanes = (dst->format != AV_PIX_FMT_NV12) ? 3 : 2;
 
-    for (int i = 0; i < 3; ++i) {
-      int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+    for (int i = 0; i < nplanes; ++i) {
+      int hshift = (i > 0 && dst->format != AV_PIX_FMT_NV12) ? desc->log2_chroma_w : 0;
       int vshift = (i > 0) ? desc->log2_chroma_h : 0;
       int wbytes = (dst->width >> hshift) << pixel_shift;
       int height = dst->height >> vshift;
@@ -708,9 +747,10 @@ private:
 
     const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(src->format));
     int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+		int nplanes = (src->format != AV_PIX_FMT_NV12) ? 3 : 2;
 
-    for (int i = 0; i < 3; ++i) {
-      int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+    for (int i = 0; i < nplanes; ++i) {
+      int hshift = (i > 0 && src->format != AV_PIX_FMT_NV12) ? desc->log2_chroma_w : 0;
       int vshift = (i > 0) ? desc->log2_chroma_h : 0;
       int wbytes = (src->width >> hshift) << pixel_shift;
       int height = src->height >> vshift;
@@ -752,7 +792,7 @@ public:
 			encoders_[i].start(encoder_args[i], formats[i], false, bufsize);
 		}
 
-		reader.readAll(srcpath);
+		reader.readAll(srcpath, DECODER_DEFAULT, DECODER_DEFAULT, DECODER_DEFAULT);
 
 		for (int i = 0; i < numEncoders_; ++i) {
 			encoders_[i].finish();

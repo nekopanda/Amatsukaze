@@ -40,7 +40,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
         </Grid.RowDefinitions>
-        <ListBox Grid.Row="0" Margin="0" ItemsSource="{Binding Model.QueueItems}" SelectedIndex="{Binding QueueItemSelectedIndex, Mode=TwoWay}" PreviewDragOver="ListBox_PreviewDragOver" Drop="ListBox_Drop" AllowDrop="True" ToolTip="ここにフォルダをD&amp;D">
+        <ListBox Grid.Row="0" Margin="0" ItemsSource="{Binding Model.QueueItems}" SelectedIndex="{Binding QueueItemSelectedIndex, Mode=TwoWay}" PreviewDragOver="ListBox_PreviewDragOver" Drop="ListBox_Drop" AllowDrop="True" ToolTip="ここにフォルダorファイルをD&amp;D">
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="選択した項目を削除" IsEnabled="{Binding IsQueueItemSelected}" Command="{Binding DeleteQueueItemCommand}"/>

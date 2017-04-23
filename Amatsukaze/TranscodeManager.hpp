@@ -282,6 +282,8 @@ public:
 		  bool pulldown,
 			BitrateSetting bitrate,
 			int serviceId,
+			DECODER_TYPE mpeg2decoder,
+			DECODER_TYPE h264decoder,
 			bool dumpStreamInfo)
 		: AMTObject(ctx)
 		, tmpDir(ctx, workDir)
@@ -299,6 +301,8 @@ public:
 		, pulldown(pulldown)
 		, bitrate(bitrate)
 		, serviceId(serviceId)
+		, mpeg2decoder(mpeg2decoder)
+		, h264decoder(h264decoder)
 		, dumpStreamInfo(dumpStreamInfo)
 	{
 		//
@@ -350,6 +354,14 @@ public:
 
 	int getServiceId() const {
 		return serviceId;
+	}
+
+	DECODER_TYPE getMpeg2Decoder() const {
+		return mpeg2decoder;
+	}
+
+	DECODER_TYPE getH264Decoder() const {
+		return h264decoder;
 	}
 
 	bool isDumpStreamInfo() const {
@@ -480,7 +492,7 @@ public:
 
 	void dump() const {
 		ctx.info("[設定]");
-    ctx.info("Mode: %d", mode);
+    ctx.info("Mode: %s", (mode == AMT_CLI_TS) ? "通常" : "一般ファイルモード");
     ctx.info("Input: %s", srcFilePath.c_str());
 		ctx.info("Output: %s", outVideoPath.c_str());
 		ctx.info("WorkDir: %s", tmpDir.path().c_str());
@@ -490,16 +502,17 @@ public:
 		ctx.info("EncoderOptions: %s", encoderOptions.c_str());
 		ctx.info("MuxerPath: %s", muxerPath.c_str());
     ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
-    ctx.info("autoBitrate: %d", autoBitrate);
+    ctx.info("autoBitrate: %s", autoBitrate ? "yes" : "no");
     ctx.info("Bitrate: %f:%f:%f", bitrate.a, bitrate.b, bitrate.h264);
-    ctx.info("twoPass: %d", twoPass);
+    ctx.info("twoPass: %s", twoPass ? "yes" : "no");
 		if (serviceId > 0) {
 			ctx.info("ServiceId: 0x%04x", serviceId);
 		}
 		else {
 			ctx.info("ServiceId: 指定なし");
 		}
-		ctx.info("DumpStreamInfo: %d", dumpStreamInfo);
+		ctx.info("mpeg2decoder: %s", decoderToString(mpeg2decoder));
+		ctx.info("h264decoder: %s", decoderToString(h264decoder));
 	}
 
 private:
@@ -523,8 +536,18 @@ private:
 	bool pulldown;
 	BitrateSetting bitrate;
 	int serviceId;
+	DECODER_TYPE mpeg2decoder;
+	DECODER_TYPE h264decoder;
 	// デバッグ用設定
 	bool dumpStreamInfo;
+
+	const char* decoderToString(DECODER_TYPE decoder) const {
+		switch (decoder) {
+		case DECODER_QSV: return "QSV";
+		case DECODER_CUVID: return "CUVID";
+		}
+		return "default";
+	}
 };
 
 class AMTSplitter : public TsSplitter {
@@ -861,9 +884,10 @@ private:
 
 		const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(dst->format));
 		int pixel_shift = (desc->comp[0].depth > 8) ? 1 : 0;
+		int nplanes = (dst->format != AV_PIX_FMT_NV12) ? 3 : 2;
 
-		for (int i = 0; i < 3; ++i) {
-			int hshift = (i > 0) ? desc->log2_chroma_w : 0;
+		for (int i = 0; i < nplanes; ++i) {
+			int hshift = (i > 0 && dst->format != AV_PIX_FMT_NV12) ? desc->log2_chroma_w : 0;
 			int vshift = (i > 0) ? desc->log2_chroma_h : 0;
 			int wbytes = (dst->width >> hshift) << pixel_shift;
 			int height = dst->height >> vshift;
@@ -1055,7 +1079,8 @@ private:
 
     // エンコード
     std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-    reader.readAll(intVideoFilePath);
+    reader.readAll(intVideoFilePath,
+			setting_.getMpeg2Decoder(), setting_.getH264Decoder(), DECODER_DEFAULT);
 
     // エンコードスレッドを終了して自分に引き継ぐ
     thread_.join();
@@ -1081,7 +1106,8 @@ private:
 
 		// エンコード
 		std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-		reader.readAll(intVideoFilePath);
+		reader.readAll(intVideoFilePath,
+			setting_.getMpeg2Decoder(), setting_.getH264Decoder(), DECODER_DEFAULT);
 
 		// エンコードスレッドを終了して自分に引き継ぐ
 		thread_.join();
@@ -1130,6 +1156,64 @@ private:
 		return NULL;
 	}
 
+	static std::unique_ptr<av::Frame> toYV12(std::unique_ptr<av::Frame>&& frame)
+	{
+		if ((*frame)()->format != AV_PIX_FMT_NV12) {
+			return std::move(frame);
+		}
+
+		//printf("f");
+
+		auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
+
+		AVFrame* src = (*frame)();
+		AVFrame* dst = (*dstframe)();
+
+		// フレームのプロパティをコピー
+		av_frame_copy_props(dst, src);
+
+		// メモリサイズに関する情報をコピー
+		dst->format = AV_PIX_FMT_YUV420P;
+		dst->width = src->width;
+		dst->height = src->height;
+
+		// メモリ確保
+		if (av_frame_get_buffer(dst, 64) != 0) {
+			THROW(RuntimeException, "failed to allocate frame buffer");
+		}
+
+		// copy luna
+		for (int y = 0; y < dst->height; ++y) {
+			uint8_t* dst0 = dst->data[0] + dst->linesize[0] * y;
+			uint8_t* src0 = src->data[0] + src->linesize[0] * y;
+			memcpy(dst0, src0, dst->width);
+		}
+
+		// extract chroma
+		__m128i shuffle_i = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15);
+		int chroma_h = dst->height / 2;
+		for (int y = 0; y < chroma_h; ++y) {
+			uint8_t* dstU = dst->data[1] + dst->linesize[1] * y;
+			uint8_t* dstV = dst->data[2] + dst->linesize[2] * y;
+			uint8_t* src0 = src->data[1] + src->linesize[1] * y;
+
+			int x = 0;
+			int chroma_w = dst->width / 2;
+			for (; x <= (chroma_w - 8); x += 8) {
+				__m128i s = _mm_loadu_si128((__m128i*)&src0[x * 2]);
+				__m128i ss = _mm_shuffle_epi8(s, shuffle_i);
+				*(int64_t*)&dstU[x] = _mm_extract_epi64(ss, 0);
+				*(int64_t*)&dstV[x] = _mm_extract_epi64(ss, 1);
+			}
+			for (; x < chroma_w; ++x) {
+				dstU[x] = src0[x * 2 + 0];
+				dstV[x] = src0[x * 2 + 1];
+			}
+		}
+
+		return std::move(dstframe);
+	}
+
 	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
 
 		// ffmpegがどうptsをwrapするか分からないので入力データの
@@ -1159,14 +1243,17 @@ private:
 
 		auto& encoder = encoders_[encoderIndex];
 
+		// NV12 -> YV12変換
+		auto frameYV12 = toYV12(std::move(frame));
+
 		if (reformInfo_.isVFR() || setting_.isPulldownEnabled()) {
 			// VFRの場合は必ず１枚だけ出力
 			// プルダウンが有効な場合はフラグで処理するので１枚だけ出力
-			encoder.inputFrame(*frame);
+			encoder.inputFrame(*frameYV12);
 		}
 		else {
 			// RFFフラグ処理
-			rffExtractor_.inputFrame(encoder, std::move(frame), info.pic);
+			rffExtractor_.inputFrame(encoder, std::move(frameYV12), info.pic);
 		}
 
 		reformInfo_.frameEncoded(frameIndex);
@@ -1304,7 +1391,8 @@ private:
     thread_.start();
 
     // エンコード
-    reader_.readAll(setting_.getSrcFilePath());
+    reader_.readAll(setting_.getSrcFilePath(),
+			setting_.getMpeg2Decoder(), setting_.getH264Decoder(), DECODER_DEFAULT);
 
     // エンコードスレッドを終了して自分に引き継ぐ
     thread_.join();

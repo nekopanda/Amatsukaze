@@ -72,6 +72,10 @@ static void printHelp(const tchar* bin) {
 		"                      エンコーダの--pdfile-inオプションへの対応が必要\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
+		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
+		"                      使用可能デコーダ: default,QSV,CUVID"
+		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"
+		"                      使用可能デコーダ: default,QSV,CUVID"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
     "  --mode <モード>     処理モード[ts]\n"
     "                      ts : MPGE2-TSを入力する詳細解析モード\n"
@@ -141,6 +145,19 @@ static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
 	return (ENUM_ENCODER)-1;
 }
 
+static DECODER_TYPE decoderFromString(const std::tstring& str) {
+	if (str == _T("default")) {
+		return DECODER_DEFAULT;
+	}
+	else if (str == _T("qsv") || str == _T("QSV")) {
+		return DECODER_QSV;
+	}
+	else if (str == _T("cuvid") || str == _T("CUVID") || str == _T("nvdec") || str == _T("NVDec")) {
+		return DECODER_CUVID;
+	}
+	return (DECODER_TYPE)-1;
+}
+
 static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, tchar* argv[])
 {
 	std::tstring srcFilePath;
@@ -158,6 +175,8 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
   bool twoPass = bool();
 	bool pulldown = bool();
 	int serviceId = -1;
+	DECODER_TYPE mpeg2decoder = DECODER_DEFAULT;
+	DECODER_TYPE h264decoder = DECODER_DEFAULT;
 	bool dumpStreamInfo = bool();
 
 	for (int i = 1; i < argc; ++i) {
@@ -235,6 +254,20 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 				serviceId = std::stoi(sidstr);
 			}
 		}
+		else if (key == _T("--mpeg2decoder")) {
+			std::tstring arg = getParam(argc, argv, i++);
+			mpeg2decoder = decoderFromString(arg);
+			if (mpeg2decoder == (DECODER_TYPE)-1) {
+				PRINTF("--mpeg2decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
+			}
+		}
+		else if (key == _T("--h264decoder")) {
+			std::tstring arg = getParam(argc, argv, i++);
+			h264decoder = decoderFromString(arg);
+			if (h264decoder == (DECODER_TYPE)-1) {
+				PRINTF("--h264decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
+			}
+		}
 		else if (key == _T("--dump")) {
 			dumpStreamInfo = true;
 		}
@@ -270,6 +303,8 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 		pulldown,
 		bitrate,
 		serviceId,
+		mpeg2decoder,
+		h264decoder,
 		dumpStreamInfo));
 }
 

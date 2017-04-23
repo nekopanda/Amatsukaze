@@ -1063,6 +1063,18 @@ namespace Amatsukaze.Server
                     .Append(appData.setting.Bitrate.H264);
             }
 
+            string[] decoderNames = new string[] { "default", "QSV", "CUVID" };
+            if (appData.setting.Mpeg2Decoder != DecoderType.Default)
+            {
+                sb.Append("  --mpeg2decoder ");
+                sb.Append(decoderNames[(int)appData.setting.Mpeg2Decoder]);
+            }
+            if (appData.setting.H264Deocder != DecoderType.Default)
+            {
+                sb.Append("  --h264decoder ");
+                sb.Append(decoderNames[(int)appData.setting.H264Deocder]);
+            }
+
             if (appData.setting.TwoPass)
             {
                 sb.Append(" --2pass");

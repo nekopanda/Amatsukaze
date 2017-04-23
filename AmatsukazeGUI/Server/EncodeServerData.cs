@@ -29,6 +29,13 @@ namespace Amatsukaze.Server
         NVEnc
     }
 
+    public enum DecoderType
+    {
+        Default = 0,
+        QSV,
+        CUVID
+    }
+
     [DataContract]
     public class Setting : IExtensibleDataObject
     {
@@ -53,6 +60,11 @@ namespace Amatsukaze.Server
         public string QSVEncOption { get; set; }
         [DataMember]
         public string NVEncOption { get; set; }
+
+        [DataMember]
+        public DecoderType Mpeg2Decoder { get; set; }
+        [DataMember]
+        public DecoderType H264Deocder { get; set; }
 
         // depricated
         [DataMember]

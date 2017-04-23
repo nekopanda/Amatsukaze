@@ -599,6 +599,8 @@ std::unique_ptr<TranscoderSetting> makeTranscodeSetting(
 		false,
 		BitrateSetting(),
 		0,
+		DECODER_DEFAULT,
+		DECODER_DEFAULT,
 		true));
 }
 
@@ -626,6 +628,8 @@ std::unique_ptr<TranscoderSetting> makeDamemojiSetting(
 		true,
 		bitrate,
 		0x6038,
+		DECODER_DEFAULT,
+		DECODER_DEFAULT,
 		true));
 }
 

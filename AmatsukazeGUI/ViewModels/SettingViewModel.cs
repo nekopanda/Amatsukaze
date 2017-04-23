@@ -111,6 +111,13 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        public string[] Mpeg2DecoderList {
+            get { return new string[] { "デフォルト" }; }
+        }
+        public string[] H264DecoderList {
+            get { return new string[] { "デフォルト", "QSV" }; }
+        }
+
         private void UpdateBitrate(object sender, PropertyChangedEventArgs args)
         {
             RaisePropertyChanged("Bitrate18MPEG2");

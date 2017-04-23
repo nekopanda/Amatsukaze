@@ -15,6 +15,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition />
         </Grid.RowDefinitions>
 
@@ -45,21 +46,27 @@
         <TextBox Grid.Column="1" Height="23" Margin="10.667,341,10,0" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
         <TextBox Grid.Column="1" Height="23" Margin="10.667,369,10,0" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" ToolTip=";（セミコロン）で区切ることで複数設定することができます"/>
 
+        
+        <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="0,7,0,0"/>
+        <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="0,34,0,0"/>
 
-        <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコード設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
+        <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding Mpeg2DecoderList}" SelectedIndex="{Binding Model.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,31,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        
+        <TextBlock Grid.Row="2" HorizontalAlignment="Left" TextWrapping="Wrap" Text="エンコード設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
 
-        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="ソフトテレシネ保持（専用エンコーダが必要）" Margin="10,4,0,0" IsChecked="{Binding Model.Pulldown, Mode=TwoWay}"/>
-        <CheckBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,27,0,0" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}"/>
-        <CheckBox Name="abc"  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="10,50,0,0" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}" ToolTip="入力ファイルの映像ビットレートからビットレートを計算します。&#10;同時に最大ビットレートが、計算されたビットレートの2倍に設定されます。"/>
+        <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="ソフトテレシネ保持（専用エンコーダが必要）" Margin="10,4,0,0" IsChecked="{Binding Model.Pulldown, Mode=TwoWay}"/>
+        <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,27,0,0" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}"/>
+        <CheckBox Name="abc"  Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="10,50,0,0" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}" ToolTip="入力ファイルの映像ビットレートからビットレートを計算します。&#10;同時に最大ビットレートが、計算されたビットレートの2倍に設定されます。"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="a" Margin="5,78,0,0" />
-        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="15,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="b" Margin="70,78,0,0" />
-        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="80,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="h264" Margin="135,78,0,0" />
-        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="165,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="a" Margin="5,78,0,0" />
+        <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="15,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="b" Margin="70,78,0,0" />
+        <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="80,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="h264" Margin="135,78,0,0" />
+        <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="165,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
 
-        <Grid Grid.Row="1" Grid.Column="1" Margin="0,105,0,0" Width="240" HorizontalAlignment="Left">
+        <Grid Grid.Row="2" Grid.Column="1" Margin="0,105,0,0" Width="240" HorizontalAlignment="Left">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition/>
@@ -91,7 +98,7 @@
             <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Bitrate7H264}" HorizontalAlignment="Center" />
         </Grid>
 
-        <TextBlock Grid.Row="2" Grid.ColumnSpan="2" HorizontalAlignment="Left" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,7,0,0">
+        <TextBlock Grid.Row="3" Grid.ColumnSpan="2" HorizontalAlignment="Left" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,7,0,0">
             <Run Text="{Binding Model.SettingWarningText}" Foreground="Red" />
             <Run Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"/>
         </TextBlock>

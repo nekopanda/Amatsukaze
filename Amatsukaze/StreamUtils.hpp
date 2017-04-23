@@ -586,6 +586,12 @@ public:
 	AMTContext& ctx;
 };
 
+enum DECODER_TYPE {
+	DECODER_DEFAULT = 0,
+	DECODER_QSV,
+	DECODER_CUVID,
+};
+
 enum VIDEO_STREAM_FORMAT {
   VS_UNKNOWN,
 	VS_MPEG2,
