@@ -185,7 +185,7 @@ namespace Amatsukaze.Server
                     server.SetSetting((Setting)arg);
                     break;
                 case RPCMethodId.AddQueue:
-                    server.AddQueue((string)arg);
+                    server.AddQueue((AddQueueDirectory)arg);
                     break;
                 case RPCMethodId.RemoveQueue:
                     server.RemoveQueue((string)arg);
@@ -620,7 +620,7 @@ namespace Amatsukaze.Server
             {
                 succeeded = Path.Combine(dir.Path, "succeeded");
                 failed = Path.Combine(dir.Path, "failed");
-                encoded = Path.Combine(dir.Path, "encoded");
+                encoded = dir.DstPath;
                 Directory.CreateDirectory(succeeded);
                 Directory.CreateDirectory(failed);
                 Directory.CreateDirectory(encoded);
@@ -852,7 +852,7 @@ namespace Amatsukaze.Server
                 string basePath = Path.GetDirectoryName(GetType().Assembly.Location);
                 appData = new AppData() {
                     setting = new Setting() {
-                        EncoderName = "x264",
+                        EncoderType = EncoderType.x264,
                         AmatsukazePath = Path.Combine(basePath, "Amatsukaze.exe"),
                         X264Path = GetExePath(basePath, "x264"),
                         X265Path = GetExePath(basePath, "x265"),
@@ -875,6 +875,12 @@ namespace Amatsukaze.Server
                 if (appData.setting.Bitrate == null)
                 {
                     appData.setting.Bitrate = new BitrateSetting();
+                }
+                // 旧バージョンとの互換性
+                if(appData.setting.EncoderOption != null)
+                {
+                    appData.setting.X264Option = appData.setting.EncoderOption;
+                    appData.setting.EncoderOption = null;
                 }
             }
         }
@@ -939,21 +945,61 @@ namespace Amatsukaze.Server
 
         private string GetEncoderPath()
         {
-            if (appData.setting.EncoderName == "x264")
+            if (appData.setting.EncoderType == EncoderType.x264)
             {
                 return appData.setting.X264Path;
             }
-            else if(appData.setting.EncoderName == "x265")
+            else if(appData.setting.EncoderType == EncoderType.x265)
             {
                 return appData.setting.X265Path;
             }
-            else if(appData.setting.EncoderName == "QSVEnc")
+            else if(appData.setting.EncoderType == EncoderType.QSVEnc)
             {
                 return appData.setting.QSVEncPath;
             }
             else
             {
-                throw new ArgumentException("エンコーダ名が認識できません");
+                return appData.setting.NVEncPath;
+            }
+        }
+
+        private string GetEncoderOption()
+        {
+            if (appData.setting.EncoderType == EncoderType.x264)
+            {
+                return appData.setting.X264Option;
+            }
+            else if (appData.setting.EncoderType == EncoderType.x265)
+            {
+                return appData.setting.X265Option;
+            }
+            else if (appData.setting.EncoderType == EncoderType.QSVEnc)
+            {
+                return appData.setting.QSVEncOption;
+            }
+            else
+            {
+                return appData.setting.NVEncOption;
+            }
+        }
+
+        private string GetEncoderName()
+        {
+            if (appData.setting.EncoderType == EncoderType.x264)
+            {
+                return "x264";
+            }
+            else if (appData.setting.EncoderType == EncoderType.x265)
+            {
+                return "x265";
+            }
+            else if (appData.setting.EncoderType == EncoderType.QSVEnc)
+            {
+                return "QSVEnc";
+            }
+            else
+            {
+                return "NVEnc";
             }
         }
 
@@ -988,7 +1034,7 @@ namespace Amatsukaze.Server
                 .Append("\" -w \"")
                 .Append(appData.setting.WorkPath)
                 .Append("\" -et ")
-                .Append(appData.setting.EncoderName)
+                .Append(GetEncoderName())
                 .Append(" -e \"")
                 .Append(encoderPath)
                 .Append("\" -m \"")
@@ -999,10 +1045,11 @@ namespace Amatsukaze.Server
                 .Append(json)
                 .Append("\"");
 
-            if (string.IsNullOrEmpty(appData.setting.EncoderOption) == false)
+            string option = GetEncoderOption();
+            if (string.IsNullOrEmpty(option) == false)
             {
                 sb.Append(" -eo \"")
-                    .Append(appData.setting.EncoderOption)
+                    .Append(option)
                     .Append("\"");
             }
 
@@ -1173,7 +1220,7 @@ namespace Amatsukaze.Server
             }
             foreach(var item in queue)
             {
-                var diskPath = Path.GetPathRoot(item.Path);
+                var diskPath = Path.GetPathRoot(item.DstPath);
                 if (diskMap.ContainsKey(diskPath) == false)
                 {
                     diskMap.Add(diskPath, MakeDiskItem(diskPath));
@@ -1190,26 +1237,39 @@ namespace Amatsukaze.Server
                 AddEncodeLog("設定を更新しました"));
         }
 
-        public async Task AddQueue(string dirPath)
+        public async Task AddQueue(AddQueueDirectory dir)
         {
-            if (queue.Find(t => t.Path == dirPath) != null)
+            // 既に追加されているファイルは除外する
+            var ignoreSet = new HashSet<string>(queue
+                .Where(t => t.Path == dir.DirPath)
+                .SelectMany(t => t.Items)
+                .Select(item => item.Path));
+
+            var items = ((dir.Targets != null)
+                ? dir.Targets
+                : Directory.GetFiles(dir.DirPath)
+                    .Where(s => {
+                        string lower = s.ToLower();
+                        return lower.EndsWith(".ts") || lower.EndsWith(".m2t") || lower.EndsWith(".mp4");
+                    }))
+                .Where(f => !ignoreSet.Contains(f));
+
+            if(dir.DstPath != null && Directory.Exists(dir.DstPath) == false)
             {
                 await client.OnOperationResult(
-                    "すでに同じパスが追加されています。パス:" + dirPath);
+                    "出力先フォルダが存在しません:" + dir.DstPath);
                 return;
             }
 
             var target = new QueueDirectory() {
-                Path = dirPath,
-                Items = Directory.GetFiles(dirPath).Where(s => {
-                    string lower = s.ToLower();
-                    return lower.EndsWith(".ts") || lower.EndsWith(".m2t") || lower.EndsWith(".mp4");
-                }).Select(f => new QueueItem() { Path = f }).ToList()
+                Path = dir.DirPath,
+                Items = items.Select(f => new QueueItem() { Path = f }).ToList(),
+                DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded")
             };
             if (target.Items.Count == 0)
             {
                 await client.OnOperationResult(
-                    "エンコード対象ファイルが見つかりません。パス:" + dirPath);
+                    "エンコード対象ファイルが見つかりません。パス:" + dir.DirPath);
                 return;
             }
             queue.Add(target);

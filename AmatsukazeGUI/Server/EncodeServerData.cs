@@ -21,11 +21,22 @@ namespace Amatsukaze.Server
         public ExtensionDataObject ExtensionData { get; set; }
     }
 
+    public enum EncoderType
+    {
+        x264 = 0,
+        x265,
+        QSVEnc,
+        NVEnc
+    }
+
     [DataContract]
     public class Setting : IExtensibleDataObject
     {
         [DataMember]
         public string AmatsukazePath { get; set; }
+        [DataMember]
+        public EncoderType EncoderType { get; set; }
+
         [DataMember]
         public string X264Path { get; set; }
         [DataMember]
@@ -33,7 +44,17 @@ namespace Amatsukaze.Server
         [DataMember]
         public string QSVEncPath { get; set; }
         [DataMember]
-        public string EncoderName { get; set; }
+        public string NVEncPath { get; set; }
+        [DataMember]
+        public string X264Option { get; set; }
+        [DataMember]
+        public string X265Option { get; set; }
+        [DataMember]
+        public string QSVEncOption { get; set; }
+        [DataMember]
+        public string NVEncOption { get; set; }
+
+        // depricated
         [DataMember]
         public string EncoderOption { get; set; }
 
@@ -74,6 +95,17 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class AddQueueDirectory
+    {
+        [DataMember]
+        public string DirPath { get; set; }
+        [DataMember]
+        public List<string> Targets { get; set; }
+        [DataMember]
+        public string DstPath { get; set; }
+    }
+
+    [DataContract]
     public class QueueItem
     {
         [DataMember]
@@ -91,6 +123,8 @@ namespace Amatsukaze.Server
         public string Path { get; set; }
         [DataMember]
         public List<QueueItem> Items { get; set; }
+        [DataMember]
+        public string DstPath;
         [DataMember]
         public int CurrentHead { get; set; }
     }

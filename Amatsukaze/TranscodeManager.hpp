@@ -75,6 +75,7 @@ enum ENUM_ENCODER {
 	ENCODER_X264,
 	ENCODER_X265,
 	ENCODER_QSVENC,
+	ENCODER_NVENC,
 };
 
 struct BitrateSetting {
@@ -99,6 +100,7 @@ static const char* encoderToString(ENUM_ENCODER encoder) {
 	case ENCODER_X264: return "x264";
 	case ENCODER_X265: return "x265";
 	case ENCODER_QSVENC: return "QSVEnc";
+	case ENCODER_NVENC: return "NVEnc";
 	}
 	return "Unknown";
 }
@@ -133,6 +135,7 @@ static std::string makeEncoderArgs(
 	switch (encoder) {
 	case ENCODER_X264:
 	case ENCODER_QSVENC:
+	case ENCODER_NVENC:
 		ss << (fmt.progressive ? "" : " --tff");
 		break;
 	case ENCODER_X265:
@@ -151,6 +154,7 @@ static std::string makeEncoderArgs(
 		ss << " --y4m --input -";
 		break;
 	case ENCODER_QSVENC:
+	case ENCODER_NVENC:
 		ss << " --format raw --y4m -i -";
 		break;
 	}
@@ -203,6 +207,12 @@ static std::string makeTimelineEditorArgs(
 	return ss.str();
 }
 
+inline bool ends_with(std::string const & value, std::string const & ending)
+{
+	if (ending.size() > value.size()) return false;
+	return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
 enum AMT_CLI_MODE {
   AMT_CLI_TS,
   AMT_CLI_GENERIC,
@@ -229,6 +239,9 @@ public:
 		}
 	}
 	~TempDirectory() {
+		// 一時ファイルを削除
+		ctx.clearTmpFiles();
+		// ディレクトリ削除
 		if (_rmdir(path_.c_str()) != 0) {
 			ctx.warn("一時ディレクトリ削除に失敗: ", path_.c_str());
 		}
@@ -441,9 +454,19 @@ public:
     ss << encoderOptions;
     if (autoBitrate) {
       double targetBitrate = bitrate.getTargetBitrate(srcFormat, srcBitrate);
-			ss << " --bitrate " << (int)targetBitrate;
-			ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
-			ss << " --vbv-bufsize 31250"; // high profile level 4.1
+			if (encoder == ENCODER_QSVENC) {
+				ss << " --la " << (int)targetBitrate;
+				ss << " --maxbitrate " << (int)(targetBitrate * 2);
+			}
+			else if (encoder == ENCODER_NVENC) {
+				ss << " --vbrhq " << (int)targetBitrate;
+				ss << " --maxbitrate " << (int)(targetBitrate * 2);
+			}
+			else {
+				ss << " --bitrate " << (int)targetBitrate;
+				ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
+				ss << " --vbv-bufsize 31250"; // high profile level 4.1
+			}
     }
 		if (pulldown) {
 			ss << " --pdfile-in \"" << getEncPulldownFilePath(vindex, index) << "\"";
@@ -1650,9 +1673,6 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	int64_t totalOutSize = muxer->getTotalOutSize();
   muxer = nullptr;
 
-	// 中間ファイルを削除
-	ctx.clearTmpFiles();
-
 	// 出力結果を表示
 	ctx.info("完了");
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
@@ -1703,6 +1723,10 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& setting)
 {
+	if (ends_with(setting.getSrcFilePath(), ".ts")) {
+		ctx.warn("一般ファイルモードでのTSファイルの処理は非推奨です");
+	}
+
 	auto encoder = std::unique_ptr<AMTSimpleVideoEncoder>(new AMTSimpleVideoEncoder(ctx, setting));
 	encoder->encode();
 	int audioCount = encoder->getAudioCount();
@@ -1714,9 +1738,6 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 	muxer->mux(videoFormat, audioCount);
 	int64_t totalOutSize = muxer->getTotalOutSize();
 	muxer = nullptr;
-
-	// 中間ファイルを削除
-	ctx.clearTmpFiles();
 
 	// 出力結果を表示
 	ctx.info("完了");

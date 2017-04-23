@@ -131,7 +131,7 @@ namespace Amatsukaze.Models
         #endregion
 
         #region CurrentLogFile変更通知プロパティ
-        private string _CurrentLogFile;
+        private string _CurrentLogFile = "ここに表示するにはログパネルの項目をダブルクリックしてください";
 
         public string CurrentLogFile
         {
@@ -296,25 +296,70 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region EncoderName変更通知プロパティ
-        public string EncoderName {
-            get { return setting.EncoderName; }
+        #region NVEncPath変更通知プロパティ
+        public string NVEncPath {
+            get { return setting.NVEncPath; }
             set { 
-                if (setting.EncoderName == value)
+                if (setting.NVEncPath == value)
                     return;
-                setting.EncoderName = value;
+                setting.NVEncPath = value;
                 RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EncoderTypeInt変更通知プロパティ
+        public int EncoderTypeInt {
+            get { return (int)setting.EncoderType; }
+            set { 
+                if ((int)setting.EncoderType == value)
+                    return;
+                setting.EncoderType = (EncoderType)value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+                RaisePropertyChanged("EncoderOption");
             }
         }
         #endregion
 
         #region EncoderOption変更通知プロパティ
         public string EncoderOption {
-            get { return setting.EncoderOption; }
-            set { 
-                if (setting.EncoderOption == value)
-                    return;
-                setting.EncoderOption = value;
+            get {
+                switch (setting.EncoderType)
+                {
+                    case EncoderType.x264: return setting.X264Option;
+                    case EncoderType.x265: return setting.X265Option;
+                    case EncoderType.QSVEnc: return setting.QSVEncOption;
+                    case EncoderType.NVEnc: return setting.NVEncOption;
+                }
+                return null;
+            }
+            set {
+                switch (setting.EncoderType)
+                {
+                    case EncoderType.x264:
+                        if (setting.X264Option == value)
+                            return;
+                        setting.X264Option = value;
+                        break;
+                    case EncoderType.x265:
+                        if (setting.X265Option == value)
+                            return;
+                        setting.X265Option = value;
+                        break;
+                    case EncoderType.QSVEnc:
+                        if (setting.QSVEncOption == value)
+                            return;
+                        setting.QSVEncOption = value;
+                        break;
+                    case EncoderType.NVEnc:
+                        if (setting.NVEncOption == value)
+                            return;
+                        setting.NVEncOption = value;
+                        break;
+                    default:
+                        return;
+                }
                 RaisePropertyChanged();
             }
         }
@@ -427,6 +472,7 @@ namespace Amatsukaze.Models
                 if (setting.TwoPass == value)
                     return;
                 setting.TwoPass = value;
+                UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -439,6 +485,7 @@ namespace Amatsukaze.Models
                 if (setting.Pulldown == value)
                     return;
                 setting.Pulldown = value;
+                UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -484,6 +531,20 @@ namespace Amatsukaze.Models
                 if (setting.Bitrate.H264 == value)
                     return;
                 setting.Bitrate.H264 = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SettingWarningText変更通知プロパティ
+        private string _SettingWarningText;
+
+        public string SettingWarningText {
+            get { return _SettingWarningText; }
+            set { 
+                if (_SettingWarningText == value)
+                    return;
+                _SettingWarningText = value;
                 RaisePropertyChanged();
             }
         }
@@ -536,6 +597,24 @@ namespace Amatsukaze.Models
             // GC.SuppressFinalize(this);
         }
         #endregion
+
+        private void UpdateWarningText()
+        {
+            StringBuilder sb = new StringBuilder();
+            if(setting.EncoderType == EncoderType.QSVEnc && setting.TwoPass)
+            {
+                sb.Append("QSVEncは2パスに対応していません\r\n");
+            }
+            if (setting.EncoderType == EncoderType.NVEnc && setting.TwoPass)
+            {
+                sb.Append("NVEncは2パスに対応していません\r\n");
+            }
+            if (setting.EncoderType != EncoderType.x264 && setting.Pulldown)
+            {
+                sb.Append("ソフトテレシネ保持はx264にしか対応してません\r\n");
+            }
+            SettingWarningText = sb.ToString();
+        }
 
         private void ConsoleText_TextChanged()
         {
@@ -720,10 +799,14 @@ namespace Amatsukaze.Models
             NumParallel = setting.NumParallel;
             AmatsukazePath = setting.AmatsukazePath;
             X264Path = setting.X264Path;
+            this.setting.X264Option = setting.X264Option;
             X265Path = setting.X265Path;
+            this.setting.X265Option = setting.X265Option;
             QSVEncPath = setting.QSVEncPath;
-            EncoderName = setting.EncoderName;
-            EncoderOption = setting.EncoderOption;
+            this.setting.QSVEncOption = setting.QSVEncOption;
+            NVEncPath = setting.NVEncPath;
+            this.setting.NVEncOption = setting.NVEncOption;
+            EncoderTypeInt = (int)setting.EncoderType;
             MuxerPath = setting.MuxerPath;
             TimelineEditorPath = setting.TimelineEditorPath;
             WorkPath = setting.WorkPath;

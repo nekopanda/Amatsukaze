@@ -15,7 +15,7 @@ using System.Windows.Shapes;
 namespace Amatsukaze.Views
 {
     /* 
-     * ViewModelからの変更通知などの各種イベントを受け取る場合は、PropertyChangedWeakEventListenerや
+	 * ViewModelからの変更通知などの各種イベントを受け取る場合は、PropertyChangedWeakEventListenerや
      * CollectionChangedWeakEventListenerを使うと便利です。独自イベントの場合はLivetWeakEventListenerが使用できます。
      * クローズ時などに、LivetCompositeDisposableに格納した各種イベントリスナをDisposeする事でイベントハンドラの開放が容易に行えます。
      *
@@ -23,11 +23,11 @@ namespace Amatsukaze.Views
      */
 
     /// <summary>
-    /// ConfigWindow.xaml の相互作用ロジック
+    /// SelectOutPath.xaml の相互作用ロジック
     /// </summary>
-    public partial class ConfigWindow : Window
+    public partial class SelectOutPath : Window
     {
-        public ConfigWindow()
+        public SelectOutPath()
         {
             InitializeComponent();
         }
@@ -38,6 +38,25 @@ namespace Amatsukaze.Views
             Window mainWindow = curApp.MainWindow;
             this.Left = mainWindow.Left + (mainWindow.Width - this.ActualWidth) / 2;
             this.Top = mainWindow.Top + (mainWindow.Height - this.ActualHeight) / 2;
+        }
+
+        private void textBox_PreviewDragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = System.Windows.DragDropEffects.Copy;
+                e.Handled = true;
+            }
+        }
+
+        private void textBox_Drop(object sender, DragEventArgs e)
+        {
+            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            var target = sender as TextBox;
+            if (files != null && target != null)
+            {
+                target.Text = files[0];
+            }
         }
     }
 }

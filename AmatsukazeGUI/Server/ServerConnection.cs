@@ -177,9 +177,9 @@ namespace Amatsukaze.Server
             }
         }
 
-        public Task AddQueue(string dirPath)
+        public Task AddQueue(AddQueueDirectory dir)
         {
-            return Send(RPCMethodId.AddQueue, dirPath);
+            return Send(RPCMethodId.AddQueue, dir);
         }
 
         public Task PauseEncode(bool pause)

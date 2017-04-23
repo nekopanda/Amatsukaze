@@ -72,6 +72,7 @@
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
+    <Compile Include="ViewModels\SelectOutPathViewModel.cs" />
     <Compile Include="ViewModels\ServerViewModel.cs" />
     <Compile Include="ViewModels\SettingViewModel.cs" />
     <Compile Include="ViewModels\SummaryItemViewModel.cs" />
@@ -87,6 +88,9 @@
     </Compile>
     <Compile Include="Views\QueuePanel.xaml.cs">
       <DependentUpon>QueuePanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SelectOutPath.xaml.cs">
+      <DependentUpon>SelectOutPath.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\ServerWindow.xaml.cs">
       <DependentUpon>ServerWindow.xaml</DependentUpon>
@@ -160,6 +164,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="Views\QueuePanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SelectOutPath.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

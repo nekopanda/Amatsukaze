@@ -1,4 +1,5 @@
-﻿using Amatsukaze.ViewModels;
+﻿using Amatsukaze.Server;
+using Amatsukaze.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,45 +34,19 @@ namespace Amatsukaze.Views
                         e.Data.GetDataPresent(DataFormats.Text);
         }
 
-        private void AddQueue(string dirPath)
+        private void ListBox_Drop(object sender, DragEventArgs e)
         {
             var vm = DataContext as QueueViewModel;
             if (vm != null)
             {
-                vm.AddQueue(dirPath);
-            }
-        }
-
-        private void ListBox_Drop(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                string[] files = e.Data.GetData(DataFormats.FileDrop) as string[];
-                bool filewarning = false;
-                if (files != null)
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
-                    foreach (var path in files)
-                    {
-                        if (Directory.Exists(path))
-                        {
-                            AddQueue(path);
-                        }
-                        else if (File.Exists(path))
-                        {
-                            filewarning = true;
-                        }
-                    }
+                    vm.FileDropped(e.Data.GetData(DataFormats.FileDrop) as string[]);
                 }
-                if (filewarning)
+                else if (e.Data.GetDataPresent(DataFormats.Text))
                 {
-                    MessageBox.Show(Application.Current.MainWindow,
-                        "ファイルを直接追加することはできません。フォルダを追加して下さい。");
+                    vm.FileDropped(new string[] { (string)e.Data.GetData(DataFormats.Text) });
                 }
-            }
-            else if(e.Data.GetDataPresent(DataFormats.Text))
-            {
-                var str = (string)e.Data.GetData(DataFormats.Text);
-                AddQueue(str);
             }
         }
     }

@@ -12,10 +12,12 @@ using Livet.EventListeners;
 using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
+using Amatsukaze.Server;
+using System.IO;
 
 namespace Amatsukaze.ViewModels
 {
-    public class SettingViewModel : NamedViewModel
+    public class SelectOutPathViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -58,93 +60,101 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-        public ClientModel Model { get; set; }
-
-        private PropertyChangedEventListener listener;
+        public AddQueueDirectory Item { get; set; }
 
         public void Initialize()
         {
-            listener = new PropertyChangedEventListener(Model);
-
-            listener.Add(() => Model.BitrateA, UpdateBitrate);
-            listener.Add(() => Model.BitrateB, UpdateBitrate);
-            listener.Add(() => Model.BitrateH264, UpdateBitrate);
+            OutPath = Path.Combine(Item.DirPath, "encoded");
         }
 
-        #region SendSettingCommand
-        private ViewModelCommand _SendSettingCommand;
+        public bool Succeeded { get; private set; }
 
-        public ViewModelCommand SendSettingCommand
-        {
-            get
-            {
-                if (_SendSettingCommand == null)
+        #region OkCommand
+        private ViewModelCommand _OkCommand;
+
+        public ViewModelCommand OkCommand {
+            get {
+                if (_OkCommand == null)
                 {
-                    _SendSettingCommand = new ViewModelCommand(SendSetting);
+                    _OkCommand = new ViewModelCommand(Ok);
                 }
-                return _SendSettingCommand;
+                return _OkCommand;
             }
         }
 
-        public void SendSetting()
+        public async void Ok()
         {
-            Model.SendSetting();
+            if (string.IsNullOrEmpty(OutPath) == false)
+            {
+                if (System.IO.Directory.Exists(OutPath) == false)
+                {
+                    Description = "出力先フォルダが存在しません";
+                    return;
+                }
+                Item.DstPath = OutPath;
+            }
+            Succeeded = true;
+            await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
         }
         #endregion
 
-        #region EncoderList変更通知プロパティ
-        private List<string> _EncoderList = new List<string>() {
-                "x264", "x265", "QSVEnc", "NVEnc"
-            };
+        #region DefualtCommand
+        private ViewModelCommand _DefualtCommand;
 
-        public List<string> EncoderList
+        public ViewModelCommand DefualtCommand {
+            get {
+                if (_DefualtCommand == null)
+                {
+                    _DefualtCommand = new ViewModelCommand(Defualt);
+                }
+                return _DefualtCommand;
+            }
+        }
+
+        public async void Defualt()
         {
-            get
-            { return _EncoderList; }
-            set
-            { 
-                if (_EncoderList == value)
+            Succeeded = true;
+            await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+        }
+        #endregion
+
+        #region OutPath変更通知プロパティ
+        private string _OutPath;
+
+        public string OutPath {
+            get { return _OutPath; }
+            set { 
+                if (_OutPath == value)
                     return;
-                _EncoderList = value;
+                _OutPath = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
-        private void UpdateBitrate(object sender, PropertyChangedEventArgs args)
-        {
-            RaisePropertyChanged("Bitrate18MPEG2");
-            RaisePropertyChanged("Bitrate12MPEG2");
-            RaisePropertyChanged("Bitrate7MPEG2");
-            RaisePropertyChanged("Bitrate18H264");
-            RaisePropertyChanged("Bitrate12H264");
-            RaisePropertyChanged("Bitrate7H264");
-        }
+        #region Description変更通知プロパティ
+        private string _Description;
 
-        private double CalcBitrate(double src, int encoder)
-        {
-            double baseBitRate = Model.BitrateA * src + Model.BitrateB;
-            switch (encoder)
-            {
-                case 0:
-                    return baseBitRate;
-                case 1:
-                    return baseBitRate * Model.BitrateH264;
+        public string Description {
+            get { return _Description; }
+            set { 
+                if (_Description == value)
+                    return;
+                _Description = value;
+                RaisePropertyChanged();
             }
-            return 0;
         }
+        #endregion
 
-        private string BitrateString(double src, int encoder)
-        {
-            return ((int)CalcBitrate(src, encoder)).ToString() + "Kbps";
+        public string InputInfoText {
+            get {
+                string text = "入力フォルダ: " + Item.DirPath;
+                if(Item.Targets != null)
+                {
+                    text += "(" + Item.Targets.Count + ")";
+                }
+                return text;
+            }
         }
-
-        public string Bitrate18MPEG2 { get { return BitrateString(18000, 0); } }
-        public string Bitrate12MPEG2 { get { return BitrateString(12000, 0); } }
-        public string Bitrate7MPEG2 { get { return BitrateString(7000, 0); } }
-        public string Bitrate18H264 { get { return BitrateString(18000, 1); } }
-        public string Bitrate12H264 { get { return BitrateString(12000, 1); } }
-        public string Bitrate7H264 { get { return BitrateString(7000, 1); } }
-
     }
 }

@@ -448,7 +448,10 @@ private:
 		std::vector<int> sectionFormatList;
 		std::vector<int64_t> startPtsList;
 
+		ctx.info("[フォーマット切り替え解析]");
+
 		OutVideoFormat curFormat = OutVideoFormat();
+		int64_t startPts = -1;
 		int64_t curFromPTS = -1;
 		curFormat.videoFileId = -1;
 		for (int i = 0; i < (int)streamEventList_.size(); ++i) {
@@ -463,6 +466,10 @@ private:
 				registerOrGetFormat(curFormat);
 				sectionFormatList.push_back(curFormat.formatId);
 				startPtsList.push_back(curFromPTS);
+				if (startPts == -1) {
+					startPts = curFromPTS;
+				}
+				ctx.info("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
 				curFromPTS = -1;
 			}
 			// 変更を反映
@@ -499,6 +506,10 @@ private:
 			registerOrGetFormat(curFormat);
 			sectionFormatList.push_back(curFormat.formatId);
 			startPtsList.push_back(curFromPTS);
+			if (startPts == -1) {
+				startPts = curFromPTS;
+			}
+			ctx.info("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
 		}
 		startPtsList.push_back(endPTS);
 		outFormatStartIndex_.push_back((int)outFormat_.size());

@@ -169,7 +169,7 @@ public:
 		}
 
 		if (CreateProcess(NULL, const_cast<char*>(args.c_str()), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi_) == 0) {
-			THROW(RuntimeException, "failed to create process");
+			THROW(RuntimeException, "プロセス起動に失敗。exeのパスを確認してください。");
 		}
 
 		// 子プロセス用のハンドルは必要ないので閉じる

@@ -58,7 +58,7 @@ static void printHelp(const tchar* bin) {
 		"  -s|--serviceid <数値> 処理するサービスIDを指定[]\n"
 		"  -w|--work   <パス>  一時ファイルパス[./]\n"
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
-		"                      対応エンコーダ: x264,x265,QSVEnc\n"
+		"                      対応エンコーダ: x264,x265,QSVEnc,NVEnc\n"
 		"  -e|--encoder <パス> エンコーダパス[x264.exe]\n"
 		"  -eo|--encoder-opotion <オプション> エンコーダへ渡すオプション[]\n"
 		"                      入力ファイルの解像度、アスペクト比、インタレースフラグ、\n"
@@ -134,6 +134,9 @@ static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
 	}
 	else if (str == _T("qsv") || str == _T("QSVEnc")) {
 		return ENCODER_QSVENC;
+	}
+	else if (str == _T("nvenc") || str == _T("NVEnc")) {
+		return ENCODER_NVENC;
 	}
 	return (ENUM_ENCODER)-1;
 }

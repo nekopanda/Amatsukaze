@@ -13,7 +13,7 @@ namespace Amatsukaze.Server
     {
         // 操作系
         Task SetSetting(Setting setting);
-        Task AddQueue(string dirPath);
+        Task AddQueue(AddQueueDirectory dir);
         Task RemoveQueue(string dirPath);
         Task PauseEncode(bool pause);
 
@@ -82,7 +82,7 @@ namespace Amatsukaze.Server
     {
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
             { RPCMethodId.SetSetting, typeof(Setting) },
-            { RPCMethodId.AddQueue, typeof(string) },
+            { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.RemoveQueue, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.RequestSetting, null },

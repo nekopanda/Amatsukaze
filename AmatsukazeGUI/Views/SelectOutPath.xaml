@@ -1,17 +1,16 @@
-﻿<Window x:Class="Amatsukaze.Views.ConfigWindow"
+﻿<Window x:Class="Amatsukaze.Views.SelectOutPath"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:ei="http://schemas.microsoft.com/expression/2010/interactions"
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        mc:Ignorable="d" 
-        Title="AmatsukazeClient" Width="244.889"
-        d:DataContext="{d:DesignInstance {x:Type vm:ConfigWindowViewModel}}"
-        SizeToContent="Height" Loaded="Window_Loaded" >
+        Title="Amatsukaze 出力先選択" Height="155" Width="370" Loaded="Window_Loaded">
+
+    <Window.DataContext>
+        <vm:SelectOutPathViewModel/>
+    </Window.DataContext>
 
     <i:Interaction.Triggers>
 
@@ -37,23 +36,15 @@
     </i:Interaction.Triggers>
 
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Grid.ColumnSpan="2" Margin="5" Foreground="Red"/>
-
-        <TextBlock Grid.Row="1" Text="サーバアドレスを入力してください" Margin="6,5,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2" HorizontalAlignment="Left" Width="217"/>
-        <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="サーバIP" VerticalAlignment="Top" Margin="0,26,0,0"/>
-        <TextBlock Grid.Row="1" HorizontalAlignment="Left" Margin="0,47,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="50" Text="ポート"/>
-        <TextBox Grid.Row="1" Height="18" Margin="0,24,5,0" TextWrapping="Wrap" Text="{Binding ServerIP}" VerticalAlignment="Top" Grid.Column="1" TabIndex="1"/>
-        <TextBox Grid.Row="1" Height="18" Margin="0,44,5,0" TextWrapping="Wrap" Text="{Binding ServerPort}" VerticalAlignment="Top" Grid.Column="1" TabIndex="1"/>
-        <Button Grid.Row="1" Content="OK" Grid.Column="1" Margin="0,67,85,10" VerticalAlignment="Top" Command="{Binding OkCommand, Mode=OneWay}" HorizontalAlignment="Right" Width="75"/>
-        <Button Grid.Row="1" Content="Cancel" Grid.Column="1" Margin="0,67,5,10" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75">
+        <TextBlock x:Name="textBlock" Margin="10,4,10.333,0" TextWrapping="Wrap" VerticalAlignment="Top">
+            <Run Text="{Binding InputInfoText, Mode=OneWay}" /><Run Text="&#10;"/>
+            <Run Text="出力先フォルダを入力してください"/>
+        </TextBlock>
+        <TextBox x:Name="textBox" Height="23" Margin="10,40,9.333,0" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
+        <TextBlock x:Name="textBlock1" Margin="10,68,10.333,0" TextWrapping="Wrap" Text="{Binding Description}" VerticalAlignment="Top" Foreground="Red"/>
+        <Button x:Name="button2" Content="OK" Margin="0,90,167.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Command="{Binding OkCommand, Mode=OneWay}"/>
+        <Button x:Name="button1" Content="デフォルト" Margin="0,90,87.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Command="{Binding DefualtCommand, Mode=OneWay}"/>
+        <Button x:Name="button" Content="キャンセル" Margin="0,90,7.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75">
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="Click">
                     <l:WindowInteractionMessageAction>
@@ -64,6 +55,5 @@
                 </i:EventTrigger>
             </i:Interaction.Triggers>
         </Button>
-
     </Grid>
 </Window>

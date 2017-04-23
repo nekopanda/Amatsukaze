@@ -15,6 +15,7 @@ using Amatsukaze.Models;
 using Amatsukaze.Server;
 using System.Threading.Tasks;
 using System.Windows;
+using System.IO;
 
 namespace Amatsukaze.ViewModels
 {
@@ -68,9 +69,50 @@ namespace Amatsukaze.ViewModels
         {
         }
 
-        public void AddQueue(string dirPath)
+        public async void FileDropped(IEnumerable<string> list)
         {
-            Model.Server.AddQueue(dirPath).AttachHandler();
+            Dictionary<string, AddQueueDirectory> dirList = new Dictionary<string, AddQueueDirectory>();
+            foreach (var path in list)
+            {
+                if (Directory.Exists(path))
+                {
+                    dirList.Add(path, new AddQueueDirectory() {
+                        DirPath = path
+                    });
+                }
+                else if (File.Exists(path))
+                {
+                    var dirPath = System.IO.Path.GetDirectoryName(path);
+                    AddQueueDirectory item;
+                    if (dirList.TryGetValue(dirPath, out item))
+                    {
+                        if (item.Targets != null)
+                        {
+                            item.Targets.Add(path);
+                        }
+                    }
+                    else
+                    {
+                        dirList.Add(dirPath, new AddQueueDirectory() {
+                            DirPath = dirPath,
+                            Targets = new List<string>() { path }
+                        });
+                    }
+                }
+            }
+
+            foreach (var item in dirList.Values)
+            {
+                // 出力先フォルダ選択
+                var selectPathVM = new SelectOutPathViewModel() { Item = item };
+                await Messenger.RaiseAsync(new TransitionMessage(
+                    typeof(Views.SelectOutPath), selectPathVM, TransitionMode.Modal, "FromMain"));
+
+                if(selectPathVM.Succeeded)
+                {
+                    Model.Server.AddQueue(item).AttachHandler();
+                }
+            }
         }
 
         #region QueueItemSelectedIndex変更通知プロパティ
