@@ -87,17 +87,29 @@ public:
 	CodecContext(AVCodec* pCodec)
 		: ctx_()
 	{
-		if (pCodec == NULL) {
-			THROW(RuntimeException, "pCodec is NULL");
-		}
-		ctx_ = avcodec_alloc_context3(pCodec);
-		if (ctx_ == NULL) {
-			THROW(IOException, "failed avcodec_alloc_context3");
-		}
+    Set(pCodec);
 	}
+  CodecContext()
+    : ctx_()
+  { }
 	~CodecContext() {
-		avcodec_free_context(&ctx_);
+    Free();
 	}
+  void Set(AVCodec* pCodec) {
+    if (pCodec == NULL) {
+      THROW(RuntimeException, "pCodec is NULL");
+    }
+    ctx_ = avcodec_alloc_context3(pCodec);
+    if (ctx_ == NULL) {
+      THROW(IOException, "failed avcodec_alloc_context3");
+    }
+  }
+  void Free() {
+    if (ctx_) {
+      avcodec_free_context(&ctx_);
+      ctx_ = NULL;
+    }
+  }
 	AVCodecContext* operator()() {
 		return ctx_;
 	}
