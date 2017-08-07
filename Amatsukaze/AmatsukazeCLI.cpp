@@ -7,6 +7,7 @@
 */
 #define _USE_MATH_DEFINES
 #include "AmatsukazeCLI.hpp"
+#include "AMTSource.hpp"
 
 int wmain(int argc, wchar_t* argv[]) {
 	try {

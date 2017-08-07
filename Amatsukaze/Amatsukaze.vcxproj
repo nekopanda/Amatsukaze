@@ -148,8 +148,10 @@
   <ItemGroup>
     <ClInclude Include="AdtsParser.hpp" />
     <ClInclude Include="AmatsukazeCLI.hpp" />
+    <ClInclude Include="AMTSource.hpp" />
     <ClInclude Include="common.h" />
     <ClInclude Include="CoreUtils.hpp" />
+    <ClInclude Include="List.hpp" />
     <ClInclude Include="PacketCache.hpp" />
     <ClInclude Include="ProcessThread.hpp" />
     <ClInclude Include="H264VideoParser.hpp" />
@@ -160,6 +162,7 @@
     <ClInclude Include="StreamUtils.hpp" />
     <ClInclude Include="Transcode.hpp" />
     <ClInclude Include="TranscodeManager.hpp" />
+    <ClInclude Include="Tree.hpp" />
     <ClInclude Include="WaveWriter.h" />
   </ItemGroup>
   <ItemGroup>
@@ -184,7 +187,9 @@
       <Project>{482da264-ee88-4575-b208-87c4cb80cd08}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="AMTDebug.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
-</Project>
+  </ImportGroup></Project>

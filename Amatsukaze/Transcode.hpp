@@ -99,6 +99,7 @@ public:
     if (pCodec == NULL) {
       THROW(RuntimeException, "pCodec is NULL");
     }
+    Free();
     ctx_ = avcodec_alloc_context3(pCodec);
     if (ctx_ == NULL) {
       THROW(IOException, "failed avcodec_alloc_context3");
