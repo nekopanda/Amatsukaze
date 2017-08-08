@@ -339,10 +339,10 @@ static void amatsukaze_av_log_callback(
     const char* level_str =
       (logtype >= sizeof(log_levels) / sizeof(log_levels[0]))
       ? "unk" : log_levels[logtype];
-    printf("FFMPEG [%s] %s", level_str, buf);
+    fprintf(stderr, "FFMPEG [%s] %s", level_str, buf);
   }
   else {
-    printf(buf);
+    fprintf(stderr, buf);
   }
   if (print_prefix) {
     fflush(stdout);
@@ -367,4 +367,26 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 	catch (Exception e) {
 		return 1;
 	}
+}
+
+__declspec(dllexport) int AmatsukazeCLI(int argc, wchar_t* argv[]) {
+  try {
+    printCopyright();
+
+    AMTContext ctx;
+
+    auto setting = parseArgs(ctx, argc, argv);
+
+    // FFMPEGライブラリ初期化
+    InitializeCriticalSection(&g_log_crisec);
+    av_log_set_callback(amatsukaze_av_log_callback);
+    av_register_all();
+
+    return amatsukazeTranscodeMain(ctx, *setting);
+  }
+  catch (Exception e) {
+    // parseArgsでエラー
+    printHelp(argv[0]);
+    return 1;
+  }
 }

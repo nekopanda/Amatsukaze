@@ -5,6 +5,9 @@
 * This software is released under the MIT License.
 * http://opensource.org/licenses/mit-license.php
 */
-#define _USE_MATH_DEFINES
-#include "AmatsukazeCLI.hpp"
-#include "AMTSource.hpp"
+
+__declspec(dllimport) int AmatsukazeCLI(int argc, wchar_t* argv[]);
+
+int wmain(int argc, wchar_t* argv[]) {
+  return AmatsukazeCLI(argc, argv);
+}
