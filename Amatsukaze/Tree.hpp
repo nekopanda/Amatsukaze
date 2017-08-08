@@ -228,7 +228,8 @@ class Tree
       throw std::runtime_error("end iterator cannnot be incremented");
     }
 
-    TreeNode<K, V>* y = (x == &nil) ? &root : x->right;
+    TreeNode<K, V>* y = (x == const_cast<TreeNode<K, V>*>(&nil))
+      ? const_cast<TreeNode<K, V>*>(&root) : x->right;
 
     if (&nil != y) { /* assignment to y is intentional */
       while (y->left != &nil) { /* returns the minium of the right subtree of x */
@@ -263,7 +264,7 @@ class Tree
     else {
       y = x->parent;
       while (x == y->left) {
-        if (y == &root) return &nil;
+        if (y == const_cast<TreeNode<K, V>*>(&root)) return const_cast<TreeNode<K, V>*>(&nil);
         x = y;
         y = y->parent;
       }
@@ -273,8 +274,8 @@ class Tree
 
   TreeNode<K, V>* RBLowerBound(const K& q) const {
     TreeNode<K, V>* x = root.left;
-    TreeNode<K, V>* y = &root;
-    while (x != &nil) {/*assignemnt*/
+    TreeNode<K, V>* y = const_cast<TreeNode<K, V>*>(&root);
+    while (x != const_cast<TreeNode<K, V>*>(&nil)) {/*assignemnt*/
       if (x->key < q) {
         x = x->right;
       }
@@ -288,8 +289,8 @@ class Tree
 
   TreeNode<K, V>* RBUpperBound(const K& q) const {
     TreeNode<K, V>* x = root.left;
-    TreeNode<K, V>* y = &root;
-    while (x != &nil) {/*assignemnt*/
+    TreeNode<K, V>* y = const_cast<TreeNode<K, V>*>(&root);
+    while (x != const_cast<TreeNode<K, V>*>(&nil)) {/*assignemnt*/
       if (q < x->key) {
         y = x;
         x = x->left;
@@ -303,7 +304,7 @@ class Tree
 
   TreeNode<K, V>* RBExactQuery(const K& q) const {
     TreeNode<K, V>* r = RBLowerBound(q);
-    if (r->key != q) return &root;
+    if (r->key != q) return const_cast<TreeNode<K, V>*>(&root);
     return r;
   }
 

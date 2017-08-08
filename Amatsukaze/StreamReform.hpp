@@ -439,7 +439,7 @@ private:
 
 		// dataPTSを生成
 		// 後ろから見てその時点で最も小さいPTSをdataPTSとする
-		double curMin = INT64_MAX;
+		double curMin = INFINITY;
     double curMax = 0;
 		dataPTS_.resize(videoFrameList_.size());
 		for (int i = (int)videoFrameList_.size() - 1; i >= 0; --i) {
@@ -596,13 +596,13 @@ private:
 
           VideoFrameInfo& srcframe = videoFrameList_[ordered];
           if (srcframe.type == FRAME_I) {
-            keyFrame == int(list.size());
+            keyFrame = int(list.size());
           }
 
           // まだキーフレームがない場合は捨てる
           if (keyFrame == -1) continue;
 
-          FilterSourceFrame frame = { false, i, srcframe.PTS, srcframe.PTS, keyFrame };
+          FilterSourceFrame frame = { false, i, (double)srcframe.PTS, srcframe.PTS, keyFrame };
 
           switch (srcframe.pic) {
           case PIC_FRAME:
@@ -1026,9 +1026,9 @@ private:
 			int frameIndex = frameList[i];
 			const auto& frame = audioFrameList_[frameIndex];
       double modPTS = modifiedAudioPTS_[frameIndex];
-			int frameDuration = audioFrameDuration_[frameIndex];
-			int halfDuration = frameDuration / 2;
-			int quaterDuration = frameDuration / 4;
+			double frameDuration = audioFrameDuration_[frameIndex];
+      double halfDuration = frameDuration / 2;
+      double quaterDuration = frameDuration / 4;
 
 			if (modPTS >= pts + duration) {
 				// 開始が終了より後ろの場合
@@ -1050,7 +1050,7 @@ private:
 
 			// 空きがある場合はフレームを水増しする
 			// フレームの4分の3以上の空きができる場合は埋める
-			int nframes = std::max(1, ((int)(modPTS - pts) + (frameDuration / 4)) / frameDuration);
+			int nframes = (int)std::max(1.0, ((modPTS - pts) + (frameDuration / 4)) / frameDuration);
 
 			if (nframes > 1) {
 				ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",

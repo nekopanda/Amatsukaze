@@ -185,6 +185,12 @@
   <ItemGroup>
     <Natvis Include="AMTDebug.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\libfaad\libfaad2.vcxproj">
+      <Project>{482da264-ee88-4575-b208-87c4cb80cd08}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-  </ImportGroup></Project>
+  </ImportGroup>
+</Project>

@@ -1128,7 +1128,8 @@ private:
   {
     // ビットレート計算
     VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
-    int64_t srcBytes = 0, srcDuration = 0;
+    int64_t srcBytes = 0;
+    double srcDuration = 0;
     for (int i = 0; i < numEncoders_; ++i) {
       const auto& info = reformInfo_.getSrcVideoInfo(i, videoFileIndex_);
       srcBytes += info.first;
@@ -1510,17 +1511,10 @@ public:
 				}
 			}
 
-			// タイムコードを埋め込む必要があるか
-			bool needTimecode = reformInfo_.isVFR() ||
-				(reformInfo_.hasRFF() && setting_.isPulldownEnabled());
-			ctx.setCounter("timecode", (int)needTimecode);
-
 			// Mux
 			int outFileIndex = reformInfo_.getOutFileIndex(i, videoFileIndex);
 			std::string encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
-			std::string outFilePath = needTimecode
-				? setting_.getVfrTmpFilePath(outFileIndex)
-				: setting_.getOutFilePath(outFileIndex);
+			std::string outFilePath = setting_.getOutFilePath(outFileIndex);
 			std::string args = makeMuxerArgs(
 				setting_.getMuxerPath(), encVideoFile,
 				reformInfo_.getFormat(i, videoFileIndex).videoFormat,
@@ -1533,36 +1527,6 @@ public:
 				int ret = muxer.join();
 				if (ret != 0) {
 					THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
-				}
-			}
-
-			if (needTimecode) {
-				std::string outWithTimeFilePath = setting_.getOutFilePath(outFileIndex);
-				std::string encTimecodeFile = setting_.getEncTimecodeFilePath(videoFileIndex, i);
-				auto timebase = reformInfo_.getTimebase(i, videoFileIndex);
-				{ // タイムコードファイルを生成
-					std::ostringstream ss;
-					ss << "# timecode format v2" << std::endl;
-					const auto& timecode = reformInfo_.getTimecode(i, videoFileIndex);
-					for (int64_t pts : timecode) {
-						double dpts = (double)pts * timebase.second / timebase.first * 1000.0;
-						ss << std::fixed << std::setprecision(2) << dpts << std::endl;
-					}
-					std::string str = ss.str();
-					MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
-					File file(encTimecodeFile, "w");
-					file.write(mc);
-				}
-				std::string args = makeTimelineEditorArgs(
-					setting_.getTimelineEditorPath(), outFilePath, outWithTimeFilePath, encTimecodeFile, timebase);
-				ctx.info("[タイムコード埋め込み開始]");
-				ctx.info(args.c_str());
-				{
-					MySubProcess timelineeditor(args);
-					int ret = timelineeditor.join();
-					if (ret != 0) {
-						THROWF(RuntimeException, "timelineeditor failed (exit code: %d)", ret);
-					}
 				}
 			}
 

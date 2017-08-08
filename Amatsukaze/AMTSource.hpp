@@ -108,10 +108,10 @@ class AMTSource : public IClip, AMTObject
   void Copy(T* dst, const T* top, const T* bottom, int w, int h, int dpitch, int tpitch, int bpitch)
   {
     for (int y = 0; y < h; y += 2) {
-      uint8_t* dst0 = dst + dpitch * (y + 0);
-      uint8_t* dst1 = dst + dpitch * (y + 1);
-      uint8_t* src0 = top + tpitch * (y >> 1);
-      uint8_t* src1 = bottom + bpitch * (y >> 1);
+      T* dst0 = dst + dpitch * (y + 0);
+      T* dst1 = dst + dpitch * (y + 1);
+      const T* src0 = top + tpitch * (y >> 1);
+      const T* src1 = bottom + bpitch * (y >> 1);
       for (int x = 0; x < w; ++x) {
         dst0[x] = src0[x * step];
         dst1[x] = src1[x * step];
@@ -121,6 +121,7 @@ class AMTSource : public IClip, AMTObject
 
   template <typename T>
   void MergeField(PVideoFrame& dst, AVFrame* top, AVFrame* bottom) {
+    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(top->format));
 
     T* srctY = (T*)top->data[0];
     T* srctU = (T*)top->data[1];
@@ -141,15 +142,15 @@ class AMTSource : public IClip, AMTObject
 
     Copy<T, 1>(dstY, srctY, srcbY, vi.width, vi.height, dstPitchY, srctPitchY, srcbPitchY);
 
-    int witchUV = vi.width >> desc->log2_chroma_w;
+    int widthUV = vi.width >> desc->log2_chroma_w;
     int heightUV = vi.height >> desc->log2_chroma_h;
     if (top->format != AV_PIX_FMT_NV12) {
-      Copy<T, 1>(dstU, srctU, srcbU, witchUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
-      Copy<T, 1>(dstV, srctV, srcbV, witchUV, viheightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+      Copy<T, 1>(dstU, srctU, srcbU, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+      Copy<T, 1>(dstV, srctV, srcbV, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
     }
     else {
-      Copy<T, 2>(dstU, srctU, srcbU, witchUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
-      Copy<T, 2>(dstV, srctV, srcbV, witchUV, viheightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+      Copy<T, 2>(dstU, srctU, srcbU, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+      Copy<T, 2>(dstV, srctV, srcbV, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
     }
   }
 
@@ -212,7 +213,7 @@ class AMTSource : public IClip, AMTObject
     }
 
     int64_t pts = frame()->pts - ptsDiff;
-    auto it = std::lower_bound(frames.begin(), frames.end(), pts, [](FilterSourceFrame& e, int64_t pts) {
+    auto it = std::lower_bound(frames.begin(), frames.end(), pts, [](const FilterSourceFrame& e, int64_t pts) {
       return e.framePTS < pts;
     });
 
@@ -293,7 +294,7 @@ class AMTSource : public IClip, AMTObject
   }
 
   void DecodeLoop(int goal, IScriptEnvironment* env) {
-    Frame frame(-1);
+    Frame frame;
     AVPacket packet = AVPacket();
     while (av_read_frame(inputCtx(), &packet) == 0) {
       if (packet.stream_index == videoStream->index) {

@@ -148,12 +148,12 @@ public:
 
   void pop_front() {
     assert(size_ > 0);
-    Remove(root->right);
+    Remove(root.right);
   }
 
   void pop_back() {
     assert(size_ > 0);
-    Remove(root->left);
+    Remove(root.left);
   }
 
   iterator erase(iterator pos) {
@@ -166,12 +166,12 @@ public:
 
   value_type& front() {
     assert(size_ > 0);
-    return *root->right;
+    return *root.right;
   }
 
   value_type& back() {
     assert(size_ > 0);
-    return *root->left;
+    return *root.left;
   }
 };
 
