@@ -19,6 +19,7 @@
 #include "Transcode.hpp"
 #include "StreamReform.hpp"
 #include "PacketCache.hpp"
+#include "AMTSource.hpp"
 
 // カラースペース定義を使うため
 #include "libavutil/pixfmt.h"
@@ -272,6 +273,7 @@ public:
 			std::string srcFilePath,
 			std::string outVideoPath,
 			std::string outInfoJsonPath,
+      std::string filterScriptPath,
 			ENUM_ENCODER encoder,
 			std::string encoderPath,
 			std::string encoderOptions,
@@ -291,6 +293,7 @@ public:
 		, srcFilePath(srcFilePath)
 		, outVideoPath(outVideoPath)
 		, outInfoJsonPath(outInfoJsonPath)
+    , filterScriptPath(filterScriptPath)
 		, encoder(encoder)
 		, encoderPath(encoderPath)
 		, encoderOptions(encoderOptions)
@@ -319,6 +322,10 @@ public:
 	std::string getOutInfoJsonPath() const {
 		return outInfoJsonPath;
 	}
+
+  std::string getFilterScriptPath() const {
+    return filterScriptPath;
+  }
 
 	ENUM_ENCODER getEncoder() const {
 		return encoder;
@@ -525,6 +532,7 @@ private:
 	std::string outVideoPath;
 	// 結果情報JSON出力パス
 	std::string outInfoJsonPath;
+  std::string filterScriptPath;
 	// エンコーダ設定
 	ENUM_ENCODER encoder;
 	std::string encoderPath;
@@ -628,7 +636,7 @@ protected:
 	int64_t srcFileSize_;
 
 	// データ
-  std::vector<VideoFrameInfo> videoFrameList_;
+  std::vector<FileVideoFrameInfo> videoFrameList_;
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<StreamEvent> streamEventList_;
 
@@ -1163,7 +1171,7 @@ private:
 			return std::move(frame);
 		}
 
-		//printf("f");
+		//fprintf(stderr, "f");
 
 		auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
 
@@ -1259,6 +1267,287 @@ private:
 
 		reformInfo_.frameEncoded(frameIndex);
 	}
+
+};
+
+class AMTFilterVideoEncoder : public AMTObject {
+public:
+  AMTFilterVideoEncoder(
+    AMTContext&ctx,
+    const TranscoderSetting& setting,
+    StreamReformInfo& reformInfo)
+    : AMTObject(ctx)
+    , setting_(setting)
+    , reformInfo_(reformInfo)
+    , thread_(this, 8)
+    , prevFrameIndex_()
+    , pd_data_(NULL)
+  {
+  }
+
+  ~AMTFilterVideoEncoder() {
+    // エラー落ちした場合用の解放処理
+    delete[] encoders_; encoders_ = nullptr;
+    DeleteFilter();
+  }
+
+  std::vector<FilterOutVideoInfo> genOutFrameList() {
+    // Fake音声データからエンコードフレームのタイムスタンプを取得
+    int numVideoFile = reformInfo_.getNumVideoFile();
+    std::vector<FilterOutVideoInfo> infos(numVideoFile);
+    for (int i = 0; i < numVideoFile; ++i) {
+      videoFileIndex_ = i;
+      CreateFilter();
+
+      FilterOutVideoInfo& info = infos[i];
+      info.numFrames = vi_.num_frames;
+      info.frameRateNum = vi_.fps_numerator;
+      info.frameRateDenom = vi_.fps_denominator;
+      info.fakeAudioSampleRate = vi_.audio_samples_per_second;
+      info.fakeAudioSamples.resize(vi_.num_audio_samples);
+      
+      const int SAMPLES = 1000;
+      std::unique_ptr<int32_t[]> buf =
+        std::unique_ptr<int32_t[]>(new int32_t[vi_.nchannels * SAMPLES]);
+
+      for (int idx = 0; idx < vi_.num_audio_samples; idx += SAMPLES) {
+        int count = std::min<int>((int)vi_.num_audio_samples, idx + SAMPLES) - idx;
+        filter_->GetAudio(buf.get(), idx, count, env_);
+
+        for (int i = 0; i < count; ++i) {
+          info.fakeAudioSamples[idx + i] =
+            (int)reinterpret_cast<av::FakeAudioSample*>(&buf[vi_.nchannels * i])->index;
+        }
+      }
+
+      DeleteFilter();
+    }
+    return infos;
+  }
+
+  std::vector<EncodeFileInfo> peform(int videoFileIndex)
+  {
+    videoFileIndex_ = videoFileIndex;
+    CreateFilter();
+
+    // フレーム数チェック
+    if (vi_.num_frames != reformInfo_.getNumFilterOutFrames(videoFileIndex_)) {
+      THROW(RuntimeException, "フィルタ出力のフレーム数が変化しています！！");
+    }
+    
+    numEncoders_ = reformInfo_.getNumEncoders(videoFileIndex);
+    efi_ = std::vector<EncodeFileInfo>(numEncoders_, EncodeFileInfo());
+
+    const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
+    int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
+
+    // ビットレート計算
+    double srcBitrate = getSourceBitrate();
+    ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
+
+    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
+    double targetBitrate = std::numeric_limits<float>::quiet_NaN();
+    if (setting_.isAutoBitrate()) {
+      targetBitrate = setting_.getBitrate().getTargetBitrate(srcFormat, srcBitrate);
+      ctx.info("目標映像ビットレート: %d kbps", (int)targetBitrate);
+    }
+    for (int i = 0; i < numEncoders_; ++i) {
+      efi_[i].srcBitrate = srcBitrate;
+      efi_[i].targetBitrate = targetBitrate;
+    }
+
+    auto getOptions = [&](int pass, int index) {
+      return setting_.getOptions(
+        srcFormat, srcBitrate, false, pass, videoFileIndex_, index);
+    };
+
+    if (setting_.isTwoPass()) {
+      ctx.info("1/2パス エンコード開始");
+      processAllData(bufsize, getOptions, 1);
+      ctx.info("2/2パス エンコード開始");
+      processAllData(bufsize, getOptions, 2);
+    }
+    else {
+      processAllData(bufsize, getOptions, -1);
+    }
+
+    DeleteFilter();
+
+    return efi_;
+  }
+
+  static AVSValue CreateInternalAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env) {
+    return static_cast<AMTFilterVideoEncoder*>(user_data)->makeFilterSource(env);
+  }
+
+private:
+  struct OutFrame {
+    PVideoFrame frame;
+    int n;
+
+    OutFrame(const PVideoFrame& frame, int n)
+      : frame(frame)
+      , n(n) { }
+  };
+
+  class SpDataPumpThread : public DataPumpThread<std::unique_ptr<OutFrame>> {
+  public:
+    SpDataPumpThread(AMTFilterVideoEncoder* this_, int bufferingFrames)
+      : DataPumpThread(bufferingFrames)
+      , this_(this_)
+    { }
+  protected:
+    virtual void OnDataReceived(std::unique_ptr<OutFrame>&& data) {
+      this_->onFrameReceived(std::move(data));
+    }
+  private:
+    AMTFilterVideoEncoder* this_;
+  };
+
+  const TranscoderSetting& setting_;
+  StreamReformInfo& reformInfo_;
+
+
+  int videoFileIndex_;
+  IScriptEnvironment2* env_;
+  PClip filter_;
+  VideoInfo vi_;
+  VideoFormat outfmt_;
+  int numEncoders_;
+  av::EncodeWriter* encoders_;
+  std::stringstream* pd_data_;
+  std::vector<EncodeFileInfo> efi_;
+
+  SpDataPumpThread thread_;
+  int prevFrameIndex_;
+
+  void CreateFilter() {
+    env_ = CreateScriptEnvironment2();
+    env_->AddFunction(av::GetInternalAMTSouceName(), "", CreateInternalAMTSource, this);
+    filter_ = env_->Invoke("Import", setting_.getFilterScriptPath().c_str(), 0).AsClip();
+    vi_ = filter_->GetVideoInfo();
+
+    // vi_からエンコーダ入力用VideoFormatを生成する
+    outfmt_ = reformInfo_.getFormat(0, videoFileIndex_).videoFormat;
+    if (outfmt_.width != vi_.width || outfmt_.height != vi_.height) {
+      // リサイズされた
+      outfmt_.width = vi_.width;
+      outfmt_.height = vi_.height;
+      // リサイズされた場合はアスペクト比を1:1にする
+      outfmt_.sarHeight = outfmt_.sarWidth = 1;
+    }
+    outfmt_.frameRateDenom = vi_.fps_denominator;
+    outfmt_.frameRateNum = vi_.fps_numerator;
+    // インターレースかどうかは取得できないのでパリティが0だったらインターレースと仮定
+    outfmt_.progressive = (filter_->GetParity(0) == false);
+  }
+
+  void DeleteFilter() {
+    filter_ = nullptr;
+    if (env_) {
+      env_->DeleteScriptEnvironment();
+      env_ = nullptr;
+    }
+  }
+
+  PClip makeFilterSource(IScriptEnvironment* env) {
+    return new av::AMTSource(ctx,
+      setting_.getIntVideoFilePath(videoFileIndex_),
+      reformInfo_.getFormat(0, videoFileIndex_).videoFormat,
+      reformInfo_.getFilterSourceFrames(videoFileIndex_),
+      env);
+  }
+
+  void processAllData(int bufsize, std::function<std::string(int, int)> getOptions, int pass)
+  {
+    // 初期化
+    encoders_ = new av::EncodeWriter[numEncoders_];
+
+    for (int i = 0; i < numEncoders_; ++i) {
+      const auto& format = reformInfo_.getFormat(i, videoFileIndex_);
+      std::string args = makeEncoderArgs(
+        setting_.getEncoder(),
+        setting_.getEncoderPath(),
+        getOptions(pass, i),
+        outfmt_,
+        setting_.getEncVideoFilePath(videoFileIndex_, i));
+      ctx.info("[エンコーダ開始]");
+      ctx.info(args.c_str());
+      encoders_[i].start(args, outfmt_, false, bufsize);
+    }
+
+    // エンコードスレッド開始
+    thread_.start();
+
+    // エンコード
+    for (int i = 0; i < vi_.num_frames; ++i) {
+      thread_.put(std::unique_ptr<OutFrame>(new OutFrame(filter_->GetFrame(i, env_), i)), 1);
+    }
+
+    // エンコードスレッドを終了して自分に引き継ぐ
+    thread_.join();
+
+    // 残ったフレームを処理
+    for (int i = 0; i < numEncoders_; ++i) {
+      encoders_[i].finish();
+    }
+
+    // 終了
+    delete[] encoders_; encoders_ = NULL;
+  }
+
+  double getSourceBitrate()
+  {
+    // ビットレート計算
+    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
+    int64_t srcBytes = 0;
+    double srcDuration = 0;
+    for (int i = 0; i < numEncoders_; ++i) {
+      const auto& info = reformInfo_.getSrcVideoInfo(i, videoFileIndex_);
+      srcBytes += info.first;
+      srcDuration += info.second;
+    }
+    return ((double)srcBytes * 8 / 1000) / ((double)srcDuration / MPEG_CLOCK_HZ);
+  }
+
+  int getFFformat() {
+    switch (vi_.BitsPerComponent()) {
+    case 8: return AV_PIX_FMT_YUV420P;
+    case 10: return AV_PIX_FMT_YUV420P10;
+    case 12: return AV_PIX_FMT_YUV420P12;
+    case 16: return AV_PIX_FMT_YUV420P16;
+    default: THROW(FormatException, "サポートされていないフィルタ出力形式です");
+    }
+    return 0;
+  }
+
+  void onFrameReceived(std::unique_ptr<OutFrame>&& frame) {
+    
+    int encoderIndex = reformInfo_.getFilterOutEncoderIndex(videoFileIndex_, frame->n);
+    auto& encoder = encoders_[encoderIndex];
+
+    // PVideoFrameをav::Frameに変換
+    const PVideoFrame& in = frame->frame;
+    av::Frame out;
+
+    out()->data[0] = const_cast<uint8_t*>(in->GetReadPtr(PLANAR_Y));
+    out()->data[1] = const_cast<uint8_t*>(in->GetReadPtr(PLANAR_U));
+    out()->data[2] = const_cast<uint8_t*>(in->GetReadPtr(PLANAR_V));
+    out()->linesize[0] = in->GetPitch(PLANAR_Y);
+    out()->linesize[1] = in->GetPitch(PLANAR_U);
+    out()->linesize[2] = in->GetPitch(PLANAR_V);
+
+    out()->width = outfmt_.width;
+    out()->height = outfmt_.height;
+    out()->format = getFFformat();
+    out()->sample_aspect_ratio.num = outfmt_.sarWidth;
+    out()->sample_aspect_ratio.den = outfmt_.sarHeight;
+    out()->color_primaries = (AVColorPrimaries)outfmt_.colorPrimaries;
+    out()->color_trc = (AVColorTransferCharacteristic)outfmt_.transferCharacteristics;
+    out()->colorspace = (AVColorSpace)outfmt_.colorSpace;
+
+    encoder.inputFrame(out);
+  }
 
 };
 
@@ -1458,7 +1747,7 @@ private:
 		// RFFフラグ処理
 		// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
 		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
-		//printf("%s\n", PictureTypeString(pic));
+		//fprintf(stderr, "%s\n", PictureTypeString(pic));
 		rffExtractor_.inputFrame(*encoder_, std::move(frame), pic);
 
     //encoder_.inputFrame(*frame);
@@ -1700,9 +1989,13 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 		reformInfo.serialize(setting.getStreamInfoPath());
 	}
 
-	reformInfo.prepareEncode();
+  reformInfo.prepareEncode();
 
-	auto encoder = std::unique_ptr<AMTVideoEncoder>(new AMTVideoEncoder(ctx, setting, reformInfo));
+	auto encoder = std::unique_ptr<AMTFilterVideoEncoder>(new AMTFilterVideoEncoder(ctx, setting, reformInfo));
+
+  auto audioDiffInfo = reformInfo.prepareFilterOut(encoder->genOutFrameList());
+  audioDiffInfo.printAudioPtsDiff(ctx);
+
   std::vector<EncodeFileInfo> bitrateInfo;
 	for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
     if (reformInfo.getNumEncoders(i) == 0) {
@@ -1714,9 +2007,6 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
     }
 	}
 	encoder = nullptr;
-
-	auto audioDiffInfo = reformInfo.prepareMux();
-	audioDiffInfo.printAudioPtsDiff(ctx);
 
   auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
   for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {

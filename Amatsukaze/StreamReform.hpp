@@ -38,6 +38,20 @@ struct FileAudioFrameInfo : public AudioFrameInfo {
 	{ }
 };
 
+struct FileVideoFrameInfo : public VideoFrameInfo {
+  int64_t fileOffset;
+
+  FileVideoFrameInfo()
+    : VideoFrameInfo()
+    , fileOffset(0)
+  { }
+
+  FileVideoFrameInfo(const VideoFrameInfo& info)
+    : VideoFrameInfo(info)
+    , fileOffset(0)
+  { }
+};
+
 enum StreamEventType {
 	STREAM_EVENT_NONE = 0,
 	PID_TABLE_CHANGED,
@@ -126,6 +140,7 @@ struct FilterSourceFrame {
   int frameIndex; // 内部用
   double pts; // 内部用
   int64_t framePTS;
+  int64_t fileOffset;
   int keyFrame;
 };
 
@@ -142,7 +157,7 @@ public:
 	StreamReformInfo(
 		AMTContext& ctx,
 		int numVideoFile,
-		std::vector<VideoFrameInfo>& videoFrameList,
+		std::vector<FileVideoFrameInfo>& videoFrameList,
 		std::vector<FileAudioFrameInfo>& audioFrameList,
 		std::vector<StreamEvent>& streamEventList)
 		: AMTObject(ctx)
@@ -226,6 +241,10 @@ public:
 		const auto& format = outFormat_[formatId];
 		return formatId - outFormatStartIndex_[format.videoFileId];
 	}
+
+  int getNumFilterOutFrames(int videoFileIndex) const {
+    return int(filterOutFrameList_[videoFileIndex].size());
+  }
 
   int getFilterOutEncoderIndex(int videoFileIndex, int outFrameIndex) const {
     int formatId = filterOutFrameList_[videoFileIndex][outFrameIndex].formatId;
@@ -311,17 +330,23 @@ public:
 	// 以下デバッグ用 //
 
 	void serialize(const std::string& path) {
-		File file(path, "wb");
-		file.writeValue(numVideoFile_);
-		file.writeArray(videoFrameList_);
-		file.writeArray(audioFrameList_);
-		file.writeArray(streamEventList_);
+    serialize(File(path, "wb"));
 	}
 
-	static StreamReformInfo deserialize(AMTContext& ctx, const std::string& path) {
-		File file(path, "rb");
+  void serialize(const File& file) {
+    file.writeValue(numVideoFile_);
+    file.writeArray(videoFrameList_);
+    file.writeArray(audioFrameList_);
+    file.writeArray(streamEventList_);
+  }
+
+  static StreamReformInfo deserialize(AMTContext& ctx, const std::string& path) {
+    return deserialize(ctx, File(path, "rb"));
+  }
+
+	static StreamReformInfo deserialize(AMTContext& ctx, const File& file) {
 		int numVideoFile = file.readValue<int>();
-		auto videoFrameList = file.readArray<VideoFrameInfo>();
+		auto videoFrameList = file.readArray<FileVideoFrameInfo>();
 		auto audioFrameList = file.readArray<FileAudioFrameInfo>();
 		auto streamEventList = file.readArray<StreamEvent>();
 		return StreamReformInfo(ctx,
@@ -343,7 +368,7 @@ private:
 
 	// 1st phase 出力
 	int numVideoFile_;
-	std::vector<VideoFrameInfo> videoFrameList_;
+	std::vector<FileVideoFrameInfo> videoFrameList_;
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<StreamEvent> streamEventList_;
 
@@ -581,8 +606,8 @@ private:
     }
 
     // フィルタ用入力フレームリスト生成
-    filterFrameList_ = std::vector<std::vector<FilterSourceFrame>>(outFormatStartIndex_.size());
-    for (int fileId = 0; fileId < (int)outFormatStartIndex_.size(); ++fileId) {
+    filterFrameList_ = std::vector<std::vector<FilterSourceFrame>>(numVideoFile_);
+    for (int fileId = 0; fileId < (int)numVideoFile_; ++fileId) {
       int keyFrame = -1;
       std::vector<FilterSourceFrame>& list = filterFrameList_[fileId];
 
@@ -594,19 +619,26 @@ private:
         int formatId = frameFormatId_[ordered];
         if (outFormat_[formatId].videoFileId == fileId) {
 
-          VideoFrameInfo& srcframe = videoFrameList_[ordered];
-          if (srcframe.type == FRAME_I) {
+          FileVideoFrameInfo& srcframe = videoFrameList_[ordered];
+          if (srcframe.isGopStart) {
             keyFrame = int(list.size());
           }
 
           // まだキーフレームがない場合は捨てる
           if (keyFrame == -1) continue;
 
-          FilterSourceFrame frame = { false, i, (double)srcframe.PTS, srcframe.PTS, keyFrame };
+          FilterSourceFrame frame;
+          frame.halfDelay = false;
+          frame.frameIndex = i;
+          frame.pts = (double)srcframe.PTS;
+          frame.framePTS = srcframe.PTS;
+          frame.fileOffset = srcframe.fileOffset;
+          frame.keyFrame = keyFrame;
 
           switch (srcframe.pic) {
           case PIC_FRAME:
           case PIC_TFF:
+          case PIC_TFF_RFF:
             list.push_back(frame);
             break;
           case PIC_FRAME_DOUBLING:
@@ -622,12 +654,11 @@ private:
             list.push_back(frame);
             break;
           case PIC_BFF:
-          case PIC_BFF_RFF:
             frame.halfDelay = true;
             frame.pts -= timePerFrame / 2;
             list.push_back(frame);
             break;
-          case PIC_TFF_RFF:
+          case PIC_BFF_RFF:
             frame.halfDelay = true;
             frame.pts -= timePerFrame / 2;
             list.push_back(frame);
@@ -702,7 +733,7 @@ private:
 
   void genFilterOutFrames(const std::vector<FilterOutVideoInfo>& info) {
 
-    if (info.size() != outFormatStartIndex_.size()) {
+    if (info.size() != numVideoFile_) {
       THROW(ArgumentException, "出力ファイル数が一致しません");
     }
 

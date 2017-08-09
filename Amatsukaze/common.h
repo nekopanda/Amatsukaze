@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <stdio.h>
 
-#define PRINTF(...) printf(__VA_ARGS__); fflush(stdout)
+#define PRINTF(...) fprintf(stderr, __VA_ARGS__); fflush(stdout)
 
 inline void assertion_failed(const char* line, const char* file, int lineNum) {
 	char buf[500];

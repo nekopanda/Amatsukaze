@@ -166,7 +166,7 @@
     <ClInclude Include="WaveWriter.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AmatsukazeCLI.cpp">
+    <ClCompile Include="Amatsukaze.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>

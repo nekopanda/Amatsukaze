@@ -102,7 +102,7 @@ TEST(CRC, PrintTable) {
 	const uint32_t* table = crc.getTable();
 
 	for (int i = 0; i < 256; ++i) {
-		printf("0x%08x%c", table[i], ((i+1) % 8) ? ',' : '\n');
+    fprintf(stderr, "0x%08x%c", table[i], ((i+1) % 8) ? ',' : '\n');
 	}
 }
 
@@ -119,7 +119,7 @@ TEST(CRC, CheckCRC) {
 
 	const uint8_t* data = (const uint8_t*)"ABCD";
 	uint32_t result = crc.calc(data, 4, 123456);
-	// printf("RESULT: 0x%x\n");
+	// fprintf(stderr, "RESULT: 0x%x\n");
 	uint8_t buf[4]; toBytesBE(buf, result);
 	uint32_t t = crc.calc(data, 4, 123456);
 	result = crc.calc(buf, 4, t);
@@ -137,7 +137,7 @@ TEST(Util, readOpt) {
 	//uint64_t d = read40(data);
 	uint64_t e = read48(data);
 
-	printf("sum=%f\n", double(e));
+  fprintf(stderr, "sum=%f\n", double(e));
 }
 
 TEST(Util, AutoBufferTest) {
@@ -156,7 +156,7 @@ TEST(Util, AutoBufferTest) {
 		for (int c = 0; c < addNum; ++c) {
 			buf[c] = addCnt++;
 		}
-		//printf("Add %d\n", addNum);
+		//fprintf(stderr, "Add %d\n", addNum);
 		ab.add(buf, addNum);
 
 		uint8_t *data = ab.get();
@@ -167,7 +167,7 @@ TEST(Util, AutoBufferTest) {
 		}
 
 		delNum = std::min<int>(delNum, (int)ab.size());
-		//printf("Del %d\n", delNum);
+		//fprintf(stderr, "Del %d\n", delNum);
 		ab.trimHead(delNum);
 		delCnt += delNum;
 	}
@@ -188,7 +188,7 @@ void VerifyMpeg2Ps(std::string srcfile) {
 		psVerifier.verify(MemoryChunk(buf, readBytes));
 	}
 	catch (Exception e) {
-		printf("Verify MPEG2-PS Error: 例外がスローされました -> %s\n", e.message());
+    fprintf(stderr, "Verify MPEG2-PS Error: 例外がスローされました -> %s\n", e.message());
 		ADD_FAILURE();
 	}
 	free(buf);
@@ -207,7 +207,7 @@ void TestBase::ParserTest(const std::string& filename, bool verify) {
 	std::string wavfile = dstDir + filename + ".wav";
 
 	if (filename.size() == 0 || !fileExists(srcfile.c_str())) {
-		printf("テストファイルがないのでスキップ: %s\n", srcfile.c_str());
+    fprintf(stderr, "テストファイルがないのでスキップ: %s\n", srcfile.c_str());
 		return;
 	}
 

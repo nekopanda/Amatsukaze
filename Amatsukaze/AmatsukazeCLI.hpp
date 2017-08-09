@@ -164,6 +164,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 	std::tstring outVideoPath;
 	std::tstring workDir = _T("./");
 	std::tstring outInfoJsonPath;
+  std::tstring filterScriptPath;
 	ENUM_ENCODER encoder = ENUM_ENCODER();
 	std::tstring encoderPath = _T("x264.exe");
   std::tstring encoderOptions = _T("");
@@ -243,6 +244,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 		else if (key == _T("-j") || key == _T("--json")) {
 			outInfoJsonPath = getParam(argc, argv, i++);
 		}
+    else if (key == _T("-f") || key == _T("--filter")) {
+      filterScriptPath = getParam(argc, argv, i++);
+    }
 		else if (key == _T("-s") || key == _T("--serivceid")) {
 			std::tstring sidstr = getParam(argc, argv, i++);
 			if (sidstr.size() > 2 && sidstr.substr(0, 2) == _T("0x")) {
@@ -293,6 +297,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 		to_string(srcFilePath),
 		to_string(outVideoPath),
 		to_string(outInfoJsonPath),
+    to_string(filterScriptPath),
 		encoder,
 		to_string(encoderPath),
 		to_string(encoderOptions),

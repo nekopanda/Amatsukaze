@@ -77,10 +77,11 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AmatsukazeCLI.cpp">
+    <Natvis Include="AMTDebug.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Amatsukaze.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="AMTDebug.natvis" />
-  </ItemGroup></Project>
+</Project>

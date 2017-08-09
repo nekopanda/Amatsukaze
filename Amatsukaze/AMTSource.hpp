@@ -2,12 +2,14 @@
 
 #include <windows.h>
 #include "avisynth.h"
+#pragma comment(lib, "avisynth.lib")
 
 #include <memory>
 
 #include "Tree.hpp"
 #include "List.hpp"
 #include "Transcode.hpp"
+
 
 namespace av {
 
@@ -32,6 +34,8 @@ class AMTSource : public IClip, AMTObject
 
   AVStream *videoStream;
 
+  std::unique_ptr<StreamReformInfo> storage;
+
   struct CacheFrame {
     PVideoFrame data;
     TreeNode<int, CacheFrame*> treeNode;
@@ -43,15 +47,11 @@ class AMTSource : public IClip, AMTObject
 
   VideoInfo vi;
 
-  // AMT -> ffmpeg 変換
-  int64_t ptsDiff;
-
   bool initialized;
 
   int seekDistance;
 
   // OnFrameDecodedで直前にデコードされたフレーム
-  // lastDecodeFrameは必ずキャッシュにある
   // まだデコードしてない場合は-1
   int lastDecodeFrame;
 
@@ -90,18 +90,13 @@ class AMTSource : public IClip, AMTObject
     vi.nchannels = (sizeof(FakeAudioSample) + 3) / 4;
   }
 
-  int GetKeyframeNumber(int n) {
-    return frames[n].keyFrame;
-  }
-
-  int64_t GetFramePTS(int n) {
-    return frames[n].framePTS;
-  }
-
   void ResetDecoder() {
     lastDecodeFrame = -1;
     prevFrame = nullptr;
-    MakeCodecContext();
+    //if (codecCtx() == nullptr) {
+      MakeCodecContext();
+    //}
+    //avcodec_flush_buffers(codecCtx());
   }
 
   template <typename T, int step>
@@ -110,8 +105,8 @@ class AMTSource : public IClip, AMTObject
     for (int y = 0; y < h; y += 2) {
       T* dst0 = dst + dpitch * (y + 0);
       T* dst1 = dst + dpitch * (y + 1);
-      const T* src0 = top + tpitch * (y >> 1);
-      const T* src1 = bottom + bpitch * (y >> 1);
+      const T* src0 = top + tpitch * (y + 0);
+      const T* src1 = bottom + bpitch * (y + 1);
       for (int x = 0; x < w; ++x) {
         dst0[x] = src0[x * step];
         dst1[x] = src1[x * step];
@@ -164,6 +159,8 @@ class AMTSource : public IClip, AMTObject
     else {
       MergeField<uint8_t>(ret, top, bottom);
     }
+
+    return ret;
   }
 
   void PutFrame(int n, const PVideoFrame& frame) {
@@ -175,7 +172,7 @@ class AMTSource : public IClip, AMTObject
     frameCache.insert(&pcache->treeNode);
     recentAccessed.push_front(&pcache->listNode);
 
-    if (recentAccessed.size() > seekDistance * 2) {
+    if (recentAccessed.size() > seekDistance * 3 / 2) {
       // キャッシュから溢れたら削除
       CacheFrame* pdel = recentAccessed.back().value;
       frameCache.erase(frameCache.it(&pdel->treeNode));
@@ -188,9 +185,6 @@ class AMTSource : public IClip, AMTObject
 
     if (initialized == false) {
       // 初期化
-      double cycle = (int64_t(1) << 32);
-      double cycleDiff = std::round((double)(frame()->pts - frames[0].framePTS) / cycle);
-      ptsDiff = int64_t(cycleDiff * cycle);
 
       // ビット深度取得
       const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame()->format));
@@ -212,14 +206,25 @@ class AMTSource : public IClip, AMTObject
       initialized = true;
     }
 
-    int64_t pts = frame()->pts - ptsDiff;
+    // ffmpegのpts wrapの仕方が謎なので下位33bitのみを見る
+    //（26時間以上ある動画だと重複する可能性はあるが無視）
+    int64_t pts = frame()->pts & ((int64_t(1) << 33) - 1);
     auto it = std::lower_bound(frames.begin(), frames.end(), pts, [](const FilterSourceFrame& e, int64_t pts) {
       return e.framePTS < pts;
     });
 
+    if (it == frames.begin() && it->framePTS != pts) {
+      // 小さすぎた場合は1周分追加して見る
+      pts += ((int64_t(1) << 33) - 1);
+      it = std::lower_bound(frames.begin(), frames.end(), pts, [](const FilterSourceFrame& e, int64_t pts) {
+        return e.framePTS < pts;
+      });
+    }
+
     if (it == frames.end()) {
       // 最後より後ろだった
       lastDecodeFrame = vi.num_frames;
+      prevFrame = nullptr; // 連続でなくなる場合はnullリセット
       return;
     }
 
@@ -227,22 +232,23 @@ class AMTSource : public IClip, AMTObject
       // 一致するフレームがない
       ctx.incrementCounter("incident");
       ctx.warn("Unknown PTS frame %lld", pts);
+      prevFrame = nullptr; // 連続でなくなる場合はnullリセット
       return;
     }
 
     int frameIndex = int(it - frames.begin());
     auto cacheit = frameCache.find(frameIndex);
 
+    lastDecodeFrame = frameIndex;
+
     if (it->halfDelay) {
       // ディレイを適用させる
       if (cacheit != frameCache.end()) {
         // すでにキャッシュにある
         UpdateAccessed(cacheit->value);
-        lastDecodeFrame = frameIndex;
       }
       else if (prevFrame != nullptr) {
         PutFrame(frameIndex, MakeFrame((*prevFrame)(), frame(), env));
-        lastDecodeFrame = frameIndex;
       }
 
       // 次のフレームも同じフレームを参照してたらそれも出力
@@ -252,12 +258,11 @@ class AMTSource : public IClip, AMTObject
         if (cachenext != frameCache.end()) {
           // すでにキャッシュにある
           UpdateAccessed(cachenext->value);
-          lastDecodeFrame = frameIndex + 1;
         }
         else {
           PutFrame(frameIndex + 1, MakeFrame(frame(), frame(), env));
-          lastDecodeFrame = frameIndex + 1;
         }
+        lastDecodeFrame = frameIndex + 1;
       }
     }
     else {
@@ -265,11 +270,9 @@ class AMTSource : public IClip, AMTObject
       if (cacheit != frameCache.end()) {
         // すでにキャッシュにある
         UpdateAccessed(cacheit->value);
-        lastDecodeFrame = frameIndex;
       }
       else {
         PutFrame(frameIndex, MakeFrame(frame(), frame(), env));
-        lastDecodeFrame = frameIndex;
       }
     }
 
@@ -302,7 +305,10 @@ class AMTSource : public IClip, AMTObject
           THROW(FormatException, "avcodec_send_packet failed");
         }
         while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
-          OnFrameDecoded(frame, env);
+          // 最初はIフレームまでスキップ
+          if (lastDecodeFrame != -1 || frame()->key_frame) {
+            OnFrameDecoded(frame, env);
+          }
         }
       }
       av_packet_unref(&packet);
@@ -322,7 +328,6 @@ public:
     , frames(frames)
     , inputCtx(srcpath)
     , vi()
-    , ptsDiff()
     , seekDistance(10)
     , initialized(false)
     , lastDecodeFrame(-1)
@@ -342,6 +347,20 @@ public:
     DecodeLoop(0, env);
   }
 
+  ~AMTSource() {
+    // キャッシュを削除
+    while (recentAccessed.size() > 0) {
+      CacheFrame* pdel = recentAccessed.back().value;
+      frameCache.erase(frameCache.it(&pdel->treeNode));
+      recentAccessed.erase(recentAccessed.it(&pdel->listNode));
+      delete pdel;
+    }
+  }
+
+  void TransferStreamInfo(std::unique_ptr<StreamReformInfo>&& streamInfo) {
+    storage = std::move(streamInfo);
+  }
+
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env)
   {
     // キャッシュにあれば返す
@@ -358,27 +377,28 @@ public:
     }
     else {
       // シークしてデコードする
-      int keyNum = GetKeyframeNumber(n);
+      int keyNum = frames[n].keyFrame;
       for (int i = 0; i < 3; ++i) {
-        if (keyNum > 0) {
-          int64_t keyFramePts = GetFramePTS(keyNum);
-          if (av_seek_frame(inputCtx(), videoStream->index, keyFramePts, 0) < 0) {
-            THROW(FormatException, "av_seek_frame failed");
-          }
-        }
-        else {
-          // 0だったらファイルの先頭に行く
-          if (av_seek_frame(inputCtx(), videoStream->index, 0, AVSEEK_FLAG_BYTE) < 0) {
-            THROW(FormatException, "av_seek_frame failed");
-          }
+        int64_t fileOffset = frames[keyNum].fileOffset / 188 * 188;
+        if (av_seek_frame(inputCtx(), -1, fileOffset, AVSEEK_FLAG_BYTE) < 0) {
+          THROW(FormatException, "av_seek_frame failed");
         }
         ResetDecoder();
         DecodeLoop(n, env);
-        if (frameCache.find(n) != frameCache.end() || keyNum <= 0) {
+        if (frameCache.find(n) != frameCache.end()) {
+          // デコード成功
           seekDistance = std::max(seekDistance, n - keyNum);
           break;
         }
-        keyNum = GetKeyframeNumber(keyNum - 1);
+        if (keyNum <= 0) {
+          // これ以上戻れない
+          break;
+        }
+        if (lastDecodeFrame >= 0 && lastDecodeFrame < n) {
+          // データが足りなくてゴールに到達できなかった
+          break;
+        }
+        keyNum -= std::max(5, keyNum - frames[keyNum - 1].keyFrame);
       }
     }
 
@@ -399,4 +419,223 @@ public:
   int __stdcall SetCacheHints(int cachehints, int frame_range) { return 0; };
 };
 
+class AMTSourceIndex : public TsSplitter {
+public:
+  AMTSourceIndex(AMTContext& ctx, const std::string& videofile)
+    : TsSplitter(ctx)
+    , videofile(videofile)
+    , videoFileCount_(0)
+    , audioFileSize_(0)
+  {
+  }
+
+  bool tryReadCache() {
+    std::string indexname = videofile + ".ami";
+    if (File::exists(indexname.c_str()) == false) {
+      return false;
+    }
+    File file(indexname.c_str(), "rb");
+    uint32_t magic = file.readValue<uint32_t>();
+    uint32_t version = file.readValue<uint32_t>();
+    if (magic != MAGIC || version != VERSION) {
+      return false;
+    }
+    videoFileCount_ = file.readValue<int>();
+    videoFrameList_ = file.readArray<FileVideoFrameInfo>();
+    audioFrameList_ = file.readArray<FileAudioFrameInfo>();
+    streamEventList_ = file.readArray<StreamEvent>();
+    return true;
+  }
+
+  void writeCache() {
+    std::string indexname = videofile + ".ami";
+    File file(indexname.c_str(), "wb");
+    file.writeValue(uint32_t(MAGIC));
+    file.writeValue(uint32_t(VERSION));
+    file.writeValue(videoFileCount_);
+    file.writeArray(videoFrameList_);
+    file.writeArray(audioFrameList_);
+    file.writeArray(streamEventList_);
+  }
+
+  void split() {
+    readAll();
+
+    // fileOffsetを5フレーム分遅らせる
+    for (int i = int(videoFrameList_.size()) - 1; i >= 0; --i) {
+      if (i < 5) {
+        videoFrameList_[i].fileOffset = 0;
+      }
+      else {
+        videoFrameList_[i].fileOffset = videoFrameList_[i - 5].fileOffset;
+      }
+    }
+  }
+
+  std::unique_ptr<StreamReformInfo> getStreamInfo() {
+    return std::unique_ptr<StreamReformInfo>(new StreamReformInfo(
+      ctx, videoFileCount_, videoFrameList_, audioFrameList_, streamEventList_));
+  }
+
+protected:
+  enum {
+    MAGIC = 0xB16B00B5,
+    VERSION = 1
+  };
+
+  std::string videofile;
+  int videoFileCount_;
+  int64_t audioFileSize_;
+
+  int64_t fileOffset_;
+
+  // データ
+  std::vector<FileVideoFrameInfo> videoFrameList_;
+  std::vector<FileAudioFrameInfo> audioFrameList_;
+  std::vector<StreamEvent> streamEventList_;
+
+  void readAll() {
+    enum { BUFSIZE = 128 * 1024 };
+    auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
+    MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
+    File srcfile(videofile, "rb");
+    fileOffset_ = 0;
+    size_t readBytes;
+    do {
+      readBytes = srcfile.read(buffer);
+      inputTsData(MemoryChunk(buffer.data, readBytes));
+      fileOffset_ += readBytes;
+    } while (readBytes == buffer.length);
+  }
+
+  // TsSplitter仮想関数 //
+
+  virtual void onVideoPesPacket(
+    int64_t clock,
+    const std::vector<VideoFrameInfo>& frames,
+    PESPacket packet)
+  {
+    for (const VideoFrameInfo& frame : frames) {
+      FileVideoFrameInfo info = frame;
+      info.fileOffset = fileOffset_;
+      videoFrameList_.push_back(info);
+    }
+  }
+
+  virtual void onVideoFormatChanged(VideoFormat fmt) {
+    ctx.info("[映像フォーマット変更]");
+    if (fmt.fixedFrameRate) {
+      ctx.info("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
+    }
+    else {
+      ctx.info("サイズ: %dx%d FPS: VFR", fmt.width, fmt.height);
+    }
+
+    // 出力ファイルを変更
+    videoFileCount_++;
+
+    StreamEvent ev = StreamEvent();
+    ev.type = VIDEO_FORMAT_CHANGED;
+    ev.frameIdx = (int)videoFrameList_.size();
+    streamEventList_.push_back(ev);
+  }
+
+  virtual void onAudioPesPacket(
+    int audioIdx,
+    int64_t clock,
+    const std::vector<AudioFrameData>& frames,
+    PESPacket packet)
+  {
+    for (const AudioFrameData& frame : frames) {
+      FileAudioFrameInfo info = frame;
+      info.audioIdx = audioIdx;
+      info.codedDataSize = frame.codedDataSize;
+      info.fileOffset = audioFileSize_;
+      audioFileSize_ += frame.codedDataSize;
+      audioFrameList_.push_back(info);
+    }
+  }
+
+  virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
+    ctx.info("[音声%dフォーマット変更]", audioIdx);
+    ctx.info("チャンネル: %s サンプルレート: %d",
+      getAudioChannelString(fmt.channels), fmt.sampleRate);
+
+    StreamEvent ev = StreamEvent();
+    ev.type = AUDIO_FORMAT_CHANGED;
+    ev.audioIdx = audioIdx;
+    ev.frameIdx = (int)audioFrameList_.size();
+    streamEventList_.push_back(ev);
+  }
+
+  // TsPacketSelectorHandler仮想関数 //
+
+  virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio) {
+    // ベースクラスの処理
+    TsSplitter::onPidTableChanged(video, audio);
+
+    ASSERT(audio.size() > 0);
+
+    StreamEvent ev = StreamEvent();
+    ev.type = PID_TABLE_CHANGED;
+    ev.numAudio = (int)audio.size();
+    ev.frameIdx = (int)videoFrameList_.size();
+    streamEventList_.push_back(ev);
+  }
+};
+
+AMTContext* g_ctx_for_plugin_filter = nullptr;
+
+const char* GetInternalAMTSouceName() {
+  return "GetInternalAMTSource";
+}
+
+AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env) {
+  
+  if (env->FunctionExists(GetInternalAMTSouceName())) {
+    return env->Invoke(GetInternalAMTSouceName(), AVSValue(0, 0));
+  }
+
+  if (g_ctx_for_plugin_filter == nullptr) {
+    g_ctx_for_plugin_filter = new AMTContext();
+  }
+
+  std::string filename = args[0].AsString();
+  AMTSourceIndex index(*g_ctx_for_plugin_filter, filename);
+
+  if (index.tryReadCache() == false) {
+    index.split();
+    index.writeCache();
+  }
+
+  auto info = index.getStreamInfo();
+
+  int numVideoFile = info->getNumVideoFile();
+  if (numVideoFile != 1) {
+    env->ThrowError("Amatsukzeフィルタテスト: 指定されたTSソースの映像フォーマットが複数あるためテストで使用できません");
+  }
+
+  info->prepareEncode();
+
+  auto clip = new AMTSource(*g_ctx_for_plugin_filter, filename,
+    info->getFormat(0, 0).videoFormat, info->getFilterSourceFrames(0), env);
+
+  // StreamReformInfoをライフタイム管理用に持たせておく
+  clip->TransferStreamInfo(std::move(info));
+
+  return clip;
+}
+
 } // namespace av {
+
+const AVS_Linkage *AVS_linkage = 0;
+
+extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
+  AVS_linkage = vectors;
+  
+  // FFMPEGライブラリ初期化
+  av_register_all();
+
+  env->AddFunction("AMTSource", "s", av::CreateAMTSource, 0);
+  return "Amatsukaze plugin";
+}

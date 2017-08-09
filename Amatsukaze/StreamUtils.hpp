@@ -427,22 +427,22 @@ public:
 	~File() {
 		fclose(fp_);
 	}
-	void write(MemoryChunk mc) {
+	void write(MemoryChunk mc) const {
 		if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
 			THROWF(IOException, "failed to write to file");
 		}
 	}
 	template <typename T>
-	void writeValue(T v) {
+	void writeValue(T v) const {
 		write(MemoryChunk((uint8_t*)&v, sizeof(T)));
 	}
 	template <typename T>
-	void writeArray(const std::vector<T>& arr) {
+	void writeArray(const std::vector<T>& arr) const {
 		writeValue(arr.size());
 		auto dataptr = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(arr.data()));
 		write(MemoryChunk(dataptr, sizeof(T)*arr.size()));
 	}
-	size_t read(MemoryChunk mc) {
+	size_t read(MemoryChunk mc) const {
 		size_t ret = fread(mc.data, 1, mc.length, fp_);
 		if (ret <= 0) {
 			THROWF(IOException, "failed to read from file");
@@ -450,7 +450,7 @@ public:
 		return ret;
 	}
 	template <typename T>
-	T readValue() {
+	T readValue() const {
 		T v;
 		if (read(MemoryChunk((uint8_t*)&v, sizeof(T))) != sizeof(T)) {
 			THROWF(IOException, "failed to read value from file");
@@ -458,7 +458,7 @@ public:
 		return v;
 	}
 	template <typename T>
-	std::vector<T> readArray() {
+	std::vector<T> readArray() const {
 		size_t len = readValue<size_t>();
 		std::vector<T> arr(len);
 		if (read(MemoryChunk((uint8_t*)arr.data(), sizeof(T)*len)) != sizeof(T)*len) {
@@ -466,15 +466,15 @@ public:
 		}
 		return arr;
 	}
-	void flush() {
+	void flush() const {
 		fflush(fp_);
 	}
-	void seek(int64_t offset, int origin) {
+	void seek(int64_t offset, int origin) const {
 		if (_fseeki64(fp_, offset, origin) != 0) {
 			THROWF(IOException, "failed to seek file");
 		}
 	}
-	int64_t size() {
+	int64_t size() const {
 		int64_t cur = _ftelli64(fp_);
 		if (cur < 0) {
 			THROWF(IOException, "_ftelli64 failed");
@@ -492,6 +492,14 @@ public:
 		}
 		return last;
 	}
+  static bool exists(const std::string& path) {
+    FILE* fp_ = _fsopen(path.c_str(), "rb", _SH_DENYNO);
+    if (fp_) {
+      fclose(fp_);
+      return true;
+    }
+    return false;
+  }
 private:
 	FILE* fp_;
 };
