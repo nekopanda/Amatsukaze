@@ -1,6 +1,9 @@
 #pragma once
 
 #include <windows.h>
+
+// avisynthにリンクしているので
+#define AVS_LINKAGE_DLLIMPORT
 #include "avisynth.h"
 #pragma comment(lib, "avisynth.lib")
 
@@ -342,7 +345,6 @@ public:
       THROW(FormatException, "Could not find video stream ...");
     }
 
-    // 最初のフレームをデコードしてPTS差を求めておく
     ResetDecoder();
     DecodeLoop(0, env);
   }
@@ -628,11 +630,9 @@ AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env
 
 } // namespace av {
 
-const AVS_Linkage *AVS_linkage = 0;
-
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
-  AVS_linkage = vectors;
-  
+	// 直接リンクしているのでvectorsを格納する必要はない
+
   // FFMPEGライブラリ初期化
   av_register_all();
 

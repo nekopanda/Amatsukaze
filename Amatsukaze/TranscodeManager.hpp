@@ -21,6 +21,8 @@
 #include "PacketCache.hpp"
 #include "AMTSource.hpp"
 
+extern HMODULE g_DllHandle;
+
 // カラースペース定義を使うため
 #include "libavutil/pixfmt.h"
 
@@ -1279,9 +1281,16 @@ public:
     : AMTObject(ctx)
     , setting_(setting)
     , reformInfo_(reformInfo)
-    , thread_(this, 8)
-    , prevFrameIndex_()
-    , pd_data_(NULL)
+		, videoFileIndex_()
+		, env_()
+		, filter_()
+		, vi_()
+		, outfmt_()
+		, numEncoders_()
+		, encoders_()
+    , pd_data_()
+		, thread_(this, 8)
+		, prevFrameIndex_()
   {
   }
 
@@ -1421,10 +1430,24 @@ private:
   SpDataPumpThread thread_;
   int prevFrameIndex_;
 
+	std::string GetModulePath() {
+		char buf[MAX_PATH];
+		GetModuleFileName(g_DllHandle, buf, MAX_PATH);
+		return buf;
+	}
+
   void CreateFilter() {
+		std::string modulepath = GetModulePath();
     env_ = CreateScriptEnvironment2();
     env_->AddFunction(av::GetInternalAMTSouceName(), "", CreateInternalAMTSource, this);
-    filter_ = env_->Invoke("Import", setting_.getFilterScriptPath().c_str(), 0).AsClip();
+		
+		AVSValue result;
+		if (env_->LoadPlugin(modulepath.c_str(), false, &result) == false) {
+			THROW(RuntimeException, "Failed to LoadPlugin ...");
+		}
+
+		result = env_->Invoke("Import", setting_.getFilterScriptPath().c_str(), 0);
+    filter_ = result.AsClip();
     vi_ = filter_->GetVideoInfo();
 
     // vi_からエンコーダ入力用VideoFormatを生成する
@@ -1530,13 +1553,6 @@ private:
     const PVideoFrame& in = frame->frame;
     av::Frame out;
 
-    out()->data[0] = const_cast<uint8_t*>(in->GetReadPtr(PLANAR_Y));
-    out()->data[1] = const_cast<uint8_t*>(in->GetReadPtr(PLANAR_U));
-    out()->data[2] = const_cast<uint8_t*>(in->GetReadPtr(PLANAR_V));
-    out()->linesize[0] = in->GetPitch(PLANAR_Y);
-    out()->linesize[1] = in->GetPitch(PLANAR_U);
-    out()->linesize[2] = in->GetPitch(PLANAR_V);
-
     out()->width = outfmt_.width;
     out()->height = outfmt_.height;
     out()->format = getFFformat();
@@ -1545,6 +1561,30 @@ private:
     out()->color_primaries = (AVColorPrimaries)outfmt_.colorPrimaries;
     out()->color_trc = (AVColorTransferCharacteristic)outfmt_.transferCharacteristics;
     out()->colorspace = (AVColorSpace)outfmt_.colorSpace;
+
+		// AVFrame.dataは16バイトまで超えたアクセスがあり得るので、
+		// そのままポインタをセットすることはできない
+
+		if(av_frame_get_buffer(out(), 64) != 0) {
+			THROW(RuntimeException, "failed to allocate frame buffer");
+		}
+
+		const uint8_t *src_data[4] = {
+			in->GetReadPtr(PLANAR_Y),
+			in->GetReadPtr(PLANAR_U),
+			in->GetReadPtr(PLANAR_V),
+			nullptr
+		};
+		int src_linesize[4] = {
+			in->GetPitch(PLANAR_Y),
+			in->GetPitch(PLANAR_U),
+			in->GetPitch(PLANAR_V),
+			0
+		};
+
+		av_image_copy(
+			out()->data, out()->linesize, src_data, src_linesize, 
+			(AVPixelFormat)out()->format, out()->width, out()->height);
 
     encoder.inputFrame(out);
   }

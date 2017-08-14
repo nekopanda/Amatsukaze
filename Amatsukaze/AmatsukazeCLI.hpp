@@ -72,6 +72,7 @@ static void printHelp(const tchar* bin) {
 		"                      エンコーダの--pdfile-inオプションへの対応が必要\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
+		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID"
 		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"

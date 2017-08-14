@@ -393,6 +393,23 @@ TEST_F(TestBase, WaveWriter) {
 
 #include <direct.h>
 
+AVFrame* AllocPicture(AVPixelFormat fmt, int width, int height)
+{
+	// AVFrame確保
+	AVFrame *pPicture = av_frame_alloc();
+	// バッファ確保
+	ASSERT(av_image_alloc(pPicture->data, pPicture->linesize, width, height, fmt, 32) >= 0);
+
+	return pPicture;
+}
+
+void FreePicture(AVFrame*& pPicture)
+{
+	av_freep(&pPicture->data[0]);
+	av_frame_free(&pPicture);
+	pPicture = NULL;
+}
+
 class ImageWriter
 {
 public:
@@ -408,12 +425,12 @@ public:
 		sws_ctx = sws_getContext(width, height, src_fmt, width, height,
 			AV_PIX_FMT_BGR24, SWS_BILINEAR, NULL, NULL, NULL);
 
-		pFrameRGB = av::AllocPicture(AV_PIX_FMT_BGR24, width, height);
+		pFrameRGB = AllocPicture(AV_PIX_FMT_BGR24, width, height);
 	}
 	~ImageWriter()
 	{
 		sws_freeContext(sws_ctx); sws_ctx = NULL;
-		av::FreePicture(pFrameRGB);
+		FreePicture(pFrameRGB);
 	}
 
 	void Write(AVFrame* pFrame)

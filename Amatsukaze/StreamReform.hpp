@@ -832,6 +832,17 @@ private:
 
     std::vector<OutFileState> outFiles(outFormat_.size());
 
+		// outFiles‰Šú‰»
+		for (int i = 0; i < (int)outFormat_.size(); ++i) {
+			auto& file = outFiles[i];
+			int numAudio = (int)outFormat_[i].audioFormat.size();
+			file.formatId = i;
+			file.time = 0;
+			file.audioState.resize(numAudio);
+			file.audioFrameList =
+				std::unique_ptr<FileAudioFrameList>(new FileAudioFrameList(numAudio));
+		}
+
     fillFiles(outFiles);
 
     // ‘S‰f‘œƒtƒŒ[ƒ€‚ğ’Ç‰Á

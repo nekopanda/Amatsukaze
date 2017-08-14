@@ -514,7 +514,7 @@ enum TS_SPLITTER_LOG_LEVEL {
 class AMTContext {
 public:
 	AMTContext()
-		: debugEnabled(false)
+		: debugEnabled(true)
 	{
 		counter["incident"] = 0;
 	}

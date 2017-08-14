@@ -37,23 +37,6 @@ AVStream* GetVideoStream(AVFormatContext* pCtx)
 	return NULL;
 }
 
-AVFrame* AllocPicture(AVPixelFormat fmt, int width, int height)
-{
-	// AVFrame確保
-	AVFrame *pPicture = av_frame_alloc();
-	// バッファ確保
-	ASSERT(av_image_alloc(pPicture->data, pPicture->linesize, width, height, fmt, 32) >= 0);
-
-	return pPicture;
-}
-
-void FreePicture(AVFrame*& pPicture)
-{
-	av_freep(&pPicture->data[0]);
-	av_frame_free(&pPicture);
-	pPicture = NULL;
-}
-
 class Frame {
 public:
 	Frame()
