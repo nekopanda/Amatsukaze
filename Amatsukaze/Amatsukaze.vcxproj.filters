@@ -75,6 +75,9 @@
     <ClInclude Include="List.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="AmatsukazeTestImpl.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="AMTDebug.natvis" />

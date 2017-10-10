@@ -474,6 +474,9 @@ public:
 			THROWF(IOException, "failed to seek file");
 		}
 	}
+	int64_t pos() const {
+		return _ftelli64(fp_);
+	}
 	int64_t size() const {
 		int64_t cur = _ftelli64(fp_);
 		if (cur < 0) {

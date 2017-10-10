@@ -271,11 +271,11 @@ public:
 	TranscoderSetting(
 			AMTContext& ctx,
 			std::string workDir,
-			AMT_CLI_MODE mode,
+			std::string mode,
 			std::string srcFilePath,
 			std::string outVideoPath,
 			std::string outInfoJsonPath,
-      std::string filterScriptPath,
+			std::string filterScriptPath,
 			ENUM_ENCODER encoder,
 			std::string encoderPath,
 			std::string encoderOptions,
@@ -283,7 +283,7 @@ public:
 			std::string timelineditorPath,
 			bool twoPass,
 			bool autoBitrate,
-		  bool pulldown,
+			bool pulldown,
 			BitrateSetting bitrate,
 			int serviceId,
 			DECODER_TYPE mpeg2decoder,
@@ -313,7 +313,7 @@ public:
 		//
 	}
 
-	AMT_CLI_MODE getMode() const {
+	std::string getMode() const {
 		return mode;
 	}
 
@@ -501,7 +501,7 @@ public:
 
 	void dump() const {
 		ctx.info("[設定]");
-    ctx.info("Mode: %s", (mode == AMT_CLI_TS) ? "通常" : "一般ファイルモード");
+    ctx.info("Mode: %s", mode.c_str());
     ctx.info("Input: %s", srcFilePath.c_str());
 		ctx.info("Output: %s", outVideoPath.c_str());
 		ctx.info("WorkDir: %s", tmpDir.path().c_str());
@@ -527,7 +527,7 @@ public:
 private:
 	TempDirectory tmpDir;
 
-	AMT_CLI_MODE mode;
+	std::string mode;
 	// 入力ファイルパス（拡張子を含む）
 	std::string srcFilePath;
 	// 出力ファイルパス（拡張子を除く）

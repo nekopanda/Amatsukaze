@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "TranscodeManager.hpp"
+#include "AmatsukazeTestImpl.hpp"
 
 // MSVCのマルチバイトはUnicodeでないので文字列操作に適さないのでwchar_tで文字列操作をする
 #ifdef _MSC_VER
@@ -87,7 +88,7 @@ static void printHelp(const tchar* bin) {
 		bin);
 }
 
-static std::tstring getParam(int argc, tchar* argv[], int ikey) {
+static std::tstring getParam(int argc, const tchar* argv[], int ikey) {
 	if (ikey + 1 >= argc) {
 		THROWF(FormatException,
 			"%" PRITSTR "オプションはパラメータが必要です", argv[ikey]);
@@ -159,7 +160,7 @@ static DECODER_TYPE decoderFromString(const std::tstring& str) {
 	return (DECODER_TYPE)-1;
 }
 
-static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, tchar* argv[])
+static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, const tchar* argv[])
 {
 	std::tstring srcFilePath;
 	std::tstring outVideoPath;
@@ -171,7 +172,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
   std::tstring encoderOptions = _T("");
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
-  AMT_CLI_MODE mode = AMT_CLI_TS;
+	std::tstring modeStr = _T("ts");
   bool autoBitrate = bool();
   BitrateSetting bitrate = BitrateSetting();
   bool twoPass = bool();
@@ -191,16 +192,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 				pathRemoveExtension(pathNormalize(getParam(argc, argv, i++)));
 		}
     else if (key == _T("--mode")) {
-      std::tstring modeStr = getParam(argc, argv, i++);
-      if (modeStr == _T("ts")) {
-        mode = AMT_CLI_TS;
-      }
-      else if (modeStr == _T("g")) {
-        mode = AMT_CLI_GENERIC;
-      }
-      else {
-        PRINTF("--modeの指定が間違っています: %" PRITSTR "\n", modeStr.c_str());
-      }
+			modeStr = getParam(argc, argv, i++);
     }
 		else if (key == _T("-w") || key == _T("--work")) {
 			workDir = pathNormalize(getParam(argc, argv, i++));
@@ -284,17 +276,19 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, t
 		}
 	}
 
-	if (srcFilePath.size() == 0) {
-		THROWF(ArgumentException, "入力ファイルを指定してください");
-	}
-	if (outVideoPath.size() == 0) {
-		THROWF(ArgumentException, "出力ファイルを指定してください");
+	if (modeStr == L"ts" || modeStr == L"g") {
+		if (srcFilePath.size() == 0) {
+			THROWF(ArgumentException, "入力ファイルを指定してください");
+		}
+		if (outVideoPath.size() == 0) {
+			THROWF(ArgumentException, "出力ファイルを指定してください");
+		}
 	}
 
 	return std::unique_ptr<TranscoderSetting>(new TranscoderSetting(
 		ctx,
 		to_string(workDir),
-		mode,
+		to_string(modeStr),
 		to_string(srcFilePath),
 		to_string(outVideoPath),
 		to_string(outInfoJsonPath),
@@ -359,14 +353,43 @@ static void amatsukaze_av_log_callback(
 
 static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& setting) {
 	try {
-    switch (setting.getMode()) {
-    case AMT_CLI_TS:
+		std::string mode = setting.getMode();
+    if(mode == "ts")
       transcodeMain(ctx, setting);
-      break;
-    case AMT_CLI_GENERIC:
+		else if (mode == "g")
       transcodeSimpleMain(ctx, setting);
-      break;
-    }
+
+		else if (mode == "test_print_crc")
+			test::PrintCRCTable(ctx, setting);
+		else if (mode == "test_crc")
+			test::CheckCRC(ctx, setting);
+		else if (mode == "test_read_bits")
+			test::ReadBits(ctx, setting);
+		else if (mode == "test_auto_buffer")
+			test::CheckAutoBuffer(ctx, setting);
+		else if (mode == "test_verifympeg2ps")
+			test::VerifyMpeg2Ps(ctx, setting);
+		else if (mode == "test_readts")
+			test::ReadTS(ctx, setting);
+		else if (mode == "test_aacdec")
+			test::AacDecode(ctx, setting);
+		else if (mode == "test_wavewrite")
+			test::WaveWriteHeader(ctx, setting);
+		else if (mode == "test_process")
+			test::ProcessTest(ctx, setting);
+		else if (mode == "test_streamreform")
+			test::FileStreamInfo(ctx, setting);
+		else if (mode == "test_parseargs")
+			test::ParseArgs(ctx, setting);
+		else if (mode == "test_lossless")
+			test::LosslessFileTest(ctx, setting);
+
+		else if (mode == "test_process")
+			test::ProcessTest(ctx, setting);
+		else if (mode == "test_process")
+			test::ProcessTest(ctx, setting);
+		else
+			PRINTF("--modeの指定が間違っています: %s\n", mode.c_str());
 
 		return 0;
 	}
@@ -375,7 +398,7 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 	}
 }
 
-__declspec(dllexport) int AmatsukazeCLI(int argc, wchar_t* argv[]) {
+__declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
   try {
     printCopyright();
 
