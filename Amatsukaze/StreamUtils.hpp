@@ -14,6 +14,8 @@
 
 #include "CoreUtils.hpp"
 
+extern HMODULE g_DllHandle;
+
 /** @brief リングバッファではないがtrimHeadとtrimTailが同じくらい高速なバッファ */
 class AutoBuffer {
 public:
@@ -507,6 +509,12 @@ private:
 	FILE* fp_;
 };
 
+std::string GetModulePath() {
+	char buf[MAX_PATH];
+	GetModuleFileName(g_DllHandle, buf, MAX_PATH);
+	return buf;
+}
+
 enum TS_SPLITTER_LOG_LEVEL {
 	TS_SPLITTER_DEBUG,
 	TS_SPLITTER_INFO,
@@ -810,3 +818,136 @@ public:
 	virtual bool inputFrame(MemoryChunk frame, std::vector<VideoFrameInfo>& info, int64_t PTS, int64_t DTS) = 0;
 };
 
+#include "avisynth.h"
+#include "utvideo/utvideo.h"
+#include "utvideo/Codec.h"
+
+static void DeleteScriptEnvironment(IScriptEnvironment2* env) {
+	if (env) env->DeleteScriptEnvironment();
+}
+
+static std::unique_ptr<IScriptEnvironment2, decltype(&DeleteScriptEnvironment)> make_unique_ptr(IScriptEnvironment2* env) {
+	return std::unique_ptr<IScriptEnvironment2, decltype(&DeleteScriptEnvironment)>(env, DeleteScriptEnvironment);
+}
+
+static void DeleteUtVideoCodec(CCodec* codec) {
+	if (codec) CCodec::DeleteInstance(codec);
+}
+
+static std::unique_ptr<CCodec, decltype(&DeleteUtVideoCodec)> make_unique_ptr(CCodec* codec) {
+	return std::unique_ptr<CCodec, decltype(&DeleteUtVideoCodec)>(codec, DeleteUtVideoCodec);
+}
+
+// 1インスタンスは書き込みor読み込みのどちらか一方しか使えない
+class LosslessVideoFile : AMTObject
+{
+	struct LosslessFileHeader {
+		int magic;
+		int version;
+		int width;
+		int height;
+	};
+
+	File file;
+	LosslessFileHeader fh;
+	std::vector<uint8_t> extra;
+	std::vector<int> framesizes;
+	std::vector<int64_t> offsets;
+
+	int current;
+
+public:
+	LosslessVideoFile(AMTContext& ctx, const std::string& filepath, const char* mode)
+		: AMTObject(ctx)
+		, file(filepath, mode)
+		, current()
+	{
+	}
+
+	void writeHeader(int width, int height, int numframes, const std::vector<uint8_t>& extra)
+	{
+		fh.magic = 0x012345;
+		fh.version = 1;
+		fh.width = width;
+		fh.height = height;
+		framesizes.resize(numframes);
+		offsets.resize(numframes);
+
+		file.writeValue(fh);
+		file.writeArray(extra);
+		file.writeArray(framesizes);
+		offsets[0] = file.pos();
+	}
+
+	void readHeader()
+	{
+		fh = file.readValue<LosslessFileHeader>();
+		extra = file.readArray<uint8_t>();
+		framesizes = file.readArray<int>();
+		offsets.resize(framesizes.size());
+		offsets[0] = file.pos();
+
+		for (int i = 1; i < (int)framesizes.size(); ++i) {
+			offsets[i] = offsets[i - 1] + framesizes[i - 1];
+		}
+	}
+
+	int getWidth() const { return fh.width; }
+	int getHeight() const { return fh.height; }
+	int getNumFrames() const { return (int)framesizes.size(); }
+	const std::vector<uint8_t>& getExtra() const { return extra; }
+
+	void writeFrame(const uint8_t* data, int len)
+	{
+		int numframes = framesizes.size();
+		int n = current++;
+		if (n >= numframes) {
+			THROWF(InvalidOperationException, "[LosslessVideoFile] attempt to write frame more than specified num frames");
+		}
+
+		if (n > 0) {
+			offsets[n] = offsets[n - 1] + framesizes[n - 1];
+		}
+		framesizes[n] = len;
+
+		// データを書き込む
+		file.seek(offsets[n], SEEK_SET);
+		file.write(MemoryChunk((uint8_t*)data, len));
+
+		// 長さを書き込む
+		file.seek(offsets[0] - sizeof(int) * (numframes - n), SEEK_SET);
+		file.writeValue(len);
+	}
+
+	int64_t readFrame(int n, uint8_t* data)
+	{
+		file.seek(offsets[n], SEEK_SET);
+		file.read(MemoryChunk(data, framesizes[n]));
+		return framesizes[n];
+	}
+};
+
+static void CopyYV12(uint8_t* dst, PVideoFrame& frame, int width, int height)
+{
+	const uint8_t* srcY = frame->GetReadPtr(PLANAR_Y);
+	const uint8_t* srcU = frame->GetReadPtr(PLANAR_U);
+	const uint8_t* srcV = frame->GetReadPtr(PLANAR_V);
+	int pitchY = frame->GetPitch(PLANAR_Y);
+	int pitchUV = frame->GetPitch(PLANAR_U);
+	int widthUV = width >> 1;
+	int heightUV = height >> 1;
+
+	uint8_t* dstp = dst;
+	for (int y = 0; y < height; ++y) {
+		memcpy(dstp, &srcY[y * pitchY], width);
+		dstp += width;
+	}
+	for (int y = 0; y < heightUV; ++y) {
+		memcpy(dstp, &srcU[y * pitchUV], widthUV);
+		dstp += widthUV;
+	}
+	for (int y = 0; y < heightUV; ++y) {
+		memcpy(dstp, &srcV[y * pitchUV], widthUV);
+		dstp += widthUV;
+	}
+}

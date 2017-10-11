@@ -21,8 +21,6 @@
 #include "PacketCache.hpp"
 #include "AMTSource.hpp"
 
-extern HMODULE g_DllHandle;
-
 // カラースペース定義を使うため
 #include "libavutil/pixfmt.h"
 
@@ -444,6 +442,14 @@ public:
 	{
 		std::ostringstream ss;
 		ss << tmpDir.path() << "/t" << index << ".mp4";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getLogoTmpFilePath() const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/logotmp.dat";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
@@ -1430,15 +1436,11 @@ private:
   SpDataPumpThread thread_;
   int prevFrameIndex_;
 
-	std::string GetModulePath() {
-		char buf[MAX_PATH];
-		GetModuleFileName(g_DllHandle, buf, MAX_PATH);
-		return buf;
-	}
-
   void CreateFilter() {
 		std::string modulepath = GetModulePath();
     env_ = CreateScriptEnvironment2();
+
+		// TODO: 本来これはやってはいけないようなので、グローバル変数を使う
     env_->AddFunction(av::GetInternalAMTSouceName(), "", CreateInternalAMTSource, this);
 		
 		AVSValue result;
