@@ -13,6 +13,7 @@
 #include <memory>
 #include <limits>
 #include <direct.h>
+#include <smmintrin.h>
 
 #include "StreamUtils.hpp"
 #include "TsSplitter.hpp"
@@ -270,6 +271,7 @@ public:
 			AMTContext& ctx,
 			std::string workDir,
 			std::string mode,
+      std::string modeArgs,
 			std::string srcFilePath,
 			std::string outVideoPath,
 			std::string outInfoJsonPath,
@@ -290,6 +292,7 @@ public:
 		: AMTObject(ctx)
 		, tmpDir(ctx, workDir)
 		, mode(mode)
+    , modeArgs(modeArgs)
 		, srcFilePath(srcFilePath)
 		, outVideoPath(outVideoPath)
 		, outInfoJsonPath(outInfoJsonPath)
@@ -314,6 +317,10 @@ public:
 	std::string getMode() const {
 		return mode;
 	}
+
+  std::string getModeArgs() const {
+    return modeArgs;
+  }
 
 	std::string getSrcFilePath() const {
 		return srcFilePath;
@@ -534,6 +541,7 @@ private:
 	TempDirectory tmpDir;
 
 	std::string mode;
+  std::string modeArgs;
 	// 入力ファイルパス（拡張子を含む）
 	std::string srcFilePath;
 	// 出力ファイルパス（拡張子を除く）

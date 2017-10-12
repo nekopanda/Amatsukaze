@@ -2,8 +2,6 @@
 
 #include <windows.h>
 
-// avisynth‚ÉƒŠƒ“ƒN‚µ‚Ä‚¢‚é‚Ì‚Å
-#define AVS_LINKAGE_DLLIMPORT
 #include "avisynth.h"
 #pragma comment(lib, "avisynth.lib")
 

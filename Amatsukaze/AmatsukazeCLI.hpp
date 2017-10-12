@@ -173,6 +173,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring muxerPath = _T("muxer.exe");
 	std::tstring timelineditorPath = _T("timelineeditor.exe");
 	std::tstring modeStr = _T("ts");
+  std::tstring modeArgs = _T("");
   bool autoBitrate = bool();
   BitrateSetting bitrate = BitrateSetting();
   bool twoPass = bool();
@@ -193,6 +194,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
     else if (key == _T("--mode")) {
 			modeStr = getParam(argc, argv, i++);
+    }
+    else if (key == _T("-a") || key == _T("--args")) {
+      modeArgs = getParam(argc, argv, i++);
     }
 		else if (key == _T("-w") || key == _T("--work")) {
 			workDir = pathNormalize(getParam(argc, argv, i++));
@@ -289,6 +293,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		ctx,
 		to_string(workDir),
 		to_string(modeStr),
+    to_string(modeArgs),
 		to_string(srcFilePath),
 		to_string(outVideoPath),
 		to_string(outInfoJsonPath),

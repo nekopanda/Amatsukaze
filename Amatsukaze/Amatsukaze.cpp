@@ -6,6 +6,8 @@
 * http://opensource.org/licenses/mit-license.php
 */
 #define _USE_MATH_DEFINES
+// avisynth‚ÉƒŠƒ“ƒN‚µ‚Ä‚¢‚é‚Ì‚Å
+#define AVS_LINKAGE_DLLIMPORT
 #include "AmatsukazeCLI.hpp"
 
 HMODULE g_DllHandle;
