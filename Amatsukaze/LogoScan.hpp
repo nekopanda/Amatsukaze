@@ -75,13 +75,15 @@ class LogoData
   std::unique_ptr<float[]> data;
   float *aY, *aU, *aV;
   float *bY, *bU, *bV;
+	std::unique_ptr<uint8_t[]> mask;
+	uint8_t *maskY, *maskU, *maskV;
 public:
   LogoData(int w, int h, int logUVx, int logUVy)
     : w(w), h(h), logUVx(logUVx), logUVy(logUVy)
   {
     int wUV = w >> logUVx;
     int hUV = h >> logUVy;
-    data = std::unique_ptr<float[]>(new float[(w*h + wUV*hUV) * 2]);
+    data = std::unique_ptr<float[]>(new float[(w*h + wUV*hUV*2) * 2]);
     aY = data.get();
     bY = aY + w * h;
     aU = bY + w * h;
@@ -89,6 +91,16 @@ public:
     aV = bU + wUV * hUV;
     bV = aV + wUV * hUV;
   }
+
+	void CreateMask()
+	{
+		int wUV = w >> logUVx;
+		int hUV = h >> logUVy;
+		mask = std::unique_ptr<uint8_t[]>(new uint8_t[w*h + wUV*hUV*2]);
+		maskY = mask.get();
+		maskU = maskY + w * h;
+		maskV = maskU + wUV * hUV;
+	}
 
   float* GetA(int plane) {
     switch (plane) {
@@ -107,7 +119,51 @@ public:
     }
     return nullptr;
   }
+
+	uint8_t* GetMask(int plane) {
+		switch (plane) {
+		case PLANAR_Y: return maskY;
+		case PLANAR_U: return maskU;
+		case PLANAR_V: return maskV;
+		}
+		return nullptr;
+	}
 };
+
+struct LogoHeader {
+	int magic;
+	int version;
+	int w, h;
+	int logUVx, logUVy;
+	int imgw, imgh, imgx, imgy;
+	char name[255];
+	int reserved[64];
+};
+
+void SaveLogoFile(const std::string& filename, const LogoHeader* header, const float* data)
+{
+	int scanUVw = header->w >> header->logUVx;
+	int scanUVh = header->h >> header->logUVy;
+	size_t sz = header->w * header->h + scanUVw * scanUVh * 2;
+
+	File file(filename, "wb");
+	file.writeValue(*header);
+	file.write(MemoryChunk((uint8_t*)data, sz * sizeof(float)));
+}
+
+std::unique_ptr<float[]> LoadLogoFile(const std::string& filename, LogoHeader* header)
+{
+	File file(filename, "rb");
+	*header = file.readValue<LogoHeader>();
+
+	int scanUVw = header->w >> header->logUVx;
+	int scanUVh = header->h >> header->logUVy;
+	size_t sz = header->w * header->h + scanUVw * scanUVh * 2;
+
+	auto data = std::unique_ptr<float[]>(new float[sz]);
+	file.read(MemoryChunk((uint8_t*)data.get(), sz * sizeof(float)));
+	return data;
+}
 
 class LogoScan
 {
@@ -360,13 +416,87 @@ class LogoAnalyzer : AMTObject
     }
   }
 
-  double EvaluateLogo()
+	float EvaluateLogo(const float *src, LogoData& logo, float fade, float* work)
   {
     // ロゴを評価 //
+		const float *logoAY = logo.GetA(PLANAR_Y);
+		const float *logoBY = logo.GetB(PLANAR_Y);
+		const uint8_t* mask = logo.GetMask(PLANAR_Y);
 
     // ロゴを除去
+		for (int y = 0; y < scanh; ++y) {
+			for (int x = 0; x < scanw; ++x) {
+				float srcv = src[x + y * scanw];
+				float a = logoAY[x + y * scanw];
+				float b = logoBY[x + y * scanw];
+				float bg = a * srcv + b * 255.0f;
+				work[x + y * scanw] = fade * bg + (1 - fade) * srcv;
+			}
+		}
 
     // エッジ評価
+		float result;
+		for (int y = 2; y < scanh - 2; ++y) {
+			for (int x = 2; x < scanw - 2; ++x) {
+				if (mask[x + y * scanw]) { // ロゴ輪郭部のみ
+					float y_sum_h = 0, y_sum_v = 0;
+
+					// 5x5 Prewitt filter
+					// +----------------+  +----------------+
+					// | -1 -1 -1 -1 -1 |  | -1 -1  0  1  1 |
+					// | -1 -1 -1 -1 -1 |  | -1 -1  0  1  1 |
+					// |  0  0  0  0  0 |  | -1 -1  0  1  1 |
+					// |  1  1  1  1  1 |  | -1 -1  0  1  1 |
+					// |  1  1  1  1  1 |  | -1 -1  0  1  1 |
+					// +----------------+  +----------------+
+					y_sum_h -= work[x - 2 + (y - 2) * scanw];
+					y_sum_h -= work[x - 2 + (y - 1) * scanw];
+					y_sum_h -= work[x - 2 + (y)* scanw];
+					y_sum_h -= work[x - 2 + (y + 1) * scanw];
+					y_sum_h -= work[x - 2 + (y + 2) * scanw];
+					y_sum_h -= work[x - 1 + (y - 2) * scanw];
+					y_sum_h -= work[x - 1 + (y - 1) * scanw];
+					y_sum_h -= work[x - 1 + (y)* scanw];
+					y_sum_h -= work[x - 1 + (y + 1) * scanw];
+					y_sum_h -= work[x - 1 + (y + 2) * scanw];
+					y_sum_h += work[x + 1 + (y - 2) * scanw];
+					y_sum_h += work[x + 1 + (y - 1) * scanw];
+					y_sum_h += work[x + 1 + (y)* scanw];
+					y_sum_h += work[x + 1 + (y + 1) * scanw];
+					y_sum_h += work[x + 1 + (y + 2) * scanw];
+					y_sum_h += work[x + 2 + (y - 2) * scanw];
+					y_sum_h += work[x + 2 + (y - 1) * scanw];
+					y_sum_h += work[x + 2 + (y)* scanw];
+					y_sum_h += work[x + 2 + (y + 1) * scanw];
+					y_sum_h += work[x + 2 + (y + 2) * scanw];
+					y_sum_v -= work[x - 2 + (y - 1) * scanw];
+					y_sum_v -= work[x - 1 + (y - 1) * scanw];
+					y_sum_v -= work[x + (y - 1) * scanw];
+					y_sum_v -= work[x + 1 + (y - 1) * scanw];
+					y_sum_v -= work[x + 2 + (y - 1) * scanw];
+					y_sum_v -= work[x - 2 + (y - 2) * scanw];
+					y_sum_v -= work[x - 1 + (y - 2) * scanw];
+					y_sum_v -= work[x + (y - 2) * scanw];
+					y_sum_v -= work[x + 1 + (y - 2) * scanw];
+					y_sum_v -= work[x + 2 + (y - 2) * scanw];
+					y_sum_v += work[x - 2 + (y + 1) * scanw];
+					y_sum_v += work[x - 1 + (y + 1) * scanw];
+					y_sum_v += work[x + (y + 1) * scanw];
+					y_sum_v += work[x + 1 + (y + 1) * scanw];
+					y_sum_v += work[x + 2 + (y + 1) * scanw];
+					y_sum_v += work[x - 2 + (y + 2) * scanw];
+					y_sum_v += work[x - 1 + (y + 2) * scanw];
+					y_sum_v += work[x + (y + 2) * scanw];
+					y_sum_v += work[x + 1 + (y + 2) * scanw];
+					y_sum_v += work[x + 2 + (y + 2) * scanw];
+
+					float val = std::sqrt(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
+					result += val;
+				}
+			}
+		}
+
+		return result;
   }
 
   void DeintLogo(LogoData& dst, LogoData& src)
@@ -378,6 +508,10 @@ class LogoAnalyzer : AMTObject
 
     auto merge = [](float a, float b, float c) { return (a + 2 * b + c) / 4.0f; };
 
+		for (int x = 0; x < scanw; ++x) {
+			dstAY[x] = srcAY[x];
+			dstAY[x + (scanh - 1) * scanw] = srcAY[x + (scanh - 1) * scanw];
+		}
     for (int y = 1; y < scanh - 1; ++y) {
       for (int x = 0; x < scanw; ++x) {
         dstAY[x + y * scanw] = merge(
@@ -392,30 +526,174 @@ class LogoAnalyzer : AMTObject
     }
   }
 
+	void DeintY(float* dst, const uint8_t* src)
+	{
+		auto merge = [](int a, int b, int c) { return (a + 2 * b + c + 2) / 4.0f; };
+
+		for (int x = 0; x < scanw; ++x) {
+			dst[x] = src[x];
+			dst[x + (scanh - 1) * scanw] = src[x + (scanh - 1) * scanw];
+		}
+		for (int y = 1; y < scanh - 1; ++y) {
+			for (int x = 0; x < scanw; ++x) {
+				dst[x + y * scanw] = merge(
+					src[x + (y - 1) * scanw],
+					src[x + y * scanw],
+					src[x + (y + 1) * scanw]);
+				dst[x + y * scanw] = merge(
+					src[x + (y - 1) * scanw],
+					src[x + y * scanw],
+					src[x + (y + 1) * scanw]);
+			}
+		}
+	}
+
+	void CreateLogoMask(LogoData& dst)
+	{
+		float *dstAY = dst.GetA(PLANAR_Y);
+		float *dstBY = dst.GetB(PLANAR_Y);
+
+		size_t YSize = scanw * scanh;
+		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+
+		dst.CreateMask();
+		uint8_t* dstMask = dst.GetMask(PLANAR_Y);
+		memset(dstMask, 0, YSize);
+
+		for (int y = 0; y < scanh; ++y) {
+			for (int x = 0; x < scanw; ++x) {
+				// x切片、つまり、背景の輝度値ゼロのときのロゴの輝度値を取得
+				float a = dstAY[x + y * scanw];
+				float b = dstBY[x + y * scanw];
+				memWork[x + y * scanw] = -b / a;
+			}
+		}
+
+		// 3x3 Prewitt
+		for (int y = 1; y < scanh - 1; ++y) {
+			for (int x = 1; x < scanw - 1; ++x) {
+				const float* ptr = &memWork[x + y * scanw];
+				float y_sum_h = 0, y_sum_v = 0;
+
+				y_sum_h -= ptr[-1 + scanw * -1];
+				y_sum_h -= ptr[-1];
+				y_sum_h -= ptr[-1 + scanw * 1];
+				y_sum_h += ptr[1 + scanw * -1];
+				y_sum_h += ptr[1];
+				y_sum_h += ptr[1 + scanw * 1];
+				y_sum_v -= ptr[-1 + scanw * -1];
+				y_sum_v -= ptr[0 + scanw * -1];
+				y_sum_v -= ptr[1 + scanw * -1];
+				y_sum_v += ptr[-1 + scanw * 1];
+				y_sum_v += ptr[0 + scanw * 1];
+				y_sum_v += ptr[1 + scanw * 1];
+
+				float val = std::sqrtf(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
+				dstMask[x + y * scanw] = (val > 0.25f);
+			}
+		}
+	}
+
   void ReMakeLogo()
   {
     // 複数fade値でロゴを評価 //
+		auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
 
     // ロゴを評価用にインタレ解除
     LogoData deintLogo(scanw, scanh, logUVx, logUVy);
     DeintLogo(deintLogo, *logodata);
+		CreateLogoMask(deintLogo);
 
-    // 全フレームループ
+		size_t scanDataSize = scanw * scanh * 3 / 2;
+		size_t YSize = scanw * scanh;
+		size_t codedSize = codec->EncodeGetOutputSize(UTVF_YV12, scanw, scanh);
+		size_t extraSize = codec->EncodeGetExtraDataSize();
+		auto memScanData = std::unique_ptr<uint8_t[]>(new uint8_t[scanDataSize]);
+		auto memCoded = std::unique_ptr<uint8_t[]>(new uint8_t[codedSize]);
 
-    // フレームをインタレ解除
+		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
 
-    // fade値ループ
+		const int numFade = 20;
+		auto minFades = std::unique_ptr<int[]>(new int[numFrames]);
+		{
+			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+			auto extra = file.getExtra();
 
-    // ロゴを評価
+			if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
+				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
+			}
+
+			// 全フレームループ
+			for (int i = 0; i < numFrames; ++i) {
+				int64_t codedSize = file.readFrame(i, memCoded.get());
+				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
+					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
+				}
+				// フレームをインタレ解除
+				DeintY(memDeint.get(), memScanData.get());
+				// fade値ループ
+				float minResult = FLT_MAX;
+				float minFadeIndex = 0;
+				for (int fi = 0; fi < numFade; ++fi) {
+					float fade = 0.1f * fi;
+					// ロゴを評価
+					float result = EvaluateLogo(memDeint.get(), deintLogo, fade, memWork.get());
+					if (result < minResult) {
+						minResult = result;
+						minFadeIndex = fi;
+					}
+				}
+				minFades[i] = minFadeIndex;
+			}
+
+			codec->DecodeEnd();
+		}
 
     // 評価値を集約
+		// とりあえず出してみる
+		std::vector<int> numMinFades(numFade);
+		for (int i = 0; i < numFrames; ++i) {
+			numMinFades[minFades[i]]++;
+		}
+		int maxi = (int)(std::max_element(numMinFades.begin(), numMinFades.end()) - numMinFades.begin());
+		printf("maxi = %d\n", maxi);
 
-    // 全フレームループ
+		LogoScan logoscan(scanw, scanh, logUVx, logUVy, thy);
+		{
+			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+			auto extra = file.getExtra();
 
-    // 評価値の良いフレームだけAddFrame
+			if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
+				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
+			}
+
+			int scanUVw = scanw >> logUVx;
+			int scanUVh = scanh >> logUVy;
+			int offU = scanw * scanh;
+			int offV = offU + scanUVw * scanUVh;
+
+			// 全フレームループ
+			for (int i = 0; i < numFrames; ++i) {
+				int64_t codedSize = file.readFrame(i, memCoded.get());
+				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
+					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
+				}
+				// ロゴのあるフレームだけAddFrame
+				if (minFades[i] > 8) { // TODO: 調整
+					const uint8_t* ptr = memScanData.get();
+					logoscan.AddFrame(ptr, ptr + offU, ptr + offV, scanw, scanUVw);
+				}
+			}
+
+			codec->DecodeEnd();
+		}
 
     // ロゴ作成
-
+		logodata = logoscan.GetLogo();
+		if (logodata == nullptr) {
+			THROW(RuntimeException, "Insufficient logo frames");
+		}
   }
 
 public:
@@ -432,10 +710,13 @@ public:
     sscanf(setting_.getModeArgs().c_str(), "%d,%d,%d,%d,%d",
       &scanx, &scany, &scanw, &scanh, &thy);
 
+		// 有効フレームデータと初期ロゴの取得
     MakeInitialLogo(scanx, scany);
 
-    // 有効フレームデータと初期ロゴの取得は完了
-    // TODO: データ解析とロゴの作り直し
+    // データ解析とロゴの作り直し
+		ReMakeLogo();
+		ReMakeLogo();
+		ReMakeLogo();
 
     return 0;
   }
@@ -443,8 +724,8 @@ public:
 
 int ScanLogo(AMTContext& ctx, const TranscoderSetting& setting)
 {
-  LogoAnalyzer analyzer(ctx);
-  return analyzer.ScanLogo(setting);
+  LogoAnalyzer analyzer(ctx, setting);
+  return analyzer.ScanLogo();
 }
 
 } // namespace logo
