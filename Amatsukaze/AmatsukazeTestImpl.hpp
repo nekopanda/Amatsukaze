@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TranscodeManager.hpp"
+#include "LogoScan.hpp"
 
 namespace test {
 
@@ -407,6 +408,11 @@ static int LosslessFileTest(AMTContext& ctx, const TranscoderSetting& setting)
 		codec->DecodeEnd();
 	}
 
+	return 0;
+}
+
+static int EraseLogoTest(AMTContext& ctx, const TranscoderSetting& setting)
+{
 	return 0;
 }
 

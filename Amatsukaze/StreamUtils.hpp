@@ -16,129 +16,6 @@
 
 extern HMODULE g_DllHandle;
 
-/** @brief リングバッファではないがtrimHeadとtrimTailが同じくらい高速なバッファ */
-class AutoBuffer {
-public:
-	AutoBuffer()
-		: data_(NULL)
-		, capacity_(0)
-		, head_(0)
-		, tail_(0)
-	{ }
-
-	void add(uint8_t* data, size_t size) {
-		ensure(size);
-		memcpy(data_ + tail_, data, size);
-		tail_ += size;
-	}
-
-	void add(uint8_t byte) {
-		if (tail_ >= capacity_) {
-			ensure(1);
-		}
-		data_[tail_++] = byte;
-	}
-
-	/** @brief 有効なデータサイズ */
-	size_t size() const {
-		return tail_ - head_;
-	}
-
-	/** @brief データへのポインタ */
-	uint8_t* get() const {
-		return &data_[head_];
-	}
-
-	/** @brief size分だけ頭を削る */
-	void trimHead(size_t size) {
-		head_ = std::min(head_ + size, tail_);
-		if (head_ == tail_) { // 中身がなくなったら位置を初期化しておく
-			head_ = tail_ = 0;
-		}
-	}
-
-	/** @brief size分だけ尻を削る */
-	void trimTail(size_t size) {
-		if (this->size() < size) {
-			tail_ = head_;
-		}
-		else {
-			tail_ -= size;
-		}
-	}
-
-	/** @brief メモリは開放しないがデータサイズをゼロにする */
-	void clear() {
-		head_ = tail_ = 0;
-	}
-
-	/** @brief メモリを開放して初期状態にする（再使用可能）*/
-	void release() {
-		clear();
-		if (data_ != NULL) {
-			delete[] data_;
-			data_ = NULL;
-			capacity_ = 0;
-		}
-	}
-
-private:
-	uint8_t* data_;
-	size_t capacity_;
-	size_t head_;
-	size_t tail_;
-
-	size_t nextSize(size_t current) {
-		if (current < 256) {
-			return 256;
-		}
-		return current * 3 / 2;
-	}
-
-	void ensure(size_t extra) {
-		if (tail_ + extra > capacity_) {
-			// 足りない
-			size_t next = nextSize(tail_ - head_ + extra);
-			if (next <= capacity_) {
-				// 容量は十分なのでデータを移動してスペースを作る
-				memmove(data_, data_ + head_, tail_ - head_);
-			}
-			else {
-				uint8_t* new_ = new uint8_t[next];
-				if (data_ != NULL) {
-					memcpy(new_, data_ + head_, tail_ - head_);
-					delete[] data_;
-				}
-				data_ = new_;
-				capacity_ = next;
-			}
-			tail_ -= head_;
-			head_ = 0;
-		}
-	}
-};
-
-/** @brief ポインタとサイズのセット */
-struct MemoryChunk {
-
-	MemoryChunk() : data(NULL), length(0) { }
-	MemoryChunk(uint8_t* data, size_t length) : data(data), length(length) { }
-	/** @brief AutoBufferのget()とsize()から作成 */
-	MemoryChunk(const AutoBuffer& buffer) : data(buffer.get()), length(buffer.size()) { }
-
-	// データの中身を比較
-	bool operator==(MemoryChunk o) const {
-		if (o.length != length) return false;
-		return memcmp(data, o.data, length) == 0;
-	}
-	bool operator!=(MemoryChunk o) const {
-		return !operator==(o);
-	}
-
-	uint8_t* data;
-	size_t length;
-};
-
 enum {
 	TS_SYNC_BYTE = 0x47,
 
@@ -415,98 +292,6 @@ private:
 			table[i] = crc;
 		}
 	}
-};
-
-class File : NonCopyable
-{
-public:
-	File(const std::string& path, const char* mode) {
-		fp_ = _fsopen(path.c_str(), mode, _SH_DENYNO);
-		if (fp_ == NULL) {
-			THROWF(IOException, "failed to open file %s", path.c_str());
-		}
-	}
-	~File() {
-		fclose(fp_);
-	}
-	void write(MemoryChunk mc) const {
-		if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
-			THROWF(IOException, "failed to write to file");
-		}
-	}
-	template <typename T>
-	void writeValue(T v) const {
-		write(MemoryChunk((uint8_t*)&v, sizeof(T)));
-	}
-	template <typename T>
-	void writeArray(const std::vector<T>& arr) const {
-		writeValue(arr.size());
-		auto dataptr = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(arr.data()));
-		write(MemoryChunk(dataptr, sizeof(T)*arr.size()));
-	}
-	size_t read(MemoryChunk mc) const {
-		size_t ret = fread(mc.data, 1, mc.length, fp_);
-		if (ret <= 0) {
-			THROWF(IOException, "failed to read from file");
-		}
-		return ret;
-	}
-	template <typename T>
-	T readValue() const {
-		T v;
-		if (read(MemoryChunk((uint8_t*)&v, sizeof(T))) != sizeof(T)) {
-			THROWF(IOException, "failed to read value from file");
-		}
-		return v;
-	}
-	template <typename T>
-	std::vector<T> readArray() const {
-		size_t len = readValue<size_t>();
-		std::vector<T> arr(len);
-		if (read(MemoryChunk((uint8_t*)arr.data(), sizeof(T)*len)) != sizeof(T)*len) {
-			THROWF(IOException, "failed to read array from file");
-		}
-		return arr;
-	}
-	void flush() const {
-		fflush(fp_);
-	}
-	void seek(int64_t offset, int origin) const {
-		if (_fseeki64(fp_, offset, origin) != 0) {
-			THROWF(IOException, "failed to seek file");
-		}
-	}
-	int64_t pos() const {
-		return _ftelli64(fp_);
-	}
-	int64_t size() const {
-		int64_t cur = _ftelli64(fp_);
-		if (cur < 0) {
-			THROWF(IOException, "_ftelli64 failed");
-		}
-		if (_fseeki64(fp_, 0L, SEEK_END) != 0) {
-			THROWF(IOException, "failed to seek to end");
-		}
-		int64_t last = _ftelli64(fp_);
-		if (last < 0) {
-			THROWF(IOException, "_ftelli64 failed");
-		}
-		_fseeki64(fp_, cur, SEEK_SET);
-		if (_fseeki64(fp_, cur, SEEK_SET) != 0) {
-			THROWF(IOException, "failed to seek back to current");
-		}
-		return last;
-	}
-  static bool exists(const std::string& path) {
-    FILE* fp_ = _fsopen(path.c_str(), "rb", _SH_DENYNO);
-    if (fp_) {
-      fclose(fp_);
-      return true;
-    }
-    return false;
-  }
-private:
-	FILE* fp_;
 };
 
 std::string GetModulePath() {
@@ -826,16 +611,20 @@ static void DeleteScriptEnvironment(IScriptEnvironment2* env) {
 	if (env) env->DeleteScriptEnvironment();
 }
 
-static std::unique_ptr<IScriptEnvironment2, decltype(&DeleteScriptEnvironment)> make_unique_ptr(IScriptEnvironment2* env) {
-	return std::unique_ptr<IScriptEnvironment2, decltype(&DeleteScriptEnvironment)>(env, DeleteScriptEnvironment);
+typedef std::unique_ptr<IScriptEnvironment2, decltype(&DeleteScriptEnvironment)> ScriptEnvironmentPointer;
+
+static ScriptEnvironmentPointer make_unique_ptr(IScriptEnvironment2* env) {
+	return ScriptEnvironmentPointer(env, DeleteScriptEnvironment);
 }
 
 static void DeleteUtVideoCodec(CCodec* codec) {
 	if (codec) CCodec::DeleteInstance(codec);
 }
 
-static std::unique_ptr<CCodec, decltype(&DeleteUtVideoCodec)> make_unique_ptr(CCodec* codec) {
-	return std::unique_ptr<CCodec, decltype(&DeleteUtVideoCodec)>(codec, DeleteUtVideoCodec);
+typedef std::unique_ptr<CCodec, decltype(&DeleteUtVideoCodec)> CCodecPointer;
+
+static CCodecPointer make_unique_ptr(CCodec* codec) {
+	return CCodecPointer(codec, DeleteUtVideoCodec);
 }
 
 // 1インスタンスは書き込みor読み込みのどちらか一方しか使えない
@@ -899,7 +688,7 @@ public:
 
 	void writeFrame(const uint8_t* data, int len)
 	{
-		int numframes = framesizes.size();
+		int numframes = (int)framesizes.size();
 		int n = current++;
 		if (n >= numframes) {
 			THROWF(InvalidOperationException, "[LosslessVideoFile] attempt to write frame more than specified num frames");
@@ -934,6 +723,28 @@ static void CopyYV12(uint8_t* dst, PVideoFrame& frame, int width, int height)
 	const uint8_t* srcV = frame->GetReadPtr(PLANAR_V);
 	int pitchY = frame->GetPitch(PLANAR_Y);
 	int pitchUV = frame->GetPitch(PLANAR_U);
+	int widthUV = width >> 1;
+	int heightUV = height >> 1;
+
+	uint8_t* dstp = dst;
+	for (int y = 0; y < height; ++y) {
+		memcpy(dstp, &srcY[y * pitchY], width);
+		dstp += width;
+	}
+	for (int y = 0; y < heightUV; ++y) {
+		memcpy(dstp, &srcU[y * pitchUV], widthUV);
+		dstp += widthUV;
+	}
+	for (int y = 0; y < heightUV; ++y) {
+		memcpy(dstp, &srcV[y * pitchUV], widthUV);
+		dstp += widthUV;
+	}
+}
+
+static void CopyYV12(uint8_t* dst,
+	const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV,
+	int pitchY, int pitchUV, int width, int height)
+{
 	int widthUV = width >> 1;
 	int heightUV = height >> 1;
 

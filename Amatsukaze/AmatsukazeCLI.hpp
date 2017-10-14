@@ -388,9 +388,9 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 			test::ParseArgs(ctx, setting);
 		else if (mode == "test_lossless")
 			test::LosslessFileTest(ctx, setting);
+		else if (mode == "test_scanlogo")
+			logo::ScanLogo(ctx, setting);
 
-		else if (mode == "test_process")
-			test::ProcessTest(ctx, setting);
 		else if (mode == "test_process")
 			test::ProcessTest(ctx, setting);
 		else

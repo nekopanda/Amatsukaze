@@ -4,8 +4,13 @@
 
 #include <string>
 #include <cmath>
+#include <memory>
 
 #include "gtest/gtest.h"
+
+#define AVS_LINKAGE_DLLIMPORT
+#include "avisynth.h"
+#pragma comment(lib, "avisynth.lib")
 
 #include <Windows.h>
 
@@ -21,13 +26,36 @@ static bool fileExists(const wchar_t* filepath) {
 	return true;
 }
 
+struct ScriptEnvironmentDeleter {
+	void operator()(IScriptEnvironment* env) {
+		env->DeleteScriptEnvironment();
+	}
+};
+
+typedef std::unique_ptr<IScriptEnvironment2, ScriptEnvironmentDeleter> PEnv;
+
 #define LEN(arr) (sizeof(arr) / sizeof(arr[0]))
+
+std::string GetDirectoryName(const std::string& filename)
+{
+	std::string directory;
+	const size_t last_slash_idx = filename.rfind('\\');
+	if (std::string::npos != last_slash_idx)
+	{
+		directory = filename.substr(0, last_slash_idx);
+	}
+	return directory;
+}
 
 // テスト対象となるクラス Foo のためのフィクスチャ
 class TestBase : public ::testing::Test {
 protected:
 
 	TestBase() {
+		char buf[MAX_PATH];
+		GetModuleFileName(nullptr, buf, MAX_PATH);
+		modulePath = GetDirectoryName(buf);
+
 		wchar_t curdir[200];
 		GetCurrentDirectoryW(sizeof(curdir), curdir);
 		std::wstring inipath = curdir;
@@ -70,6 +98,8 @@ protected:
 	}
 
 	// ここで宣言されるオブジェクトは，テストケース内の全てのテストで利用できます．
+	std::string modulePath;
+
 	std::wstring TestDataDir;
 	std::wstring TestWorkDir;
 	std::wstring MPEG2VideoTsFile;
@@ -280,6 +310,23 @@ TEST_F(TestBase, LosslessTest)
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
 
+TEST_F(TestBase, LogoTest)
+{
+	std::wstring srcDir = TestDataDir + L"\\";
+	std::wstring dstDir = TestWorkDir + L"\\";
+	std::wstring srcPath = srcDir + MPEG2VideoTsFile + L".ts";
+	std::wstring dstPath = dstDir + L"logo.lgd";
+
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_scanlogo",
+		L"-a", L"1225,46,154,80,12,10000",
+		L"-w", dstDir.c_str(),
+		L"-o", dstPath.c_str(),
+		L"-i", srcPath.c_str()
+	};
+	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+}
+
 TEST(CLI, ArgumentTest)
 {
 	const wchar_t* argv[] = {
@@ -327,7 +374,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*LosslessTest";
+	::testing::GTEST_FLAG(filter) = "*LogoTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 
