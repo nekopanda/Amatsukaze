@@ -102,6 +102,32 @@ class LogoScan
 		return ((int)t);
 	}
 
+	static float calcDist(float a, float b) {
+		return (1.0f / 3.0f) * (a - 1) * (a - 1) + (a - 1) * b + b * b;
+	}
+
+	static void maxfilter(float *data, float *work, int w, int h)
+	{
+		for (int y = 0; y < h; ++y) {
+			work[0 + y * w] = data[0 + y * w];
+			for (int x = 1; x < w - 1; ++x) {
+				float a = data[x - 1 + y * w];
+				float b = data[x + y * w];
+				float c = data[x + 1 + y * w];
+				work[x + y * w] = std::max(a, std::max(b, c));
+			}
+			work[w - 1 + y * w] = data[w - 1 + y * w];
+		}
+		for (int y = 1; y < h - 1; ++y) {
+			for (int x = 0; x < w; ++x) {
+				float a = data[x + (y - 1) * w];
+				float b = data[x + y * w];
+				float c = data[x + (y + 1) * w];
+				work[x + y * w] = std::max(a, std::max(b, c));
+			}
+		}
+	}
+
 public:
 	// thy: オリジナルだとデフォルト30*8=240（8bitだと12くらい？）
 	LogoScan(int scanw, int scanh, int logUVx, int logUVy, int thy)
@@ -161,6 +187,44 @@ public:
         if (!logoV[off].GetAB(aV[off], bV[off], nframes)) return nullptr;
       }
     }
+
+		// ロゴを綺麗にする
+		int sizeY = scanw * scanh;
+		auto dist = std::unique_ptr<float[]>(new float[sizeY]());
+		for (int y = 0; y < scanh; ++y) {
+			for (int x = 0; x < scanw; ++x) {
+				int off = x + y * scanw;
+				int offUV = (x >> logUVx) + (y >> logUVy) * scanUVw;
+				dist[off] = calcDist(aY[off], bY[off]) + 
+					calcDist(aU[offUV], bU[offUV]) +
+					calcDist(aV[offUV], bV[offUV]);
+
+				// 値が小さすぎて分かりにくいので大きくしてあげる
+				dist[off] *= 1000;
+			}
+		}
+
+		// maxフィルタを掛ける
+		auto work = std::unique_ptr<float[]>(new float[sizeY]);
+		maxfilter(dist.get(), work.get(), scanw, scanh);
+		maxfilter(dist.get(), work.get(), scanw, scanh);
+		maxfilter(dist.get(), work.get(), scanw, scanh);
+
+		// 小さいところはゼロにする
+		for (int y = 0; y < scanh; ++y) {
+			for (int x = 0; x < scanw; ++x) {
+				int off = x + y * scanw;
+				int offUV = (x >> logUVx) + (y >> logUVy) * scanUVw;
+				if (dist[off] < 0.3f) {
+					aY[off] = 1;
+					bY[off] = 0;
+					aU[offUV] = 1;
+					bU[offUV] = 0;
+					aV[offUV] = 1;
+					bV[offUV] = 0;
+				}
+			}
+		}
 
 		return  data;
 	}
@@ -583,6 +647,8 @@ class LogoAnalyzer : AMTObject
 		};
 		virtual bool onFrame(AVFrame* frame)
 		{
+			readCount++;
+
 			if (pThis->numFrames >= pThis->numMaxFrames) return false;
 
 			// スキャン部分だけ
@@ -604,7 +670,6 @@ class LogoAnalyzer : AMTObject
 				file->writeFrame(memCoded.get(), (int)codedSize);
 			}
 
-			readCount++;
 			if ((readCount % 2000) == 0) printf("%d frames\n", readCount);
 
 			return true;
