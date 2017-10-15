@@ -271,8 +271,6 @@ static int FileStreamInfo(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 	reformInfo.prepareEncode();
-	reformInfo.makeAllframgesEncoded();
-	reformInfo.prepareMux();
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
 	return 0;
 }

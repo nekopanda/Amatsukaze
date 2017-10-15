@@ -169,6 +169,7 @@
     <ClInclude Include="StreamUtils.hpp" />
     <ClInclude Include="Transcode.hpp" />
     <ClInclude Include="TranscodeManager.hpp" />
+    <ClInclude Include="TranscodeSetting.hpp" />
     <ClInclude Include="Tree.hpp" />
     <ClInclude Include="WaveWriter.h" />
   </ItemGroup>

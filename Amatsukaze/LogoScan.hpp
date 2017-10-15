@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TranscodeManager.hpp"
+#include "TranscodeSetting.hpp"
 #include "logo.h"
 #include "AMTLogo.hpp"
 

@@ -321,6 +321,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		autoBitrate,
 		pulldown,
 		bitrate,
+		bitrateCM,
 		serviceId,
 		mpeg2decoder,
 		h264decoder,
