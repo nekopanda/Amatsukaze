@@ -741,6 +741,31 @@ static void CopyYV12(uint8_t* dst, PVideoFrame& frame, int width, int height)
 	}
 }
 
+static void CopyYV12(PVideoFrame& dst, uint8_t* frame, int width, int height)
+{
+	uint8_t* dstY = dst->GetWritePtr(PLANAR_Y);
+	uint8_t* dstU = dst->GetWritePtr(PLANAR_U);
+	uint8_t* dstV = dst->GetWritePtr(PLANAR_V);
+	int pitchY = dst->GetPitch(PLANAR_Y);
+	int pitchUV = dst->GetPitch(PLANAR_U);
+	int widthUV = width >> 1;
+	int heightUV = height >> 1;
+
+	uint8_t* srcp = frame;
+	for (int y = 0; y < height; ++y) {
+		memcpy(&dstY[y * pitchY], srcp, width);
+		srcp += width;
+	}
+	for (int y = 0; y < heightUV; ++y) {
+		memcpy(&dstU[y * pitchUV], srcp, widthUV);
+		srcp += widthUV;
+	}
+	for (int y = 0; y < heightUV; ++y) {
+		memcpy(&dstV[y * pitchUV], srcp, widthUV);
+		srcp += widthUV;
+	}
+}
+
 static void CopyYV12(uint8_t* dst,
 	const uint8_t* srcY, const uint8_t* srcU, const uint8_t* srcV,
 	int pitchY, int pitchUV, int width, int height)

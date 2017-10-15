@@ -12,6 +12,12 @@
 
 HMODULE g_DllHandle;
 
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
+	if (dwReason == DLL_PROCESS_ATTACH) g_DllHandle = hModule;
+	return TRUE;
+}
+
+// デバッグ用インターフェース
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	// 直接リンクしているのでvectorsを格納する必要はない
 
@@ -22,9 +28,4 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	env->AddFunction("AMTEraseLogo", "cs[thresh]f", logo::AMTEraseLogo::Create, 0);
 
 	return "Amatsukaze plugin";
-}
-
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
-	if (dwReason == DLL_PROCESS_ATTACH) g_DllHandle = hModule;
-	return TRUE;
 }

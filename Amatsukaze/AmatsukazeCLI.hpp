@@ -68,6 +68,7 @@ static void printHelp(const tchar* bin) {
     "                      sは入力映像ビットレート、fは入力がH264の場合は入力されたfだが、\n"
     "                      入力がMPEG2の場合はf=1とする\n"
     "                      指定がない場合はビットレートオプションを追加しない\n"
+		"  -bcm|--bitrate-cm <float>   CM判定されたところのビットレート倍率\n"
 		"  --2pass             2passエンコード\n"
 		"  --pulldown          ソフトテレシネを解除しないでそのままエンコード\n"
 		"                      エンコーダの--pdfile-inオプションへの対応が必要\n"
@@ -166,7 +167,8 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring outVideoPath;
 	std::tstring workDir = _T("./");
 	std::tstring outInfoJsonPath;
-  std::tstring filterScriptPath;
+	std::tstring filterScriptPath;
+	std::tstring postFilterScriptPath;
 	ENUM_ENCODER encoder = ENUM_ENCODER();
 	std::tstring encoderPath = _T("x264.exe");
   std::tstring encoderOptions = _T("");
@@ -176,6 +178,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
   std::tstring modeArgs = _T("");
   bool autoBitrate = bool();
   BitrateSetting bitrate = BitrateSetting();
+	double bitrateCM = 1.0;
   bool twoPass = bool();
 	bool pulldown = bool();
 	int serviceId = -1;
@@ -226,6 +229,13 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
       }
       autoBitrate = true;
     }
+		else if (key == _T("-bcm") || key == _T("--bitrate-cm")) {
+			const auto arg = getParam(argc, argv, i++);
+			int ret = stscanf(arg.c_str(), _T("%lf"), &bitrateCM);
+			if (ret == 0) {
+				THROWF(ArgumentException, "--bitrate-cmの指定が間違っています");
+			}
+		}
     else if (key == _T("--2pass")) {
       twoPass = true;
     }
@@ -244,6 +254,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
     else if (key == _T("-f") || key == _T("--filter")) {
       filterScriptPath = getParam(argc, argv, i++);
     }
+		else if (key == _T("-pf") || key == _T("--postfilter")) {
+			postFilterScriptPath = getParam(argc, argv, i++);
+		}
 		else if (key == _T("-s") || key == _T("--serivceid")) {
 			std::tstring sidstr = getParam(argc, argv, i++);
 			if (sidstr.size() > 2 && sidstr.substr(0, 2) == _T("0x")) {
@@ -298,6 +311,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		to_string(outVideoPath),
 		to_string(outInfoJsonPath),
     to_string(filterScriptPath),
+		to_string(postFilterScriptPath),
 		encoder,
 		to_string(encoderPath),
 		to_string(encoderOptions),

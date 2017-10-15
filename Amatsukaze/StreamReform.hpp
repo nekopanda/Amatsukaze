@@ -21,20 +21,26 @@
 struct FileAudioFrameInfo : public AudioFrameInfo {
 	int audioIdx;
 	int codedDataSize;
+	int waveDataSize;
 	int64_t fileOffset;
+	int64_t waveOffset;
 
 	FileAudioFrameInfo()
 		: AudioFrameInfo()
 		, audioIdx(0)
 		, codedDataSize(0)
+		, waveDataSize(0)
 		, fileOffset(0)
+		, waveOffset(-1)
 	{ }
 
 	FileAudioFrameInfo(const AudioFrameInfo& info)
 		: AudioFrameInfo(info)
 		, audioIdx(0)
 		, codedDataSize(0)
+		, waveDataSize(0)
 		, fileOffset(0)
+		, waveOffset(-1)
 	{ }
 };
 
@@ -144,6 +150,12 @@ struct FilterSourceFrame {
   int keyFrame;
 };
 
+struct FilterAudioFrame {
+	int frameIndex; // デバッグ用
+	int64_t waveOffset;
+	int waveLength;
+};
+
 struct FilterOutVideoInfo {
   int numFrames;
   int frameRateNum;
@@ -171,13 +183,16 @@ public:
 		, outTotalDuration_()
 		, adiff_()
 	{
-		encodedFrames_.resize(videoFrameList_.size(), false);
+		//encodedFrames_.resize(videoFrameList_.size(), false);
 	}
 
-	void prepareEncode() {
+	AudioDiffInfo prepareEncode() {
 		reformMain();
+		genAudioStream();
+		genWaveAudioStream();
+		return adiff_;
 	}
-
+	/*
 	AudioDiffInfo prepareMux() {
 		genAudioStream();
 		return adiff_;
@@ -188,7 +203,7 @@ public:
     genAudioStream(info);
     return adiff_;
   }
-
+	*/
 	int getNumVideoFile() const {
 		return numVideoFile_;
 	}
@@ -196,7 +211,7 @@ public:
   VIDEO_STREAM_FORMAT getVideoStreamFormat() const {
     return videoFrameList_[0].format.format;
   }
-
+	/*
 	// PTS -> video frame index
 	int getVideoFrameIndex(int64_t PTS, int videoFileIndex) const {
 		auto it = framePtsMap_.find(PTS);
@@ -216,10 +231,14 @@ public:
 
 		return frameIndex;
 	}
-
+	*/
   const std::vector<FilterSourceFrame>& getFilterSourceFrames(int videoFileIndex) const {
     return filterFrameList_[videoFileIndex];
   }
+
+	const std::vector<FilterAudioFrame>& getFilterSourceAudioFrames(int videoFileIndex) const {
+		return filterAudioFrameList_[videoFileIndex];
+	}
 
 	int getNumEncoders(int videoFileIndex) const {
 		return int(
@@ -241,7 +260,7 @@ public:
 		const auto& format = outFormat_[formatId];
 		return formatId - outFormatStartIndex_[format.videoFileId];
 	}
-
+	/*
   int getNumFilterOutFrames(int videoFileIndex) const {
     return int(filterOutFrameList_[videoFileIndex].size());
   }
@@ -255,7 +274,7 @@ public:
 	void frameEncoded(int frameIndex) {
 		encodedFrames_[frameIndex] = true;
 	}
-
+	*/
 	const OutVideoFormat& getFormat(int encoderIndex, int videoFileIndex) const {
 		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
 		return outFormat_[formatId];
@@ -353,12 +372,13 @@ public:
 			numVideoFile, videoFrameList, audioFrameList, streamEventList);
 	}
 
+	/*
 	void makeAllframgesEncoded() {
 		for (int i = 0; i < (int)encodedFrames_.size(); ++i) {
 			encodedFrames_[i] = true;
 		}
 	}
-
+	*/
 private:
 
   struct FileterOutFrame {
@@ -366,7 +386,7 @@ private:
     int formatId;
   };
 
-	// 1st phase 出力
+	// 入力解析の出力
 	int numVideoFile_;
 	std::vector<FileVideoFrameInfo> videoFrameList_;
 	std::vector<FileAudioFrameInfo> audioFrameList_;
@@ -390,21 +410,21 @@ private:
   std::vector<int> outFormatStartIndex_;
 
   // 中間映像ファイルごと
-  std::vector<std::vector<FilterSourceFrame>> filterFrameList_;
-  std::vector<std::vector<FileterOutFrame>> filterOutFrameList_;
+	std::vector<std::vector<FilterSourceFrame>> filterFrameList_;
+	std::vector<std::vector<FilterAudioFrame>> filterAudioFrameList_;
+  //std::vector<std::vector<FileterOutFrame>> filterOutFrameList_;
 
-	// 2nd phase 入力
 	std::vector<int> frameFormatId_; // videoFrameList_と同じサイズ
-	std::map<int64_t, int> framePtsMap_;
+	//std::map<int64_t, int> framePtsMap_;
 
   // 出力ファイルごとの入力映像データサイズ、時間
   std::vector<int64_t> fileSrcSize_;
   std::vector<double> fileSrcDuration_;
 
 	// 2nd phase 出力
-	std::vector<bool> encodedFrames_;
+	//std::vector<bool> encodedFrames_;
 
-	// 3rd phase 入力
+	// 音声構築用
 	std::vector<std::unique_ptr<FileAudioFrameList>> reformedAudioFrameList_;
 	std::vector<double> fileDuration_;
 	std::vector<int64_t> audioFileOffsets_; // 音声ファイルキャッシュ用
@@ -428,10 +448,12 @@ private:
 			THROW(FormatException, "不正なデータです");
 		}
 
+		/*
 		// framePtsMap_を作成（すぐに作れるので）
 		for (int i = 0; i < int(videoFrameList_.size()); ++i) {
 			framePtsMap_[videoFrameList_[i].PTS] = i;
 		}
+		*/
 
 		// VFR検出
 		isVFR_ = false;
@@ -730,7 +752,7 @@ private:
 	int getEncoderIdx(const OutVideoFormat& format) {
 		return format.formatId - outFormatStartIndex_[format.videoFileId];
 	}
-
+	/*
   void genFilterOutFrames(const std::vector<FilterOutVideoInfo>& info) {
 
     if (info.size() != numVideoFile_) {
@@ -799,7 +821,7 @@ private:
       filterOutFrameList_.push_back(std::move(outframes));
     }
   }
-
+	*/
 	struct AudioState {
     double time = 0; // 追加された音声フレームの合計時間
 		double lostPts = -1; // 同期ポイントを見失ったPTS（表示用）
@@ -845,6 +867,7 @@ private:
 
     fillFiles(outFiles);
 
+		/*
     // 全映像フレームを追加
     ctx.info("[音声構築]");
     for (int i = 0; i < (int)videoFrameList_.size(); ++i) {
@@ -858,6 +881,7 @@ private:
         addVideoFrame(outFiles[formatId], ordered, next);
       }
     }
+		*/
 
     // 出力データ生成
     reformedAudioFrameList_.resize(outFormat_.size());
@@ -895,7 +919,7 @@ private:
       }
     }
   }
-
+	/*
   // エンコードされたソースフレームから音声構築
 	void genAudioStream()
   {
@@ -916,25 +940,70 @@ private:
       }
     });
 	}
-
-  // フィルタ出力から音声構築
-  void genAudioStream(const std::vector<FilterOutVideoInfo>& info)
+	*/
+  // フィルタ入力から音声構築
+  void genAudioStream()
   {
     genAudioStream([&](std::vector<OutFileState>& outFiles)
     {
       // 全映像フレームを追加
       ctx.info("[音声構築]");
-      for (int fileId = 0; fileId < int(info.size()); ++fileId) {
-        auto& fvinfo = info[fileId];
-        auto& frames = filterOutFrameList_[fileId];
-        double timePerOutVideoFrame = fvinfo.frameRateDenom * MPEG_CLOCK_HZ / (double)fvinfo.frameRateNum;
-        for (int i = 0; i < fvinfo.numFrames; ++i) {
-          int formatId = frames[i].formatId;
-          addVideoFrame(outFiles[formatId], formatId, frames[i].pts, timePerOutVideoFrame);
+      for (int fileId = 0; fileId < numVideoFile_; ++fileId) {
+        auto& frames = filterFrameList_[fileId];
+				auto& format = outFormat_[outFormatStartIndex_[fileId]].videoFormat;
+				double timePerFrame = format.frameRateDenom * MPEG_CLOCK_HZ / (double)format.frameRateNum;
+        for (int i = 0; i < (int)frames.size(); ++i) {
+					int ordered = ordredVideoFrame_[frames[i].frameIndex];
+					int formatId = frameFormatId_[ordered];
+          addVideoFrame(outFiles[formatId], formatId, frames[i].pts, timePerFrame);
         }
       }
     });
   }
+
+	void genWaveAudioStream()
+	{
+		// 全映像フレームを追加
+		ctx.info("[CM判定用音声構築]");
+		filterAudioFrameList_.resize(numVideoFile_);
+		for (int fileId = 0; fileId < (int)numVideoFile_; ++fileId) {
+			OutFileState file = { 0 };
+			file.formatId = -1;
+			file.time = 0;
+			file.audioState.resize(1);
+			file.audioFrameList =
+				std::unique_ptr<FileAudioFrameList>(new FileAudioFrameList(1));
+
+			auto& frames = filterFrameList_[fileId];
+			auto& format = outFormat_[outFormatStartIndex_[fileId]];
+			double timePerFrame = format.videoFormat.frameRateDenom * MPEG_CLOCK_HZ / (double)format.videoFormat.frameRateNum;
+
+			for (int i = 0; i < (int)frames.size(); ++i) {
+				double endPts = frames[i].pts + timePerFrame;
+				file.time += timePerFrame;
+
+				ASSERT(format.audioFormat.size() == file.audioFrameList->size());
+				ASSERT(format.audioFormat.size() == file.audioState.size());
+				// file.timeまで音声を進める
+				auto& audioState = file.audioState[0];
+				if (audioState.time < file.time) {
+					double audioDuration = file.time - audioState.time;
+					double audioPts = endPts - audioDuration;
+					fillAudioFrames(file, 0, format.audioFormat[0], audioPts, audioDuration);
+				}
+			}
+
+			auto& list = file.audioFrameList->at(0);
+			for (int i = 0; i < (int)list.size(); ++i) {
+				FilterAudioFrame frame = { 0 };
+				auto& info = audioFrameList_[list[i]];
+				frame.frameIndex = list[i];
+				frame.waveOffset = info.waveOffset;
+				frame.waveLength = info.waveDataSize;
+				filterAudioFrameList_[fileId].push_back(frame);
+			}
+		}
+	}
 
   double getFrameDuration(int index, int nextIndex)
   {

@@ -28,7 +28,8 @@ struct FakeAudioSample {
 
 class AMTSource : public IClip, AMTObject
 {
-  const std::vector<FilterSourceFrame>& frames;
+	const std::vector<FilterSourceFrame>& frames;
+	const std::vector<FilterAudioFrame>& audioFrames;
 
   InputContext inputCtx;
   CodecContext codecCtx;
@@ -47,6 +48,8 @@ class AMTSource : public IClip, AMTObject
   List<CacheFrame*> recentAccessed;
 
   VideoInfo vi;
+
+	File waveFile;
 
   bool initialized;
 
@@ -75,20 +78,28 @@ class AMTSource : public IClip, AMTObject
     }
   }
 
-  void MakeVideoInfo(const VideoFormat& format) {
-    vi.width = format.width;
-    vi.height = format.height;
-    vi.SetFPS(format.frameRateNum, format.frameRateDenom);
+  void MakeVideoInfo(const OutVideoFormat& format) {
+    vi.width = format.videoFormat.width;
+    vi.height = format.videoFormat.height;
+    vi.SetFPS(format.videoFormat.frameRateNum, format.videoFormat.frameRateDenom);
     vi.num_frames = int(frames.size());
 
     // ビット深度は取得してないのでフレームをデコードして取得する
     //vi.pixel_type = VideoInfo::CS_YV12;
     
-    vi.audio_samples_per_second = 1000;
-    vi.sample_type = SAMPLE_INT32;
-    vi.num_audio_samples = int64_t(std::round(
-      (double)vi.audio_samples_per_second * vi.num_frames * format.frameRateDenom / format.frameRateNum));
-    vi.nchannels = (sizeof(FakeAudioSample) + 3) / 4;
+		if (audioFrames.size() > 0) {
+			int samplesPerFrame = audioFrames[0].waveLength / 4; // 16bitステレオ前提
+			vi.audio_samples_per_second = format.audioFormat[0].sampleRate;
+			vi.sample_type = SAMPLE_INT16;
+			vi.num_audio_samples = samplesPerFrame * audioFrames.size();
+			vi.nchannels = 2;
+		}
+		else {
+			// No audio
+			vi.audio_samples_per_second = 0;
+			vi.num_audio_samples = 0;
+			vi.nchannels = 0;
+		}
   }
 
   void ResetDecoder() {
@@ -321,14 +332,18 @@ class AMTSource : public IClip, AMTObject
 
 public:
   AMTSource(AMTContext& ctx,
-    const std::string& srcpath,
-    const VideoFormat& format,
-    const std::vector<FilterSourceFrame>& frames,
+		const std::string& srcpath,
+		const std::string& audiopath,
+		const OutVideoFormat& format,
+		const std::vector<FilterSourceFrame>& frames,
+		const std::vector<FilterAudioFrame>& audioFrames,
     IScriptEnvironment* env)
     : AMTObject(ctx)
     , frames(frames)
+		, audioFrames(audioFrames)
     , inputCtx(srcpath)
     , vi()
+		, waveFile(audiopath, "rb")
     , seekDistance(10)
     , initialized(false)
     , lastDecodeFrame(-1)
@@ -407,16 +422,34 @@ public:
 
   void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env)
   {
-    FakeAudioSample* ptr = reinterpret_cast<FakeAudioSample*>(buf);
-    for (__int64 i = 0; i < count; ++i) {
-      FakeAudioSample t = { FakeAudioSample::MAGIC, FakeAudioSample::VERSION, start + i };
-      ptr[i] = t;
-    }
+		if (audioFrames.size() == 0) return;
+
+		const int sampleBytes = 4; // 16bitステレオ前提
+		int samplesPerFrame = audioFrames[0].waveLength / sampleBytes;
+		uint8_t* ptr = (uint8_t*)buf;
+		for(int frameIndex = start / samplesPerFrame, frameOffset = start % samplesPerFrame;
+			count > 0 && frameIndex < (int)audioFrames.size();
+			++frameIndex, frameOffset = 0)
+		{
+			waveFile.seek(audioFrames[frameIndex].waveOffset + frameOffset, SEEK_SET);
+			int readBytes = std::min<int>(audioFrames[frameIndex].waveLength, count * sampleBytes);
+			waveFile.read(MemoryChunk(ptr, readBytes));
+			ptr += readBytes;
+			count -= readBytes;
+		}
+		if (count > 0) {
+			// ファイルの終わりまで到達したら残りはゼロで埋める
+			memset(ptr, 0, count * sampleBytes);
+		}
   }
 
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
   bool __stdcall GetParity(int n) { return 1; }
-  int __stdcall SetCacheHints(int cachehints, int frame_range) { return 0; };
+	int __stdcall SetCacheHints(int cachehints, int frame_range)
+	{
+		if (cachehints == CACHE_GET_MTMODE) return MT_SERIALIZED;
+		return 0;
+	};
 };
 
 class AMTSourceIndex : public TsSplitter {
@@ -430,6 +463,10 @@ public:
   }
 
   bool tryReadCache() {
+		std::string audioname = videofile + ".amaud";
+		if (File::exists(audioname.c_str()) == false) {
+			return false;
+		}
     std::string indexname = videofile + ".ami";
     if (File::exists(indexname.c_str()) == false) {
       return false;
@@ -459,7 +496,11 @@ public:
   }
 
   void split() {
+		audioFile = std::unique_ptr<File>(new File(videofile + ".amaud", "wb"));
+
     readAll();
+
+		audioFile = nullptr;
 
     // fileOffsetを5フレーム分遅らせる
     for (int i = int(videoFrameList_.size()) - 1; i >= 0; --i) {
@@ -485,9 +526,12 @@ protected:
 
   std::string videofile;
   int videoFileCount_;
-  int64_t audioFileSize_;
+	int64_t audioFileSize_;
+	int64_t waveFileSize_;
 
   int64_t fileOffset_;
+
+	std::unique_ptr<File> audioFile;
 
   // データ
   std::vector<FileVideoFrameInfo> videoFrameList_;
@@ -550,8 +594,12 @@ protected:
       FileAudioFrameInfo info = frame;
       info.audioIdx = audioIdx;
       info.codedDataSize = frame.codedDataSize;
+			info.waveDataSize = frame.decodedDataSize;
       info.fileOffset = audioFileSize_;
-      audioFileSize_ += frame.codedDataSize;
+			info.waveOffset = waveFileSize_;
+			audioFileSize_ += frame.codedDataSize;
+			waveFileSize_ += frame.decodedDataSize;
+			audioFile->write(MemoryChunk((uint8_t*)frame.decodedData, frame.decodedDataSize));
       audioFrameList_.push_back(info);
     }
   }
@@ -617,13 +665,76 @@ AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env
 
   info->prepareEncode();
 
-  auto clip = new AMTSource(*g_ctx_for_plugin_filter, filename,
-    info->getFormat(0, 0).videoFormat, info->getFilterSourceFrames(0), env);
+	auto clip = new AMTSource(
+		*g_ctx_for_plugin_filter,
+		filename,
+		filename + ".amaud",
+    info->getFormat(0, 0),
+		info->getFilterSourceFrames(0),
+		info->getFilterSourceAudioFrames(0),
+		env);
 
   // StreamReformInfoをライフタイム管理用に持たせておく
   clip->TransferStreamInfo(std::move(info));
 
   return clip;
 }
+
+class AVSLosslessSource : public IClip
+{
+	LosslessVideoFile file;
+	CCodecPointer codec;
+	VideoInfo vi;
+	std::unique_ptr<uint8_t[]> codedFrame;
+	std::unique_ptr<uint8_t[]> rawFrame;
+public:
+	AVSLosslessSource(AMTContext& ctx, const std::string& filepath, const VideoFormat& format, IScriptEnvironment* env)
+		: file(ctx, filepath, "rb")
+		, codec(make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze")))
+		, vi()
+	{
+		file.readHeader();
+		vi.width = file.getWidth();
+		vi.height = file.getHeight();
+		assert(format.width == vi.width);
+		assert(format.height == vi.height);
+		vi.num_frames = file.getNumFrames();
+		vi.pixel_type = VideoInfo::CS_YV12;
+		vi.SetFPS(format.frameRateNum, format.frameRateDenom);
+		auto extra = file.getExtra();
+		if (codec->DecodeBegin(UTVF_YV12, vi.width, vi.height, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
+			THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
+		}
+
+		size_t codedSize = codec->EncodeGetOutputSize(UTVF_YV12, vi.width, vi.height);
+		codedFrame = std::unique_ptr<uint8_t[]>(new uint8_t[codedSize]);
+
+		rawFrame = std::unique_ptr<uint8_t[]>(new uint8_t[vi.width * vi.height * 3 / 2]);
+	}
+
+	~AVSLosslessSource() {
+		codec->DecodeEnd();
+	}
+
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env)
+	{
+		n = std::max(0, std::min(vi.num_frames - 1, n));
+		file.readFrame(n, codedFrame.get());
+		codec->DecodeFrame(rawFrame.get(), codedFrame.get());
+		PVideoFrame dst = env->NewVideoFrame(vi);
+		CopyYV12(dst, rawFrame.get(), vi.width, vi.height);
+		return dst;
+	}
+
+	void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) { return; }
+	const VideoInfo& __stdcall GetVideoInfo() { return vi; }
+	bool __stdcall GetParity(int n) { return false; }
+	
+	int __stdcall SetCacheHints(int cachehints, int frame_range)
+	{
+		if (cachehints == CACHE_GET_MTMODE) return MT_SERIALIZED;
+		return 0;
+	};
+};
 
 } // namespace av {
