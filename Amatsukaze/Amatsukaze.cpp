@@ -28,7 +28,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	av_register_all();
 
 	env->AddFunction("AMTSource", "s", av::CreateAMTSource, 0);
-	env->AddFunction("AMTEraseLogo", "cs[thresh]f[debug]i", logo::AMTEraseLogo::Create, 0);
+	env->AddFunction("AMTEraseLogo", "cs[mode]i[maskratio]i", logo::AMTEraseLogo::Create, 0);
 
 	return "Amatsukaze plugin";
 }

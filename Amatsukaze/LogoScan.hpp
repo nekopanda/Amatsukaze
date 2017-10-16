@@ -6,8 +6,93 @@
 #include "TextOut.h"
 
 #include <cmath>
+#include <numeric>
+#include <fstream>
 
 namespace logo {
+
+class LogoDataParam : public LogoData
+{
+	int imgw, imgh, imgx, imgy;
+	std::unique_ptr<uint8_t[]> mask;
+	float thresh;
+	int maskpixels;
+public:
+	LogoDataParam() { }
+
+	LogoDataParam(LogoData&& logo, const LogoHeader* header)
+		: LogoData(std::move(logo))
+		, imgw(header->imgw)
+		, imgh(header->imgh)
+		, imgx(header->imgx)
+		, imgy(header->imgy)
+	{ }
+
+	LogoDataParam(LogoData&& logo, int imgw, int imgh, int imgx, int imgy)
+		: LogoData(std::move(logo))
+		, imgw(imgw)
+		, imgh(imgh)
+		, imgx(imgx)
+		, imgy(imgy)
+	{ }
+
+	int getImgWidth() const { return imgw; }
+	int getImgHeight() const { return imgh; }
+	int getImgX() const { return imgx; }
+	int getImgY() const { return imgy; }
+
+	uint8_t* GetMask() { return mask.get(); }
+	float getThresh() const { return thresh; }
+	int getMaskPixels() const { return maskpixels; }
+
+	void CreateLogoMask(float maskratio)
+	{
+		size_t YSize = w * h;
+		mask = std::unique_ptr<uint8_t[]>(new uint8_t[YSize]());
+		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+
+		for (int y = 0; y < h; ++y) {
+			for (int x = 0; x < w; ++x) {
+				// x切片、つまり、背景の輝度値ゼロのときのロゴの輝度値を取得
+				float a = aY[x + y * w];
+				float b = bY[x + y * w];
+				float c = memWork[x + y * w] = -b / a;
+			}
+		}
+
+		// マスクされた部分が少なすぎたらしきい値を下げて作り直す
+		thresh = 0.25f;
+		for (; thresh > 0.01f; thresh = thresh * 0.8f) {
+			maskpixels = 0;
+			// 3x3 Prewitt
+			for (int y = 1; y < h - 1; ++y) {
+				for (int x = 1; x < w - 1; ++x) {
+					const float* ptr = &memWork[x + y * w];
+					float y_sum_h = 0, y_sum_v = 0;
+
+					y_sum_h -= ptr[-1 + w * -1];
+					y_sum_h -= ptr[-1];
+					y_sum_h -= ptr[-1 + w * 1];
+					y_sum_h += ptr[1 + w * -1];
+					y_sum_h += ptr[1];
+					y_sum_h += ptr[1 + w * 1];
+					y_sum_v -= ptr[-1 + w * -1];
+					y_sum_v -= ptr[0 + w * -1];
+					y_sum_v -= ptr[1 + w * -1];
+					y_sum_v += ptr[-1 + w * 1];
+					y_sum_v += ptr[0 + w * 1];
+					y_sum_v += ptr[1 + w * 1];
+
+					float val = std::sqrtf(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
+					maskpixels += mask[x + y * w] = (val > thresh);
+				}
+			}
+			if (maskpixels >= (h - 1)*(w - 1)*maskratio) {
+				break;
+			}
+		}
+	}
+};
 
 static void approxim_line(int n, double sum_x, double sum_y, double sum_x2, double sum_xy, double& a, double& b)
 {
@@ -395,65 +480,6 @@ protected:
 	virtual bool onFrame(AVFrame* frame) { return true; };
 };
 
-static int CreateLogoMask(LogoData& dst, int w, int h)
-{
-	float *dstAY = dst.GetA(PLANAR_Y);
-	float *dstBY = dst.GetB(PLANAR_Y);
-
-	size_t YSize = w * h;
-	auto memWork = std::unique_ptr<float[]>(new float[YSize]);
-
-	dst.AllocateMask();
-	uint8_t* dstMask = dst.GetMask(PLANAR_Y);
-	memset(dstMask, 0, YSize);
-
-	int cnt = 0;
-
-	for (int y = 0; y < h; ++y) {
-		for (int x = 0; x < w; ++x) {
-			// x切片、つまり、背景の輝度値ゼロのときのロゴの輝度値を取得
-			float a = dstAY[x + y * w];
-			float b = dstBY[x + y * w];
-			float c = memWork[x + y * w] = -b / a;
-			if (c > 0.05f) ++cnt;
-		}
-	}
-
-	// マスクされた部分少なすぎたらしきい値を下げて作り直す
-	for (float thresh = 0.25f; thresh > 0.01f; thresh = thresh * 0.8f) {
-		int maskcnt = 0;
-		// 3x3 Prewitt
-		for (int y = 1; y < h - 1; ++y) {
-			for (int x = 1; x < w - 1; ++x) {
-				const float* ptr = &memWork[x + y * w];
-				float y_sum_h = 0, y_sum_v = 0;
-
-				y_sum_h -= ptr[-1 + w * -1];
-				y_sum_h -= ptr[-1];
-				y_sum_h -= ptr[-1 + w * 1];
-				y_sum_h += ptr[1 + w * -1];
-				y_sum_h += ptr[1];
-				y_sum_h += ptr[1 + w * 1];
-				y_sum_v -= ptr[-1 + w * -1];
-				y_sum_v -= ptr[0 + w * -1];
-				y_sum_v -= ptr[1 + w * -1];
-				y_sum_v += ptr[-1 + w * 1];
-				y_sum_v += ptr[0 + w * 1];
-				y_sum_v += ptr[1 + w * 1];
-
-				float val = std::sqrtf(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
-				maskcnt += dstMask[x + y * w] = (val > thresh);
-			}
-		}
-		if (maskcnt >= (h - 1)*(w - 1)*0.1f) {
-			printf("thresh = %f OK\n", thresh);
-			break;
-		}
-	}
-
-	return cnt;
-}
-
 static void DeintLogo(LogoData& dst, LogoData& src, int w, int h)
 {
 	const float *srcAY = src.GetA(PLANAR_Y);
@@ -502,12 +528,12 @@ void DeintY(float* dst, const pixel_t* src, int srcPitch, int w, int h)
 	}
 }
 
-static float EvaluateLogo(const float *src,float maxv, LogoData& logo, float fade, float* work, int w, int h)
+static float EvaluateLogo(const float *src,float maxv, LogoDataParam& logo, float fade, float* work, int w, int h)
 {
 	// ロゴを評価 //
 	const float *logoAY = logo.GetA(PLANAR_Y);
 	const float *logoBY = logo.GetB(PLANAR_Y);
-	const uint8_t* mask = logo.GetMask(PLANAR_Y);
+	const uint8_t* mask = logo.GetMask();
 
 	// ロゴを除去
 	for (int y = 0; y < h; ++y) {
@@ -521,6 +547,7 @@ static float EvaluateLogo(const float *src,float maxv, LogoData& logo, float fad
 	}
 
 	// エッジ評価
+	float limit = logo.getThresh() * maxv * (25.0f / 9.0f);
 	float result = 0;
 	for (int y = 2; y < h - 2; ++y) {
 		for (int x = 2; x < w - 2; ++x) {
@@ -578,12 +605,13 @@ static float EvaluateLogo(const float *src,float maxv, LogoData& logo, float fad
 
 				float val = std::sqrt(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
 				//result += val;
-				result += std::min(55.0f, val);
+				result += std::min(limit, val);
 			}
 		}
 	}
 
-	return result;
+	// 0～1000の値に正規化
+	return result / (limit * logo.getMaskPixels()) * 1000.0f;
 }
 
 class LogoAnalyzer : AMTObject
@@ -700,191 +728,15 @@ class LogoAnalyzer : AMTObject
 		creator.readAll(setting_.getSrcFilePath());
   }
 
-	void MultiCandidate()
-	{
-		// 時分割で複数のロゴを作成して評価
-		enum { NUM_PART = 4 };
-
-		auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
-
-		size_t scanDataSize = scanw * scanh * 3 / 2;
-		size_t YSize = scanw * scanh;
-		size_t codedSize = codec->EncodeGetOutputSize(UTVF_YV12, scanw, scanh);
-		size_t extraSize = codec->EncodeGetExtraDataSize();
-		auto memScanData = std::unique_ptr<uint8_t[]>(new uint8_t[scanDataSize]);
-		auto memCoded = std::unique_ptr<uint8_t[]>(new uint8_t[codedSize]);
-
-		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
-		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
-
-		std::vector<std::unique_ptr<LogoScan>> logoarr(NUM_PART);
-		for (int i = 0; i < NUM_PART; ++i) {
-			logoarr[i] = std::unique_ptr<LogoScan>(new LogoScan(scanw, scanh, logUVx, logUVy, thy));
-		}
-		{
-			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
-			file.readHeader();
-			auto extra = file.getExtra();
-
-			if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
-				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
-			}
-
-			int scanUVw = scanw >> logUVx;
-			int scanUVh = scanh >> logUVy;
-			int offU = scanw * scanh;
-			int offV = offU + scanUVw * scanUVh;
-
-			// 全フレームループ
-			int framePerPart = (numFrames + NUM_PART - 1) / NUM_PART;
-			for (int i = 0; i < numFrames; ++i) {
-				int64_t codedSize = file.readFrame(i, memCoded.get());
-				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
-					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
-				}
-				// ロゴのあるフレームだけAddFrame
-				const uint8_t* ptr = memScanData.get();
-				logoarr[i / framePerPart]->AddFrame(ptr, ptr + offU, ptr + offV, scanw, scanUVw);
-
-				if ((i % 2000) == 0) printf("%d frames\n", i);
-			}
-
-			codec->DecodeEnd();
-		}
-
-		// ロゴ作成
-		std::vector<LogoData*> logodatas;
-		for (int i = 0; i < NUM_PART; ++i) {
-			logoarr[i]->Normalize(255);
-			auto data = logoarr[i]->GetLogo(false);
-			if (data) {
-				auto deint = new LogoData(scanw, scanh, logUVx, logUVy);
-				DeintLogo(*deint, *data, scanw, scanh);
-				float ratio = CreateLogoMask(*deint, scanw, scanh) / (float)(scanw * scanh);
-				printf("ratio = %f\n", ratio);
-				if (ratio > 0.01) {
-					logodatas.emplace_back(deint);
-				}
-			}
-		}
-		if (logodatas.size() == 0) {
-			printf("Multi candidate faield\n");
-			return;
-		}
-
-		const int numFade = 10;
-		std::vector<std::unique_ptr<int[]>> minFades(logodatas.size());
-		for (int i = 0; i < (int)minFades.size(); ++i) {
-			minFades[i] = std::unique_ptr<int[]>(new int[numFrames]);
-		}
-		{
-			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
-			file.readHeader();
-			auto extra = file.getExtra();
-
-			if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
-				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
-			}
-
-			// 全フレームループ
-			for (int i = 0; i < numFrames; ++i) {
-				int64_t codedSize = file.readFrame(i, memCoded.get());
-				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
-					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
-				}
-				// フレームをインタレ解除
-				DeintY(memDeint.get(), memScanData.get(), scanw, scanw, scanh);
-
-				for (int li = 0; li < (int)minFades.size(); ++li) {
-					// fade値ループ
-					float minResult = FLT_MAX;
-					int minFadeIndex = 0;
-					for (int fi = 0; fi < numFade; ++fi) {
-						float fade = 0.2f * fi;
-						// ロゴを評価
-						float result = EvaluateLogo(memDeint.get(), 255.0f, *logodatas[li], fade, memWork.get(), scanw, scanh);
-						if (result < minResult) {
-							minResult = result;
-							minFadeIndex = fi;
-						}
-					}
-					minFades[li][i] = minFadeIndex;
-				}
-
-				if ((i % 2000) == 0) printf("%d frames\n", i);
-			}
-
-			codec->DecodeEnd();
-		}
-		for (int i = 0; i < (int)minFades.size(); ++i) {
-			delete logodatas[i];
-		}
-		logodatas.clear();
-
-		std::vector<int> validCount(minFades.size());
-		for (int i = 0; i < numFrames; ++i) {
-			for (int li = 0; li < (int)minFades.size(); ++li) {
-				if (minFades[li][i] >= 4) {
-					validCount[li]++;
-				}
-			}
-		}
-		int bestIndex = std::max_element(validCount.begin(), validCount.end()) - validCount.begin();
-		printf("bestIndex = %d (%f)\n", bestIndex, (float)validCount[bestIndex] / numFrames);
-
-		{
-			LogoScan logoscan(scanw, scanh, logUVx, logUVy, thy);
-			{
-				LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
-				file.readHeader();
-				auto extra = file.getExtra();
-
-				if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
-					THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
-				}
-
-				int scanUVw = scanw >> logUVx;
-				int scanUVh = scanh >> logUVy;
-				int offU = scanw * scanh;
-				int offV = offU + scanUVw * scanUVh;
-
-				// 全フレームループ
-				for (int i = 0; i < numFrames; ++i) {
-					int64_t codedSize = file.readFrame(i, memCoded.get());
-					if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
-						THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
-					}
-					// ロゴのあるフレームだけAddFrame
-					if (minFades[bestIndex][i] >= 4) { // TODO: 調整
-						const uint8_t* ptr = memScanData.get();
-						logoscan.AddFrame(ptr, ptr + offU, ptr + offV, scanw, scanUVw);
-					}
-
-					if ((i % 2000) == 0) printf("%d frames\n", i);
-				}
-
-				codec->DecodeEnd();
-			}
-
-			// ロゴ作成
-			logoscan.Normalize(255);
-			logodata = logoscan.GetLogo(true);
-			if (logodata == nullptr) {
-				THROW(RuntimeException, "Insufficient logo frames");
-			}
-		}
-	}
-
-
   void ReMakeLogo()
   {
     // 複数fade値でロゴを評価 //
 		auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
 
     // ロゴを評価用にインタレ解除
-    LogoData deintLogo(scanw, scanh, logUVx, logUVy);
+		LogoDataParam deintLogo(LogoData(scanw, scanh, logUVx, logUVy), scanw, scanh, scanx, scany);
     DeintLogo(deintLogo, *logodata, scanw, scanh);
-		CreateLogoMask(deintLogo, scanw, scanh);
+		deintLogo.CreateLogoMask(0.1f);
 
 		size_t scanDataSize = scanw * scanh * 3 / 2;
 		size_t YSize = scanw * scanh;
@@ -1078,11 +930,13 @@ float GoldenRatioSearch(float x0, float x1, Op& op)
 
 class AMTEraseLogo : public GenericVideoFilter
 {
-	std::unique_ptr<LogoData> logo;
-	std::unique_ptr<LogoData> deintLogo;
+	std::unique_ptr<LogoDataParam> logo;
+	std::unique_ptr<LogoDataParam> deintLogo;
 	LogoHeader header;
-	float thresh;
-	int debug;
+	int mode;
+	float maskratio;
+
+	float logothresh;
 
 	template <typename pixel_t>
 	void Delogo(pixel_t* dst, int w, int h, int pitch, float maxv, const float* A, const float* B, float fade)
@@ -1122,6 +976,62 @@ class AMTEraseLogo : public GenericVideoFilter
 		// フレームをインタレ解除
 		DeintY(memDeint.get(), dstY + off, pitchY, header.w, header.h);
 
+		if (mode == 0) { // 通常
+			// Fade値探索
+			struct SearchOp {
+				float* img;
+				float* work;
+				int w, h;
+				float maxv;
+				float thresh;
+				LogoDataParam& logo;
+				SearchOp(float* img, float* work, float maxv, float thresh, LogoDataParam& logo, int w, int h)
+					: img(img), work(work), maxv(maxv), thresh(thresh), logo(logo), w(w), h(h) { }
+				bool end(float x0, float x1, float x2, float v0, float v1, float v2) {
+					return (x2 - x0) < 0.01f;
+				}
+				float f(float x) {
+					return EvaluateLogo(img, maxv, logo, x, work, w, h);
+				}
+			} op(memDeint.get(), memWork.get(), maxv, logothresh, *deintLogo, header.w, header.h);
+
+			// まず、全体を見る
+			float minResult = FLT_MAX;
+			float minFade = 0;
+			for (int fi = 0; fi < 13; ++fi) {
+				float fade = 0.1f * fi;
+				// ロゴを評価
+				float result = op.f(fade);
+				if (result < minResult) {
+					minResult = result;
+					minFade = fade;
+				}
+			}
+
+			// 最小値付近を細かく見る
+			float optimalFade = GoldenRatioSearch(minFade - 0.1f, minFade + 0.1f, op);
+
+			DebugPrint("Fade: %.1f\n", optimalFade * 100.0f);
+
+			// 最適Fade値でロゴ除去
+			const float *logoAY = logo->GetA(PLANAR_Y);
+			const float *logoBY = logo->GetB(PLANAR_Y);
+			const float *logoAU = logo->GetA(PLANAR_U);
+			const float *logoBU = logo->GetB(PLANAR_U);
+			const float *logoAV = logo->GetA(PLANAR_V);
+			const float *logoBV = logo->GetB(PLANAR_V);
+
+			int wUV = (header.w >> header.logUVx);
+			int hUV = (header.h >> header.logUVy);
+
+			Delogo(dstY + off, header.w, header.h, pitchY, maxv, logoAY, logoBY, optimalFade);
+			Delogo(dstU + offUV, wUV, hUV, pitchUV, maxv, logoAU, logoBU, optimalFade);
+			Delogo(dstV + offUV, wUV, hUV, pitchUV, maxv, logoAV, logoBV, optimalFade);
+
+			return frame;
+		}
+
+		// ロゴフレームデバッグ用
 		float cost0 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 0, memWork.get(), header.w, header.h);
 		float cost1 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 1, memWork.get(), header.w, header.h);
 
@@ -1129,7 +1039,7 @@ class AMTEraseLogo : public GenericVideoFilter
 		sprintf_s(buf, "%s %d vs %d", (cost0 <= cost1) ? "X" : "O", (int)cost0, (int)cost1);
 		DrawText(frame, true, 0, 0, buf);
 
-		if(debug == 1) {
+		if (mode == 2) {
 			const float *logoAY = logo->GetA(PLANAR_Y);
 			const float *logoBY = logo->GetB(PLANAR_Y);
 			const float *logoAU = logo->GetA(PLANAR_U);
@@ -1148,102 +1058,24 @@ class AMTEraseLogo : public GenericVideoFilter
 		return frame;
 	}
 
-	template <typename pixel_t>
-	PVideoFrame GetFrameT_orig(int n, IScriptEnvironment2* env)
-	{
-		size_t YSize = header.w * header.h;
-		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
-		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
-
-		PVideoFrame frame = child->GetFrame(n, env);
-		env->MakeWritable(&frame);
-
-		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
-		pixel_t* dstY = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_Y));
-		pixel_t* dstU = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_U));
-		pixel_t* dstV = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_V));
-
-		int pitchY = frame->GetPitch(PLANAR_Y);
-		int pitchUV = frame->GetPitch(PLANAR_U);
-		int off = header.imgx + header.imgy * pitchY;
-		int offUV = (header.imgx >> header.logUVx) + (header.imgy >> header.logUVy) * pitchUV;
-
-		// フレームをインタレ解除
-		DeintY(memDeint.get(), dstY + off, pitchY, header.w, header.h);
-
-		// Fade値探索
-		struct SearchOp {
-			float* img;
-			float* work;
-			int w, h;
-			float maxv;
-			LogoData& logo;
-			SearchOp(float* img, float* work, float maxv, LogoData& logo, int w, int h)
-				: img(img), work(work), maxv(maxv), logo(logo), w(w), h(h) { }
-			bool end(float x0, float x1, float x2, float v0, float v1, float v2) {
-				return (x2 - x0) < 0.01f;
-			}
-			float f(float x) {
-				return EvaluateLogo(img, maxv, logo, x, work, w, h);
-			}
-		} op(memDeint.get(), memWork.get(), maxv, *deintLogo, header.w, header.h);
-
-		// まず、全体を見る
-		float minResult = FLT_MAX;
-		float minFade = 0;
-		for (int fi = 0; fi < 13; ++fi) {
-			float fade = 0.1f * fi;
-			// ロゴを評価
-			float result = op.f(fade);
-			if (result < minResult) {
-				minResult = result;
-				minFade = fade;
-			}
-		}
-
-		// 最小値付近を細かく見る
-		float optimalFade = GoldenRatioSearch(minFade - 0.1f, minFade + 0.1f, op);
-
-		DebugPrint("Fade: %.1f\n", optimalFade * 100.0f);
-
-		if (optimalFade > thresh) optimalFade = 1.0f;
-		
-		// 最適Fade値でロゴ除去
-		const float *logoAY = logo->GetA(PLANAR_Y);
-		const float *logoBY = logo->GetB(PLANAR_Y);
-		const float *logoAU = logo->GetA(PLANAR_U);
-		const float *logoBU = logo->GetB(PLANAR_U);
-		const float *logoAV = logo->GetA(PLANAR_V);
-		const float *logoBV = logo->GetB(PLANAR_V);
-
-		int wUV = (header.w >> header.logUVx);
-		int hUV = (header.h >> header.logUVy);
-
-		Delogo(dstY + off, header.w, header.h, pitchY, maxv, logoAY, logoBY, optimalFade);
-		Delogo(dstU + offUV, wUV, hUV, pitchUV, maxv, logoAU, logoBU, optimalFade);
-		Delogo(dstV + offUV, wUV, hUV, pitchUV, maxv, logoAV, logoBV, optimalFade);
-
-		return frame;
-	}
-
 public:
-	AMTEraseLogo(PClip clip, const std::string& logoPath, float thresh, int debug, IScriptEnvironment* env)
+	AMTEraseLogo(PClip clip, const std::string& logoPath, int mode, float maskratio, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
-		, thresh(thresh)
-		, debug(debug)
+		, mode(mode)
+		, maskratio(maskratio)
 	{
 		try {
-			logo = LogoData::Load(logoPath, &header);
+			logo = std::unique_ptr<LogoDataParam>(
+				new LogoDataParam(LogoData::Load(logoPath, &header), &header));
 		}
 		catch (IOException&) {
 			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
 		}
 
-		deintLogo = std::unique_ptr<LogoData>(
-			new LogoData(header.w, header.h, header.logUVx, header.logUVy));
+		deintLogo = std::unique_ptr<LogoDataParam>(
+			new LogoDataParam(LogoData(header.w, header.h, header.logUVx, header.logUVy), &header));
 		DeintLogo(*deintLogo, *logo, header.w, header.h);
-		deintLogo->AllocateMask();
-		CreateLogoMask(*deintLogo, header.w, header.h);
+		deintLogo->CreateLogoMask(maskratio);
 	}
 
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env_)
@@ -1268,10 +1100,210 @@ public:
 		return new AMTEraseLogo(
 			args[0].AsClip(),       // source
 			args[1].AsString(),			// logopath
-			(float)args[2].AsFloat(2),			// thresh
-			args[3].AsFloat(0),			// debug
+			args[2].AsInt(0),       // mode
+			(float)args[3].AsFloat(10), // maskratio
 			env
 		);
+	}
+};
+
+class LogoFrame
+{
+	int numLogos;
+	std::unique_ptr<LogoDataParam[]> logoArr;
+	std::unique_ptr<LogoDataParam[]> deintArr;
+
+	int maxYSize;
+	int numFrames;
+	int framesPerSec;
+
+	struct EvalResult {
+		float cost0, cost1;
+	};
+	std::unique_ptr<EvalResult[]> evalResults;
+
+	int bestLogo;
+	float logoRatio;
+
+	template <typename pixel_t>
+	void ScanFrame(PVideoFrame& frame, float* memDeint, float* memWork, float maxv, EvalResult* outResult)
+	{
+		const pixel_t* dstY = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_Y));
+		const pixel_t* dstU = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_U));
+		const pixel_t* dstV = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_V));
+
+		int pitchY = frame->GetPitch(PLANAR_Y);
+		int pitchUV = frame->GetPitch(PLANAR_U);
+
+		for (int i = 0; i < numLogos; ++i) {
+			LogoDataParam& logo = deintArr[i];
+			if (logo.isValid() == false) {
+				outResult[i].cost0 = 0;
+				outResult[i].cost1 = 1;
+				continue;
+			}
+
+			int off = logo.getImgX() + logo.getImgY() * pitchY;
+			int offUV = (logo.getImgX() >> logo.getLogUVx()) + (logo.getImgY() >> logo.getLogUVy()) * pitchUV;
+
+			// フレームをインタレ解除
+			DeintY(memDeint, dstY + off, pitchY, logo.getWidth(), logo.getHeight());
+
+			// ロゴ評価
+			outResult[i].cost0 = EvaluateLogo(memDeint, maxv, logo, 0, memWork, logo.getWidth(), logo.getHeight());
+			outResult[i].cost1 = EvaluateLogo(memDeint, maxv, logo, 1, memWork, logo.getWidth(), logo.getHeight());
+		}
+	}
+
+	template <typename pixel_t>
+	void IterateFrames(PClip clip, IScriptEnvironment2* env)
+	{
+		auto memDeint = std::unique_ptr<float[]>(new float[maxYSize]);
+		auto memWork = std::unique_ptr<float[]>(new float[maxYSize]);
+		VideoInfo vi = clip->GetVideoInfo();
+		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
+		evalResults = std::unique_ptr<EvalResult[]>(new EvalResult[vi.num_frames]);
+		for (int n = 0; n < vi.num_frames; ++n) {
+			PVideoFrame frame = clip->GetFrame(n, env);
+			ScanFrame<pixel_t>(frame, memDeint.get(), memWork.get(), maxv, &evalResults[n * numLogos]);
+		}
+		numFrames = vi.num_frames;
+		framesPerSec = (int)std::round((float)vi.fps_numerator / vi.fps_denominator);
+	}
+
+public:
+	LogoFrame(const std::vector<std::string>& logofiles, float maskratio)
+	{
+		numLogos = (int)logofiles.size();
+		logoArr = std::unique_ptr<LogoDataParam[]>(new LogoDataParam[logofiles.size()]);
+		deintArr = std::unique_ptr<LogoDataParam[]>(new LogoDataParam[logofiles.size()]);
+
+		maxYSize = 0;
+		for (int i = 0; i < (int)logofiles.size(); ++i) {
+			try {
+				LogoHeader header;
+				logoArr[i] = LogoDataParam(LogoData::Load(logofiles[i], &header), &header);
+				deintArr[i] = LogoDataParam(LogoData(header.w, header.h, header.logUVx, header.logUVy), &header);
+				DeintLogo(deintArr[i], logoArr[i], header.w, header.h);
+				deintArr[i].CreateLogoMask(maskratio);
+
+				int YSize = header.w * header.h;
+				maxYSize = std::max(maxYSize, YSize);
+			}
+			catch (IOException&) {
+				// 読み込みエラーは無視
+			}
+		}
+	}
+
+	void scanFrames(PClip clip, IScriptEnvironment2* env)
+	{
+		VideoInfo vi = clip->GetVideoInfo();
+		int pixelSize = vi.ComponentSize();
+		switch (pixelSize) {
+		case 1:
+			return IterateFrames<uint8_t>(clip, env);
+		case 2:
+			return IterateFrames<uint16_t>(clip, env);
+		default:
+			env->ThrowError("[LogoFrame] Unsupported pixel format");
+		}
+	}
+
+	void writeResult(const std::string& outpath)
+	{
+		const int radius = 5; // 10秒ウィンドウで移動平均
+		int windowFrames = framesPerSec * radius;
+		// 検出フレーム数の合計
+		std::vector<int> logoFrames(numLogos);
+		for (int n = 0; n < numFrames; ++n) {
+			for (int i = 0; i < numLogos; ++i) {
+				auto& r = evalResults[n * numLogos + i];
+				logoFrames[i] += (r.cost1 < r.cost0);
+			}
+		}
+		bestLogo = (int)(std::max_element(logoFrames.begin(), logoFrames.end()) - logoFrames.begin());
+		auto calcScore = [](EvalResult r) {
+			return (r.cost1 < r.cost0) * 2;
+		};
+		std::vector<int> frameScores(numFrames + windowFrames * 2);
+		// 両端を1にする
+		std::fill_n(frameScores.begin(), windowFrames, 1);
+		std::fill_n(frameScores.end() - windowFrames, windowFrames, 1);
+		// スコアを入れる
+		for (int n = 0; n < numFrames; ++n) {
+			frameScores[windowFrames + n] = calcScore(evalResults[n * numLogos + bestLogo]);
+		}
+		// 初期和を計算
+		int sum = std::accumulate(frameScores.begin(), frameScores.begin() + windowFrames * 2, 0);
+		// 移動平均を計算
+		std::vector<bool> avgScores(numFrames);
+		for (int n = 0; n < numFrames; ++n) {
+			sum += frameScores[windowFrames * 2 + n];
+			avgScores[n] = (sum >= windowFrames * 2);
+			sum -= frameScores[n];
+		}
+		// ロゴ区間を出力
+		std::vector<int> logosec;
+		bool prevLogo = false;
+		for (int n = 0; n < numFrames; ++n) {
+			int idx = n;
+			if (prevLogo == false && avgScores[n]) {
+				// ロゴ開始
+				if (frameScores[windowFrames + n]) {
+					// 既にロゴがあるのでないところまで遡る
+					for (; frameScores[windowFrames + idx]; --idx);
+					logosec.push_back(idx + 1);
+				}
+				else {
+					// まだロゴがないのであるところまで辿る
+					for (; !frameScores[windowFrames + idx]; ++idx);
+					logosec.push_back(idx);
+				}
+				prevLogo = true;
+				n += windowFrames;
+			}
+			else if (prevLogo && avgScores[n] == false) {
+				// ロゴ終了
+				if (frameScores[windowFrames + n]) {
+					// まだロゴがあるのでないところまで辿る
+					for (; frameScores[windowFrames + idx]; ++idx);
+					logosec.push_back(idx);
+				}
+				else {
+					// 既にロゴがないのであるところまで遡る
+					for (; !frameScores[windowFrames + idx]; --idx);
+					logosec.push_back(idx + 1);
+				}
+				prevLogo = false;
+				n += windowFrames;
+			}
+		}
+		if (prevLogo) {
+			// ありで終わったら最後の区間を出力
+			logosec.push_back(numFrames);
+		}
+
+		std::ofstream os(outpath, std::ios::out);
+		int numLogoFrames = 0;
+		os << std::setw(5) << std::right;
+		for (int i = 0; i < (int)logosec.size(); i += 2) {
+			int start = logosec[i];
+			int end = logosec[i + 1];
+			numLogoFrames += end - start;
+			os << start << " S 0 ALL " << start << " " << start << std::endl;
+			os << end << " E 0 ALL " << end << " " << end << std::endl;
+		}
+		os.close();
+		logoRatio = (float)numLogoFrames / numFrames;
+	}
+
+	int getBestLogo() const {
+		return bestLogo;
+	}
+
+	float getLogoRatio() const {
+		return logoRatio;
 	}
 };
 

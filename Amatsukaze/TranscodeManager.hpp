@@ -512,7 +512,7 @@ private:
 			env_.get());
 
 		if (logopath.size() > 0) {
-			clip = new logo::AMTEraseLogo(clip, logopath, 3, 0, env_.get());
+			clip = new logo::AMTEraseLogo(clip, logopath, 0, 10, env_.get());
 		}
 
 		return trimInput(clip, fileId, encoderId, outFrames, reformInfo);

@@ -35,13 +35,12 @@ struct LogoHeader {
 
 class LogoData
 {
+protected:
 	int w, h;
 	int logUVx, logUVy;
 	std::unique_ptr<float[]> data;
 	float *aY, *aU, *aV;
 	float *bY, *bU, *bV;
-	std::unique_ptr<uint8_t[]> mask;
-	uint8_t *maskY, *maskU, *maskV;
 
 	static void ToYC48Y(float& y) {
 		y = float(((int(y * 255) * 1197) >> 6) - 299);
@@ -184,6 +183,8 @@ class LogoData
 	}
 
 public:
+	LogoData() { }
+
 	LogoData(int w, int h, int logUVx, int logUVy)
 		: w(w), h(h), logUVx(logUVx), logUVy(logUVy)
 	{
@@ -198,15 +199,11 @@ public:
 		bV = aV + wUV * hUV;
 	}
 
-	void AllocateMask()
-	{
-		int wUV = w >> logUVx;
-		int hUV = h >> logUVy;
-		mask = std::unique_ptr<uint8_t[]>(new uint8_t[w*h + wUV*hUV * 2]);
-		maskY = mask.get();
-		maskU = maskY + w * h;
-		maskV = maskU + wUV * hUV;
-	}
+	bool isValid() const { return (data != nullptr); }
+	int getWidth() const { return w; }
+	int getHeight() const { return h; }
+	int getLogUVx() const { return logUVx; }
+	int getLogUVy() const { return logUVy; }
 
 	float* GetA(int plane) {
 		switch (plane) {
@@ -222,15 +219,6 @@ public:
 		case PLANAR_Y: return bY;
 		case PLANAR_U: return bU;
 		case PLANAR_V: return bV;
-		}
-		return nullptr;
-	}
-
-	uint8_t* GetMask(int plane) {
-		switch (plane) {
-		case PLANAR_Y: return maskY;
-		case PLANAR_U: return maskU;
-		case PLANAR_V: return maskV;
 		}
 		return nullptr;
 	}
@@ -253,7 +241,7 @@ public:
 		WriteExtendedLogo(file, header);
 	}
 
-	static std::unique_ptr<LogoData> Load(const std::string& filepath, LogoHeader* header)
+	static LogoData Load(const std::string& filepath, LogoHeader* header)
 	{
 		File file(filepath, "rb");
 
@@ -266,14 +254,13 @@ public:
 
 		// TODO: magic,versionチェック
 
-		std::unique_ptr<LogoData> logo = std::unique_ptr<LogoData>(
-			new LogoData(header->w, header->h, header->logUVx, header->logUVy));
+		LogoData logo(header->w, header->h, header->logUVx, header->logUVy);
 
 		int wUV = header->w >> header->logUVx;
 		int hUV = header->h >> header->logUVy;
 		size_t sz = (header->w * header->h + wUV * hUV * 2) * 2;
 
-		file.read(MemoryChunk((uint8_t*)logo->data.get(), sz * sizeof(float)));
+		file.read(MemoryChunk((uint8_t*)logo.data.get(), sz * sizeof(float)));
 
 		return logo;
 	}
