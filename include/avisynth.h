@@ -147,6 +147,7 @@ class SINGLE_INHERITANCE PClip;
 class SINGLE_INHERITANCE PVideoFrame;
 class IScriptEnvironment;
 class SINGLE_INHERITANCE AVSValue;
+class SINGLE_INHERITANCE AVSMapValue;
 
 
 /*
@@ -326,8 +327,24 @@ struct AVS_Linkage {
   void    (VideoInfo::*reserved2[32])();
 /**********************************************************************/
   // AviSynth+CUDA additions
-  bool    (VideoFrameBuffer::*IsCUDA)() const;
-  int     (VideoFrameBuffer::*GetDeviceIndex)() const;
+  void                (VideoFrame::*SetProps)(const char* key, const AVSMapValue& value);
+  const AVSMapValue*  (VideoFrame::*GetProps)(const char* key) const;
+
+  // class AVSMapValue
+  void            (AVSMapValue::*AVSMapValue_CONSTRUCTOR0)();
+  void            (AVSMapValue::*AVSMapValue_CONSTRUCTOR1)(PVideoFrame& frame);
+  void            (AVSMapValue::*AVSMapValue_CONSTRUCTOR2)(__int64 i);
+  void            (AVSMapValue::*AVSMapValue_CONSTRUCTOR3)(double d);
+  void            (AVSMapValue::*AVSMapValue_CONSTRUCTOR4)(const AVSMapValue& other);
+  void            (AVSMapValue::*AVSMapValue_DESTRUCTOR)();
+  AVSMapValue&    (AVSMapValue::*AVSMapValue_OPERATOR_ASSIGN)(const AVSMapValue& v);
+  bool            (AVSMapValue::*AVSMapValue_IsFrame)() const;
+  bool            (AVSMapValue::*AVSMapValue_IsInt)() const;
+  bool            (AVSMapValue::*AVSMapValue_IsFloat)() const;
+  PVideoFrame     (AVSMapValue::*AVSMapValue_GetFrame)() const;
+  __int64         (AVSMapValue::*AVSMapValue_GetInt)() const;
+  double          (AVSMapValue::*AVSMapValue_GetFloat)() const;
+  // end class AVSValue
   /**********************************************************************/
 };
 
@@ -774,15 +791,14 @@ public:
   int GetSequenceNumber() const AVS_BakedCode( return AVS_LinkCall(GetSequenceNumber)() )
   int GetRefcount() const AVS_BakedCode( return AVS_LinkCall(GetRefcount)() )
 
-  bool IsCUDA() const AVS_BakedCode(return AVS_LinkCallOptDefault(IsCUDA, false))
-  int GetDeviceIndex() const AVS_BakedCode(return AVS_LinkCallOptDefault(GetDeviceIndex, 0))
-
 // Ensure VideoFrameBuffer cannot be publicly assigned
 private:
     VideoFrameBuffer& operator=(const VideoFrameBuffer&);
 
 }; // end class VideoFrameBuffer
 
+
+class AVSMap;
 
 // VideoFrame holds a "window" into a VideoFrameBuffer.  Operator new
 // is overloaded to recycle class instances.
@@ -800,17 +816,20 @@ class VideoFrame {
   // AVS+ extension, does not break plugins if appended here
   int offsetA, pitchA, row_sizeA; // 4th alpha plane support, pitch and row_size is 0 is none
 
+  AVSMap* avsmap;
+
   friend class PVideoFrame;
   void AddRef();
   void Release();
 
   friend class ScriptEnvironment;
   friend class Cache;
+  friend class AVSMapValue;
 
-  VideoFrame(VideoFrameBuffer* _vfb, int _offset, int _pitch, int _row_size, int _height);
-  VideoFrame(VideoFrameBuffer* _vfb, int _offset, int _pitch, int _row_size, int _height, int _offsetU, int _offsetV, int _pitchUV, int _row_sizeUV, int _heightUV);
+  VideoFrame(VideoFrameBuffer* _vfb, AVSMap* avsmap, int _offset, int _pitch, int _row_size, int _height);
+  VideoFrame(VideoFrameBuffer* _vfb, AVSMap* avsmap, int _offset, int _pitch, int _row_size, int _height, int _offsetU, int _offsetV, int _pitchUV, int _row_sizeUV, int _heightUV);
   // for Alpha
-  VideoFrame(VideoFrameBuffer* _vfb, int _offset, int _pitch, int _row_size, int _height, int _offsetU, int _offsetV, int _pitchUV, int _row_sizeUV, int _heightUV, int _offsetA);
+  VideoFrame(VideoFrameBuffer* _vfb, AVSMap* avsmap, int _offset, int _pitch, int _row_size, int _height, int _offsetU, int _offsetV, int _pitchUV, int _row_sizeUV, int _heightUV, int _offsetA);
 
   void* operator new(size_t size);
 // TESTME: OFFSET U/V may be switched to what could be expected from AVI standard!
@@ -833,7 +852,8 @@ public:
   bool IsWritable() const AVS_BakedCode( return AVS_LinkCall(IsWritable)() )
   BYTE* GetWritePtr(int plane=0) const AVS_BakedCode( return AVS_LinkCall(VFGetWritePtr)(plane) )
 
-  bool IsCUDA() const { return vfb->IsCUDA(); }
+  void SetProps(const char* key, const AVSMapValue& value) AVS_BakedCode(return AVS_LinkCall(SetProps)(key, value))
+  const AVSMapValue* GetProps(const char* key) const AVS_BakedCode(return AVS_LinkCall(GetProps)(key))
 
   ~VideoFrame() AVS_BakedCode( AVS_LinkCall(VideoFrame_DESTRUCTOR)() )
 #ifdef BUILDING_AVSCORE
@@ -918,6 +938,11 @@ enum CachePolicyHint {
   CACHE_IS_CACHE_ANS,
   CACHE_IS_MTGUARD_REQ,
   CACHE_IS_MTGUARD_ANS,
+
+  CACHE_AVSPLUS_CUDA_CONSTANTS = 600,
+
+  CACHE_GET_DEV_TYPE,           // Device types a filter can return
+  CACHE_GET_CHILD_DEV_TYPE,    // Device types a fitler can receive (internal use only)
 
   CACHE_USER_CONSTANTS = 1000       // Smaller values are reserved for the core
 
@@ -1120,13 +1145,6 @@ public:
 #endif
 }; // end class AVSValue
 
-#undef CALL_MEMBER_FN
-#undef AVS_LinkCallOptDefault
-#undef AVS_LinkCallOpt
-#undef AVS_LinkCallV
-#undef AVS_LinkCall
-#undef AVS_BakedCode
-
 // instantiable null filter
 class GenericVideoFilter : public IClip {
 protected:
@@ -1141,7 +1159,54 @@ public:
   int __stdcall SetCacheHints(int cachehints,int frame_range) { return 0; } ;  // We do not pass cache requests upwards, only to the next filter.
 };
 
+class AVSMapValue
+{
+public:
+  AVSMapValue() AVS_BakedCode(AVS_LinkCall(AVSMapValue_CONSTRUCTOR0)())
+	AVSMapValue(PVideoFrame& frame) AVS_BakedCode(AVS_LinkCall(AVSMapValue_CONSTRUCTOR1)(frame))
+  explicit AVSMapValue(__int64 i) AVS_BakedCode( AVS_LinkCall(AVSMapValue_CONSTRUCTOR2)(i) )
+  AVSMapValue(int i) AVS_BakedCode(AVS_LinkCall(AVSMapValue_CONSTRUCTOR2)(i))
+  AVSMapValue(double d) AVS_BakedCode(AVS_LinkCall(AVSMapValue_CONSTRUCTOR3)(d))
+  AVSMapValue(const AVSMapValue& other) AVS_BakedCode(AVS_LinkCall(AVSMapValue_CONSTRUCTOR4)(other))
+  ~AVSMapValue() AVS_BakedCode(AVS_LinkCall(AVSMapValue_DESTRUCTOR)())
+  AVSMapValue& operator=(const AVSMapValue& other) AVS_BakedCode(return AVS_LinkCall(AVSMapValue_OPERATOR_ASSIGN)(other))
 
+    bool IsFrame() const AVS_BakedCode(return AVS_LinkCall(AVSMapValue_IsFrame)())
+    bool IsInt() const AVS_BakedCode(return AVS_LinkCall(AVSMapValue_IsInt)())
+  bool IsFloat() const  AVS_BakedCode(return AVS_LinkCall(AVSMapValue_IsFloat)())
+
+    PVideoFrame GetFrame() const  AVS_BakedCode(return AVS_LinkCall(AVSMapValue_GetFrame)())
+  __int64 GetInt() const  AVS_BakedCode(return AVS_LinkCall(AVSMapValue_GetInt)())
+  double GetFloat() const  AVS_BakedCode(return AVS_LinkCall(AVSMapValue_GetFloat)())
+
+private:
+  int type;
+  union {
+    __int64 i;
+    double d;
+    VideoFrame* frame;
+  } value;
+
+#ifdef BUILDING_AVSCORE
+public:
+  void            CONSTRUCTOR0();
+  void            CONSTRUCTOR1(PVideoFrame& frame);
+  void            CONSTRUCTOR2(__int64 i);
+  void            CONSTRUCTOR3(double d);
+  void            CONSTRUCTOR4(const AVSMapValue& other);
+  void            DESTRUCTOR();
+  AVSMapValue&    OPERATOR_ASSIGN(const AVSMapValue& v);
+
+  void Set(const AVSMapValue& other);
+#endif
+}; // end class AVSMapValue
+
+#undef CALL_MEMBER_FN
+#undef AVS_LinkCallOptDefault
+#undef AVS_LinkCallOpt
+#undef AVS_LinkCallV
+#undef AVS_LinkCall
+#undef AVS_BakedCode
 
 
 #include <avs/cpuid.h>
@@ -1253,13 +1318,23 @@ enum AvsEnvProperty
   AEP_THREADPOOL_THREADS = 3,
   AEP_FILTERCHAIN_THREADS = 4,
   AEP_THREAD_ID = 5,
-  AEP_VERSION = 6
+  AEP_VERSION = 6,
+
+  AEP_DEVICE_TYPE = 7,
+  AEP_DEVICE_ID = 8,
+  AEP_DEVICE_INDEX = 9,
+  AEP_NUM_DEVICES = 10
 };
 
 enum AvsAllocType
 {
   AVS_NORMAL_ALLOC  = 1,
   AVS_POOLED_ALLOC  = 2
+};
+
+enum AvsDeviceType {
+  DEV_TYPE_CPU = 1,
+  DEV_TYPE_CUDA = 2,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1318,7 +1393,9 @@ public:
     int new_height, int rel_offsetU, int rel_offsetV, int new_pitchUV, int rel_offsetA) = 0;
 
   // CUDA Support
-  virtual int __stdcall SetMemoryMaxCUDA(int mem, int device_index = 0) = 0;
+  virtual void __stdcall CopyFrameProps(PVideoFrame src, PVideoFrame dst) = 0;
+  virtual void* __stdcall GetDeviceStream() = 0;
+  virtual void __stdcall DeviceAddCallback(void(*cb)(void*), void* user_data) = 0;
 
 }; // end class IScriptEnvironment2
 
