@@ -87,6 +87,9 @@
     <ClInclude Include="TranscodeSetting.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="CMAnalyze.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="AMTDebug.natvis" />

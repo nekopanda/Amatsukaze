@@ -222,6 +222,7 @@ protected:
 	{
 		for (const VideoFrameInfo& frame : frames) {
       videoFrameList_.push_back(frame);
+			videoFrameList_.back().fileOffset = writeHandler.getTotalSize();
 		}
 		psWriter.outVideoPesPacket(clock, frames, packet);
 	}
@@ -259,7 +260,9 @@ protected:
 			info.fileOffset = audioFileSize_;
 			info.waveOffset = waveFileSize_;
 			audioFile_.write(MemoryChunk(frame.codedData, frame.codedDataSize));
-			waveFile_.write(MemoryChunk((uint8_t*)frame.decodedData, frame.decodedDataSize));
+			if (frame.decodedDataSize > 0) {
+				waveFile_.write(MemoryChunk((uint8_t*)frame.decodedData, frame.decodedDataSize));
+			}
 			audioFileSize_ += frame.codedDataSize;
 			waveFileSize_ += frame.decodedDataSize;
 			audioFrameList_.push_back(info);
@@ -415,347 +418,6 @@ struct EncodeFileInfo {
   double targetBitrate;
 };
 
-#if 0
-class AMTVideoEncoder : public AMTObject {
-public:
-	AMTVideoEncoder(
-		AMTContext&ctx,
-		const TranscoderSetting& setting,
-		StreamReformInfo& reformInfo)
-		: AMTObject(ctx)
-		, setting_(setting)
-		, reformInfo_(reformInfo)
-		, thread_(this, 8)
-		, prevFrameIndex_()
-		, pd_data_(NULL)
-	{
-		//
-	}
-
-	~AMTVideoEncoder() {
-		delete[] encoders_; encoders_ = NULL;
-	}
-
-  std::vector<EncodeFileInfo> peform(int videoFileIndex)
-  {
-		videoFileIndex_ = videoFileIndex;
-    numEncoders_ = reformInfo_.getNumEncoders(videoFileIndex);
-    efi_ = std::vector<EncodeFileInfo>(numEncoders_, EncodeFileInfo());
-
-		const auto& format0 = reformInfo_.getFormat(0, videoFileIndex_);
-		int bufsize = format0.videoFormat.width * format0.videoFormat.height * 3;
-
-		// pulldownファイル生成
-		bool pulldown = (setting_.isPulldownEnabled() && reformInfo_.hasRFF());
-		ctx.setCounter("pulldown", (int)pulldown);
-		if (pulldown) {
-			generatePulldownFile(bufsize);
-		}
-
-		// x265でインタレースの場合はフィールドモード
-		bool fieldMode = 
-			(setting_.getEncoder() == ENCODER_X265 &&
-			 format0.videoFormat.progressive == false);
-		ctx.setCounter("fieldmode", (int)fieldMode);
-
-    // ビットレート計算
-    double srcBitrate = getSourceBitrate();
-    ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
-
-    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
-    double targetBitrate = std::numeric_limits<float>::quiet_NaN();
-    if (setting_.isAutoBitrate()) {
-      targetBitrate = setting_.getBitrate().getTargetBitrate(srcFormat, srcBitrate);
-      ctx.info("目標映像ビットレート: %d kbps", (int)targetBitrate);
-    }
-    for (int i = 0; i < numEncoders_; ++i) {
-      efi_[i].srcBitrate = srcBitrate;
-      efi_[i].targetBitrate = targetBitrate;
-    }
-
-		auto getOptions = [&](int pass, int index) {
-			return setting_.getOptions(
-				srcFormat, srcBitrate, pulldown, pass, videoFileIndex_, index);
-		};
-
-    if (setting_.isTwoPass()) {
-      ctx.info("1/2パス エンコード開始");
-      processAllData(fieldMode, bufsize, getOptions, 1);
-      ctx.info("2/2パス エンコード開始");
-      processAllData(fieldMode, bufsize, getOptions, 2);
-    }
-    else {
-      processAllData(fieldMode, bufsize, getOptions, -1);
-    }
-
-    return efi_;
-	}
-
-private:
-	class SpVideoReader : public av::VideoReader {
-	public:
-		SpVideoReader(AMTVideoEncoder* this_)
-			: VideoReader(this_->ctx)
-			, this_(this_)
-		{ }
-  protected:
-    virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) { }
-    virtual void onFrameDecoded(av::Frame& frame) {
-      this_->onFrameDecoded(frame);
-    }
-    virtual void onAudioPacket(AVPacket& packet) { }
-	private:
-		AMTVideoEncoder* this_;
-	};
-
-	class SpDataPumpThread : public DataPumpThread<std::unique_ptr<av::Frame>> {
-	public:
-		SpDataPumpThread(AMTVideoEncoder* this_, int bufferingFrames)
-			: DataPumpThread(bufferingFrames)
-			, this_(this_)
-		{ }
-	protected:
-		virtual void OnDataReceived(std::unique_ptr<av::Frame>&& data) {
-			this_->onFrameReceived(std::move(data));
-		}
-	private:
-		AMTVideoEncoder* this_;
-	};
-
-	const TranscoderSetting& setting_;
-	StreamReformInfo& reformInfo_;
-
-	int videoFileIndex_;
-  int numEncoders_;
-	av::EncodeWriter* encoders_;
-	std::stringstream* pd_data_;
-  std::vector<EncodeFileInfo> efi_;
-	
-	SpDataPumpThread thread_;
-	int prevFrameIndex_;
-
-	RFFExtractor rffExtractor_;
-
-
-  void processAllData(bool fieldMode, int bufsize, std::function<std::string(int,int)> getOptions, int pass)
-  {
-    // 初期化
-    encoders_ = new av::EncodeWriter[numEncoders_];
-    SpVideoReader reader(this);
-
-    for (int i = 0; i < numEncoders_; ++i) {
-      const auto& format = reformInfo_.getFormat(i, videoFileIndex_);
-      std::string args = makeEncoderArgs(
-        setting_.getEncoder(),
-        setting_.getEncoderPath(),
-        getOptions(pass, i),
-        format.videoFormat,
-				setting_.getEncVideoFilePath(videoFileIndex_, i));
-      ctx.info("[エンコーダ開始]");
-      ctx.info(args.c_str());
-      encoders_[i].start(args, format.videoFormat, fieldMode, bufsize);
-    }
-
-    // エンコードスレッド開始
-    thread_.start();
-
-    // エンコード
-    std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-    reader.readAll(intVideoFilePath,
-			setting_.getMpeg2Decoder(), setting_.getH264Decoder(), DECODER_DEFAULT);
-
-    // エンコードスレッドを終了して自分に引き継ぐ
-    thread_.join();
-
-    // 残ったフレームを処理
-    for (int i = 0; i < numEncoders_; ++i) {
-      encoders_[i].finish();
-    }
-
-    // 終了
-		rffExtractor_.clear();
-    delete[] encoders_; encoders_ = NULL;
-  }
-
-	void generatePulldownFile(int bufsize)
-	{
-		// 初期化
-		pd_data_ = new std::stringstream[numEncoders_];
-		SpVideoReader reader(this);
-
-		// エンコードスレッド開始
-		thread_.start();
-
-		// エンコード
-		std::string intVideoFilePath = setting_.getIntVideoFilePath(videoFileIndex_);
-		reader.readAll(intVideoFilePath,
-			setting_.getMpeg2Decoder(), setting_.getH264Decoder(), DECODER_DEFAULT);
-
-		// エンコードスレッドを終了して自分に引き継ぐ
-		thread_.join();
-
-		// ファイル出力
-		for (int i = 0; i < numEncoders_; ++i) {
-			std::string str = pd_data_[i].str();
-			MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
-			File file(setting_.getEncPulldownFilePath(videoFileIndex_, i), "w");
-			file.write(mc);
-		}
-
-		// 終了
-		delete[] pd_data_; pd_data_ = NULL;
-	}
-
-  double getSourceBitrate()
-  {
-    // ビットレート計算
-    VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
-    int64_t srcBytes = 0;
-    double srcDuration = 0;
-    for (int i = 0; i < numEncoders_; ++i) {
-      const auto& info = reformInfo_.getSrcVideoInfo(i, videoFileIndex_);
-      srcBytes += info.first;
-      srcDuration += info.second;
-    }
-    return ((double)srcBytes * 8 / 1000) / ((double)srcDuration / MPEG_CLOCK_HZ);
-  }
-
-	void onFrameDecoded(av::Frame& frame__) {
-		// フレームをコピーしてスレッドに渡す
-		thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
-	}
-
-	const char* toPulldownFlag(PICTURE_TYPE pic, bool progressive) {
-		switch (pic) {
-		case PIC_FRAME: return "SGL";
-		case PIC_FRAME_DOUBLING: return "DBL";
-		case PIC_FRAME_TRIPLING: return "TPL";
-		case PIC_TFF: return progressive ? "PTB" : "TB";
-		case PIC_BFF: return progressive ? "PBT" : "BT";
-		case PIC_TFF_RFF: return "TBT";
-		case PIC_BFF_RFF: return "BTB";
-		default: THROWF(FormatException, "Unknown PICTURE_TYPE %d", pic);
-		}
-		return NULL;
-	}
-
-	static std::unique_ptr<av::Frame> toYV12(std::unique_ptr<av::Frame>&& frame)
-	{
-		if ((*frame)()->format != AV_PIX_FMT_NV12) {
-			return std::move(frame);
-		}
-
-		//fprintf(stderr, "f");
-
-		auto dstframe = std::unique_ptr<av::Frame>(new av::Frame());
-
-		AVFrame* src = (*frame)();
-		AVFrame* dst = (*dstframe)();
-
-		// フレームのプロパティをコピー
-		av_frame_copy_props(dst, src);
-
-		// メモリサイズに関する情報をコピー
-		dst->format = AV_PIX_FMT_YUV420P;
-		dst->width = src->width;
-		dst->height = src->height;
-
-		// メモリ確保
-		if (av_frame_get_buffer(dst, 64) != 0) {
-			THROW(RuntimeException, "failed to allocate frame buffer");
-		}
-
-		// copy luna
-		for (int y = 0; y < dst->height; ++y) {
-			uint8_t* dst0 = dst->data[0] + dst->linesize[0] * y;
-			uint8_t* src0 = src->data[0] + src->linesize[0] * y;
-			memcpy(dst0, src0, dst->width);
-		}
-
-		// extract chroma
-		__m128i shuffle_i = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15);
-		int chroma_h = dst->height / 2;
-		for (int y = 0; y < chroma_h; ++y) {
-			uint8_t* dstU = dst->data[1] + dst->linesize[1] * y;
-			uint8_t* dstV = dst->data[2] + dst->linesize[2] * y;
-			uint8_t* src0 = src->data[1] + src->linesize[1] * y;
-
-			int x = 0;
-			int chroma_w = dst->width / 2;
-			for (; x <= (chroma_w - 8); x += 8) {
-				__m128i s = _mm_loadu_si128((__m128i*)&src0[x * 2]);
-				__m128i ss = _mm_shuffle_epi8(s, shuffle_i);
-				*(int64_t*)&dstU[x] = _mm_extract_epi64(ss, 0);
-				*(int64_t*)&dstV[x] = _mm_extract_epi64(ss, 1);
-			}
-			for (; x < chroma_w; ++x) {
-				dstU[x] = src0[x * 2 + 0];
-				dstV[x] = src0[x * 2 + 1];
-			}
-		}
-
-		return std::move(dstframe);
-	}
-
-	void onFrameReceived(std::unique_ptr<av::Frame>&& frame) {
-
-		// ffmpegがどうptsをwrapするか分からないので入力データの
-		// 下位33bitのみを見る
-		//（26時間以上ある動画だと重複する可能性はあるが無視）
-		int64_t pts = (*frame)()->pts & ((int64_t(1) << 33) - 1);
-
-		int frameIndex = reformInfo_.getVideoFrameIndex(pts, videoFileIndex_);
-		if (frameIndex == -1) {
-			frameIndex = prevFrameIndex_;
-			ctx.incrementCounter("incident");
-			ctx.warn("Unknown PTS frame %lld", pts);
-		}
-		else {
-			prevFrameIndex_ = frameIndex;
-		}
-
-		VideoFrameInfo info = reformInfo_.getVideoFrameInfo(frameIndex);
-		int encoderIndex = reformInfo_.getEncoderIndex(frameIndex);
-
-		if (pd_data_ != NULL) {
-			// pulldownファイル生成中
-			auto& ss = pd_data_[encoderIndex];
-			ss << toPulldownFlag(info.pic, info.progressive) << std::endl;
-			return;
-		}
-
-		auto& encoder = encoders_[encoderIndex];
-
-		// NV12 -> YV12変換
-		auto frameYV12 = toYV12(std::move(frame));
-
-		if (reformInfo_.isVFR() || setting_.isPulldownEnabled()) {
-			// VFRの場合は必ず１枚だけ出力
-			// プルダウンが有効な場合はフラグで処理するので１枚だけ出力
-			encoder.inputFrame(*frameYV12);
-		}
-		else {
-			// RFFフラグ処理
-			rffExtractor_.inputFrame(encoder, std::move(frameYV12), info.pic);
-		}
-
-		reformInfo_.frameEncoded(frameIndex);
-	}
-
-};
-#endif
-
-class AnalyzeSource : public AMTObject {
-public:
-	AnalyzeSource(AMTContext&ctx,
-		const TranscoderSetting& setting,
-		const StreamReformInfo& reformInfo
-	) : AMTObject(ctx)
-	{
-		//
-	}
-};
-
 class AMTFilterSource : public AMTObject {
 public:
 	// Main (+ Post)
@@ -840,16 +502,17 @@ private:
 		const StreamReformInfo& reformInfo,
 		const std::string& logopath)
 	{
+		auto& fmt = reformInfo.getFormat(encoderId, fileId);
 		PClip clip = new av::AMTSource(ctx,
 			setting_.getIntVideoFilePath(fileId),
 			setting_.getWaveFilePath(),
-			reformInfo.getFormat(0, fileId),
+			fmt.videoFormat, fmt.audioFormat[0],
 			reformInfo.getFilterSourceFrames(fileId),
 			reformInfo.getFilterSourceAudioFrames(fileId),
 			env_.get());
 
 		if (logopath.size() > 0) {
-			clip = new logo::AMTEraseLogo(clip, logopath, 3, env_.get());
+			clip = new logo::AMTEraseLogo(clip, logopath, 3, 0, env_.get());
 		}
 
 		return trimInput(clip, fileId, encoderId, outFrames, reformInfo);
@@ -1603,7 +1266,6 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
   auto audioDiffInfo = reformInfo.prepareEncode();
 	audioDiffInfo.printAudioPtsDiff(ctx);
 
-	// CM・ロゴ判定
 
 	auto encoder = std::unique_ptr<AMTFilterVideoEncoder>(new AMTFilterVideoEncoder(ctx, setting, reformInfo));
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
@@ -1611,6 +1273,22 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 	int numVideoFiles = reformInfo.getNumVideoFile();
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
+		// CM・ロゴ判定
+		{
+			auto& fmt = reformInfo.getFormat(0, videoFileIndex);
+
+			// ファイル読み込み情報を保存
+			auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);
+			av::SaveAMTSource(amtsPath,
+				setting.getIntVideoFilePath(videoFileIndex),
+				setting.getWaveFilePath(),
+				fmt.videoFormat, fmt.audioFormat[0],
+				reformInfo.getFilterSourceFrames(videoFileIndex),
+				reformInfo.getFilterSourceAudioFrames(videoFileIndex));
+
+			// 
+		}
+
 		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
 		if (numEncoders == 0) {
 			ctx.warn("numEncoders == 0 ...");

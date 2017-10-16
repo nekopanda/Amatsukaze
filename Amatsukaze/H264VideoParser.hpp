@@ -887,7 +887,7 @@ private:
 		int lastNonZero = 0;
 		int unitStartOrig = 0;
 		int lastNonZeroOrig = 0;
-		for (int i = 2; i < frame.length; ++i) {
+		for (int i = 2; i < (int)frame.length; ++i) {
 			uint8_t inByte = frame.data[i];
 			n3bytes = ((n3bytes & 0xFFFF) << 8) | inByte;
 			if (n3bytes == 0x03) {

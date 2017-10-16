@@ -1,8 +1,9 @@
-#pragma once
+ï»¿#pragma once
 
 #include "TranscodeSetting.hpp"
 #include "logo.h"
 #include "AMTLogo.hpp"
+#include "TextOut.h"
 
 #include <cmath>
 
@@ -10,7 +11,7 @@ namespace logo {
 
 static void approxim_line(int n, double sum_x, double sum_y, double sum_x2, double sum_xy, double& a, double& b)
 {
-  // double‚âfloat‚É‚ÍNaN‚ª’è‹`‚³‚ê‚Ä‚¢‚é‚Ì‚Åƒ[ƒœZ‚Å—áŠO‚Í”­¶‚µ‚È‚¢
+  // doubleã‚„floatã«ã¯NaNãŒå®šç¾©ã•ã‚Œã¦ã„ã‚‹ã®ã§ã‚¼ãƒ­é™¤ç®—ã§ä¾‹å¤–ã¯ç™ºç”Ÿã—ãªã„
 	double temp = (double)n * sum_x2 - sum_x * sum_x;
 	a = ((double)n * sum_xy - sum_x * sum_y) / temp;
 	b = (sum_x2 * sum_y - sum_x * sum_xy) / temp;
@@ -28,7 +29,7 @@ public:
 		, sumFB()
 	{ }
 
-	// ƒsƒNƒZƒ‹‚ÌF‚ğ’Ç‰Á f:‘OŒi b:”wŒi
+	// ãƒ”ã‚¯ã‚»ãƒ«ã®è‰²ã‚’è¿½åŠ  f:å‰æ™¯ b:èƒŒæ™¯
 	void Add(int f, int b)
 	{
 		sumF += f;
@@ -38,7 +39,7 @@ public:
 		sumFB += f * b;
 	}
 
-  // ’l‚ğ0`1‚É³‹K‰»
+  // å€¤ã‚’0ï½1ã«æ­£è¦åŒ–
   void Normalize(int maxv)
   {
     sumF /= (double)maxv;
@@ -50,7 +51,7 @@ public:
 
 	/*====================================================================
 	* 	GetAB_?()
-	* 		‰ñ‹A’¼ü‚ÌŒX‚«‚ÆØ•Ğ‚ğ•Ô‚· X²:‘OŒi Y²:”wŒi
+	* 		å›å¸°ç›´ç·šã®å‚¾ãã¨åˆ‡ç‰‡ã‚’è¿”ã™ Xè»¸:å‰æ™¯ Yè»¸:èƒŒæ™¯
 	*===================================================================*/
 	bool GetAB(float& A, float& B, int data_count) const
   {
@@ -59,9 +60,9 @@ public:
     approxim_line(data_count, sumF, sumB, sumF2, sumFB, A1, B1);
     approxim_line(data_count, sumB, sumF, sumB2, sumFB, A2, B2);
 
-    // XY“ü‚ê‘Ö‚¦‚½‚à‚Ì—¼•û‚Å•½‹Ï‚ğæ‚é
-		A = (float)((A1 + (1 / A2)) / 2);   // ŒX‚«‚ğ•½‹Ï
-		B = (float)((B1 + (-B2 / A2)) / 2); // Ø•Ğ‚à•½‹Ï
+    // XYå…¥ã‚Œæ›¿ãˆãŸã‚‚ã®ä¸¡æ–¹ã§å¹³å‡ã‚’å–ã‚‹
+		A = (float)((A1 + (1 / A2)) / 2);   // å‚¾ãã‚’å¹³å‡
+		B = (float)((B1 + (-B2 / A2)) / 2); // åˆ‡ç‰‡ã‚‚å¹³å‡
 
     if (std::isnan(A) || std::isnan(B) || std::isinf(A) || std::isinf(B) || A == 0)
       return false;
@@ -84,7 +85,7 @@ class LogoScan
 	std::unique_ptr<LogoColor[]> logoY, logoU, logoV;
 
 	/*--------------------------------------------------------------------
-	*	^’†‚ç‚Ö‚ñ‚ğ•½‹Ï
+	*	çœŸä¸­ã‚‰ã¸ã‚“ã‚’å¹³å‡
 	*-------------------------------------------------------------------*/
 	int med_average(const std::vector<short>& s)
 	{
@@ -93,7 +94,7 @@ class LogoScan
 
 		int n = (int)s.size();
 
-		// ^’†‚ç‚Ö‚ñ‚ğ•½‹Ï
+		// çœŸä¸­ã‚‰ã¸ã‚“ã‚’å¹³å‡
 		for (int i = n / 4; i < n - (n / 4); i++, nn++)
 			t += s[i];
 
@@ -129,7 +130,7 @@ class LogoScan
 	}
 
 public:
-	// thy: ƒIƒŠƒWƒiƒ‹‚¾‚ÆƒfƒtƒHƒ‹ƒg30*8=240i8bit‚¾‚Æ12‚­‚ç‚¢Hj
+	// thy: ã‚ªãƒªã‚¸ãƒŠãƒ«ã ã¨ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ30*8=240ï¼ˆ8bitã ã¨12ãã‚‰ã„ï¼Ÿï¼‰
 	LogoScan(int scanw, int scanh, int logUVx, int logUVy, int thy)
 		: scanw(scanw)
 		, scanh(scanh)
@@ -148,7 +149,7 @@ public:
 		int scanUVw = scanw >> logUVx;
 		int scanUVh = scanh >> logUVy;
 
-		// 8bit‚È‚Ì‚Å255
+		// 8bitãªã®ã§255
 		for (int y = 0; y < scanh; ++y) {
 			for (int x = 0; x < scanw; ++x) {
 				logoY[x + y * scanw].Normalize(mavx);
@@ -162,7 +163,7 @@ public:
 		}
 	}
 
-	std::unique_ptr<LogoData> GetLogo() const
+	std::unique_ptr<LogoData> GetLogo(bool clean) const
 	{
 		int scanUVw = scanw >> logUVx;
 		int scanUVh = scanh >> logUVy;
@@ -188,40 +189,42 @@ public:
       }
     }
 
-		// ƒƒS‚ğãY—í‚É‚·‚é
-		int sizeY = scanw * scanh;
-		auto dist = std::unique_ptr<float[]>(new float[sizeY]());
-		for (int y = 0; y < scanh; ++y) {
-			for (int x = 0; x < scanw; ++x) {
-				int off = x + y * scanw;
-				int offUV = (x >> logUVx) + (y >> logUVy) * scanUVw;
-				dist[off] = calcDist(aY[off], bY[off]) + 
-					calcDist(aU[offUV], bU[offUV]) +
-					calcDist(aV[offUV], bV[offUV]);
+		if (clean) {
+			// ãƒ­ã‚´ã‚’ç¶ºéº—ã«ã™ã‚‹
+			int sizeY = scanw * scanh;
+			auto dist = std::unique_ptr<float[]>(new float[sizeY]());
+			for (int y = 0; y < scanh; ++y) {
+				for (int x = 0; x < scanw; ++x) {
+					int off = x + y * scanw;
+					int offUV = (x >> logUVx) + (y >> logUVy) * scanUVw;
+					dist[off] = calcDist(aY[off], bY[off]) +
+						calcDist(aU[offUV], bU[offUV]) +
+						calcDist(aV[offUV], bV[offUV]);
 
-				// ’l‚ª¬‚³‚·‚¬‚Ä•ª‚©‚è‚É‚­‚¢‚Ì‚Å‘å‚«‚­‚µ‚Ä‚ ‚°‚é
-				dist[off] *= 1000;
+					// å€¤ãŒå°ã•ã™ãã¦åˆ†ã‹ã‚Šã«ãã„ã®ã§å¤§ããã—ã¦ã‚ã’ã‚‹
+					dist[off] *= 1000;
+				}
 			}
-		}
 
-		// maxƒtƒBƒ‹ƒ^‚ğŠ|‚¯‚é
-		auto work = std::unique_ptr<float[]>(new float[sizeY]);
-		maxfilter(dist.get(), work.get(), scanw, scanh);
-		maxfilter(dist.get(), work.get(), scanw, scanh);
-		maxfilter(dist.get(), work.get(), scanw, scanh);
+			// maxãƒ•ã‚£ãƒ«ã‚¿ã‚’æ›ã‘ã‚‹
+			auto work = std::unique_ptr<float[]>(new float[sizeY]);
+			maxfilter(dist.get(), work.get(), scanw, scanh);
+			maxfilter(dist.get(), work.get(), scanw, scanh);
+			maxfilter(dist.get(), work.get(), scanw, scanh);
 
-		// ¬‚³‚¢‚Æ‚±‚ë‚Íƒ[ƒ‚É‚·‚é
-		for (int y = 0; y < scanh; ++y) {
-			for (int x = 0; x < scanw; ++x) {
-				int off = x + y * scanw;
-				int offUV = (x >> logUVx) + (y >> logUVy) * scanUVw;
-				if (dist[off] < 0.3f) {
-					aY[off] = 1;
-					bY[off] = 0;
-					aU[offUV] = 1;
-					bU[offUV] = 0;
-					aV[offUV] = 1;
-					bV[offUV] = 0;
+			// å°ã•ã„ã¨ã“ã‚ã¯ã‚¼ãƒ­ã«ã™ã‚‹
+			for (int y = 0; y < scanh; ++y) {
+				for (int x = 0; x < scanw; ++x) {
+					int off = x + y * scanw;
+					int offUV = (x >> logUVx) + (y >> logUVy) * scanUVw;
+					if (dist[off] < 0.3f) {
+						aY[off] = 1;
+						bY[off] = 0;
+						aU[offUV] = 1;
+						bU[offUV] = 0;
+						aV[offUV] = 1;
+						bV[offUV] = 0;
+					}
 				}
 			}
 		}
@@ -274,7 +277,7 @@ public:
 		tmpV.reserve((scanUVw + scanUVh - 1) * 2);
 
 		/*--------------------------------------------------------------------
-		*	”wŒiFŒvZ
+		*	èƒŒæ™¯è‰²è¨ˆç®—
 		*-------------------------------------------------------------------*/
 
 		for (int x = 0; x < scanw; ++x) {
@@ -298,17 +301,17 @@ public:
 			tmpV.push_back(srcV[scanUVw - 1 + y * pitchUV]);
 		}
 
-		// Å¬‚ÆÅ‘å‚ªè‡’lˆÈã—£‚ê‚Ä‚¢‚éê‡A’PˆêF‚Å‚È‚¢‚Æ”»’f
+		// æœ€å°ã¨æœ€å¤§ãŒé–¾å€¤ä»¥ä¸Šé›¢ã‚Œã¦ã„ã‚‹å ´åˆã€å˜ä¸€è‰²ã§ãªã„ã¨åˆ¤æ–­
 		std::sort(tmpY.begin(), tmpY.end());
-		if (abs(tmpY.front() - tmpY.back()) > thy) { // ƒIƒŠƒWƒiƒ‹‚¾‚Æ thy * 8
+		if (abs(tmpY.front() - tmpY.back()) > thy) { // ã‚ªãƒªã‚¸ãƒŠãƒ«ã ã¨ thy * 8
 			return false;
 		}
 		std::sort(tmpU.begin(), tmpU.end());
-		if (abs(tmpU.front() - tmpU.back()) > thy) { // ƒIƒŠƒWƒiƒ‹‚¾‚Æ thy * 8
+		if (abs(tmpU.front() - tmpU.back()) > thy) { // ã‚ªãƒªã‚¸ãƒŠãƒ«ã ã¨ thy * 8
 			return false;
 		}
 		std::sort(tmpV.begin(), tmpV.end());
-		if (abs(tmpV.front() - tmpV.back()) > thy) { // ƒIƒŠƒWƒiƒ‹‚¾‚Æ thy * 8
+		if (abs(tmpV.front() - tmpV.back()) > thy) { // ã‚ªãƒªã‚¸ãƒŠãƒ«ã ã¨ thy * 8
 			return false;
 		}
 
@@ -316,7 +319,7 @@ public:
 		int bgU = med_average(tmpU);
 		int bgV = med_average(tmpV);
 
-		// —LŒøƒtƒŒ[ƒ€‚ğ’Ç‰Á
+		// æœ‰åŠ¹ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’è¿½åŠ 
 		AddScanFrame(srcY, srcU, srcV, pitchY, pitchUV, bgY, bgU, bgV);
 
 		return true;
@@ -351,6 +354,7 @@ public:
 		if (avcodec_parameters_to_context(codecCtx(), videoStream->codecpar) != 0) {
 			THROW(FormatException, "avcodec_parameters_to_context failed");
 		}
+		codecCtx()->thread_count = 4;
 		if (avcodec_open2(codecCtx(), pCodec, NULL) != 0) {
 			THROW(FormatException, "avcodec_open2 failed");
 		}
@@ -391,7 +395,7 @@ protected:
 	virtual bool onFrame(AVFrame* frame) { return true; };
 };
 
-static void CreateLogoMask(LogoData& dst, int w, int h)
+static int CreateLogoMask(LogoData& dst, int w, int h)
 {
 	float *dstAY = dst.GetA(PLANAR_Y);
 	float *dstBY = dst.GetB(PLANAR_Y);
@@ -403,38 +407,51 @@ static void CreateLogoMask(LogoData& dst, int w, int h)
 	uint8_t* dstMask = dst.GetMask(PLANAR_Y);
 	memset(dstMask, 0, YSize);
 
+	int cnt = 0;
+
 	for (int y = 0; y < h; ++y) {
 		for (int x = 0; x < w; ++x) {
-			// xØ•ĞA‚Â‚Ü‚èA”wŒi‚Ì‹P“x’lƒ[ƒ‚Ì‚Æ‚«‚ÌƒƒS‚Ì‹P“x’l‚ğæ“¾
+			// xåˆ‡ç‰‡ã€ã¤ã¾ã‚Šã€èƒŒæ™¯ã®è¼åº¦å€¤ã‚¼ãƒ­ã®ã¨ãã®ãƒ­ã‚´ã®è¼åº¦å€¤ã‚’å–å¾—
 			float a = dstAY[x + y * w];
 			float b = dstBY[x + y * w];
-			memWork[x + y * w] = -b / a;
+			float c = memWork[x + y * w] = -b / a;
+			if (c > 0.05f) ++cnt;
 		}
 	}
 
-	// 3x3 Prewitt
-	for (int y = 1; y < h - 1; ++y) {
-		for (int x = 1; x < w - 1; ++x) {
-			const float* ptr = &memWork[x + y * w];
-			float y_sum_h = 0, y_sum_v = 0;
+	// ãƒã‚¹ã‚¯ã•ã‚ŒãŸéƒ¨åˆ†å°‘ãªã™ããŸã‚‰ã—ãã„å€¤ã‚’ä¸‹ã’ã¦ä½œã‚Šç›´ã™
+	for (float thresh = 0.25f; thresh > 0.01f; thresh = thresh * 0.8f) {
+		int maskcnt = 0;
+		// 3x3 Prewitt
+		for (int y = 1; y < h - 1; ++y) {
+			for (int x = 1; x < w - 1; ++x) {
+				const float* ptr = &memWork[x + y * w];
+				float y_sum_h = 0, y_sum_v = 0;
 
-			y_sum_h -= ptr[-1 + w * -1];
-			y_sum_h -= ptr[-1];
-			y_sum_h -= ptr[-1 + w * 1];
-			y_sum_h += ptr[1 + w * -1];
-			y_sum_h += ptr[1];
-			y_sum_h += ptr[1 + w * 1];
-			y_sum_v -= ptr[-1 + w * -1];
-			y_sum_v -= ptr[0 + w * -1];
-			y_sum_v -= ptr[1 + w * -1];
-			y_sum_v += ptr[-1 + w * 1];
-			y_sum_v += ptr[0 + w * 1];
-			y_sum_v += ptr[1 + w * 1];
+				y_sum_h -= ptr[-1 + w * -1];
+				y_sum_h -= ptr[-1];
+				y_sum_h -= ptr[-1 + w * 1];
+				y_sum_h += ptr[1 + w * -1];
+				y_sum_h += ptr[1];
+				y_sum_h += ptr[1 + w * 1];
+				y_sum_v -= ptr[-1 + w * -1];
+				y_sum_v -= ptr[0 + w * -1];
+				y_sum_v -= ptr[1 + w * -1];
+				y_sum_v += ptr[-1 + w * 1];
+				y_sum_v += ptr[0 + w * 1];
+				y_sum_v += ptr[1 + w * 1];
 
-			float val = std::sqrtf(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
-			dstMask[x + y * w] = (val > 0.25f);
+				float val = std::sqrtf(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
+				maskcnt += dstMask[x + y * w] = (val > thresh);
+			}
+		}
+		if (maskcnt >= (h - 1)*(w - 1)*0.1f) {
+			printf("thresh = %f OK\n", thresh);
+			break;
 		}
 	}
+
+	return cnt;
 }
 
 static void DeintLogo(LogoData& dst, LogoData& src, int w, int h)
@@ -487,12 +504,12 @@ void DeintY(float* dst, const pixel_t* src, int srcPitch, int w, int h)
 
 static float EvaluateLogo(const float *src,float maxv, LogoData& logo, float fade, float* work, int w, int h)
 {
-	// ƒƒS‚ğ•]‰¿ //
+	// ãƒ­ã‚´ã‚’è©•ä¾¡ //
 	const float *logoAY = logo.GetA(PLANAR_Y);
 	const float *logoBY = logo.GetB(PLANAR_Y);
 	const uint8_t* mask = logo.GetMask(PLANAR_Y);
 
-	// ƒƒS‚ğœ‹
+	// ãƒ­ã‚´ã‚’é™¤å»
 	for (int y = 0; y < h; ++y) {
 		for (int x = 0; x < w; ++x) {
 			float srcv = src[x + y * w];
@@ -503,11 +520,11 @@ static float EvaluateLogo(const float *src,float maxv, LogoData& logo, float fad
 		}
 	}
 
-	// ƒGƒbƒW•]‰¿
+	// ã‚¨ãƒƒã‚¸è©•ä¾¡
 	float result = 0;
 	for (int y = 2; y < h - 2; ++y) {
 		for (int x = 2; x < w - 2; ++x) {
-			if (mask[x + y * w]) { // ƒƒS—ÖŠs•”‚Ì‚İ
+			if (mask[x + y * w]) { // ãƒ­ã‚´è¼ªéƒ­éƒ¨ã®ã¿
 				float y_sum_h = 0, y_sum_v = 0;
 
 				// 5x5 Prewitt filter
@@ -560,7 +577,8 @@ static float EvaluateLogo(const float *src,float maxv, LogoData& logo, float fad
 				y_sum_v += work[x + 2 + (y + 2) * w];
 
 				float val = std::sqrt(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
-				result += val;
+				//result += val;
+				result += std::min(55.0f, val);
 			}
 		}
 	}
@@ -580,7 +598,7 @@ class LogoAnalyzer : AMTObject
   int numFrames;
   std::unique_ptr<LogoData> logodata;
 
-	// ¡‚ÌŠ‰Â‹tˆ³k‚ª8bit‚Ì‚İ‚È‚Ì‚Å‘Î‰‚Í8bit‚Ì‚İ
+	// ä»Šã®æ‰€å¯é€†åœ§ç¸®ãŒ8bitã®ã¿ãªã®ã§å¯¾å¿œã¯8bitã®ã¿
 	class InitialLogoCreator : SimpleVideoReader
 	{
 		LogoAnalyzer* pThis;
@@ -610,7 +628,7 @@ class LogoAnalyzer : AMTObject
 			codec->EncodeEnd();
 
 			logoscan->Normalize(255);
-			pThis->logodata = logoscan->GetLogo();
+			pThis->logodata = logoscan->GetLogo(false);
 			if (pThis->logodata == nullptr) {
 				THROW(RuntimeException, "Insufficient logo frames");
 			}
@@ -640,7 +658,7 @@ class LogoAnalyzer : AMTObject
 			logoscan = std::unique_ptr<LogoScan>(
 				new LogoScan(pThis->scanw, pThis->scanh, pThis->logUVx, pThis->logUVy, pThis->thy));
 
-			// ƒtƒŒ[ƒ€”‚ÍÅ‘åƒtƒŒ[ƒ€”iÀÛ‚Í‚»‚±‚Ü‚Å‘‚«‚Ü‚È‚¢‚±‚Æ‚à‚ ‚éj
+			// ãƒ•ãƒ¬ãƒ¼ãƒ æ•°ã¯æœ€å¤§ãƒ•ãƒ¬ãƒ¼ãƒ æ•°ï¼ˆå®Ÿéš›ã¯ãã“ã¾ã§æ›¸ãè¾¼ã¾ãªã„ã“ã¨ã‚‚ã‚ã‚‹ï¼‰
 			file->writeHeader(pThis->scanw, pThis->scanh, pThis->numMaxFrames, extra);
 
 			pThis->numFrames = 0;
@@ -651,7 +669,7 @@ class LogoAnalyzer : AMTObject
 
 			if (pThis->numFrames >= pThis->numMaxFrames) return false;
 
-			// ƒXƒLƒƒƒ“•”•ª‚¾‚¯
+			// ã‚¹ã‚­ãƒ£ãƒ³éƒ¨åˆ†ã ã‘
 			int pitchY = frame->linesize[0];
 			int pitchUV = frame->linesize[1];
 			int offY = pThis->scanx + pThis->scany * pitchY;
@@ -663,7 +681,7 @@ class LogoAnalyzer : AMTObject
 			if (logoscan->AddFrame(scanY, scanU, scanV, pitchY, pitchUV)) {
 				++pThis->numFrames;
 
-				// —LŒø‚ÈƒtƒŒ[ƒ€‚Í•Û‘¶‚µ‚Ä‚¨‚­
+				// æœ‰åŠ¹ãªãƒ•ãƒ¬ãƒ¼ãƒ ã¯ä¿å­˜ã—ã¦ãŠã
 				CopyYV12(memScanData.get(), scanY, scanU, scanV, pitchY, pitchUV, pThis->scanw, pThis->scanh);
 				bool keyFrame = false;
 				size_t codedSize = codec->EncodeFrame(memCoded.get(), &keyFrame, memScanData.get());
@@ -682,13 +700,188 @@ class LogoAnalyzer : AMTObject
 		creator.readAll(setting_.getSrcFilePath());
   }
 
+	void MultiCandidate()
+	{
+		// æ™‚åˆ†å‰²ã§è¤‡æ•°ã®ãƒ­ã‚´ã‚’ä½œæˆã—ã¦è©•ä¾¡
+		enum { NUM_PART = 4 };
+
+		auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
+
+		size_t scanDataSize = scanw * scanh * 3 / 2;
+		size_t YSize = scanw * scanh;
+		size_t codedSize = codec->EncodeGetOutputSize(UTVF_YV12, scanw, scanh);
+		size_t extraSize = codec->EncodeGetExtraDataSize();
+		auto memScanData = std::unique_ptr<uint8_t[]>(new uint8_t[scanDataSize]);
+		auto memCoded = std::unique_ptr<uint8_t[]>(new uint8_t[codedSize]);
+
+		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+
+		std::vector<std::unique_ptr<LogoScan>> logoarr(NUM_PART);
+		for (int i = 0; i < NUM_PART; ++i) {
+			logoarr[i] = std::unique_ptr<LogoScan>(new LogoScan(scanw, scanh, logUVx, logUVy, thy));
+		}
+		{
+			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+			file.readHeader();
+			auto extra = file.getExtra();
+
+			if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
+				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
+			}
+
+			int scanUVw = scanw >> logUVx;
+			int scanUVh = scanh >> logUVy;
+			int offU = scanw * scanh;
+			int offV = offU + scanUVw * scanUVh;
+
+			// å…¨ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ«ãƒ¼ãƒ—
+			int framePerPart = (numFrames + NUM_PART - 1) / NUM_PART;
+			for (int i = 0; i < numFrames; ++i) {
+				int64_t codedSize = file.readFrame(i, memCoded.get());
+				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
+					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
+				}
+				// ãƒ­ã‚´ã®ã‚ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ ã ã‘AddFrame
+				const uint8_t* ptr = memScanData.get();
+				logoarr[i / framePerPart]->AddFrame(ptr, ptr + offU, ptr + offV, scanw, scanUVw);
+
+				if ((i % 2000) == 0) printf("%d frames\n", i);
+			}
+
+			codec->DecodeEnd();
+		}
+
+		// ãƒ­ã‚´ä½œæˆ
+		std::vector<LogoData*> logodatas;
+		for (int i = 0; i < NUM_PART; ++i) {
+			logoarr[i]->Normalize(255);
+			auto data = logoarr[i]->GetLogo(false);
+			if (data) {
+				auto deint = new LogoData(scanw, scanh, logUVx, logUVy);
+				DeintLogo(*deint, *data, scanw, scanh);
+				float ratio = CreateLogoMask(*deint, scanw, scanh) / (float)(scanw * scanh);
+				printf("ratio = %f\n", ratio);
+				if (ratio > 0.01) {
+					logodatas.emplace_back(deint);
+				}
+			}
+		}
+		if (logodatas.size() == 0) {
+			printf("Multi candidate faield\n");
+			return;
+		}
+
+		const int numFade = 10;
+		std::vector<std::unique_ptr<int[]>> minFades(logodatas.size());
+		for (int i = 0; i < (int)minFades.size(); ++i) {
+			minFades[i] = std::unique_ptr<int[]>(new int[numFrames]);
+		}
+		{
+			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+			file.readHeader();
+			auto extra = file.getExtra();
+
+			if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
+				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
+			}
+
+			// å…¨ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ«ãƒ¼ãƒ—
+			for (int i = 0; i < numFrames; ++i) {
+				int64_t codedSize = file.readFrame(i, memCoded.get());
+				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
+					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
+				}
+				// ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’ã‚¤ãƒ³ã‚¿ãƒ¬è§£é™¤
+				DeintY(memDeint.get(), memScanData.get(), scanw, scanw, scanh);
+
+				for (int li = 0; li < (int)minFades.size(); ++li) {
+					// fadeå€¤ãƒ«ãƒ¼ãƒ—
+					float minResult = FLT_MAX;
+					int minFadeIndex = 0;
+					for (int fi = 0; fi < numFade; ++fi) {
+						float fade = 0.2f * fi;
+						// ãƒ­ã‚´ã‚’è©•ä¾¡
+						float result = EvaluateLogo(memDeint.get(), 255.0f, *logodatas[li], fade, memWork.get(), scanw, scanh);
+						if (result < minResult) {
+							minResult = result;
+							minFadeIndex = fi;
+						}
+					}
+					minFades[li][i] = minFadeIndex;
+				}
+
+				if ((i % 2000) == 0) printf("%d frames\n", i);
+			}
+
+			codec->DecodeEnd();
+		}
+		for (int i = 0; i < (int)minFades.size(); ++i) {
+			delete logodatas[i];
+		}
+		logodatas.clear();
+
+		std::vector<int> validCount(minFades.size());
+		for (int i = 0; i < numFrames; ++i) {
+			for (int li = 0; li < (int)minFades.size(); ++li) {
+				if (minFades[li][i] >= 4) {
+					validCount[li]++;
+				}
+			}
+		}
+		int bestIndex = std::max_element(validCount.begin(), validCount.end()) - validCount.begin();
+		printf("bestIndex = %d (%f)\n", bestIndex, (float)validCount[bestIndex] / numFrames);
+
+		{
+			LogoScan logoscan(scanw, scanh, logUVx, logUVy, thy);
+			{
+				LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+				file.readHeader();
+				auto extra = file.getExtra();
+
+				if (codec->DecodeBegin(UTVF_YV12, scanw, scanh, CBGROSSWIDTH_WINDOWS, extra.data(), (int)extra.size())) {
+					THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
+				}
+
+				int scanUVw = scanw >> logUVx;
+				int scanUVh = scanh >> logUVy;
+				int offU = scanw * scanh;
+				int offV = offU + scanUVw * scanUVh;
+
+				// å…¨ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ«ãƒ¼ãƒ—
+				for (int i = 0; i < numFrames; ++i) {
+					int64_t codedSize = file.readFrame(i, memCoded.get());
+					if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
+						THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
+					}
+					// ãƒ­ã‚´ã®ã‚ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ ã ã‘AddFrame
+					if (minFades[bestIndex][i] >= 4) { // TODO: èª¿æ•´
+						const uint8_t* ptr = memScanData.get();
+						logoscan.AddFrame(ptr, ptr + offU, ptr + offV, scanw, scanUVw);
+					}
+
+					if ((i % 2000) == 0) printf("%d frames\n", i);
+				}
+
+				codec->DecodeEnd();
+			}
+
+			// ãƒ­ã‚´ä½œæˆ
+			logoscan.Normalize(255);
+			logodata = logoscan.GetLogo(true);
+			if (logodata == nullptr) {
+				THROW(RuntimeException, "Insufficient logo frames");
+			}
+		}
+	}
+
 
   void ReMakeLogo()
   {
-    // •¡”fade’l‚ÅƒƒS‚ğ•]‰¿ //
+    // è¤‡æ•°fadeå€¤ã§ãƒ­ã‚´ã‚’è©•ä¾¡ //
 		auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
 
-    // ƒƒS‚ğ•]‰¿—p‚ÉƒCƒ“ƒ^ƒŒ‰ğœ
+    // ãƒ­ã‚´ã‚’è©•ä¾¡ç”¨ã«ã‚¤ãƒ³ã‚¿ãƒ¬è§£é™¤
     LogoData deintLogo(scanw, scanh, logUVx, logUVy);
     DeintLogo(deintLogo, *logodata, scanw, scanh);
 		CreateLogoMask(deintLogo, scanw, scanh);
@@ -714,20 +907,20 @@ class LogoAnalyzer : AMTObject
 				THROW(RuntimeException, "failed to DecodeBegin (UtVideo)");
 			}
 
-			// ‘SƒtƒŒ[ƒ€ƒ‹[ƒv
+			// å…¨ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ«ãƒ¼ãƒ—
 			for (int i = 0; i < numFrames; ++i) {
 				int64_t codedSize = file.readFrame(i, memCoded.get());
 				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
 					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
 				}
-				// ƒtƒŒ[ƒ€‚ğƒCƒ“ƒ^ƒŒ‰ğœ
+				// ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’ã‚¤ãƒ³ã‚¿ãƒ¬è§£é™¤
 				DeintY(memDeint.get(), memScanData.get(), scanw, scanw, scanh);
-				// fade’lƒ‹[ƒv
+				// fadeå€¤ãƒ«ãƒ¼ãƒ—
 				float minResult = FLT_MAX;
 				int minFadeIndex = 0;
 				for (int fi = 0; fi < numFade; ++fi) {
 					float fade = 0.1f * fi;
-					// ƒƒS‚ğ•]‰¿
+					// ãƒ­ã‚´ã‚’è©•ä¾¡
 					float result = EvaluateLogo(memDeint.get(), 255.0f, deintLogo, fade, memWork.get(), scanw, scanh);
 					if (result < minResult) {
 						minResult = result;
@@ -742,8 +935,8 @@ class LogoAnalyzer : AMTObject
 			codec->DecodeEnd();
 		}
 
-    // •]‰¿’l‚ğW–ñ
-		// ‚Æ‚è‚ ‚¦‚¸o‚µ‚Ä‚İ‚é
+    // è©•ä¾¡å€¤ã‚’é›†ç´„
+		// ã¨ã‚Šã‚ãˆãšå‡ºã—ã¦ã¿ã‚‹
 		std::vector<int> numMinFades(numFade);
 		for (int i = 0; i < numFrames; ++i) {
 			numMinFades[minFades[i]]++;
@@ -766,14 +959,14 @@ class LogoAnalyzer : AMTObject
 			int offU = scanw * scanh;
 			int offV = offU + scanUVw * scanUVh;
 
-			// ‘SƒtƒŒ[ƒ€ƒ‹[ƒv
+			// å…¨ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ«ãƒ¼ãƒ—
 			for (int i = 0; i < numFrames; ++i) {
 				int64_t codedSize = file.readFrame(i, memCoded.get());
 				if (codec->DecodeFrame(memScanData.get(), memCoded.get()) != scanDataSize) {
 					THROW(RuntimeException, "failed to DecodeFrame (UtVideo)");
 				}
-				// ƒƒS‚Ì‚ ‚éƒtƒŒ[ƒ€‚¾‚¯AddFrame
-				if (minFades[i] > 8) { // TODO: ’²®
+				// ãƒ­ã‚´ã®ã‚ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ ã ã‘AddFrame
+				if (minFades[i] > 8) { // TODO: èª¿æ•´
 					const uint8_t* ptr = memScanData.get();
 					logoscan.AddFrame(ptr, ptr + offU, ptr + offV, scanw, scanUVw);
 				}
@@ -784,9 +977,9 @@ class LogoAnalyzer : AMTObject
 			codec->DecodeEnd();
 		}
 
-    // ƒƒSì¬
+    // ãƒ­ã‚´ä½œæˆ
 		logoscan.Normalize(255);
-		logodata = logoscan.GetLogo();
+		logodata = logoscan.GetLogo(true);
 		if (logodata == nullptr) {
 			THROW(RuntimeException, "Insufficient logo frames");
 		}
@@ -805,10 +998,11 @@ public:
     sscanf(setting_.getModeArgs().c_str(), "%d,%d,%d,%d,%d,%d",
       &scanx, &scany, &scanw, &scanh, &thy, &numMaxFrames);
 
-		// —LŒøƒtƒŒ[ƒ€ƒf[ƒ^‚Æ‰ŠúƒƒS‚Ìæ“¾
+		// æœ‰åŠ¹ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ‡ãƒ¼ã‚¿ã¨åˆæœŸãƒ­ã‚´ã®å–å¾—
     MakeInitialLogo();
 
-    // ƒf[ƒ^‰ğÍ‚ÆƒƒS‚Ìì‚è’¼‚µ
+    // ãƒ‡ãƒ¼ã‚¿è§£æã¨ãƒ­ã‚´ã®ä½œã‚Šç›´ã—
+		//MultiCandidate();
 		ReMakeLogo();
 		ReMakeLogo();
 		//ReMakeLogo();
@@ -826,7 +1020,8 @@ int ScanLogo(AMTContext& ctx, const TranscoderSetting& setting)
   return analyzer.ScanLogo();
 }
 
-// ‰©‹à”ä’Tõ //
+
+// é»„é‡‘æ¯”æ¢ç´¢ //
 
 template <typename Op, bool shortHead>
 float GoldenRatioSearch(float x0, float x1, float x2, float v0, float v1, float v2, Op& op)
@@ -842,24 +1037,24 @@ float GoldenRatioSearch(float x0, float x1, float x2, float v0, float v1, float 
 	float v3 = op.f(x3);
 
 	if (shortHead) {
-		// Œã‚ë‚Ì‹æŠÔ‚Ì‚Ù‚¤‚ª’·‚¢
+		// å¾Œã‚ã®åŒºé–“ã®ã»ã†ãŒé•·ã„
 		if (v3 < v1) {
-			// Œã‚ë‚Ì‹æŠÔ
+			// å¾Œã‚ã®åŒºé–“
 			return GoldenRatioSearch<Op, true>(x1, x3, x2, v1, v3, v2, op);
 		}
 		else {
-			// ‘O‚Ì‹æŠÔ
+			// å‰ã®åŒºé–“
 			return GoldenRatioSearch<Op, false>(x0, x1, x3, v0, v1, v3, op);
 		}
 	}
 	else {
-		// ‘O‚Ì‹æŠÔ‚Ì‚Ù‚¤‚ª’·‚¢
+		// å‰ã®åŒºé–“ã®ã»ã†ãŒé•·ã„
 		if (v3 > v1) {
-			// Œã‚ë‚Ì‹æŠÔ
+			// å¾Œã‚ã®åŒºé–“
 			return GoldenRatioSearch<Op, true>(x3, x1, x2, v3, v1, v2, op);
 		}
 		else {
-			// ‘O‚Ì‹æŠÔ
+			// å‰ã®åŒºé–“
 			return GoldenRatioSearch<Op, false>(x0, x3, x1, v0, v3, v1, op);
 		}
 	}
@@ -870,11 +1065,11 @@ float GoldenRatioSearch(float x0, float x1, Op& op)
 {
 	assert(x0 < x1);
 
-	// —¼’[
+	// ä¸¡ç«¯
 	float v0 = op.f(x0);
 	float v1 = op.f(x1);
 
-	// •ªŠ„“_i‰©‹à”ä‚Å•ªŠ„j
+	// åˆ†å‰²ç‚¹ï¼ˆé»„é‡‘æ¯”ã§åˆ†å‰²ï¼‰
 	float x2 = x0 + (x1 - x0) * 2 / (3 + std::sqrtf(5.0f));
 	float v2 = op.f(x2);
 
@@ -887,6 +1082,7 @@ class AMTEraseLogo : public GenericVideoFilter
 	std::unique_ptr<LogoData> deintLogo;
 	LogoHeader header;
 	float thresh;
+	int debug;
 
 	template <typename pixel_t>
 	void Delogo(pixel_t* dst, int w, int h, int pitch, float maxv, const float* A, const float* B, float fade)
@@ -923,10 +1119,59 @@ class AMTEraseLogo : public GenericVideoFilter
 		int off = header.imgx + header.imgy * pitchY;
 		int offUV = (header.imgx >> header.logUVx) + (header.imgy >> header.logUVy) * pitchUV;
 
-		// ƒtƒŒ[ƒ€‚ğƒCƒ“ƒ^ƒŒ‰ğœ
+		// ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’ã‚¤ãƒ³ã‚¿ãƒ¬è§£é™¤
 		DeintY(memDeint.get(), dstY + off, pitchY, header.w, header.h);
 
-		// Fade’l’Tõ
+		float cost0 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 0, memWork.get(), header.w, header.h);
+		float cost1 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 1, memWork.get(), header.w, header.h);
+
+		char buf[200];
+		sprintf_s(buf, "%s %d vs %d", (cost0 <= cost1) ? "X" : "O", (int)cost0, (int)cost1);
+		DrawText(frame, true, 0, 0, buf);
+
+		if(debug == 1) {
+			const float *logoAY = logo->GetA(PLANAR_Y);
+			const float *logoBY = logo->GetB(PLANAR_Y);
+			const float *logoAU = logo->GetA(PLANAR_U);
+			const float *logoBU = logo->GetB(PLANAR_U);
+			const float *logoAV = logo->GetA(PLANAR_V);
+			const float *logoBV = logo->GetB(PLANAR_V);
+
+			int wUV = (header.w >> header.logUVx);
+			int hUV = (header.h >> header.logUVy);
+
+			Delogo(dstY + off, header.w, header.h, pitchY, maxv, logoAY, logoBY, 1);
+			Delogo(dstU + offUV, wUV, hUV, pitchUV, maxv, logoAU, logoBU, 1);
+			Delogo(dstV + offUV, wUV, hUV, pitchUV, maxv, logoAV, logoBV, 1);
+		}
+
+		return frame;
+	}
+
+	template <typename pixel_t>
+	PVideoFrame GetFrameT_orig(int n, IScriptEnvironment2* env)
+	{
+		size_t YSize = header.w * header.h;
+		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+
+		PVideoFrame frame = child->GetFrame(n, env);
+		env->MakeWritable(&frame);
+
+		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
+		pixel_t* dstY = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_Y));
+		pixel_t* dstU = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_U));
+		pixel_t* dstV = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_V));
+
+		int pitchY = frame->GetPitch(PLANAR_Y);
+		int pitchUV = frame->GetPitch(PLANAR_U);
+		int off = header.imgx + header.imgy * pitchY;
+		int offUV = (header.imgx >> header.logUVx) + (header.imgy >> header.logUVy) * pitchUV;
+
+		// ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’ã‚¤ãƒ³ã‚¿ãƒ¬è§£é™¤
+		DeintY(memDeint.get(), dstY + off, pitchY, header.w, header.h);
+
+		// Fadeå€¤æ¢ç´¢
 		struct SearchOp {
 			float* img;
 			float* work;
@@ -943,12 +1188,12 @@ class AMTEraseLogo : public GenericVideoFilter
 			}
 		} op(memDeint.get(), memWork.get(), maxv, *deintLogo, header.w, header.h);
 
-		// ‚Ü‚¸A‘S‘Ì‚ğŒ©‚é
+		// ã¾ãšã€å…¨ä½“ã‚’è¦‹ã‚‹
 		float minResult = FLT_MAX;
 		float minFade = 0;
 		for (int fi = 0; fi < 13; ++fi) {
 			float fade = 0.1f * fi;
-			// ƒƒS‚ğ•]‰¿
+			// ãƒ­ã‚´ã‚’è©•ä¾¡
 			float result = op.f(fade);
 			if (result < minResult) {
 				minResult = result;
@@ -956,14 +1201,14 @@ class AMTEraseLogo : public GenericVideoFilter
 			}
 		}
 
-		// Å¬’l•t‹ß‚ğ×‚©‚­Œ©‚é
+		// æœ€å°å€¤ä»˜è¿‘ã‚’ç´°ã‹ãè¦‹ã‚‹
 		float optimalFade = GoldenRatioSearch(minFade - 0.1f, minFade + 0.1f, op);
 
 		DebugPrint("Fade: %.1f\n", optimalFade * 100.0f);
 
 		if (optimalFade > thresh) optimalFade = 1.0f;
 		
-		// Å“KFade’l‚ÅƒƒSœ‹
+		// æœ€é©Fadeå€¤ã§ãƒ­ã‚´é™¤å»
 		const float *logoAY = logo->GetA(PLANAR_Y);
 		const float *logoBY = logo->GetB(PLANAR_Y);
 		const float *logoAU = logo->GetA(PLANAR_U);
@@ -982,9 +1227,10 @@ class AMTEraseLogo : public GenericVideoFilter
 	}
 
 public:
-	AMTEraseLogo(PClip clip, const std::string& logoPath, float thresh, IScriptEnvironment* env)
+	AMTEraseLogo(PClip clip, const std::string& logoPath, float thresh, int debug, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
 		, thresh(thresh)
+		, debug(debug)
 	{
 		try {
 			logo = LogoData::Load(logoPath, &header);
@@ -1023,6 +1269,7 @@ public:
 			args[0].AsClip(),       // source
 			args[1].AsString(),			// logopath
 			(float)args[2].AsFloat(2),			// thresh
+			args[3].AsFloat(0),			// debug
 			env
 		);
 	}

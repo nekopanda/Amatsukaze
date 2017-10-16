@@ -471,6 +471,22 @@ public:
 		return ss.str();
 	}
 
+	std::string getTmpAMTSourcePath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/amts" << vindex << ".dat";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getTmpSourceAVSPath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/amts" << vindex << ".avs";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
 	std::string getOutFilePath(int index) const
 	{
 		std::ostringstream ss;
@@ -583,6 +599,8 @@ private:
 	int serviceId;
 	DECODER_TYPE mpeg2decoder;
 	DECODER_TYPE h264decoder;
+	// CM解析用設定
+	std::string amt32bitPath;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 

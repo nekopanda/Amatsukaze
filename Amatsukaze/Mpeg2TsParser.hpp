@@ -31,12 +31,12 @@ struct AdapdationField : public MemoryChunk {
 	bool parse() {
 		int consumed = 2;
 		if (PCR_flag()) {
-			if (consumed + 6 > length) return false;
+			if (consumed + 6 > (int)length) return false;
 			program_clock_reference = read_pcr(&data[consumed]);
 			consumed += 6;
 		}
 		if (OPCR_flag()) {
-			if (consumed + 6 > length) return false;
+			if (consumed + 6 > (int)length) return false;
 			original_program_clock_reference = read_pcr(&data[consumed]);
 			consumed += 6;
 		}
@@ -203,13 +203,13 @@ struct PESPacket : public PESConstantHeader {
 		}
 		// 長さチェック
 		int packetLength = PES_packet_length();
-		if (payload_offset >= length) return false;
-		if (packetLength != 0 && packetLength + 6 != length) return false;
+		if (payload_offset >= (int)length) return false;
+		if (packetLength != 0 && packetLength + 6 != (int)length) return false;
 		return true;
 	}
 
 	MemoryChunk paylod() {
-		return MemoryChunk(data + payload_offset, length - payload_offset);
+		return MemoryChunk(data + payload_offset, (int)length - payload_offset);
 	}
 
 	// PTS, DTSがあるときだけ書き換える
@@ -395,7 +395,7 @@ public:
 			if (header.parse()) {
 				int PES_packet_length = header.PES_packet_length();
 				int lengthIncludeHeader = PES_packet_length + 6;
-				if (PES_packet_length != 0 && buffer.size() >= lengthIncludeHeader) {
+				if (PES_packet_length != 0 && (int)buffer.size() >= lengthIncludeHeader) {
 					// パケットのストア完了
 					checkAndOutPacket(packetClock, MemoryChunk(buffer.get(), lengthIncludeHeader));
 					buffer.trimHead(lengthIncludeHeader);
@@ -537,7 +537,7 @@ struct PMT {
 	bool parse() {
 		payload_ = section.payload();
 		int offset = program_info_length() + 4;
-		while (offset < payload_.length) {
+		while (offset < (int)payload_.length) {
 			elems.emplace_back(&payload_.data[offset]);
 			offset += elems.back().size();
 		}
@@ -584,7 +584,7 @@ public:
 				// セクション開始がある
 				int startPos = payload.data[0] + 1; // pointer field
 													// 長さチェック
-				if (startPos >= payload.length) {
+				if (startPos >= (int)payload.length) {
 					return;
 				}
 				if (startPos > 1) {
@@ -616,7 +616,7 @@ private:
 		PsiConstantHeader header(buffer.get(), (int)buffer.size());
 		if (header.parse()) {
 			int lengthIncludeHeader = header.section_length() + 3;
-			if (buffer.size() >= lengthIncludeHeader) {
+			if ((int)buffer.size() >= lengthIncludeHeader) {
 				// パケットのストア完了
 				PsiSection section(ctx, buffer.get(), lengthIncludeHeader);
 				// フォーマットチェック
@@ -865,7 +865,7 @@ private:
 				TSID_ = patTSID;
 			}
 			int progidx = selectorHandler->onPidSelect(patTSID, sids);
-			if (progidx >= sids.size()) {
+			if (progidx >= (int)sids.size()) {
 				throw InvalidOperationException("選択したサービスインデックスは範囲外です");
 			}
 			if (progidx >= 0) {
@@ -963,7 +963,7 @@ private:
 	}
 
 	void ensureAudioDelegators(int numAudios) {
-		while (audioDelegators.size() < numAudios) {
+		while ((int)audioDelegators.size() < numAudios) {
 			int audioIdx = int(audioDelegators.size());
 			audioDelegators.push_back(new AudioDelegator(*this, audioIdx));
 		}

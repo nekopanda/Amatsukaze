@@ -324,7 +324,7 @@ public:
 		FRAME_TYPE type = FRAME_NO_INFO;
     int codedDataSize = (int)frame.length;
 
-		for (int b = 0; b <= frame.length - 4; ++b) {
+		for (int b = 0; b <= (int)frame.length - 4; ++b) {
 			switch (read32(&frame.data[b])) {
 			case SEQ_HEADER_START_CODE:
 				if (sequenceHeader.parse(&frame.data[b], (int)frame.length - b)) {

@@ -314,12 +314,13 @@ TEST_F(TestBase, LogoTest)
 {
 	std::wstring srcDir = TestDataDir + L"\\";
 	std::wstring dstDir = TestWorkDir + L"\\";
-	std::wstring srcPath = srcDir + MPEG2VideoTsFile + L".ts";
+	//std::wstring srcPath = srcDir + MPEG2VideoTsFile + L".ts";
+	std::wstring srcPath = srcDir + LargeTsFile + L".ts";
 	std::wstring dstPath = dstDir + L"logo.lgd";
 
 	const wchar_t* args[] = {
 		L"AmatsukazeTest.exe", L"--mode", L"test_scanlogo",
-		L"-a", L"1226,46,154,80,12,100",
+		L"-a", L"1258,70,106,78,12,10000",
 		L"-w", dstDir.c_str(),
 		L"-o", dstPath.c_str(),
 		L"-i", srcPath.c_str()

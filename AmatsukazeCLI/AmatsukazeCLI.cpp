@@ -6,8 +6,8 @@
 * http://opensource.org/licenses/mit-license.php
 */
 
-__declspec(dllimport) int AmatsukazeCLI(int argc, wchar_t* argv[]);
+__declspec(dllimport) int AmatsukazeCLI(int argc, const wchar_t* argv[]);
 
-int wmain(int argc, wchar_t* argv[]) {
+int wmain(int argc, const wchar_t* argv[]) {
   return AmatsukazeCLI(argc, argv);
 }

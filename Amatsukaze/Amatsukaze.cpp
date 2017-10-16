@@ -10,6 +10,9 @@
 #define AVS_LINKAGE_DLLIMPORT
 #include "AmatsukazeCLI.hpp"
 
+// Avisynthフィルタデバッグ用
+#include "TextOut.cpp"
+
 HMODULE g_DllHandle;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
@@ -17,7 +20,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
 	return TRUE;
 }
 
-// デバッグ用インターフェース
+// CM解析用（＋デバッグ用）インターフェース
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	// 直接リンクしているのでvectorsを格納する必要はない
 
@@ -25,7 +28,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	av_register_all();
 
 	env->AddFunction("AMTSource", "s", av::CreateAMTSource, 0);
-	env->AddFunction("AMTEraseLogo", "cs[thresh]f", logo::AMTEraseLogo::Create, 0);
+	env->AddFunction("AMTEraseLogo", "cs[thresh]f[debug]i", logo::AMTEraseLogo::Create, 0);
 
 	return "Amatsukaze plugin";
 }

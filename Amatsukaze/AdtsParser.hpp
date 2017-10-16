@@ -157,7 +157,7 @@ public:
 
 		int ibytes = 0;
 		bytesConsumed_ = 0;
-		for ( ; ibytes < frame.length - 1; ++ibytes) {
+		for ( ; ibytes < (int)frame.length - 1; ++ibytes) {
 			uint16_t syncword = (read16(&frame.data[ibytes]) >> 4);
 			if (syncword != 0xFFF) {
 				syncOK = false;
@@ -253,7 +253,7 @@ public:
 
 		// デコードデータのポインタを入れる
 		uint8_t* decodedData = decodedBuffer.get();
-		for (int i = 0; i < info.size(); ++i) {
+		for (int i = 0; i < (int)info.size(); ++i) {
 			info[i].decodedData = (uint16_t*)decodedData;
 			decodedData += info[i].decodedDataSize;
 		}

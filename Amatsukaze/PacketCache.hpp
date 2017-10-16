@@ -67,7 +67,7 @@ private:
 		uint8_t*& entry = cacheTable_[lineNumber];
 		if (entry == nullptr) {
 			// キャッシュしていないので読み込む
-			if (cacheEntries_.size() >= nEntry_) {
+			if ((int)cacheEntries_.size() >= nEntry_) {
 				// エントリ数を超える場合は最初に読み込んだキャッシュラインを削除
 				auto& firstEntry = cacheTable_[cacheEntries_.front()];
 				delete[] firstEntry; firstEntry = nullptr;
@@ -77,10 +77,10 @@ private:
 			int numData = (int)offsets_.size() - 1;
 			int64_t offset = offsets_[baseIndex];
 			int64_t lineDataSize = offsets_[std::min(baseIndex + nLineSize_, numData)] - offset;
-			entry = new uint8_t[lineDataSize];
+			entry = new uint8_t[(size_t)lineDataSize];
 			cacheEntries_.push_back(lineNumber);
 			file_.seek(offset, SEEK_SET);
-			file_.read(MemoryChunk(entry, lineDataSize));
+			file_.read(MemoryChunk(entry, (size_t)lineDataSize));
 		}
 		return entry;
 	}

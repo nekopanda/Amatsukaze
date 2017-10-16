@@ -309,7 +309,7 @@ public:
 	}
 	template <typename T>
 	void writeArray(const std::vector<T>& arr) const {
-		writeValue(arr.size());
+		writeValue((int64_t)arr.size());
 		auto dataptr = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(arr.data()));
 		write(MemoryChunk(dataptr, sizeof(T)*arr.size()));
 	}
@@ -330,7 +330,7 @@ public:
 	}
 	template <typename T>
 	std::vector<T> readArray() const {
-		size_t len = readValue<size_t>();
+		size_t len = (size_t)readValue<int64_t>();
 		std::vector<T> arr(len);
 		if (read(MemoryChunk((uint8_t*)arr.data(), sizeof(T)*len)) != sizeof(T)*len) {
 			THROWF(IOException, "failed to read array from file");

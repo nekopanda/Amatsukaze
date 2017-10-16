@@ -194,7 +194,7 @@ public:
 
 	void backAndInput() {
 		if (handler != NULL) {
-			for (int i = 0; i < buffer.size(); i += TS_PACKET_LENGTH) {
+			for (int i = 0; i < (int)buffer.size(); i += TS_PACKET_LENGTH) {
 				TsPacket packet(buffer.get() + i);
 				if (packet.parse() && packet.check()) {
 					handler->onTsPacket(-1, packet);

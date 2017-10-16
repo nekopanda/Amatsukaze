@@ -77,7 +77,7 @@ public:
 	}
 
 	bool canRead(int bits) {
-		return (filled + (data.length - offset) * 8) >= bits;
+		return (filled + ((int)data.length - offset) * 8) >= bits;
 	}
 
 	// bitsビット読んで進める
@@ -155,7 +155,7 @@ public:
 			// これでバイトアラインされるので残りバイト数スキップ
 			int skipBytes = bits / 8;
 			offset += skipBytes;
-			if (offset > data.length) {
+			if (offset > (int)data.length) {
 				throw EOFException("BitReader.skipでオーバーラン");
 			}
 			bits -= skipBytes * 8;
@@ -186,7 +186,7 @@ private:
 	int filled;
 
 	void fill() {
-		while (filled + 8 <= 64 && offset < data.length) readByte();
+		while (filled + 8 <= 64 && offset < (int)data.length) readByte();
 	}
 
 	void readByte() {

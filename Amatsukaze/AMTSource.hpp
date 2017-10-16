@@ -26,6 +26,11 @@ struct FakeAudioSample {
   int64_t index;
 };
 
+struct AMTSourceData {
+	std::vector<FilterSourceFrame> frames;
+	std::vector<FilterAudioFrame> audioFrames;
+};
+
 class AMTSource : public IClip, AMTObject
 {
 	const std::vector<FilterSourceFrame>& frames;
@@ -36,7 +41,7 @@ class AMTSource : public IClip, AMTObject
 
   AVStream *videoStream;
 
-  std::unique_ptr<StreamReformInfo> storage;
+  std::unique_ptr<AMTSourceData> storage;
 
   struct CacheFrame {
     PVideoFrame data;
@@ -73,15 +78,16 @@ class AMTSource : public IClip, AMTObject
     if (avcodec_parameters_to_context(codecCtx(), videoStream->codecpar) != 0) {
       THROW(FormatException, "avcodec_parameters_to_context failed");
     }
+		codecCtx()->thread_count = 4;
     if (avcodec_open2(codecCtx(), pCodec, NULL) != 0) {
       THROW(FormatException, "avcodec_open2 failed");
     }
   }
 
-  void MakeVideoInfo(const OutVideoFormat& format) {
-    vi.width = format.videoFormat.width;
-    vi.height = format.videoFormat.height;
-    vi.SetFPS(format.videoFormat.frameRateNum, format.videoFormat.frameRateDenom);
+  void MakeVideoInfo(const VideoFormat& vfmt, const AudioFormat& afmt) {
+    vi.width = vfmt.width;
+    vi.height = vfmt.height;
+    vi.SetFPS(vfmt.frameRateNum, vfmt.frameRateDenom);
     vi.num_frames = int(frames.size());
 
     // ビット深度は取得してないのでフレームをデコードして取得する
@@ -89,7 +95,7 @@ class AMTSource : public IClip, AMTObject
     
 		if (audioFrames.size() > 0) {
 			int samplesPerFrame = audioFrames[0].waveLength / 4; // 16bitステレオ前提
-			vi.audio_samples_per_second = format.audioFormat[0].sampleRate;
+			vi.audio_samples_per_second = afmt.sampleRate;
 			vi.sample_type = SAMPLE_INT16;
 			vi.num_audio_samples = samplesPerFrame * audioFrames.size();
 			vi.nchannels = 2;
@@ -184,7 +190,7 @@ class AMTSource : public IClip, AMTObject
     frameCache.insert(&pcache->treeNode);
     recentAccessed.push_front(&pcache->listNode);
 
-    if (recentAccessed.size() > seekDistance * 3 / 2) {
+    if ((int)recentAccessed.size() > seekDistance * 3 / 2) {
       // キャッシュから溢れたら削除
       CacheFrame* pdel = recentAccessed.back().value;
       frameCache.erase(frameCache.it(&pdel->treeNode));
@@ -334,7 +340,7 @@ public:
   AMTSource(AMTContext& ctx,
 		const std::string& srcpath,
 		const std::string& audiopath,
-		const OutVideoFormat& format,
+		const VideoFormat& vfmt, const AudioFormat& afmt,
 		const std::vector<FilterSourceFrame>& frames,
 		const std::vector<FilterAudioFrame>& audioFrames,
     IScriptEnvironment* env)
@@ -348,7 +354,7 @@ public:
     , initialized(false)
     , lastDecodeFrame(-1)
   {
-    MakeVideoInfo(format);
+    MakeVideoInfo(vfmt, afmt);
 
     if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
       THROW(FormatException, "avformat_find_stream_info failed");
@@ -372,7 +378,7 @@ public:
     }
   }
 
-  void TransferStreamInfo(std::unique_ptr<StreamReformInfo>&& streamInfo) {
+  void TransferStreamInfo(std::unique_ptr<AMTSourceData>&& streamInfo) {
     storage = std::move(streamInfo);
   }
 
@@ -427,19 +433,21 @@ public:
 		const int sampleBytes = 4; // 16bitステレオ前提
 		int samplesPerFrame = audioFrames[0].waveLength / sampleBytes;
 		uint8_t* ptr = (uint8_t*)buf;
-		for(int frameIndex = start / samplesPerFrame, frameOffset = start % samplesPerFrame;
-			count > 0 && frameIndex < (int)audioFrames.size();
+		for(__int64 frameIndex = start / samplesPerFrame, frameOffset = start % samplesPerFrame;
+			count > 0 && frameIndex < (__int64)audioFrames.size();
 			++frameIndex, frameOffset = 0)
 		{
-			waveFile.seek(audioFrames[frameIndex].waveOffset + frameOffset, SEEK_SET);
-			int readBytes = std::min<int>(audioFrames[frameIndex].waveLength, count * sampleBytes);
+			waveFile.seek(audioFrames[(size_t)frameIndex].waveOffset + frameOffset * sampleBytes, SEEK_SET);
+			int readBytes = std::min<int>(
+				audioFrames[(size_t)frameIndex].waveLength - frameOffset * sampleBytes,
+				(int)count * sampleBytes);
 			waveFile.read(MemoryChunk(ptr, readBytes));
 			ptr += readBytes;
-			count -= readBytes;
+			count -= readBytes / sampleBytes;
 		}
 		if (count > 0) {
 			// ファイルの終わりまで到達したら残りはゼロで埋める
-			memset(ptr, 0, count * sampleBytes);
+			memset(ptr, 0, (size_t)count * sampleBytes);
 		}
   }
 
@@ -452,232 +460,50 @@ public:
 	};
 };
 
-class AMTSourceIndex : public TsSplitter {
-public:
-  AMTSourceIndex(AMTContext& ctx, const std::string& videofile)
-    : TsSplitter(ctx)
-    , videofile(videofile)
-    , videoFileCount_(0)
-    , audioFileSize_(0)
-  {
-  }
-
-  bool tryReadCache() {
-		std::string audioname = videofile + ".amaud";
-		if (File::exists(audioname.c_str()) == false) {
-			return false;
-		}
-    std::string indexname = videofile + ".ami";
-    if (File::exists(indexname.c_str()) == false) {
-      return false;
-    }
-    File file(indexname.c_str(), "rb");
-    uint32_t magic = file.readValue<uint32_t>();
-    uint32_t version = file.readValue<uint32_t>();
-    if (magic != MAGIC || version != VERSION) {
-      return false;
-    }
-    videoFileCount_ = file.readValue<int>();
-    videoFrameList_ = file.readArray<FileVideoFrameInfo>();
-    audioFrameList_ = file.readArray<FileAudioFrameInfo>();
-    streamEventList_ = file.readArray<StreamEvent>();
-    return true;
-  }
-
-  void writeCache() {
-    std::string indexname = videofile + ".ami";
-    File file(indexname.c_str(), "wb");
-    file.writeValue(uint32_t(MAGIC));
-    file.writeValue(uint32_t(VERSION));
-    file.writeValue(videoFileCount_);
-    file.writeArray(videoFrameList_);
-    file.writeArray(audioFrameList_);
-    file.writeArray(streamEventList_);
-  }
-
-  void split() {
-		audioFile = std::unique_ptr<File>(new File(videofile + ".amaud", "wb"));
-
-    readAll();
-
-		audioFile = nullptr;
-
-    // fileOffsetを5フレーム分遅らせる
-    for (int i = int(videoFrameList_.size()) - 1; i >= 0; --i) {
-      if (i < 5) {
-        videoFrameList_[i].fileOffset = 0;
-      }
-      else {
-        videoFrameList_[i].fileOffset = videoFrameList_[i - 5].fileOffset;
-      }
-    }
-  }
-
-  std::unique_ptr<StreamReformInfo> getStreamInfo() {
-    return std::unique_ptr<StreamReformInfo>(new StreamReformInfo(
-      ctx, videoFileCount_, videoFrameList_, audioFrameList_, streamEventList_));
-  }
-
-protected:
-  enum {
-    MAGIC = 0xB16B00B5,
-    VERSION = 1
-  };
-
-  std::string videofile;
-  int videoFileCount_;
-	int64_t audioFileSize_;
-	int64_t waveFileSize_;
-
-  int64_t fileOffset_;
-
-	std::unique_ptr<File> audioFile;
-
-  // データ
-  std::vector<FileVideoFrameInfo> videoFrameList_;
-  std::vector<FileAudioFrameInfo> audioFrameList_;
-  std::vector<StreamEvent> streamEventList_;
-
-  void readAll() {
-    enum { BUFSIZE = 128 * 1024 };
-    auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
-    MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-    File srcfile(videofile, "rb");
-    fileOffset_ = 0;
-    size_t readBytes;
-    do {
-      readBytes = srcfile.read(buffer);
-      inputTsData(MemoryChunk(buffer.data, readBytes));
-      fileOffset_ += readBytes;
-    } while (readBytes == buffer.length);
-  }
-
-  // TsSplitter仮想関数 //
-
-  virtual void onVideoPesPacket(
-    int64_t clock,
-    const std::vector<VideoFrameInfo>& frames,
-    PESPacket packet)
-  {
-    for (const VideoFrameInfo& frame : frames) {
-      FileVideoFrameInfo info = frame;
-      info.fileOffset = fileOffset_;
-      videoFrameList_.push_back(info);
-    }
-  }
-
-  virtual void onVideoFormatChanged(VideoFormat fmt) {
-    ctx.info("[映像フォーマット変更]");
-    if (fmt.fixedFrameRate) {
-      ctx.info("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
-    }
-    else {
-      ctx.info("サイズ: %dx%d FPS: VFR", fmt.width, fmt.height);
-    }
-
-    // 出力ファイルを変更
-    videoFileCount_++;
-
-    StreamEvent ev = StreamEvent();
-    ev.type = VIDEO_FORMAT_CHANGED;
-    ev.frameIdx = (int)videoFrameList_.size();
-    streamEventList_.push_back(ev);
-  }
-
-  virtual void onAudioPesPacket(
-    int audioIdx,
-    int64_t clock,
-    const std::vector<AudioFrameData>& frames,
-    PESPacket packet)
-  {
-    for (const AudioFrameData& frame : frames) {
-      FileAudioFrameInfo info = frame;
-      info.audioIdx = audioIdx;
-      info.codedDataSize = frame.codedDataSize;
-			info.waveDataSize = frame.decodedDataSize;
-      info.fileOffset = audioFileSize_;
-			info.waveOffset = waveFileSize_;
-			audioFileSize_ += frame.codedDataSize;
-			waveFileSize_ += frame.decodedDataSize;
-			audioFile->write(MemoryChunk((uint8_t*)frame.decodedData, frame.decodedDataSize));
-      audioFrameList_.push_back(info);
-    }
-  }
-
-  virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
-    ctx.info("[音声%dフォーマット変更]", audioIdx);
-    ctx.info("チャンネル: %s サンプルレート: %d",
-      getAudioChannelString(fmt.channels), fmt.sampleRate);
-
-    StreamEvent ev = StreamEvent();
-    ev.type = AUDIO_FORMAT_CHANGED;
-    ev.audioIdx = audioIdx;
-    ev.frameIdx = (int)audioFrameList_.size();
-    streamEventList_.push_back(ev);
-  }
-
-  // TsPacketSelectorHandler仮想関数 //
-
-  virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio) {
-    // ベースクラスの処理
-    TsSplitter::onPidTableChanged(video, audio);
-
-    ASSERT(audio.size() > 0);
-
-    StreamEvent ev = StreamEvent();
-    ev.type = PID_TABLE_CHANGED;
-    ev.numAudio = (int)audio.size();
-    ev.frameIdx = (int)videoFrameList_.size();
-    streamEventList_.push_back(ev);
-  }
-};
-
 AMTContext* g_ctx_for_plugin_filter = nullptr;
 
-const char* GetInternalAMTSouceName() {
-  return "GetInternalAMTSource";
+void SaveAMTSource(
+	const std::string& savepath,
+	const std::string& srcpath,
+	const std::string& audiopath,
+	const VideoFormat& vfmt, const AudioFormat& afmt,
+	const std::vector<FilterSourceFrame>& frames,
+	const std::vector<FilterAudioFrame>& audioFrames)
+{
+	File file(savepath, "wb");
+	file.writeArray(std::vector<char>(srcpath.begin(), srcpath.end()));
+	file.writeArray(std::vector<char>(audiopath.begin(), audiopath.end()));
+	file.writeValue(vfmt);
+	file.writeValue(afmt);
+	file.writeArray(frames);
+	file.writeArray(audioFrames);
 }
 
-AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env) {
-  
-  if (env->FunctionExists(GetInternalAMTSouceName())) {
-    return env->Invoke(GetInternalAMTSouceName(), AVSValue(0, 0));
-  }
+PClip LoadAMTSource(const std::string& loadpath, IScriptEnvironment* env)
+{
+	File file(loadpath, "rb");
+	auto& srcpathv = file.readArray<char>();
+	std::string srcpath(srcpathv.begin(), srcpathv.end());
+	auto& audiopathv = file.readArray<char>();
+	std::string audiopath(audiopathv.begin(), audiopathv.end());
+	VideoFormat vfmt = file.readValue<VideoFormat>();
+	AudioFormat afmt = file.readValue<AudioFormat>();
+	auto data = std::unique_ptr<AMTSourceData>(new AMTSourceData());
+	data->frames = file.readArray<FilterSourceFrame>();
+	data->audioFrames = file.readArray<FilterAudioFrame>();
+	AMTSource* src = new AMTSource(*g_ctx_for_plugin_filter,
+		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, env);
+	src->TransferStreamInfo(std::move(data));
+	return src;
+}
 
+AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env)
+{
   if (g_ctx_for_plugin_filter == nullptr) {
     g_ctx_for_plugin_filter = new AMTContext();
   }
-
   std::string filename = args[0].AsString();
-  AMTSourceIndex index(*g_ctx_for_plugin_filter, filename);
-
-  if (index.tryReadCache() == false) {
-    index.split();
-    index.writeCache();
-  }
-
-  auto info = index.getStreamInfo();
-
-  int numVideoFile = info->getNumVideoFile();
-  if (numVideoFile != 1) {
-    env->ThrowError("Amatsukzeフィルタテスト: 指定されたTSソースの映像フォーマットが複数あるためテストで使用できません");
-  }
-
-  info->prepareEncode();
-
-	auto clip = new AMTSource(
-		*g_ctx_for_plugin_filter,
-		filename,
-		filename + ".amaud",
-    info->getFormat(0, 0),
-		info->getFilterSourceFrames(0),
-		info->getFilterSourceAudioFrames(0),
-		env);
-
-  // StreamReformInfoをライフタイム管理用に持たせておく
-  clip->TransferStreamInfo(std::move(info));
-
-  return clip;
+	return LoadAMTSource(filename, env);
 }
 
 class AVSLosslessSource : public IClip

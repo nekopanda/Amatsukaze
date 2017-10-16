@@ -554,7 +554,7 @@ private:
 
 			offset += length;
 
-		} while (offset < payload.length);
+		} while (offset < (int)payload.length);
 	}
 
 	// 指定バイト数を入力するのにかかる時間だけクロックを進める

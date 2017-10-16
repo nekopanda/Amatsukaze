@@ -189,8 +189,13 @@ public:
 	AudioDiffInfo prepareEncode() {
 		reformMain();
 		genAudioStream();
+		
+		// wave出力でカウントされないように取っておく
+		AudioDiffInfo adiff = adiff_;
 		genWaveAudioStream();
-		return adiff_;
+		adiff_ = adiff;
+
+		return adiff;
 	}
 	/*
 	AudioDiffInfo prepareMux() {
@@ -571,7 +576,7 @@ private:
 				curFromPTS = dataPTS_[ev.frameIdx];
 				break;
 			case AUDIO_FORMAT_CHANGED:
-				if (ev.audioIdx >= curFormat.audioFormat.size()) {
+				if (ev.audioIdx >= (int)curFormat.audioFormat.size()) {
 					THROW(FormatException, "StreamEvent's audioIdx exceeds numAudio of the previous table change event");
 				}
 				curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.frameIdx].format;
@@ -603,7 +608,7 @@ private:
 				[=](double sec) {
 				return !(pts < sec);
 			}) - startPtsList.begin() - 1);
-			if (sectionId >= sectionFormatList.size()) {
+			if (sectionId >= (int)sectionFormatList.size()) {
 				THROWF(RuntimeException, "sectionId exceeds section count (%d >= %d) at frame %d",
 					sectionId, (int)sectionFormatList.size(), i);
 			}

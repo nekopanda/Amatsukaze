@@ -81,7 +81,7 @@ static int CheckAutoBuffer(AMTContext& ctx, const TranscoderSetting& setting)
 		ab.add(buf.get(), addNum);
 
 		uint8_t *data = ab.get();
-		for (int c = 0; c < ab.size(); ++c) {
+		for (int c = 0; c < (int)ab.size(); ++c) {
 			if (data[c] != ((delCnt + c) & 0xFF)) {
 				fprintf(stderr, "[CheckAutoBuffer] Result does not match\n");
 				return 1;
@@ -170,7 +170,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 
 	printf("samplerate=%d, channels=%d\n", samplerate, channels);
 
-	for (int i = 0; i < readBytes; ) {
+	for (int i = 0; i < (int)readBytes; ) {
 		NeAACDecFrameInfo frameInfo;
 		void* samples = NeAACDecDecode(hAacDec, &frameInfo, buf + i, (unsigned long)readBytes - i);
 		decoded.add((uint8_t*)samples, frameInfo.samples * 2);
@@ -183,7 +183,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 	size_t testBytes = fread(testbuf, 1, BUF_SIZE, testfp);
 	// data chunk‚ð’T‚·
 	for (int i = sizeof(RiffHeader); ; ) {
-		if (!(i < testBytes - 8)) {
+		if (!(i < (int)testBytes - 8)) {
 			fprintf(stderr, "o—Í‚ª¬‚³‚·‚¬‚Ü‚·\n");
 			return 1;
 		}
