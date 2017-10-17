@@ -3,6 +3,7 @@
 #include "TranscodeSetting.hpp"
 #include "logo.h"
 #include "AMTLogo.hpp"
+#include "TsInfo.hpp"
 #include "TextOut.h"
 
 #include <cmath>
@@ -837,6 +838,16 @@ class LogoAnalyzer : AMTObject
 		}
   }
 
+	int GetServiceId() {
+		TsInfo tsinfo(ctx);
+		if (tsinfo.ReadFile(setting_.getSrcFilePath().c_str())) {
+			if (tsinfo.GetNumProgram() > 0) {
+				return tsinfo.GetProgramNumber(0);
+			}
+		}
+		return -1;
+	}
+
 public:
   LogoAnalyzer(AMTContext& ctx, const TranscoderSetting& setting)
     : AMTObject(ctx)
@@ -850,6 +861,9 @@ public:
     sscanf(setting_.getModeArgs().c_str(), "%d,%d,%d,%d,%d,%d",
       &scanx, &scany, &scanw, &scanh, &thy, &numMaxFrames);
 
+		// サービスID取得
+		int serviceId = GetServiceId();
+
 		// 有効フレームデータと初期ロゴの取得
     MakeInitialLogo();
 
@@ -860,6 +874,7 @@ public:
 		//ReMakeLogo();
 
 		LogoHeader header(scanw, scanh, logUVx, logUVy, imgw, imgh, scanx, scany, "No Name");
+		header.serviceId = serviceId;
 		logodata->Save(setting_.getOutFilePath(0) + ".lgd", &header);
 
     return 0;
@@ -1116,6 +1131,7 @@ class LogoFrame
 	int maxYSize;
 	int numFrames;
 	int framesPerSec;
+	VideoInfo vi;
 
 	struct EvalResult {
 		float cost0, cost1;
@@ -1137,7 +1153,10 @@ class LogoFrame
 
 		for (int i = 0; i < numLogos; ++i) {
 			LogoDataParam& logo = deintArr[i];
-			if (logo.isValid() == false) {
+			if (logo.isValid() == false ||
+				logo.getImgWidth() != vi.width ||
+				logo.getImgHeight() != vi.height)
+			{
 				outResult[i].cost0 = 0;
 				outResult[i].cost1 = 1;
 				continue;
@@ -1160,7 +1179,6 @@ class LogoFrame
 	{
 		auto memDeint = std::unique_ptr<float[]>(new float[maxYSize]);
 		auto memWork = std::unique_ptr<float[]>(new float[maxYSize]);
-		VideoInfo vi = clip->GetVideoInfo();
 		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
 		evalResults = std::unique_ptr<EvalResult[]>(new EvalResult[vi.num_frames]);
 		for (int n = 0; n < vi.num_frames; ++n) {
@@ -1198,7 +1216,7 @@ public:
 
 	void scanFrames(PClip clip, IScriptEnvironment2* env)
 	{
-		VideoInfo vi = clip->GetVideoInfo();
+		vi = clip->GetVideoInfo();
 		int pixelSize = vi.ComponentSize();
 		switch (pixelSize) {
 		case 1:

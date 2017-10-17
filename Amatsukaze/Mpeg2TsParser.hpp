@@ -422,6 +422,53 @@ private:
 	}
 };
 
+struct Descriptor : public MemoryChunk {
+
+	Descriptor(uint8_t* data, int length) : MemoryChunk(data, length) { }
+
+	int tag() { return data[0]; }
+	int desc_length() { return data[1]; }
+	MemoryChunk payload(){ return MemoryChunk(data + 2, desc_length()); }
+};
+
+std::vector<Descriptor> ParseDescriptors(MemoryChunk mc)
+{
+	std::vector<Descriptor> list;
+	int offset = 0;
+	while (offset < mc.length) {
+		list.push_back(Descriptor(&mc.data[offset], mc.data[offset + 1]));
+		offset += mc.data[offset + 1];
+	}
+	return list;
+};
+
+struct ServiceDescriptor
+{
+	ServiceDescriptor(Descriptor desc) : desc(desc) { }
+
+	int service_type() { return payload_.data[0]; }
+
+	MemoryChunk service_provider_name() {
+		return MemoryChunk(service_provider_name_ + 1, *service_provider_name_);
+	}
+	MemoryChunk service_name() {
+		return MemoryChunk(service_name_ + 1, *service_name_);
+	}
+
+	bool parse() {
+		payload_ = desc.payload();
+		service_provider_name_ = &payload_.data[1];
+		service_name_ = service_provider_name_ + 1 + *service_provider_name_;
+		return 3 + *service_provider_name_ + *service_name_ <= payload_.length;
+	}
+
+private:
+	Descriptor desc;
+	MemoryChunk payload_;
+	uint8_t* service_provider_name_;
+	uint8_t* service_name_;
+};
+
 struct PsiConstantHeader : public MemoryChunk {
 
 	PsiConstantHeader(uint8_t* data, int length) : MemoryChunk(data, length) { }
@@ -460,7 +507,9 @@ struct PsiSection : public AMTObject, public PsiConstantHeader {
 	bool check() const {
 		if (!PsiConstantHeader::check()) return false;
 		if (length != section_length() + 3) return false;
-		if (ctx.getCRC()->calc(data, (int)length, 0xFFFFFFFFUL)) return false;
+		if (section_syntax_indicator()) {
+			if (ctx.getCRC()->calc(data, (int)length, 0xFFFFFFFFUL)) return false;
+		}
 		return true;
 	}
 
@@ -562,6 +611,126 @@ private:
 	std::vector<PMTElement> elems;
 };
 
+struct SDTElement {
+
+	SDTElement(uint8_t* ptr) : ptr(ptr) { }
+
+	uint8_t service_id() { return read16(&ptr[0]); }
+	uint16_t descriptor_loop_length() { return bsm(read16(&ptr[3]), 0, 12); }
+	MemoryChunk descriptor(){ return MemoryChunk(ptr + 5, descriptor_loop_length()); }
+	int size() { return descriptor_loop_length() + 5; }
+
+private:
+	uint8_t* ptr;
+};
+
+struct SDT {
+
+	SDT(PsiSection section) : section(section) { }
+
+	uint16_t TSID() { return section.id(); }
+	uint16_t original_network_id() { return read16(&payload_.data[0]); }
+
+	bool parse() {
+		payload_ = section.payload();
+		int offset = 3;
+		while (offset < (int)payload_.length) {
+			elems.emplace_back(&payload_.data[offset]);
+			offset += elems.back().size();
+		}
+		return true;
+	}
+
+	bool check() const {
+		return true;
+	}
+
+	int numElems() const {
+		return int(elems.size());
+	}
+
+	SDTElement get(int i) const {
+		return elems[i];
+	}
+
+private:
+	PsiSection section;
+	MemoryChunk payload_;
+	std::vector<SDTElement> elems;
+};
+
+struct JSTTime {
+	uint64_t time;
+
+	JSTTime() { }
+	JSTTime(uint64_t time) : time(time){ }
+
+	void getDay(int& y, int& m, int& d) {
+		MJDtoYMD((uint16_t)bsm(time, 24, 16), y, m, d);
+	}
+
+	void getTime(int& h, int& m, int& s) {
+		int bcd = (int)bsm(time, 0, 24);
+		int h1 = ((bcd >> 20) & 0xF);
+		int h0 = ((bcd >> 16) & 0xF);
+		int m1 = ((bcd >> 12) & 0xF);
+		int m0 = ((bcd >>  8) & 0xF);
+		int s1 = ((bcd >>  4) & 0xF);
+		int s0 = ((bcd >>  0) & 0xF);
+		h = h1 * 10 + h1;
+		m = m1 * 10 + m1;
+		s = s1 * 10 + s1;
+	}
+
+	static void MJDtoYMD(uint16_t mjd16, int& y, int& m, int& d)
+	{
+		// 2000年以前だったら上位1ビットを足す
+		int mjd = (mjd16 < 51544) ? mjd16 + 65536 : mjd16;
+		int ydash = int((mjd - 15078.2) / 365.25);
+		int mdash = int((mjd - 14956.1 - int(ydash * 365.25)) / 30.6001);
+		d = mjd - 14956 - int(ydash * 365.25) - int(mdash * 30.6001);
+		int k = (mdash == 14 || mdash == 15) ? 1 : 0;
+		y = ydash + k + 1900;
+		m = mdash - 1 - k * 12;
+	}
+};
+
+struct TDT {
+
+	TDT(PsiSection section) : section(section) { }
+
+	JSTTime JST_time() { return read40(&payload_.data[0]); }
+
+	bool parse() {
+		payload_ = section.payload();
+		return true;
+	}
+
+	bool check() const { return true; }
+
+private:
+	PsiSection section;
+	MemoryChunk payload_;
+};
+
+struct TOT {
+
+	TOT(PsiSection section) : section(section) { }
+
+	JSTTime JST_time() { return read40(&payload_.data[0]); }
+
+	bool parse() {
+		payload_ = section.payload();
+		return true;
+	}
+
+	bool check() const { return true; }
+
+private:
+	PsiSection section;
+	MemoryChunk payload_;
+};
+
 class PsiParser : public AMTObject, public TsPacketHandler {
 public:
 	PsiParser(AMTContext& ctx)
@@ -654,10 +823,16 @@ private:
 
 class PidHandlerTable {
 public:
-	PidHandlerTable(TsPacketHandler* patHandler)
+	PidHandlerTable()
 		: table()
+	{ }
+
+	// 固定PIDハンドラを登録。必ず最初に呼び出すこと
+	//（clearしても削除されない）
+	bool addConstant(int pid, TsPacketHandler* handler)
 	{
-		table[0] = patHandler;
+		constHandlers[pid] = handler;
+		table[pid] = handler;
 	}
 
 	/** @brief 番号pid位置にhandlerをセット
@@ -691,13 +866,21 @@ public:
 
 	void clear() {
 		for (auto pair : handlers) {
-			table[pair.second] = NULL;
+			auto it = constHandlers.find(pair.second);
+			if (it != constHandlers.end()) {
+				// 固定ハンドラがあればそれをセット
+				table[pair.second] = it->second;
+			}
+			else {
+				table[pair.second] = NULL;
+			}
 		}
 		handlers.clear();
 	}
 
 private:
 	TsPacketHandler *table[MAX_PID + 1];
+	std::map<int, TsPacketHandler*> constHandlers;
 	std::map<TsPacketHandler*, int> handlers;
 };
 
@@ -740,8 +923,10 @@ public:
 		, videoDelegator(*this)
 		, startClock(-1)
 	{
-		curHandlerTable = new PidHandlerTable(&PsiParserPAT);
-		nextHandlerTable = new PidHandlerTable(&PsiParserPAT);
+		curHandlerTable = new PidHandlerTable();
+		initHandlerTable(curHandlerTable);
+		nextHandlerTable = new PidHandlerTable();
+		initHandlerTable(nextHandlerTable);
 	}
 
 	~TsPacketSelector() {
@@ -841,6 +1026,10 @@ private:
 	// 27MHzクロック
 	int64_t startClock;
 	int64_t currentClock;
+
+	void initHandlerTable(PidHandlerTable* table) {
+		table->addConstant(0, &PsiParserPAT);
+	}
 
 	void onPatUpdated(PsiSection section) {
 		if (selectorHandler == NULL) {
@@ -1035,6 +1224,160 @@ private:
 			else {
 				ctx.info("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());
 			}
+		}
+	}
+};
+
+std::string GetAribString(MemoryChunk mc) {
+	// TODO:
+	return std::string();
+}
+
+struct ServiceInfo {
+	int serviceId;
+	std::string provider;
+	std::string name;
+};
+
+class TsInfoParser : public AMTObject {
+public:
+	TsInfoParser(AMTContext& ctx)
+		: AMTObject(ctx)
+		, psi0000(ctx, *this)
+		, psi0011(ctx, *this)
+		, psi0014(ctx, *this)
+		, patOK(false)
+		, serviceOK(false)
+		, timeOK(false)
+	{
+		//
+	}
+
+	void inputTsPacket(int64_t clock, TsPacket packet) {
+		switch (packet.PID()) {
+		case 0x0000: // PAT
+			psi0000.onTsPacket(clock, packet);
+			break;
+		case 0x0011: // SDT/BAT
+			psi0011.onTsPacket(clock, packet);
+			break;
+		case 0x0014: // TDT/TOT
+			psi0014.onTsPacket(clock, packet);
+			break;
+		}
+	}
+
+	bool isOK() const {
+		return patOK && serviceOK && timeOK;
+	}
+
+	const std::vector<int>& getProgramList() const {
+		return programList;
+	}
+	
+	const std::vector<ServiceInfo>& getServiceList() const {
+		return serviceList;
+	}
+
+	JSTTime getTime() const {
+		return time;
+	}
+
+private:
+	class PSIDelegator : public PsiUpdatedDetector {
+		TsInfoParser& this_;
+	public:
+		PSIDelegator(AMTContext&ctx, TsInfoParser& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		virtual void onTableUpdated(PsiSection section) {
+			this_.onPsiUpdated(section);
+		}
+	};
+	PSIDelegator psi0000;
+	PSIDelegator psi0011;
+	PSIDelegator psi0014;
+
+	bool patOK;
+	bool serviceOK;
+	bool timeOK;
+
+	std::vector<int> programList;
+	std::vector<ServiceInfo> serviceList;
+	JSTTime time;
+
+	void onPsiUpdated(PsiSection section)
+	{
+		switch (section.table_id()) {
+		case 0x00: // PAT
+			onPAT(section);
+			break;
+		case 0x42: // SDT（自ストリーム）
+			onSDT(section);
+			break;
+		case 0x70: // TDT
+			onTDT(section);
+			break;
+		case 0x73: // TOT
+			onTOT(section);
+			break;
+		}
+	}
+
+	void onPAT(PsiSection section)
+	{
+		PAT pat(section);
+		if (pat.parse() && pat.check()) {
+			programList.clear();
+			for (int i = 0; i < pat.numElems(); ++i) {
+				int pn = pat.get(i).program_number;
+				if (pn != 0) {
+					programList.push_back(pn);
+				}
+			}
+			patOK = true;
+		}
+	}
+
+	void onSDT(PsiSection section)
+	{
+		SDT sdt(section);
+		if (sdt.parse() && sdt.check()) {
+			serviceList.clear();
+			for (int i = 0; i < sdt.numElems(); ++i) {
+				ServiceInfo info;
+				auto elem = sdt.get(i);
+				info.serviceId = elem.service_id;
+				auto descs = ParseDescriptors(elem.descriptor());
+				for (int i = 0; i < sdt.numElems(); ++i) {
+					if (descs[i].tag == 0x48) { // サービス記述子
+						ServiceDescriptor servicedesc(descs[i]);
+						if (servicedesc.parse()) {
+							info.provider = GetAribString(servicedesc.service_provider_name());
+							info.name = GetAribString(servicedesc.service_name());
+							break;
+						}
+					}
+				}
+				serviceList.push_back(info);
+			}
+			serviceOK = true;
+		}
+	}
+
+	void onTDT(PsiSection section)
+	{
+		TDT tdt(section);
+		if (tdt.parse() && tdt.check()) {
+			time = tdt.JST_time();
+			timeOK = true;
+		}
+	}
+
+	void onTOT(PsiSection section)
+	{
+		TOT tot(section);
+		if (tot.parse() && tot.check()) {
+			time = tot.JST_time();
+			timeOK = true;
 		}
 	}
 };

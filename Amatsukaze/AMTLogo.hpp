@@ -12,7 +12,8 @@ struct LogoHeader {
 	int logUVx, logUVy;
 	int imgw, imgh, imgx, imgy;
 	char name[255];
-	int reserved[64];
+	int serviceId;
+	int reserved[60];
 
 	LogoHeader() { }
 

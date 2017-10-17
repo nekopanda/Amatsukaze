@@ -369,12 +369,21 @@ public:
 		return counter;
 	}
 
+	void setError(const Exception& exception) {
+		errMessage = exception.message();
+	}
+
+	const std::string& getError() const {
+		return errMessage;
+	}
+
 private:
 	bool debugEnabled;
 	CRC32 crc;
 
 	std::set<std::string> tmpFiles;
 	std::map<std::string, int> counter;
+	std::string errMessage;
 
 	void print(const char* fmt, va_list arg, TS_SPLITTER_LOG_LEVEL level) const {
     static const char* log_levels[] = { "debug", "info", "warn", "error" };
@@ -787,3 +796,8 @@ static void CopyYV12(uint8_t* dst,
 		dstp += widthUV;
 	}
 }
+
+// C API for P/Invoke
+extern "C" __declspec(dllexport) AMTContext* AMTContext_Create() { return new AMTContext(); }
+extern "C" __declspec(dllexport) void ATMContext_Delete(AMTContext* ptr) { delete ptr; }
+extern "C" __declspec(dllexport) const char* AMTContext_GetError(AMTContext* ptr) { return ptr->getError().c_str(); }

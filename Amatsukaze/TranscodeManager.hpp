@@ -1421,4 +1421,3 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 		file.write(mc);
 	}
 }
-
