@@ -21,18 +21,42 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\x86\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\x86\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>..\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>..\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Livet">
@@ -69,8 +93,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
+    <Compile Include="Models\AmatsukazeNatives.cs" />
+    <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
+    <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />
+    <Compile Include="ViewModels\LogoImageViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
     <Compile Include="ViewModels\SelectOutPathViewModel.cs" />
     <Compile Include="ViewModels\ServerViewModel.cs" />
@@ -82,6 +110,12 @@
     </Compile>
     <Compile Include="Views\DiskFreeSpacePanel.xaml.cs">
       <DependentUpon>DiskFreeSpacePanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\LogoAnalyzeWindow.xaml.cs">
+      <DependentUpon>LogoAnalyzeWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\LogoImageWindow.xaml.cs">
+      <DependentUpon>LogoImageWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\LogPanel.xaml.cs">
       <DependentUpon>LogPanel.xaml</DependentUpon>
@@ -122,6 +156,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ConfigWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\LogoAnalyzeWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\LogoImageWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -18,13 +18,16 @@ namespace Amatsukaze.Server
         Standalone,
         Server,
         Client,
-        Debug
+        Debug,
+        Logo,
     };
 
     public class GUIOPtion
     {
         public LaunchType LaunchType = LaunchType.Standalone;
         public int ServerPort = 32768;
+        public string FilePath;
+        public string WorkPath;
 
         public GUIOPtion(string[] args)
         {
@@ -51,9 +54,23 @@ namespace Amatsukaze.Server
                     {
                         LaunchType = LaunchType.Debug;
                     }
-                    else {
+                    else if(opt == "client") {
                         LaunchType = LaunchType.Client;
                     }
+                    else if(opt == "logo")
+                    {
+                        LaunchType = LaunchType.Logo;
+                    }
+                }
+                else if(arg == "--file")
+                {
+                    FilePath = args[i + 1];
+                    ++i;
+                }
+                else if (arg == "--work")
+                {
+                    WorkPath = args[i + 1];
+                    ++i;
                 }
             }
         }

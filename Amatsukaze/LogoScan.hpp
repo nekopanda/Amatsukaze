@@ -615,9 +615,14 @@ static float EvaluateLogo(const float *src,float maxv, LogoDataParam& logo, floa
 	return result / (limit * logo.getMaskPixels()) * 1000.0f;
 }
 
+typedef bool(*LOGO_ANALYZE_CB)(float progress, int nread, int total, int ngather);
+
 class LogoAnalyzer : AMTObject
 {
-  const TranscoderSetting& setting_;
+	std::string srcpath;
+	std::string workfile;
+	std::string dstpath;
+	LOGO_ANALYZE_CB cb;
 
 	int scanx, scany;
   int scanw, scanh, thy;
@@ -683,7 +688,7 @@ class LogoAnalyzer : AMTObject
 			pThis->imgh = frame->height;
 
 			file = std::unique_ptr<LosslessVideoFile>(
-				new LosslessVideoFile(pThis->ctx, pThis->setting_.getLogoTmpFilePath(), "wb"));
+				new LosslessVideoFile(pThis->ctx, pThis->workfile, "wb"));
 			logoscan = std::unique_ptr<LogoScan>(
 				new LogoScan(pThis->scanw, pThis->scanh, pThis->logUVx, pThis->logUVy, pThis->thy));
 
@@ -726,7 +731,7 @@ class LogoAnalyzer : AMTObject
   void MakeInitialLogo()
   {
 		InitialLogoCreator creator(this);
-		creator.readAll(setting_.getSrcFilePath());
+		creator.readAll(srcpath);
   }
 
   void ReMakeLogo()
@@ -752,7 +757,7 @@ class LogoAnalyzer : AMTObject
 		const int numFade = 20;
 		auto minFades = std::unique_ptr<int[]>(new int[numFrames]);
 		{
-			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+			LosslessVideoFile file(ctx, workfile, "rb");
 			file.readHeader();
 			auto extra = file.getExtra();
 
@@ -799,7 +804,7 @@ class LogoAnalyzer : AMTObject
 
 		LogoScan logoscan(scanw, scanh, logUVx, logUVy, thy);
 		{
-			LosslessVideoFile file(ctx, setting_.getLogoTmpFilePath(), "rb");
+			LosslessVideoFile file(ctx, workfile, "rb");
 			file.readHeader();
 			auto extra = file.getExtra();
 
@@ -840,27 +845,37 @@ class LogoAnalyzer : AMTObject
 
 	int GetServiceId() {
 		TsInfo tsinfo(ctx);
-		if (tsinfo.ReadFile(setting_.getSrcFilePath().c_str())) {
+		if (tsinfo.ReadFile(srcpath.c_str())) {
 			if (tsinfo.GetNumProgram() > 0) {
-				return tsinfo.GetProgramNumber(0);
+				int progId, hasVideo, videoPid;
+				tsinfo.GetProgramInfo(0, &progId, &hasVideo, &videoPid);
+				return progId;
 			}
 		}
 		return -1;
 	}
 
 public:
-  LogoAnalyzer(AMTContext& ctx, const TranscoderSetting& setting)
+  LogoAnalyzer(AMTContext& ctx, const char* srcpath, const char* workfile, const char* dstpath,
+			int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
+			LOGO_ANALYZE_CB cb)
     : AMTObject(ctx)
-    , setting_(setting)
+		, srcpath(srcpath)
+		, workfile(workfile)
+		, dstpath(dstpath)
+		, scanx(imgx)
+		, scany(imgy)
+		, scanw(w)
+		, scanh(h)
+		, thy(thy)
+		, numMaxFrames(numMaxFrames)
+		, cb(cb)
   {
     //
   }
 
-  int ScanLogo()
+  void ScanLogo()
   {
-    sscanf(setting_.getModeArgs().c_str(), "%d,%d,%d,%d,%d,%d",
-      &scanx, &scany, &scanw, &scanh, &thy, &numMaxFrames);
-
 		// サービスID取得
 		int serviceId = GetServiceId();
 
@@ -875,18 +890,27 @@ public:
 
 		LogoHeader header(scanw, scanh, logUVx, logUVy, imgw, imgh, scanx, scany, "No Name");
 		header.serviceId = serviceId;
-		logodata->Save(setting_.getOutFilePath(0) + ".lgd", &header);
-
-    return 0;
+		logodata->Save(dstpath, &header);
   }
 };
 
-int ScanLogo(AMTContext& ctx, const TranscoderSetting& setting)
+// C API for P/Invoke
+extern "C" bool ScanLogo(AMTContext* ctx,
+	const char* srcpath, const char* workfile, const char* dstpath,
+	int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
+	LOGO_ANALYZE_CB cb)
 {
-  LogoAnalyzer analyzer(ctx, setting);
-  return analyzer.ScanLogo();
+	try {
+		LogoAnalyzer analyzer(*ctx,
+			srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb);
+		analyzer.ScanLogo();
+		return true;
+	}
+	catch (Exception& exception) {
+		ctx->setError(exception);
+	}
+	return false;
 }
-
 
 // 黄金比探索 //
 
@@ -1326,3 +1350,4 @@ public:
 };
 
 } // namespace logo
+

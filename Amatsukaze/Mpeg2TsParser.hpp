@@ -615,7 +615,7 @@ struct SDTElement {
 
 	SDTElement(uint8_t* ptr) : ptr(ptr) { }
 
-	uint8_t service_id() { return read16(&ptr[0]); }
+	uint16_t service_id() { return read16(&ptr[0]); }
 	uint16_t descriptor_loop_length() { return bsm(read16(&ptr[3]), 0, 12); }
 	MemoryChunk descriptor(){ return MemoryChunk(ptr + 5, descriptor_loop_length()); }
 	int size() { return descriptor_loop_length() + 5; }
@@ -829,7 +829,7 @@ public:
 
 	// 固定PIDハンドラを登録。必ず最初に呼び出すこと
 	//（clearしても削除されない）
-	bool addConstant(int pid, TsPacketHandler* handler)
+	void addConstant(int pid, TsPacketHandler* handler)
 	{
 		constHandlers[pid] = handler;
 		table[pid] = handler;
@@ -839,9 +839,12 @@ public:
 	* 同じテーブル中で同じハンドラは１つのpidにしか紐付けできない
 	* ハンドラが別のpidにひも付けされている場合解除されてから新しくセットされる
 	*/
-	bool add(int pid, TsPacketHandler* handler) {
+	bool add(int pid, TsPacketHandler* handler, bool overwrite = true) {
 		// PATは変更不可
 		if (pid == 0 || pid > MAX_PID) {
+			return false;
+		}
+		if (!overwrite && table[pid] != nullptr) {
 			return false;
 		}
 		if (table[pid] == handler) {
@@ -1224,160 +1227,6 @@ private:
 			else {
 				ctx.info("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());
 			}
-		}
-	}
-};
-
-std::string GetAribString(MemoryChunk mc) {
-	// TODO:
-	return std::string();
-}
-
-struct ServiceInfo {
-	int serviceId;
-	std::string provider;
-	std::string name;
-};
-
-class TsInfoParser : public AMTObject {
-public:
-	TsInfoParser(AMTContext& ctx)
-		: AMTObject(ctx)
-		, psi0000(ctx, *this)
-		, psi0011(ctx, *this)
-		, psi0014(ctx, *this)
-		, patOK(false)
-		, serviceOK(false)
-		, timeOK(false)
-	{
-		//
-	}
-
-	void inputTsPacket(int64_t clock, TsPacket packet) {
-		switch (packet.PID()) {
-		case 0x0000: // PAT
-			psi0000.onTsPacket(clock, packet);
-			break;
-		case 0x0011: // SDT/BAT
-			psi0011.onTsPacket(clock, packet);
-			break;
-		case 0x0014: // TDT/TOT
-			psi0014.onTsPacket(clock, packet);
-			break;
-		}
-	}
-
-	bool isOK() const {
-		return patOK && serviceOK && timeOK;
-	}
-
-	const std::vector<int>& getProgramList() const {
-		return programList;
-	}
-	
-	const std::vector<ServiceInfo>& getServiceList() const {
-		return serviceList;
-	}
-
-	JSTTime getTime() const {
-		return time;
-	}
-
-private:
-	class PSIDelegator : public PsiUpdatedDetector {
-		TsInfoParser& this_;
-	public:
-		PSIDelegator(AMTContext&ctx, TsInfoParser& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
-		virtual void onTableUpdated(PsiSection section) {
-			this_.onPsiUpdated(section);
-		}
-	};
-	PSIDelegator psi0000;
-	PSIDelegator psi0011;
-	PSIDelegator psi0014;
-
-	bool patOK;
-	bool serviceOK;
-	bool timeOK;
-
-	std::vector<int> programList;
-	std::vector<ServiceInfo> serviceList;
-	JSTTime time;
-
-	void onPsiUpdated(PsiSection section)
-	{
-		switch (section.table_id()) {
-		case 0x00: // PAT
-			onPAT(section);
-			break;
-		case 0x42: // SDT（自ストリーム）
-			onSDT(section);
-			break;
-		case 0x70: // TDT
-			onTDT(section);
-			break;
-		case 0x73: // TOT
-			onTOT(section);
-			break;
-		}
-	}
-
-	void onPAT(PsiSection section)
-	{
-		PAT pat(section);
-		if (pat.parse() && pat.check()) {
-			programList.clear();
-			for (int i = 0; i < pat.numElems(); ++i) {
-				int pn = pat.get(i).program_number;
-				if (pn != 0) {
-					programList.push_back(pn);
-				}
-			}
-			patOK = true;
-		}
-	}
-
-	void onSDT(PsiSection section)
-	{
-		SDT sdt(section);
-		if (sdt.parse() && sdt.check()) {
-			serviceList.clear();
-			for (int i = 0; i < sdt.numElems(); ++i) {
-				ServiceInfo info;
-				auto elem = sdt.get(i);
-				info.serviceId = elem.service_id;
-				auto descs = ParseDescriptors(elem.descriptor());
-				for (int i = 0; i < sdt.numElems(); ++i) {
-					if (descs[i].tag == 0x48) { // サービス記述子
-						ServiceDescriptor servicedesc(descs[i]);
-						if (servicedesc.parse()) {
-							info.provider = GetAribString(servicedesc.service_provider_name());
-							info.name = GetAribString(servicedesc.service_name());
-							break;
-						}
-					}
-				}
-				serviceList.push_back(info);
-			}
-			serviceOK = true;
-		}
-	}
-
-	void onTDT(PsiSection section)
-	{
-		TDT tdt(section);
-		if (tdt.parse() && tdt.check()) {
-			time = tdt.JST_time();
-			timeOK = true;
-		}
-	}
-
-	void onTOT(PsiSection section)
-	{
-		TOT tot(section);
-		if (tot.parse() && tot.check()) {
-			time = tot.JST_time();
-			timeOK = true;
 		}
 	}
 };

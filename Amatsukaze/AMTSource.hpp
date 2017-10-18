@@ -439,7 +439,7 @@ public:
 		{
 			waveFile.seek(audioFrames[(size_t)frameIndex].waveOffset + frameOffset * sampleBytes, SEEK_SET);
 			int readBytes = std::min<int>(
-				audioFrames[(size_t)frameIndex].waveLength - frameOffset * sampleBytes,
+				(int)(audioFrames[(size_t)frameIndex].waveLength - frameOffset * sampleBytes),
 				(int)count * sampleBytes);
 			waveFile.read(MemoryChunk(ptr, readBytes));
 			ptr += readBytes;

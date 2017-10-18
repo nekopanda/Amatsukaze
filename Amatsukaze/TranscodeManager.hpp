@@ -554,7 +554,7 @@ private:
 				AVSValue arg[] = { clip, trimZones[i].startFrame, trimZones[i].endFrame };
 				trimClips[i] = env_->Invoke("Trim", AVSValue(arg, 3));
 			}
-			clip = env_->Invoke("AlignedSplice", AVSValue(trimClips.data(), trimClips.size())).AsClip();
+			clip = env_->Invoke("AlignedSplice", AVSValue(trimClips.data(), (int)trimClips.size())).AsClip();
 		}
 
 		return clip;

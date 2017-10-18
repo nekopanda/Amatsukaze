@@ -34,7 +34,11 @@ namespace Amatsukaze
             {
                 app.StartupUri = new Uri("Views\\ServerWindow.xaml", UriKind.Relative);
             }
-            else
+            else if(Option.LaunchType == LaunchType.Logo)
+            {
+                app.StartupUri = new Uri("Views\\LogoAnalyzeWindow.xaml", UriKind.Relative);
+            }
+            else 
             {
                 app.StartupUri = new Uri("Views\\MainWindow.xaml", UriKind.Relative);
             }

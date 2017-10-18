@@ -9,6 +9,7 @@
 // avisynthにリンクしているので
 #define AVS_LINKAGE_DLLIMPORT
 #include "AmatsukazeCLI.hpp"
+#include "LogoGUISupport.hpp"
 
 // Avisynthフィルタデバッグ用
 #include "TextOut.cpp"
@@ -18,6 +19,12 @@ HMODULE g_DllHandle;
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
 	if (dwReason == DLL_PROCESS_ATTACH) g_DllHandle = hModule;
 	return TRUE;
+}
+
+extern "C" __declspec(dllexport) void InitAmatsukazeDLL()
+{
+	// FFMPEGライブラリ初期化
+	av_register_all();
 }
 
 // CM解析用（＋デバッグ用）インターフェース

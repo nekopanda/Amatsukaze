@@ -24,6 +24,7 @@ extern "C" {
 #pragma comment(lib, "avutil.lib")
 #pragma comment(lib, "avcodec.lib")
 #pragma comment(lib, "avformat.lib")
+#pragma comment(lib, "swscale.lib")
 
 namespace av {
 

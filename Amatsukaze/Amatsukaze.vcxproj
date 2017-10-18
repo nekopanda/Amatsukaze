@@ -156,6 +156,7 @@
     <ClInclude Include="AmatsukazeTestImpl.hpp" />
     <ClInclude Include="AMTLogo.hpp" />
     <ClInclude Include="AMTSource.hpp" />
+    <ClInclude Include="AribString.hpp" />
     <ClInclude Include="CMAnalyze.hpp" />
     <ClInclude Include="common.h" />
     <ClInclude Include="CoreUtils.hpp" />
