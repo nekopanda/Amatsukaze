@@ -98,10 +98,10 @@ struct MPEG2SequenceHeader {
 
 			numReadBytes = reader.numReadBytes();
 		}
-		catch (EOFException) {
+		catch (const EOFException&) {
 			return false;
 		}
-		catch (FormatException) {
+		catch (const FormatException&) {
 			return false;
 		}
 		return true;
@@ -276,10 +276,10 @@ struct MPEG2PictureHeader {
 
 			numReadBytes = reader.numReadBytes();
 		}
-		catch (EOFException) {
+		catch (const EOFException&) {
 			return false;
 		}
-		catch (FormatException) {
+		catch (const FormatException&) {
 			return false;
 		}
 		return true;

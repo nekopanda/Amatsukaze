@@ -14,6 +14,7 @@ struct Exception {
   virtual const char* message() const {
     return "No Message ...";
   };
+	virtual void raise() const { throw *this;	}
 };
 
 #define DEFINE_EXCEPTION(name) \
@@ -25,6 +26,7 @@ struct Exception {
 			va_end(arg); \
 		} \
 		virtual const char* message() const { return buf; } \
+	  virtual void raise() const { throw *this;	} \
 	private: \
 		char buf[300]; \
 	};
@@ -47,7 +49,7 @@ DEFINE_EXCEPTION(RuntimeException)
 static void throw_exception_(const Exception& exc)
 {
 	PRINTF("%s\n", exc.message());
-  throw exc;
+	exc.raise();
 }
 
 // コピー禁止オブジェクト

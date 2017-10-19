@@ -272,8 +272,7 @@ public:
 		, parser(ctx)
 	{ }
 
-	bool ReadFile(const char* filepath) {
-		try {
+	void ReadFile(const char* filepath) {
 			enum {
 				BUFSIZE = 4 * 1024 * 1024,
 				MAX_BYTES = 100 * 1024 * 1024
@@ -289,13 +288,19 @@ public:
 			do {
 				readBytes = srcfile.read(buffer);
 				packetParser.inputTS(MemoryChunk(buffer.data, readBytes));
-				if (parser.isOK(false)) return true;
+				if (parser.isOK(false)) return;
 				totalRead += readBytes;
 			} while (readBytes == buffer.length && totalRead < MAX_BYTES);
-			if (parser.isOK(true)) return true;
+			if (parser.isOK(true)) return;
 			THROW(FormatException, "TSƒtƒ@ƒCƒ‹‚Éî•ñ‚ª‚ ‚è‚Ü‚¹‚ñ");
+	}
+
+	bool ReadFileFromC(const char* filepath) {
+		try {
+			ReadFile(filepath);
+			return true;
 		}
-		catch (Exception& exception) {
+		catch (const Exception& exception) {
 			ctx.setError(exception);
 		}
 		return false;
@@ -370,7 +375,7 @@ private:
 // C API for P/Invoke
 extern "C" __declspec(dllexport) void* TsInfo_Create(AMTContext* ctx) { return new TsInfo(*ctx); }
 extern "C" __declspec(dllexport) void TsInfo_Delete(TsInfo* ptr) { delete ptr; }
-extern "C" __declspec(dllexport) bool TsInfo_ReadFile(TsInfo* ptr, const char* filepath) { return ptr->ReadFile(filepath); }
+extern "C" __declspec(dllexport) bool TsInfo_ReadFile(TsInfo* ptr, const char* filepath) { return ptr->ReadFileFromC(filepath); }
 extern "C" __declspec(dllexport) bool TsInfo_HasServiceInfo(TsInfo* ptr) { return ptr->HasServiceInfo(); }
 extern "C" __declspec(dllexport) void TsInfo_GetDay(TsInfo* ptr, int* y, int* m, int* d) { ptr->GetDay(y, m, d); }
 extern "C" __declspec(dllexport) void TsInfo_GetTime(TsInfo* ptr, int* h, int* m, int* s) { return ptr->GetTime(h, m, s); }

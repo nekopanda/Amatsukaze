@@ -125,7 +125,7 @@ public:
 			MakeCodecContext();
 			return DecodeOneFrame(rgb, stride);
 		}
-		catch (Exception& exception) {
+		catch (const Exception& exception) {
 			ctx.setError(exception);
 		}
 		return false;
@@ -138,7 +138,7 @@ extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const c
 	try {
 		return new av::GUIMediaFile(*ctx, filepath);
 	}
-	catch (Exception& exception) {
+	catch (const Exception& exception) {
 		ctx->setError(exception);
 	}
 	return nullptr;
@@ -179,18 +179,26 @@ public:
 		const float *logoAV = logo.GetA(PLANAR_V);
 		const float *logoBV = logo.GetB(PLANAR_V);
 
+		int widthUV = (header.w >> header.logUVx);
+
+		float bgY = 0.2126f * bg + 0.7152 * bg + 0.0722 * bg;
+		float bgU = 0.5389 * (bg - bgY);
+		float bgV = 0.6350 * (bg - bgY);
+
 		for (int y = 0; y < header.h; ++y) {
 			uint8_t* line = rgb + y * stride;
 			for (int x = 0; x < header.w; ++x) {
+				int UVx = (x >> header.logUVx);
+				int UVy = (y >> header.logUVy);
 				float aY = logoAY[x + y * header.w];
 				float bY = logoBY[x + y * header.w];
-				float aU = logoAU[x + y * header.w];
-				float bU = logoBU[x + y * header.w];
-				float aV = logoAV[x + y * header.w];
-				float bV = logoBV[x + y * header.w];
-				float fY = ((bg - bY * 255) / aY);
-				float fU = ((bg - bU * 255) / aU);
-				float fV = ((bg - bV * 255) / aV);
+				float aU = logoAU[UVx + UVy * widthUV];
+				float bU = logoBU[UVx + UVy * widthUV];
+				float aV = logoAV[UVx + UVy * widthUV];
+				float bV = logoBV[UVx + UVy * widthUV];
+				float fY = ((bgY - bY * 255) / aY);
+				float fU = ((bgU - bU * 255) / aU);
+				float fV = ((bgV - bV * 255) / aV);
 				// B
 				line[x * 3 + 0] = (uint8_t)std::max(0.0f, std::min(255.0f, (fY + 1.8556f * fU + 0.5f)));
 				// G
@@ -206,7 +214,7 @@ public:
 			logo.Save(filename, &header);
 			return true;
 		}
-		catch (Exception& exception) {
+		catch (const Exception& exception) {
 			ctx.setError(exception);
 		}
 		return false;
@@ -219,7 +227,7 @@ extern "C" __declspec(dllexport) void* LogoFile_Create(AMTContext* ctx, const ch
 	try {
 		return new logo::GUILogoFile(*ctx, filepath);
 	}
-	catch (Exception& exception) {
+	catch (const Exception& exception) {
 		ctx->setError(exception);
 	}
 	return nullptr;

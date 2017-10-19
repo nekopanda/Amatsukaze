@@ -55,7 +55,7 @@ private:
 		try {
 			static_cast<ThreadBase*>(arg)->run();
 		}
-		catch (Exception& e) {
+		catch (const Exception& e) {
 			throw e;
 		}
 		return 0;

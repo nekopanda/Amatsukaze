@@ -140,10 +140,10 @@ struct H264SequenceParameterSet {
 
 			numReadBytes = reader.numReadBytes();
 		}
-		catch (EOFException) {
+		catch (const EOFException&) {
 			return false;
 		}
-		catch (FormatException) {
+		catch (const FormatException&) {
 			return false;
 		}
 		return true;
@@ -425,10 +425,10 @@ struct H264PicParameterSet {
 
 			numReadBytes = reader.numReadBytes();
 		}
-		catch (EOFException) {
+		catch (const EOFException&) {
 			return false;
 		}
-		catch (FormatException) {
+		catch (const FormatException&) {
 			return false;
 		}
 		return true;
@@ -496,10 +496,10 @@ public:
 			}
 			numReadBytes = reader.numReadBytes();
 		}
-		catch (EOFException) {
+		catch (const EOFException&) {
 			return false;
 		}
-		catch (FormatException) {
+		catch (const FormatException&) {
 			return false;
 		}
 		return true;

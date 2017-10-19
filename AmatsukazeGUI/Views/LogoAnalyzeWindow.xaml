@@ -27,6 +27,9 @@
         <i:EventTrigger EventName="Closed">
             <l:DataContextDisposeAction/>
         </i:EventTrigger>
+        <i:EventTrigger EventName="Closed">
+            <l:LivetCallMethodAction MethodTarget="{Binding}" MethodName="WindowClosed"/>
+        </i:EventTrigger>
 
         <!--WindowのCloseキャンセル処理に対応する場合は、WindowCloseCancelBehaviorの使用を検討してください-->
         <l:InteractionMessageTrigger MessageKey="ScanComplete" Messenger="{Binding Messenger}">
@@ -111,7 +114,15 @@
             <ProgressBar Height="25" Margin="429,0,177.333,0" Value="{Binding Model.LogoProgress}"/>
 
             <TextBlock x:Name="textBlock" Margin="0,0,48.333,0" TextAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Run Text="{Binding Model.LogoNumRead}" /><Run Text="/"/><Run Text="{Binding Model.LogoNumTotal}" /><LineBreak/><Run Text="収集サンプル数: "/><Run Text="{Binding Model.LogoNumValid}" />
+                <Run Text="{Binding Model.LogoNumRead}" /><Run Text="/"/><Run Text="{Binding Model.LogoNumTotal}"><Run.Style>
+                    <Style TargetType="{x:Type Run}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Model.LogoNumTotal}" Value="-1">
+                            <Setter Property="Text" Value="不明" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+                </Run.Style></Run><LineBreak/><Run Text="収集サンプル数: "/><Run Text="{Binding Model.LogoNumValid}" />
             </TextBlock>
         </Grid>
         <Slider x:Name="slider" VerticalAlignment="Top" Grid.Row="2" LargeChange="0.1" SmallChange="0.01" Maximum="1" TickFrequency="0.1" Value="{Binding Model.FilePosition, Mode=TwoWay}" Margin="6"/>

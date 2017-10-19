@@ -112,7 +112,7 @@ namespace Amatsukaze.Models
         private static extern void TsInfo_Delete(IntPtr ptr);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool TsInfo_ReadFile(IntPtr ptr);
+        private static extern bool TsInfo_ReadFile(IntPtr ptr, string filepath);
 
         [DllImport("Amatsukaze.dll")]
         private static extern void TsInfo_GetDay(IntPtr ptr, out int y, out int m, out int d);
@@ -182,7 +182,7 @@ namespace Amatsukaze.Models
 
         public bool ReadFile(string filepath)
         {
-            return TsInfo_ReadFile(Ptr);
+            return TsInfo_ReadFile(Ptr, filepath);
         }
 
         public DateTime GetTime()
@@ -344,13 +344,13 @@ namespace Amatsukaze.Models
         private static extern void LogoFile_SetName(IntPtr ptr, string name);
 
         [DllImport("Amatsukaze.dll")]
-        private static unsafe extern void Logo_GetImage(IntPtr ptr, byte* buf, int stride, byte bg);
+        private static unsafe extern void LogoFile_GetImage(IntPtr ptr, byte* buf, int stride, byte bg);
 
         [DllImport("Amatsukaze.dll")]
         private static extern bool LogoFile_Save(IntPtr ptr, string filename);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool Native_ScanLogo(IntPtr ctx, string srcpath, string workfile, string dstpath,
+        private static extern bool ScanLogo(IntPtr ctx, string srcpath, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb);
         #endregion
 
@@ -406,7 +406,7 @@ namespace Amatsukaze.Models
 
         public int ServiceId {
             get {
-                return LogoFile_GetX(Ptr);
+                return LogoFile_GetServiceId(Ptr);
             }
             set {
                 LogoFile_SetServiceId(Ptr, value);
@@ -430,7 +430,7 @@ namespace Amatsukaze.Models
             {
                 fixed (byte* pbuffer = buffer)
                 {
-                    Logo_GetImage(Ptr, pbuffer, stride, bg);
+                    LogoFile_GetImage(Ptr, pbuffer, stride, bg);
                 }
             }
             return BitmapSource.Create(
@@ -448,7 +448,7 @@ namespace Amatsukaze.Models
         public static void ScanLogo(AMTContext ctx, string srcpath, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb)
         {
-            if(!Native_ScanLogo(ctx.Ptr, srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb))
+            if(!ScanLogo(ctx.Ptr, srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb))
             {
                 throw new IOException(ctx.GetError());
             }

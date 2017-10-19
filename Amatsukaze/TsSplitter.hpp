@@ -59,10 +59,6 @@ public:
 protected:
 
 	virtual void onPesPacket(int64_t clock, PESPacket packet) {
-		if (clock == -1) {
-			ctx.error("Video PES Packet にクロック情報がありません");
-			return;
-		}
 		if (!packet.has_PTS()) {
 			ctx.error("Video PES Packet に PTS がありません");
 			return;
@@ -401,6 +397,10 @@ protected:
 
 	protected:
 		virtual void onVideoPesPacket(int64_t clock, const std::vector<VideoFrameInfo>& frames, PESPacket packet) {
+			if (clock == -1) {
+				ctx.error("Video PES Packet にクロック情報がありません");
+				return;
+			}
 			this_.onVideoPesPacket(clock, frames, packet);
 		}
 

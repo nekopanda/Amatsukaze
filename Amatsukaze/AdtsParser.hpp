@@ -63,10 +63,10 @@ struct AdtsHeader {
 
 			if (frame_length < numBytesRead) return false; // ƒwƒbƒ_‚æ‚è’Z‚¢‚Ì‚Í‚¨‚©‚µ‚¢
 		}
-		catch (EOFException) {
+		catch (const EOFException&) {
 			return false;
 		}
-		catch (FormatException) {
+		catch (const FormatException&) {
 			return false;
 		}
 		return true;

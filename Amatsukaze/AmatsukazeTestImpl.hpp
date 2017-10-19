@@ -110,7 +110,7 @@ static int VerifyMpeg2Ps(AMTContext& ctx, const TranscoderSetting& setting) {
 		size_t readBytes = fread(buf, 1, BUF_SIZE, fp);
 		psVerifier.verify(MemoryChunk(buf, readBytes));
 	}
-	catch (Exception e) {
+	catch (const Exception& e) {
 		fprintf(stderr, "Verify MPEG2-PS Error: 例外がスローされました -> %s\n", e.message());
 		return 1;
 	}
@@ -131,7 +131,7 @@ static int ReadTS(AMTContext& ctx, const TranscoderSetting& setting)
 		}
 		StreamReformInfo reformInfo = splitter->split();
 	}
-	catch (Exception e) {
+	catch (const Exception& e) {
 		fprintf(stderr, "ReadTS Error: 例外がスローされました -> %s\n", e.message());
 		return 1;
 	}

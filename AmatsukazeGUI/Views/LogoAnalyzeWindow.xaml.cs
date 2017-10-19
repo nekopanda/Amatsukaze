@@ -40,7 +40,6 @@ namespace Amatsukaze.Views
             { 
                 vm.RectPosition = Mouse.GetPosition(image);
                 vm.RectSize = new Size();
-                vm.ViewVisual = image;
             }
         }
 
@@ -54,7 +53,6 @@ namespace Amatsukaze.Views
                 {
                     var diff = curPos - vm.RectPosition;
                     vm.RectSize = new Size(Math.Max(0, diff.X), Math.Max(0, diff.Y));
-                    vm.ViewVisual = image;
                 }
             }
         }

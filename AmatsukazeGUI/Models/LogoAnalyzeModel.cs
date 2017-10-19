@@ -294,6 +294,7 @@ namespace Amatsukaze.Models
                 try
                 {
                     File.Copy(logopath, path);
+                    return;
                 }
                 catch(IOException) { }
             }

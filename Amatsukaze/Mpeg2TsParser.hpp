@@ -437,7 +437,7 @@ std::vector<Descriptor> ParseDescriptors(MemoryChunk mc)
 	int offset = 0;
 	while (offset < mc.length) {
 		list.push_back(Descriptor(&mc.data[offset], mc.data[offset + 1]));
-		offset += mc.data[offset + 1];
+		offset += 2 + mc.data[offset + 1];
 	}
 	return list;
 };

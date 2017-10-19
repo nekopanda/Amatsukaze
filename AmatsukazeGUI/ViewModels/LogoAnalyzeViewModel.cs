@@ -16,6 +16,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 
 namespace Amatsukaze.ViewModels
 {
@@ -191,15 +192,14 @@ namespace Amatsukaze.ViewModels
                 return;
             }
 
-            // DPIを反映
-            Point scale = GetDpiScaleFactor(ViewVisual);
-            Point pt = new Point(RectPosition.X * scale.X, RectPosition.Y * scale.Y);
-            Size sz = new Size(RectSize.Width * scale.X, RectSize.Height * scale.Y);
-
             try
             {
-                currentTask = Model.Analyze(App.Option.FilePath, App.Option.WorkPath, pt, sz, Threshold, MaxFrames);
+                currentTask = Model.Analyze(App.Option.FilePath, App.Option.WorkPath, RectPosition, RectSize, Threshold, MaxFrames);
                 await currentTask;
+
+                var vm = new LogoImageViewModel();
+                vm.Model = Model;
+                await Messenger.RaiseAsync(new TransitionMessage(vm, "ScanComplete"));
             }
             catch(IOException exception)
             {
@@ -211,8 +211,6 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
-
-        public Visual ViewVisual;
 
         public LogoAnalyzeViewModel()
         {
@@ -229,6 +227,20 @@ namespace Amatsukaze.ViewModels
             try
             {
                 Directory.CreateDirectory(App.Option.WorkPath);
+
+                if(string.IsNullOrWhiteSpace(App.Option.FilePath))
+                {
+                    OpenFileDialog openFileDialog = new OpenFileDialog();
+                    openFileDialog.FilterIndex = 1;
+                    openFileDialog.Filter = "MPEG2-TS(.ts)|*.ts;*.m2ts|All Files (*.*)|*.*";
+                    bool? result = openFileDialog.ShowDialog();
+                    if (result != true)
+                    {
+                        return false;
+                    }
+                    App.Option.FilePath = openFileDialog.FileName;
+                }
+
                 Model.Load(App.Option.FilePath);
             }
             catch (IOException exception)
@@ -266,19 +278,6 @@ namespace Amatsukaze.ViewModels
                     Environment.Exit(1);
                 }
             }
-        }
-
-        public static Point GetDpiScaleFactor(Visual visual)
-        {
-            var source = PresentationSource.FromVisual(visual);
-            if (source != null && source.CompositionTarget != null)
-            {
-                return new Point(
-                    source.CompositionTarget.TransformToDevice.M11,
-                    source.CompositionTarget.TransformToDevice.M22);
-            }
-
-            return new Point(1.0, 1.0);
         }
     }
 }

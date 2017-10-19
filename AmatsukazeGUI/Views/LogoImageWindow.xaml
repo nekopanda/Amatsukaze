@@ -27,9 +27,6 @@
         <i:EventTrigger EventName="Closed">
             <l:DataContextDisposeAction/>
         </i:EventTrigger>
-        <i:EventTrigger EventName="Closed">
-            <l:LivetCallMethodAction MethodTarget="{Binding}" MethodName="WindowClosed"/>
-        </i:EventTrigger>
 
         <!--WindowのCloseキャンセル処理に対応する場合は、WindowCloseCancelBehaviorの使用を検討してください-->
         <l:InteractionMessageTrigger MessageKey="Close" Messenger="{Binding Messenger}">

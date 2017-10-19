@@ -419,6 +419,8 @@ public:
 		: AMTObject(ctx)
 	{ }
 
+	int64_t currentPos;
+
 	void readAll(const std::string& src)
 	{
 		using namespace av;
@@ -458,6 +460,7 @@ public:
 						onFirstFrame(videoStream, frame());
 						first = false;
 					}
+					currentPos = packet.pos;
 					if (!onFrame(frame())) {
 						av_packet_unref(&packet);
 						return;
@@ -632,6 +635,8 @@ class LogoAnalyzer : AMTObject
   int numFrames;
   std::unique_ptr<LogoData> logodata;
 
+	float progressbase;
+
 	// 今の所可逆圧縮が8bitのみなので対応は8bitのみ
 	class InitialLogoCreator : SimpleVideoReader
 	{
@@ -640,6 +645,7 @@ class LogoAnalyzer : AMTObject
 		size_t scanDataSize;
 		size_t codedSize;
 		int readCount;
+		int64_t filesize;
 		std::unique_ptr<uint8_t[]> memScanData;
 		std::unique_ptr<uint8_t[]> memCoded;
 		std::unique_ptr<LosslessVideoFile> file;
@@ -657,6 +663,8 @@ class LogoAnalyzer : AMTObject
 		{ }
 		void readAll(const std::string& src)
 		{
+			{ File file(src, "rb"); filesize = file.size(); }
+
 			SimpleVideoReader::readAll(src);
 
 			codec->EncodeEnd();
@@ -722,7 +730,10 @@ class LogoAnalyzer : AMTObject
 				file->writeFrame(memCoded.get(), (int)codedSize);
 			}
 
-			if ((readCount % 2000) == 0) printf("%d frames\n", readCount);
+			if ((readCount % 200) == 0) {
+				float progress = (float)currentPos / filesize * 50;
+				pThis->cb(progress, readCount, 0, pThis->numFrames);
+			}
 
 			return true;
 		};
@@ -787,7 +798,10 @@ class LogoAnalyzer : AMTObject
 				}
 				minFades[i] = minFadeIndex;
 
-				if ((i % 2000) == 0) printf("%d frames\n", i);
+				if ((i % 100) == 0) {
+					float progress = (float)i / numFrames * 25 + progressbase;
+					cb(progress, i, numFrames, numFrames);
+				}
 			}
 
 			codec->DecodeEnd();
@@ -845,14 +859,10 @@ class LogoAnalyzer : AMTObject
 
 	int GetServiceId() {
 		TsInfo tsinfo(ctx);
-		if (tsinfo.ReadFile(srcpath.c_str())) {
-			if (tsinfo.GetNumProgram() > 0) {
-				int progId, hasVideo, videoPid;
-				tsinfo.GetProgramInfo(0, &progId, &hasVideo, &videoPid);
-				return progId;
-			}
-		}
-		return -1;
+		tsinfo.ReadFile(srcpath.c_str());
+		int progId, hasVideo, videoPid;
+		tsinfo.GetProgramInfo(0, &progId, &hasVideo, &videoPid);
+		return progId;
 	}
 
 public:
@@ -880,13 +890,18 @@ public:
 		int serviceId = GetServiceId();
 
 		// 有効フレームデータと初期ロゴの取得
+		progressbase = 0;
     MakeInitialLogo();
 
     // データ解析とロゴの作り直し
+		progressbase = 50;
 		//MultiCandidate();
 		ReMakeLogo();
+		progressbase = 75;
 		ReMakeLogo();
 		//ReMakeLogo();
+
+		cb(1, numFrames, numFrames, numFrames);
 
 		LogoHeader header(scanw, scanh, logUVx, logUVy, imgw, imgh, scanx, scany, "No Name");
 		header.serviceId = serviceId;
@@ -895,7 +910,7 @@ public:
 };
 
 // C API for P/Invoke
-extern "C" bool ScanLogo(AMTContext* ctx,
+extern "C" __declspec(dllexport) bool ScanLogo(AMTContext* ctx,
 	const char* srcpath, const char* workfile, const char* dstpath,
 	int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 	LOGO_ANALYZE_CB cb)
@@ -906,7 +921,7 @@ extern "C" bool ScanLogo(AMTContext* ctx,
 		analyzer.ScanLogo();
 		return true;
 	}
-	catch (Exception& exception) {
+	catch (const Exception& exception) {
 		ctx->setError(exception);
 	}
 	return false;
@@ -1107,7 +1122,7 @@ public:
 			logo = std::unique_ptr<LogoDataParam>(
 				new LogoDataParam(LogoData::Load(logoPath, &header), &header));
 		}
-		catch (IOException&) {
+		catch (const IOException&) {
 			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
 		}
 
@@ -1232,7 +1247,7 @@ public:
 				int YSize = header.w * header.h;
 				maxYSize = std::max(maxYSize, YSize);
 			}
-			catch (IOException&) {
+			catch (const IOException&) {
 				// 読み込みエラーは無視
 			}
 		}

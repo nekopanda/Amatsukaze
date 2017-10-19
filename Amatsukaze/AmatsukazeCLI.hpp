@@ -411,7 +411,7 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 
 		return 0;
 	}
-	catch (Exception e) {
+	catch (const Exception&) {
 		return 1;
 	}
 }
@@ -431,7 +431,7 @@ __declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
 
     return amatsukazeTranscodeMain(ctx, *setting);
   }
-  catch (Exception e) {
+  catch (const Exception&) {
     // parseArgsÇ≈ÉGÉâÅ[
     printHelp(argv[0]);
     return 1;
