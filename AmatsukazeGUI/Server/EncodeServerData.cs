@@ -91,6 +91,10 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public int NumParallel { get; set; }
+        [DataMember]
+        public bool EnableFilterTmp { get; set; }
+        [DataMember]
+        public int MaxTmpGB { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }

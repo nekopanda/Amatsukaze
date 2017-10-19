@@ -7,12 +7,14 @@ using System.ComponentModel;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Amatsukaze.Server
 {
@@ -335,11 +337,64 @@ namespace Amatsukaze.Server
             }
         }
 
-        private class EncodeTask
+        enum PipeCommand
+        {
+            FinishAnalyze = 1,
+            StartFilter,
+            FinishFilter,
+            FinishEncode,
+            Error
+        }
+
+        private class TranscodeTask
+        {
+            public TranscodeThread thread;
+            public QueueItem src;
+            public FileStream logWriter;
+            public Process process;
+            public PipeStream writePipe;
+            public string taskjson;
+            public FragmentTask[] fragments;
+            public int numFinishedEncoders;
+            public bool errorDetected;
+
+            private Task nofity(PipeCommand cmd)
+            {
+                return writePipe.WriteAsync(BitConverter.GetBytes((int)cmd), 0, 4);
+            }
+
+            public Task notifyError()
+            {
+                return nofity(PipeCommand.Error);
+            }
+
+            public Task notifyEncodeFinish()
+            {
+                return nofity(PipeCommand.FinishEncode);
+            }
+
+            public Task startFilter()
+            {
+                return nofity(PipeCommand.StartFilter);
+            }
+        }
+
+        private class FragmentTask
+        {
+            public TranscodeTask parent;
+            public int index;
+            public int numFrames;
+            public string infoFile;
+            public string tmpFile;
+            public BufferBlock<bool> filterFinish;
+            public Process encodeProccess;
+            public long tmpFileBytes;
+        }
+
+        private class TranscodeThread
         {
             public int id;
-            public Process process;
-            public FileStream logWriter;
+            public TranscodeTask current;
             public ConsoleText consoleText;
             public ConsoleText logText;
             public Dictionary<string, byte[]> hashList;
@@ -352,9 +407,27 @@ namespace Amatsukaze.Server
 
             public void KillProcess()
             {
-                if(process != null)
+                if (current != null)
                 {
-                    process.Kill();
+                    // もう殺すのでエラー通知の必要はない
+                    current.errorDetected = true;
+
+                    if (current.fragments != null)
+                    {
+                        // エンコードプロセスをKill
+                        foreach (var frag in current.fragments)
+                        {
+                            if (frag.encodeProccess != null)
+                            {
+                                frag.encodeProccess.Kill();
+                            }
+                        }
+                    }
+                    // 本体をKill
+                    if (current.process != null)
+                    {
+                        current.process.Kill();
+                    }
                 }
             }
 
@@ -370,7 +443,7 @@ namespace Amatsukaze.Server
                 };
             }
 
-            private async Task RedirectOut(EncodeServer server, Stream stream)
+            private async Task RedirectOut(EncodeServer server, TranscodeTask transcode, Stream stream)
             {
                 try
                 {
@@ -383,9 +456,9 @@ namespace Amatsukaze.Server
                             // 終了
                             return;
                         }
-                        if(logWriter != null)
+                        if(transcode.logWriter != null)
                         {
-                            logWriter.Write(buffer, 0, readBytes);
+                            transcode.logWriter.Write(buffer, 0, readBytes);
                         }
                         consoleText.AddBytes(buffer, 0, readBytes);
                         logText.AddBytes(buffer, 0, readBytes);
@@ -398,6 +471,29 @@ namespace Amatsukaze.Server
                 catch (Exception e)
                 {
                     Debug.Print("RedirectOut exception " + e.Message);
+                }
+            }
+
+            private void MakeFragments(TranscodeTask task, string jsonpath)
+            {
+                var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
+                task.fragments = new FragmentTask[(int)json.numparts];
+                var infofiles = new List<string>();
+                var tmpfiles = new List<string>();
+                var frames = new List<int>();
+                foreach (var obj in json.files)
+                {
+                    infofiles.Add(obj.infopath);
+                    tmpfiles.Add(obj.tmppath);
+                    frames.Add(obj.numframe);
+                }
+                for (int i = 0; i < task.fragments.Length; ++i)
+                {
+                    task.fragments[i].index = i;
+                    task.fragments[i].parent = task;
+                    task.fragments[i].numFrames = frames[i];
+                    task.fragments[i].infoFile = infofiles[i];
+                    task.fragments[i].tmpFile = tmpfiles[i];
                 }
             }
 
@@ -451,6 +547,71 @@ namespace Amatsukaze.Server
                 };
             }
 
+            private async Task<PipeCommand> ReadCommand(PipeStream readPipe)
+            {
+                byte[] buf = new byte[4];
+                int readBytes = 0;
+                while (readBytes < 4)
+                {
+                    readBytes += await readPipe.ReadAsync(buf, readBytes, 4 - readBytes);
+                }
+                return (PipeCommand)BitConverter.ToInt32(buf, 0);
+            }
+
+            private async Task HostThread(EncodeServer server, TranscodeTask transcode, PipeStream readPipe, PipeStream writePipe)
+            {
+                if (!server.appData.setting.EnableFilterTmp)
+                {
+                    return;
+                }
+
+                try
+                {
+                    int numFilterCompelte = 0;
+                    // 子プロセスが終了するまでループ
+                    while (true)
+                    {
+                        var cmd = await ReadCommand(readPipe);
+                        switch (cmd)
+                        {
+                            case PipeCommand.FinishAnalyze:
+                                MakeFragments(transcode, transcode.taskjson);
+                                server.filterQueue.Post(transcode);
+                                break;
+                            case PipeCommand.FinishFilter:
+                                server.encoderQueue.Post(transcode.fragments[numFilterCompelte++]);
+                                break;
+                        }
+                    }
+                }
+                catch(Exception e)
+                {
+                    if (transcode.numFinishedEncoders >= transcode.fragments.Length)
+                    {
+                        // もう終了した
+                        return;
+                    }
+
+                    // エラー
+                    Debug.Print("Pipe exception " + e.Message);
+
+                    // エンコード中のタスクは強制終了
+                    KillProcess();
+
+                    // 一時ファイルを消す
+                    foreach(var fragment in transcode.fragments)
+                    {
+                        if(File.Exists(fragment.tmpFile))
+                        {
+                            File.Delete(fragment.tmpFile);
+                        }
+                    }
+
+                    // Amatsukazeの戻り値でエラーは通知されるので
+                    // ここで通知する必要はない
+                }
+            }
+
             private async Task<LogItem> ProcessItem(EncodeServer server, QueueItem src)
             {
                 DateTime now = DateTime.Now;
@@ -488,13 +649,24 @@ namespace Amatsukaze.Server
                     localdst = tmpBase + "-out.mp4";
                 }
 
+                AnonymousPipeServerStream readPipe = 
+                    new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+                AnonymousPipeServerStream writePipe = 
+                    new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+
+                string outHandle = readPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                string inHandle = writePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+
                 string json = Path.Combine(
                     Path.GetDirectoryName(localdst),
                     Path.GetFileNameWithoutExtension(localdst)) + "-enc.json";
+                string taskjson = Path.Combine(
+                    Path.GetDirectoryName(localdst),
+                    Path.GetFileNameWithoutExtension(localdst)) + "-task.json";
                 string logpath = Path.Combine(
                     Path.GetDirectoryName(dstpath),
                     Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
-                string args = server.MakeAmatsukazeArgs(isMp4, srcpath, localdst, json);
+                string args = server.MakeAmatsukazeArgs(isMp4, srcpath, localdst, json, taskjson, inHandle, outHandle);
                 string exename = server.appData.setting.AmatsukazePath;
 
                 Util.AddLog(id, "エンコード開始: " + src.Path);
@@ -511,9 +683,6 @@ namespace Amatsukaze.Server
                     CreateNoWindow = true
                 };
 
-                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
-                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
-
                 int exitCode = -1;
                 logText.Clear();
 
@@ -521,17 +690,34 @@ namespace Amatsukaze.Server
                 {
                     using (var p = Process.Start(psi))
                     {
-                        // アフィニティを設定
-                        p.ProcessorAffinity = affinityMask;
+                        if(server.appData.setting.EnableFilterTmp == false)
+                        {
+                            // アフィニティを設定
+                            IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
+                            Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
+                            p.ProcessorAffinity = affinityMask;
+                        }
                         p.PriorityClass = ProcessPriorityClass.BelowNormal;
 
-                        process = p;
+                        // クライアントハンドルを閉じる
+                        readPipe.DisposeLocalCopyOfClientHandle();
+                        writePipe.DisposeLocalCopyOfClientHandle();
 
-                        using (logWriter = File.Create(logpath))
+                        current = new TranscodeTask()
+                        {
+                            thread = this,
+                            src = src,
+                            process = p,
+                            taskjson = taskjson,
+                            writePipe = writePipe
+                        };
+
+                        using (current.logWriter = File.Create(logpath))
                         {
                             await Task.WhenAll(
-                                RedirectOut(server, p.StandardOutput.BaseStream),
-                                RedirectOut(server, p.StandardError.BaseStream),
+                                RedirectOut(server, current, p.StandardOutput.BaseStream),
+                                RedirectOut(server, current, p.StandardError.BaseStream),
+                                HostThread(server, current, readPipe, writePipe),
                                 Task.Run(() => p.WaitForExit()));
                         }
 
@@ -543,10 +729,17 @@ namespace Amatsukaze.Server
                     Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
                     throw w32e;
                 }
+                catch(IOException ioe)
+                {
+                    Util.AddLog(id, "ログファイル生成に失敗");
+                    throw ioe;
+                }
                 finally
                 {
-                    logWriter = null;
-                    process = null;
+                    readPipe.Close();
+                    writePipe.Close();
+                    current.logWriter = null;
+                    current = null;
                 }
 
                 DateTime finish = DateTime.Now;
@@ -680,6 +873,51 @@ namespace Amatsukaze.Server
 
                 await Task.WhenAll(waitList.ToArray());
             }
+
+            public async Task<int> ExecEncoder(EncodeServer server, FragmentTask task, int cpuIndex)
+            {
+                string args = server.MakeEncodeTaskArgs(task);
+                string exename = server.appData.setting.AmatsukazePath;
+
+                var psi = new ProcessStartInfo(exename, args) {
+                    UseShellExecute = false,
+                    WorkingDirectory = Directory.GetCurrentDirectory(),
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardInput = false,
+                    CreateNoWindow = true
+                };
+
+                try
+                {
+                    using (var p = Process.Start(psi))
+                    {
+                        // アフィニティを設定
+                        IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(cpuIndex));
+                        Util.AddLog(task.parent.thread.id, "AffinityMask: " + affinityMask.ToInt64());
+                        p.ProcessorAffinity = affinityMask;
+                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
+
+                        task.encodeProccess = p;
+
+                        await Task.WhenAll(
+                            RedirectOut(server, task.parent, p.StandardOutput.BaseStream),
+                            RedirectOut(server, task.parent, p.StandardError.BaseStream),
+                            Task.Run(() => p.WaitForExit()));
+
+                        return p.ExitCode;
+                    }
+                }
+                catch (Win32Exception w32e)
+                {
+                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
+                    throw w32e;
+                }
+                finally
+                {
+                    task.encodeProccess = null;
+                }
+            }
         }
 
         private class EncodeException : Exception
@@ -690,11 +928,19 @@ namespace Amatsukaze.Server
             }
         }
 
+        private const int NumFilterThreads = 1;
+
         private IUserClient client;
         public Task ServerTask { get; private set; }
         private AppData appData;
 
-        private List<EncodeTask> taskList = new List<EncodeTask>();
+        private List<TranscodeThread> taskList = new List<TranscodeThread>();
+        private BufferBlock<TranscodeTask> filterQueue;
+        private BufferBlock<FragmentTask> encoderQueue;
+
+        private long occupiedStorage;
+        private BufferBlock<int> storageQ = new BufferBlock<int>();
+
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private LogData log;
         private SortedDictionary<string, DiskItem> diskMap = new SortedDictionary<string, DiskItem>();
@@ -820,7 +1066,6 @@ namespace Amatsukaze.Server
             return File.ReadAllText(logpath, Encoding.Default);
         }
         #endregion
-
 
         public void Finish()
         {
@@ -1003,7 +1248,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private string MakeAmatsukazeArgs(bool isGeneric, string src, string dst, string json)
+        private string MakeAmatsukazeArgs(bool isGeneric, string src, string dst, string json, string taskjson, string inHandle, string outHandle)
         {
             string workPath = string.IsNullOrEmpty(appData.setting.WorkPath)
                 ? "./" : appData.setting.WorkPath;
@@ -1084,6 +1329,21 @@ namespace Amatsukaze.Server
                 sb.Append(" --pulldown");
             }
 
+            sb.Append(" --taskjson ").Append(taskjson); // TODO: やっぱりjsonはpipeで受け取る
+            sb.Append(" --in-pipe ").Append(inHandle);
+            sb.Append(" --out-pipe ").Append(outHandle);
+
+            return sb.ToString();
+        }
+
+        private string MakeEncodeTaskArgs(FragmentTask fragment)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("--mode enctask ");
+            sb.Append("--info \"").Append(fragment.infoFile)
+                .Append("\" -i \"").Append(fragment.tmpFile)
+                .Append("\"");
+
             return sb.ToString();
         }
 
@@ -1126,24 +1386,34 @@ namespace Amatsukaze.Server
                         appData.setting.NumParallel = 1;
                     }
 
-                    int numParallel = appData.setting.NumParallel;
+                    int numParallelAnalyze = appData.setting.NumParallel;
+                    int numParallelEncode = appData.setting.NumParallel;
+
+                    if (appData.setting.EnableFilterTmp)
+                    {
+                        numParallelAnalyze += 2;
+
+                        // キュー作成
+                        filterQueue = new BufferBlock<TranscodeTask>();
+                        encoderQueue = new BufferBlock<FragmentTask>();
+                    }
 
                     // 足りない場合は追加
-                    while (taskList.Count < numParallel)
+                    while (taskList.Count < numParallelAnalyze)
                     {
-                        taskList.Add(new EncodeTask() {
+                        taskList.Add(new TranscodeThread() {
                             id = taskList.Count,
                             consoleText = new ConsoleText(500),
                             logText = new ConsoleText(1 * 1024 * 1024)
                         });
                     }
                     // 多すぎる場合は削除
-                    while (taskList.Count > numParallel)
+                    while (taskList.Count > numParallelAnalyze)
                     {
                         taskList.RemoveAt(taskList.Count - 1);
                     }
 
-                    affinityCreator.NumProcess = numParallel;
+                    affinityCreator.NumProcess = numParallelEncode;
 
                     var dir = queue[0];
 
@@ -1159,17 +1429,39 @@ namespace Amatsukaze.Server
                         hashList = HashUtil.ReadHashFile(hashpath);
                     }
 
-                    Task[] tasks = new Task[numParallel];
-                    for (int i = 0; i < numParallel; ++i)
+                    var threads = new List<Task>();
+                    if (appData.setting.EnableFilterTmp)
+                    {
+                        for(int i = 0; i < NumFilterThreads; ++i)
+                        {
+                            threads.Add(FilterThread());
+                        }
+                        for (int i = 0; i < numParallelEncode; ++i)
+                        {
+                            threads.Add(EncodeThread(i));
+                        }
+                    }
+
+                    occupiedStorage = 0;
+
+                    var tasks = new List<Task>();
+                    for (int i = 0; i < numParallelAnalyze; ++i)
                     {
                         taskList[i].hashList = hashList;
                         taskList[i].tmpBase = Util.CreateTmpFile(appData.setting.WorkPath);
-                        tasks[i] = taskList[i].ProcessDiretoryItem(this, dir);
+                        tasks.Add(taskList[i].ProcessDiretoryItem(this, dir));
                     }
 
                     await Task.WhenAll(tasks);
 
-                    for (int i = 0; i < numParallel; ++i)
+                    if (appData.setting.EnableFilterTmp)
+                    {
+                        filterQueue.Complete();
+                        encoderQueue.Complete();
+                        await Task.WhenAll(threads);
+                    }
+
+                    for (int i = 0; i < numParallelAnalyze; ++i)
                     {
                         File.Delete(taskList[i].tmpBase);
                     }
@@ -1197,6 +1489,109 @@ namespace Amatsukaze.Server
             waitList.Add(RequestState());
 
             await Task.WhenAll(waitList.ToArray());
+        }
+
+        private async Task FilterThread()
+        {
+            var finishQ = new BufferBlock<bool>();
+
+            while (await filterQueue.OutputAvailableAsync())
+            {
+                TranscodeTask task = await filterQueue.ReceiveAsync();
+
+                foreach(var fragment in task.fragments)
+                {
+                    // TODO: フィルタ出力推定値を計算
+                    long estimatedTmpBytes = 100000;
+
+                    // テンポラリ容量を見る
+                    int occupied = (int)((occupiedStorage + estimatedTmpBytes) / (1024 * 1024 * 1024));
+                    if (occupied > appData.setting.MaxTmpGB)
+                    {
+                        // 容量を超えるのでダメ
+                        await storageQ.ReceiveAsync();
+                        continue;
+                    }
+
+                    // 推定値を足してフィルタ処理開始
+                    occupiedStorage += estimatedTmpBytes;
+                    fragment.filterFinish = finishQ;
+
+                    try
+                    {
+                        await task.startFilter();
+
+                        // フィルタ終了を待つ
+                        bool success = await fragment.filterFinish.ReceiveAsync();
+                        if (success == false)
+                        {
+                            // 失敗した
+                            // 最初に失敗を発見したHostThreadがエラー処理するのでここでは何もしない
+                            break;
+                        }
+
+                        // 本当の値を足す
+                        fragment.tmpFileBytes = new System.IO.FileInfo(fragment.tmpFile).Length;
+                        occupiedStorage += fragment.tmpFileBytes;
+
+                    }
+                    catch(Exception)
+                    {
+                        // 何らかのエラーが発生した
+                        break;
+                    }
+                    finally
+                    {
+                        fragment.filterFinish = null;
+
+                        occupiedStorage -= estimatedTmpBytes;
+                        if(storageQ.Count < NumFilterThreads)
+                        {
+                            storageQ.Post(0);
+                        }
+                    }
+                }
+            }
+        }
+
+        private async Task EncodeThread(int cpuIndex)
+        {
+            while (await encoderQueue.OutputAvailableAsync())
+            {
+                FragmentTask task = await encoderQueue.ReceiveAsync();
+
+                int exitCode = await task.parent.thread.ExecEncoder(this, task, cpuIndex);
+
+                // エンコードが終了したので一時ファイルを消して空ける
+                File.Delete(task.tmpFile);
+
+                occupiedStorage -= task.tmpFileBytes;
+                if (storageQ.Count < NumFilterThreads)
+                {
+                    storageQ.Post(0);
+                }
+
+                if (exitCode != 0)
+                {
+                    if (task.parent.errorDetected == false)
+                    {
+                        // まだ、エラー未通知なら通知する
+                        task.parent.errorDetected = true;
+
+                        await task.parent.notifyError();
+                        // エラー通知を受けてプロセスは終了し、
+                        // HostThreadがエラーを発見するはずなので、ここでは何もしない
+                    }
+                }
+                else
+                {
+                    if (++task.parent.numFinishedEncoders >= task.parent.fragments.Length)
+                    {
+                        // 全て終了したら通知
+                        await task.parent.notifyEncodeFinish();
+                    }
+                }
+            }
         }
 
         private DiskItem MakeDiskItem(string path)
