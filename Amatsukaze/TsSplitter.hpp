@@ -461,7 +461,7 @@ protected:
 		for (int i = 0; i < int(pids.size()); ++i) {
 			if (preferedServiceId == pids[i]) {
 				selectedServiceId = pids[i];
-				ctx.info("サービス 0x%04x を選択", selectedServiceId);
+				ctx.info("サービス %d を選択", selectedServiceId);
 				return i;
 			}
 		}
@@ -479,7 +479,7 @@ protected:
 			THROW(InvalidOperationException, "failed to select service");
 		}
 		selectedServiceId = pids[0];
-		ctx.info("サービス 0x%04x を選択（指定がありませんでした）", selectedServiceId);
+		ctx.info("サービス %d を選択（指定がありませんでした）", selectedServiceId);
 		return 0;
 	}
 

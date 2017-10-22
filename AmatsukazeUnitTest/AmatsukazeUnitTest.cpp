@@ -310,20 +310,19 @@ TEST_F(TestBase, LosslessTest)
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
 
-TEST_F(TestBase, LogoTest)
+TEST_F(TestBase, LogoFrameTest)
 {
 	std::wstring srcDir = TestDataDir + L"\\";
 	std::wstring dstDir = TestWorkDir + L"\\";
-	//std::wstring srcPath = srcDir + MPEG2VideoTsFile + L".ts";
-	std::wstring srcPath = srcDir + LargeTsFile + L".ts";
-	std::wstring dstPath = dstDir + L"logo.lgd";
+	std::wstring inavs = srcDir + L"input.avs";
+	std::wstring outtxt = dstDir + L"logoframe.txt";
 
 	const wchar_t* args[] = {
-		L"AmatsukazeTest.exe", L"--mode", L"test_scanlogo",
-		L"-a", L"1258,70,106,78,12,10000",
-		L"-w", dstDir.c_str(),
-		L"-o", dstPath.c_str(),
-		L"-i", srcPath.c_str()
+		L"AmatsukazeTest.exe", L"--mode", L"test_logoframe",
+		L"--logo", L"logo\\SID410-1.lgd",
+		L"--logo", L"logo\\SID410-2.lgd",
+		L"-a", outtxt.c_str(),
+		L"-f", inavs.c_str()
 	};
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
@@ -375,7 +374,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*LogoTest";
+	::testing::GTEST_FLAG(filter) = "*LogoFrameTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

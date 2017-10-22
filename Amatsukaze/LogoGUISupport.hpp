@@ -181,9 +181,9 @@ public:
 
 		int widthUV = (header.w >> header.logUVx);
 
-		float bgY = 0.2126f * bg + 0.7152 * bg + 0.0722 * bg;
-		float bgU = 0.5389 * (bg - bgY);
-		float bgV = 0.6350 * (bg - bgY);
+		float bgY = 0.2126f * bg + 0.7152f * bg + 0.0722f * bg;
+		float bgU = 0.5389f * (bg - bgY);
+		float bgV = 0.6350f * (bg - bgY);
 
 		for (int y = 0; y < header.h; ++y) {
 			uint8_t* line = rgb + y * stride;

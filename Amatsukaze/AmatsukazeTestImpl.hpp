@@ -409,8 +409,22 @@ static int LosslessFileTest(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int EraseLogoTest(AMTContext& ctx, const TranscoderSetting& setting)
+static int LogoFrameTest(AMTContext& ctx, const TranscoderSetting& setting)
 {
+	auto env = make_unique_ptr(CreateScriptEnvironment2());
+
+	{
+		auto env = make_unique_ptr(CreateScriptEnvironment2());
+		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
+
+		logo::LogoFrame logof(setting.getLogoPath(), 0.1f);
+		logof.scanFrames(clip, env.get());
+		logof.writeResult(setting.getModeArgs());
+
+		printf("BestLogo: %s\n", setting.getLogoPath()[logof.getBestLogo()].c_str());
+		printf("LogoRatio: %f\n", logof.getLogoRatio());
+	}
+
 	return 0;
 }
 

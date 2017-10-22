@@ -285,6 +285,18 @@ public:
 		return outFormat_[formatId];
   }
 
+	void setOutVideoFormat(const std::vector<VideoFormat>& outfmts) {
+		if (outfmts.size() != outFormat_.size()) {
+			THROW(InvalidOperationException, "# of formats does not match!!");
+		}
+		fileOutFormat_ = outfmts;
+	}
+
+	const VideoFormat& getOutVideoFormat(int encoderIndex, int videoFileIndex) const {
+		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
+		return fileOutFormat_[formatId];
+	}
+
   // 映像データサイズ（バイト）、時間（タイムスタンプ）のペア
   std::pair<int64_t, double> getSrcVideoInfo(int encoderIndex, int videoFileIndex) const {
     int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
@@ -425,6 +437,7 @@ private:
   // 出力ファイルごとの入力映像データサイズ、時間
   std::vector<int64_t> fileSrcSize_;
   std::vector<double> fileSrcDuration_;
+	std::vector<VideoFormat> fileOutFormat_;
 
 	// 2nd phase 出力
 	//std::vector<bool> encodedFrames_;

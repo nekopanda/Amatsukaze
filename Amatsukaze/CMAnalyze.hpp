@@ -4,31 +4,417 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <regex>
 
 #include "StreamUtils.hpp"
 #include "TranscodeSetting.hpp"
+#include "LogoScan.hpp"
+#include "ProcessThread.hpp"
 
 class CMAnalyze : public AMTObject
 {
 public:
 	CMAnalyze(AMTContext& ctx,
-		const TranscoderSetting& setting)
+		const TranscoderSetting& setting,
+		int videoFileIndex, int numFrames)
 		: AMTObject(ctx)
 		, setting_(setting)
 	{
-		//
+		std::string avspath = makeAVSFile(videoFileIndex);
+
+		// ロゴ解析
+		if (setting_.getLogoPath().size() > 0) {
+			ctx.info("[ロゴ情報取得]");
+			logoFrame(videoFileIndex, avspath);
+		}
+
+		// チャプター解析
+		ctx.info("[チャプター情報取得]");
+		chapterExe(videoFileIndex, avspath);
+
+		// CM推定
+		ctx.info("[CM推定]");
+		joinLogoScp(videoFileIndex);
+
+		// AVSファイルからCM区間を読む
+		readTrimAVS(videoFileIndex, numFrames);
 	}
 
-	void analyze(int videoFileIndex)
-	{
-		std::ofstream out(setting_.getTmpSourceAVSPath(videoFileIndex));
-		std::string dllpath;
-		std::string amtspath = setting_.getTmpAMTSourcePath(videoFileIndex);
-		out << "AMTSource(\"" << amtspath  << "\")" << std::endl;
+	const std::string& getLogoPath() const {
+		return logopath;
+	}
 
-		// TODO:
+	const std::vector<EncoderZone>& getZones() const {
+		return cmzones;
 	}
 
 private:
+	class MySubProcess : public EventBaseSubProcess {
+	public:
+		MySubProcess(const std::string& args, File* out = nullptr, File* err = nullptr)
+			: EventBaseSubProcess(args)
+			, out(out)
+			, err(err)
+		{ }
+	protected:
+		File* out;
+		File* err;
+		virtual void onOut(bool isErr, MemoryChunk mc) {
+			// これはマルチスレッドで呼ばれるの注意
+			File* dst = isErr ? err : out;
+			if (dst != nullptr) {
+				dst->write(mc);
+			}
+			else {
+				fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+				fflush(isErr ? stderr : stdout);
+			}
+		}
+	};
+
 	const TranscoderSetting& setting_;
+
+	std::string logopath;
+	std::vector<EncoderZone> cmzones;
+
+	std::string makeAVSFile(int videoFileIndex)
+	{
+		std::string avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
+		std::ofstream out(avspath);
+		out << "LoadPlugin(\"" << setting_.get32bitPath() << "\")" << std::endl;
+		out << "AMTSource(\"" << setting_.getTmpAMTSourcePath(videoFileIndex) << "\")" << std::endl;
+		return avspath;
+	}
+
+	void logoFrame(int videoFileIndex, const std::string& avspath)
+	{
+		ScriptEnvironmentPointer env = make_unique_ptr(CreateScriptEnvironment2());
+
+		AVSValue result;
+		env->LoadPlugin(GetModulePath().c_str(), true, &result);
+		PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
+
+		logo::LogoFrame logof(setting_.getLogoPath(), 0.1f);
+		logof.scanFrames(clip, env.get());
+		logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
+		if (logof.getLogoRatio() < 0.5f) {
+			if (setting_.getErrorOnNoLogo()) {
+				THROW(FormatException, "マッチするロゴが見つかりませんでした");
+			}
+		}
+
+		logopath = setting_.getLogoPath()[logof.getBestLogo()];
+	}
+
+	std::string MakeChapterExeArgs(int videoFileIndex, const std::string& avspath)
+	{
+		std::ostringstream ss;
+		ss << "\"" << setting_.getChapterExePath() << "\"";
+		ss << " -v \"" << avspath << "\"";
+		ss << " -o \"" << setting_.getTmpChapterExePath(videoFileIndex) << "\"";
+		return ss.str();
+	}
+
+	void chapterExe(int videoFileIndex, const std::string& avspath)
+	{
+		MySubProcess process(MakeChapterExeArgs(videoFileIndex, avspath));
+		int exitCode = process.join();
+		if (exitCode != 0) {
+			THROWF(FormatException, "ChapterExeがエラーコード(%d)を返しました", exitCode);
+		}
+	}
+
+	std::string MakeJoinLogoScpArgs(int videoFileIndex)
+	{
+		std::ostringstream ss;
+		ss << "\"" << setting_.getJoinLogoScpPath() << "\"";
+		if (logopath.size() > 0) {
+			ss << " -inlogo \"" << setting_.getTmpLogoFramePath(videoFileIndex) << "\"";
+		}
+		ss << " -inscp \"" << setting_.getTmpChapterExePath(videoFileIndex) << "\"";
+		ss << " -incmd \"" << setting_.getJoinLogoScpCmdPath() << "\"";
+		ss << " -o \"" << setting_.getTmpTrimAVSPath(videoFileIndex) << "\"";
+		ss << " -oscp \"" << setting_.getTmpJlsPath(videoFileIndex) << "\"";
+		return ss.str();
+	}
+
+	void joinLogoScp(int videoFileIndex)
+	{
+		MySubProcess process(MakeJoinLogoScpArgs(videoFileIndex));
+		int exitCode = process.join();
+		if (exitCode != 0) {
+			THROWF(FormatException, "join_logo_scp.exeがエラーコード(%d)を返しました", exitCode);
+		}
+	}
+
+	void readTrimAVS(int videoFileIndex, int numFrames)
+	{
+		std::ifstream file(setting_.getTmpTrimAVSPath(videoFileIndex));
+		std::string str;
+		if (!std::getline(file, str)) {
+			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
+		}
+
+		std::regex re("Trim\\((\\d+),(\\d+)\\)");
+		std::sregex_iterator iter(str.begin(), str.end(), re);
+		std::sregex_iterator end;
+
+		std::vector<int> split;
+		split.push_back(0);
+		for (; iter != end; ++iter) {
+			split.push_back(std::stoi((*iter)[1].str()));
+			split.push_back(std::stoi((*iter)[2].str()) + 1);
+		}
+		split.push_back(numFrames);
+
+		for (int i = 1; i < (int)split.size(); ++i) {
+			if (split[i] < split[i - 1]) {
+				THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが不正です");
+			}
+		}
+
+		for (int i = 0; i < (int)split.size(); i += 2) {
+			EncoderZone zone = { split[i], split[i + 1] };
+			if (zone.endFrame - zone.startFrame > 30) { // 短すぎる区間は捨てる
+				cmzones.push_back(zone);
+			}
+		}
+	}
+};
+
+class MakeChapter
+{
+public:
+	MakeChapter(
+		const TranscoderSetting& setting,
+		const StreamReformInfo& reformInfo,
+		int videoFileIndex)
+		: setting(setting)
+		, reformInfo(reformInfo)
+	{
+		makeBase(
+			readTrimAVS(setting.getTmpTrimAVSPath(videoFileIndex)),
+			readJls(setting.getTmpJlsPath(videoFileIndex)));
+	}
+
+	void exec(int videoFileIndex, int encoderIndex)
+	{
+		auto filechapters = makeFileChapter(videoFileIndex, encoderIndex);
+		writeChapter(filechapters, videoFileIndex, encoderIndex);
+	}
+
+private:
+	struct JlsElement {
+		int frameStart;
+		int frameEnd;
+		int seconds;
+		std::string comment;
+		bool isCut;
+		bool isCM;
+	};
+
+	const TranscoderSetting& setting;
+	const StreamReformInfo& reformInfo;
+
+	std::vector<JlsElement> chapters;
+
+	std::vector<int> readTrimAVS(const std::string& trimpath)
+	{
+		std::ifstream file(trimpath);
+		std::string str;
+		if (!std::getline(file, str)) {
+			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
+		}
+
+		std::regex re("Trim\\((\\d+),(\\d+)\\)");
+		std::sregex_iterator iter(str.begin(), str.end(), re);
+		std::sregex_iterator end;
+
+		std::vector<int> trims;
+		for (; iter != end; ++iter) {
+			trims.push_back(std::stoi((*iter)[1].str()));
+			trims.push_back(std::stoi((*iter)[2].str()) + 1);
+		}
+		return trims;
+	}
+
+	std::vector<JlsElement> readJls(const std::string& jlspath)
+	{
+		std::ifstream file(jlspath);
+		std::regex re("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+).*:(\\S+)");
+		std::string str;
+		std::vector<JlsElement> elements;
+		while(std::getline(file, str)) {
+			std::smatch m;
+			if (std::regex_search(str, m, re)) {
+				JlsElement elem = {
+					std::stoi(m[1].str()),
+					std::stoi(m[2].str()) + 1,
+					std::stoi(m[3].str()),
+					m[6].str()
+				};
+				elements.push_back(elem);
+			}
+		}
+		return elements;
+	}
+
+	static bool startsWith(const std::string& s, const std::string& prefix) {
+		auto size = prefix.size();
+		if (s.size() < size) return false;
+		return std::equal(std::begin(prefix), std::end(prefix), std::begin(s));
+	}
+
+	void makeBase(std::vector<int> trims, std::vector<JlsElement> elements)
+	{
+		// isCut, isCMフラグを生成
+		for (int i = 0; i < (int)elements.size(); ++i) {
+			auto& e = elements[i];
+			int trimIdx = (int)(std::lower_bound(trims.begin(), trims.end(), (e.frameStart + e.frameEnd) / 2) - trims.begin());
+			e.isCut = !(trimIdx % 2);
+			e.isCM = (e.comment == "CM");
+		}
+
+		// 余分なものはマージ
+		JlsElement cur = elements[0];
+		for (int i = 1; i < (int)elements.size(); ++i) {
+			auto& e = elements[i];
+			bool isMerge = false;
+			if (cur.isCut && e.isCut) {
+				if (cur.isCM == e.isCM) {
+					isMerge = true;
+				}
+			}
+			if (isMerge) {
+				cur.frameEnd = e.frameEnd;
+				cur.seconds += e.seconds;
+			}
+			else {
+				chapters.push_back(cur);
+				cur = e;
+			}
+		}
+		chapters.push_back(cur);
+
+		// コメントをチャプター名に変更
+		int nChapter = -1;
+		bool prevCM = true;
+		for (int i = 0; i < (int)chapters.size(); ++i) {
+			auto& c = chapters[i];
+			if (c.isCut) {
+				if (c.isCM) c.comment = "CM";
+				else c.comment = "CM?";
+				prevCM = true;
+			}
+			else {
+				bool showSec = false;
+				if (startsWith(c.comment, "Trailer") ||
+					startsWith(c.comment, "Sponsor") ||
+					startsWith(c.comment, "Endcard") ||
+					startsWith(c.comment, "Edge") ||
+					startsWith(c.comment, "Border") ||
+					c.seconds == 60 ||
+					c.seconds == 90)
+				{
+					showSec = true;
+				}
+				if (prevCM) {
+					++nChapter;
+					prevCM = false;
+				}
+				c.comment = 'A' + nChapter;
+				if (showSec) {
+					c.comment += std::to_string(c.seconds) + "Sec";
+				}
+			}
+		}
+	}
+
+	std::vector<JlsElement> makeFileChapter(int videoFileIndex, int encoderIndex)
+	{
+		// 分割後のフレーム番号を取得
+		auto& srcFrames = reformInfo.getFilterSourceFrames(videoFileIndex);
+		std::vector<int> outFrames;
+		for (int i = 0; i < (int)srcFrames.size(); ++i) {
+			int frameEncoderIndex = reformInfo.getEncoderIndex(srcFrames[i].frameIndex);
+			if (encoderIndex == frameEncoderIndex) {
+				outFrames.push_back(i);
+			}
+		}
+
+		// チャプターを分割後のフレーム番号に変換
+		std::vector<JlsElement> cvtChapters;
+		for (int i = 0; i < (int)chapters.size(); ++i) {
+			const auto& c = chapters[i];
+			JlsElement fc = c;
+			fc.frameStart = (int)(std::lower_bound(outFrames.begin(), outFrames.end(), c.frameStart) - outFrames.begin());
+			fc.frameEnd = (int)(std::lower_bound(outFrames.begin(), outFrames.end(), c.frameEnd) - outFrames.begin());
+			cvtChapters.push_back(fc);
+		}
+
+		// 短すぎるチャプターは消す
+		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
+		int fps = (int)std::round((float)vfmt.frameRateNum / vfmt.frameRateDenom);
+		std::vector<JlsElement> fileChapters;
+		JlsElement cur = { 0 };
+		for (int i = 0; i < (int)cvtChapters.size(); ++i) {
+			auto& c = cvtChapters[i];
+			if (c.frameEnd - c.frameStart < fps * 2) { // 2秒以下のチャプターは消す
+				cur.frameEnd = c.frameEnd;
+			}
+			else if (cur.comment.size() == 0) {
+				// まだ中身を入れていない場合は今のチャプターを入れる
+				int start = cur.frameStart;
+				cur = c;
+				cur.frameStart = start;
+			}
+			else {
+				// もう中身が入っているので、出力
+				fileChapters.push_back(cur);
+				cur = c;
+			}
+		}
+		if (cur.comment.size() > 0) {
+			fileChapters.push_back(cur);
+		}
+
+		return fileChapters;
+	}
+
+	void writeChapter(const std::vector<JlsElement>& chapters, int videoFileIndex, int encoderIndex)
+	{
+		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
+		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
+
+		std::ofstream file(setting.getTmpChapterPath(videoFileIndex, encoderIndex));
+
+		int sumframes = 0;
+		for (int i = 0; i < (int)chapters.size(); ++i) {
+			auto& c = chapters[i];
+
+			int ms = (int)std::round(sumframes * frameMs);
+			int s = ms / 1000;
+			int m = s / 60;
+			int h = m / 60;
+			int ss = ms % 1000;
+			s %= 60;
+			m %= 60;
+			h %= 60;
+
+			file << "CHAPTER" <<
+				std::setfill('0') << std::setw(2) << (i + 1) << "=" << 
+				std::setfill('0') << std::setw(2) << h << ":" <<
+				std::setfill('0') << std::setw(2) << m << ":" <<
+				std::setfill('0') << std::setw(2) << s << "." <<
+				std::setfill('0') << std::setw(3) << ss << std::endl;
+
+			file << "CHAPTER" <<
+				std::setfill('0') << std::setw(2) << (i + 1) << "NAME=" <<
+				c.comment << std::endl;
+
+			sumframes += c.frameEnd - c.frameStart;
+		}
+
+		file.close();
+	}
 };

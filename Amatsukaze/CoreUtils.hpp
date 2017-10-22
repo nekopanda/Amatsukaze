@@ -288,13 +288,26 @@ struct MemoryChunk {
 	size_t length;
 };
 
+std::string GetFullPath(const std::string& path)
+{
+	char buf[MAX_PATH];
+	int sz = GetFullPathName(path.c_str(), sizeof(buf), buf, nullptr);
+	if (sz >= sizeof(buf)) {
+		THROWF(IOException, "ƒpƒX‚ª’·‚·‚¬‚Ü‚·: %s", path.c_str());
+	}
+	if (sz == 0) {
+		THROWF(IOException, "GetFullPathName()‚ÉŽ¸”s: %s", path.c_str());
+	}
+	return buf;
+}
+
 class File : NonCopyable
 {
 public:
 	File(const std::string& path, const char* mode) {
 		fp_ = _fsopen(path.c_str(), mode, _SH_DENYNO);
 		if (fp_ == NULL) {
-			THROWF(IOException, "failed to open file %s", path.c_str());
+			THROWF(IOException, "failed to open file %s", GetFullPath(path).c_str());
 		}
 	}
 	~File() {

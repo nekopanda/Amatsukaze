@@ -70,15 +70,23 @@ static void printHelp(const tchar* bin) {
     "                      指定がない場合はビットレートオプションを追加しない\n"
 		"  -bcm|--bitrate-cm <float>   CM判定されたところのビットレート倍率\n"
 		"  --2pass             2passエンコード\n"
-		"  --pulldown          ソフトテレシネを解除しないでそのままエンコード\n"
-		"                      エンコーダの--pdfile-inオプションへの対応が必要\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
 		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
+		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID"
 		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID"
+		"  --error-on-no-logo  ロゴが見つからない場合はエラーとする\n"
+		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
+		"  --32bitlib <パス>   32bitのAmatsukaze.dllへのパス\n"
+		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
+		"  --jls <パス>         join_logo_scp.exeへのパス\n"
+		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
+		"  --chapter-jls <パス> chapter_????へのパス\n"
+		"  --inpipe <ハンドル> Amatsukazeホストへの送信パイプ\n"
+		"  --outpipe <ハンドル> Amatsukzeホストからの受信パイ\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
     "  --mode <モード>     処理モード[ts]\n"
     "                      ts : MPGE2-TSを入力する詳細解析モード\n"
@@ -184,6 +192,15 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	int serviceId = -1;
 	DECODER_TYPE mpeg2decoder = DECODER_DEFAULT;
 	DECODER_TYPE h264decoder = DECODER_DEFAULT;
+	std::vector<std::string> logoPath;
+	bool errorOnNoLogo = false;
+	std::tstring amt32bitPath;
+	std::tstring chapterExePath;
+	std::tstring joinLogoScpPath;
+	std::tstring joinLogoScpCmdPath;
+	std::tstring chapterJlsPath;
+	HANDLE inPipe = INVALID_HANDLE_VALUE;
+	HANDLE outPipe = INVALID_HANDLE_VALUE;
 	bool dumpStreamInfo = bool();
 
 	for (int i = 1; i < argc; ++i) {
@@ -282,6 +299,33 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 				PRINTF("--h264decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
+		else if (key == _T("--error-on-no-logo")) {
+			errorOnNoLogo = true;
+		}
+		else if (key == _T("--logo")) {
+			logoPath.push_back(to_string(getParam(argc, argv, i++)));
+		}
+		else if (key == _T("--32bitlib")) {
+			amt32bitPath = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--chapter-exe")) {
+			chapterExePath = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--jls")) {
+			joinLogoScpPath = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--jls-cmd")) {
+			joinLogoScpCmdPath = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--chapter-jls")) {
+			chapterJlsPath = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--inpipe")) {
+			inPipe = (HANDLE)std::stoll(getParam(argc, argv, i++));
+		}
+		else if (key == _T("--outpipe")) {
+			outPipe = (HANDLE)std::stoll(getParam(argc, argv, i++));
+		}
 		else if (key == _T("--dump")) {
 			dumpStreamInfo = true;
 		}
@@ -299,6 +343,25 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
 		if (outVideoPath.size() == 0) {
 			THROWF(ArgumentException, "出力ファイルを指定してください");
+		}
+	}
+
+	if (errorOnNoLogo) {
+		if (logoPath.size() == 0) {
+			THROW(ArgumentException, "ロゴが指定されていません");
+		}
+	}
+
+	// CM解析は４つ揃える必要がある
+	if (chapterExePath.size() > 0 || joinLogoScpPath.size() > 0 || chapterJlsPath.size() > 0) {
+		if (chapterExePath.size() == 0) {
+			THROW(ArgumentException, "chapter_exe.exeへのパスが設定されていません");
+		}
+		if (joinLogoScpPath.size() == 0) {
+			THROW(ArgumentException, "join_logo_scp.exeへのパスが設定されていません");
+		}
+		if (chapterJlsPath.size() == 0) {
+			THROW(ArgumentException, "chapterJlsへのパスが設定されていません");
 		}
 	}
 
@@ -325,6 +388,15 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		serviceId,
 		mpeg2decoder,
 		h264decoder,
+		logoPath,
+		errorOnNoLogo,
+		to_string(amt32bitPath),
+		to_string(chapterExePath),
+		to_string(joinLogoScpPath),
+		to_string(joinLogoScpCmdPath),
+		to_string(chapterJlsPath),
+		inPipe,
+		outPipe,
 		dumpStreamInfo));
 }
 
@@ -403,9 +475,9 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 			test::ParseArgs(ctx, setting);
 		else if (mode == "test_lossless")
 			test::LosslessFileTest(ctx, setting);
+		else if (mode == "test_logoframe")
+			test::LogoFrameTest(ctx, setting);
 
-		else if (mode == "test_process")
-			test::ProcessTest(ctx, setting);
 		else
 			PRINTF("--modeの指定が間違っています: %s\n", mode.c_str());
 

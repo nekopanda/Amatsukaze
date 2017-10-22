@@ -159,7 +159,8 @@ static std::string makeMuxerArgs(
 	const std::string& inVideo,
 	const VideoFormat& videoFormat,
 	const std::vector<std::string>& inAudios,
-	const std::string& outpath)
+	const std::string& outpath,
+	const std::string& chapterpath)
 {
 	std::ostringstream ss;
 
@@ -174,6 +175,9 @@ static std::string makeMuxerArgs(
 	}
 	for (const auto& inAudio : inAudios) {
 		ss << " -i \"" << inAudio << "\"";
+	}
+	if (chapterpath.size() > 0) {
+		ss << " --chapter \"" << chapterpath << "\"";
 	}
 	ss << " --optimize-pd";
 	ss << " -o \"" << outpath << "\"";
@@ -280,6 +284,15 @@ public:
 		int serviceId,
 		DECODER_TYPE mpeg2decoder,
 		DECODER_TYPE h264decoder,
+		std::vector<std::string> logoPath,
+		bool errorOnNoLogo,
+		std::string amt32bitPath,
+		std::string chapterExePath,
+		std::string joinLogoScpPath,
+		std::string joinLogoScpCmdPath,
+		std::string chapterJlsPath,
+		HANDLE inPipe,
+		HANDLE outPipe,
 		bool dumpStreamInfo)
 		: AMTObject(ctx)
 		, tmpDir(ctx, workDir)
@@ -303,9 +316,24 @@ public:
 		, serviceId(serviceId)
 		, mpeg2decoder(mpeg2decoder)
 		, h264decoder(h264decoder)
+		, logoPath(logoPath)
+		, errorOnNoLogo(errorOnNoLogo)
+		, amt32bitPath(amt32bitPath)
+		, chapterExePath(chapterExePath)
+		, joinLogoScpPath(joinLogoScpPath)
+		, joinLogoScpCmdPath(joinLogoScpCmdPath)
+		, chapterJlsPath(chapterJlsPath)
+		, inPipe(inPipe)
+		, outPipe(outPipe)
 		, dumpStreamInfo(dumpStreamInfo)
 	{
 		//
+	}
+
+	~TranscoderSetting()
+	{
+		if (inPipe != INVALID_HANDLE_VALUE) CloseHandle(inPipe);
+		if (outPipe != INVALID_HANDLE_VALUE) CloseHandle(outPipe);
 	}
 
 	std::string getMode() const {
@@ -378,6 +406,42 @@ public:
 
 	DECODER_TYPE getH264Decoder() const {
 		return h264decoder;
+	}
+
+	const std::vector<std::string>& getLogoPath() const {
+		return logoPath;
+	}
+
+	bool getErrorOnNoLogo() const {
+		return errorOnNoLogo;
+	}
+
+	std::string get32bitPath() const {
+		return amt32bitPath;
+	}
+
+	std::string getChapterExePath() const {
+		return chapterExePath;
+	}
+
+	std::string getJoinLogoScpPath() const {
+		return joinLogoScpPath;
+	}
+
+	std::string getJoinLogoScpCmdPath() const {
+		return joinLogoScpCmdPath;
+	}
+
+	std::string getChapterJlsPath() const {
+		return chapterJlsPath;
+	}
+
+	HANDLE getInPipe() const {
+		return inPipe;
+	}
+
+	HANDLE getOutPipe() const {
+		return outPipe;
 	}
 
 	bool isDumpStreamInfo() const {
@@ -487,6 +551,46 @@ public:
 		return ss.str();
 	}
 
+	std::string getTmpLogoFramePath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/logof" << vindex << ".txt";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getTmpChapterExePath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/chapter_exe" << vindex << ".txt";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getTmpTrimAVSPath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/trim" << vindex << ".avs";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getTmpJlsPath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/jls" << vindex << ".txt";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getTmpChapterPath(int vindex, int index) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/chapter" << vindex << "-" << index << ".txt";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
 	std::string getOutFilePath(int index) const
 	{
 		std::ostringstream ss;
@@ -525,7 +629,7 @@ public:
 			else {
 				ss << " --bitrate " << (int)targetBitrate;
 				ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
-				ss << " --vbv-bufsize 31250"; // high profile level 4.1
+				ss << " --vbv-bufsize " << (int)(targetBitrate * 2);
 			}
 		}
 		if (pulldown) {
@@ -562,8 +666,18 @@ public:
 		ctx.info("autoBitrate: %s", autoBitrate ? "yes" : "no");
 		ctx.info("Bitrate: %f:%f:%f", bitrate.a, bitrate.b, bitrate.h264);
 		ctx.info("twoPass: %s", twoPass ? "yes" : "no");
+		ctx.info("errorOnNoLogo: %s", errorOnNoLogo ? "yes" : "no");
+		ctx.info("フィルタ中間ファイル: %s", (inPipe != INVALID_HANDLE_VALUE) ? "yes" : "no");
+		for (int i = 0; i < (int)logoPath.size(); ++i) {
+			ctx.info("logo%d: %s", (i + 1), logoPath[i].c_str());
+		}
+		ctx.info("amt32bitPath: %s", amt32bitPath.c_str());
+		ctx.info("chapterExePath: %s", chapterExePath.c_str());
+		ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
+		ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
+		ctx.info("chapterJlsPath: %s", chapterJlsPath.c_str());
 		if (serviceId > 0) {
-			ctx.info("ServiceId: 0x%04x", serviceId);
+			ctx.info("ServiceId: %d", serviceId);
 		}
 		else {
 			ctx.info("ServiceId: 指定なし");
@@ -576,7 +690,7 @@ private:
 	TempDirectory tmpDir;
 
 	std::string mode;
-	std::string modeArgs;
+	std::string modeArgs; // テスト用
 	// 入力ファイルパス（拡張子を含む）
 	std::string srcFilePath;
 	// 出力ファイルパス（拡張子を除く）
@@ -593,14 +707,23 @@ private:
 	std::string timelineditorPath;
 	bool twoPass;
 	bool autoBitrate;
-	bool pulldown;
+	bool pulldown; // 新バージョンではサポートしない
 	BitrateSetting bitrate;
 	double bitrateCM;
 	int serviceId;
 	DECODER_TYPE mpeg2decoder;
 	DECODER_TYPE h264decoder;
 	// CM解析用設定
+	std::vector<std::string> logoPath;
+	bool errorOnNoLogo;
 	std::string amt32bitPath;
+	std::string chapterExePath;
+	std::string joinLogoScpPath;
+	std::string joinLogoScpCmdPath;
+	std::string chapterJlsPath;
+	// フィルタ処理分離用
+	HANDLE inPipe;
+	HANDLE outPipe;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 

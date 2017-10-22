@@ -287,7 +287,7 @@ namespace Amatsukaze.Models
         {
             string dirpath = "logo";
             Directory.CreateDirectory(dirpath);
-            string prefix = dirpath + "\\SID" + Logo.ServiceId.ToString("x") + "-";
+            string prefix = dirpath + "\\SID" + Logo.ServiceId.ToString() + "-";
             for(int i = 1; i <= 1000; ++i)
             {
                 string path = prefix + i + ".lgd";

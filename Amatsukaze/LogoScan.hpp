@@ -1065,7 +1065,7 @@ class AMTEraseLogo : public GenericVideoFilter
 			// 最小値付近を細かく見る
 			float optimalFade = GoldenRatioSearch(minFade - 0.1f, minFade + 0.1f, op);
 
-			DebugPrint("Fade: %.1f\n", optimalFade * 100.0f);
+			//DebugPrint("Fade: %.1f\n", optimalFade * 100.0f);
 
 			// 最適Fade値でロゴ除去
 			const float *logoAY = logo->GetA(PLANAR_Y);
@@ -1155,7 +1155,7 @@ public:
 			args[0].AsClip(),       // source
 			args[1].AsString(),			// logopath
 			args[2].AsInt(0),       // mode
-			(float)args[3].AsFloat(10), // maskratio
+			(float)args[3].AsFloat(10) / 100.0f, // maskratio
 			env
 		);
 	}
@@ -1183,12 +1183,8 @@ class LogoFrame
 	template <typename pixel_t>
 	void ScanFrame(PVideoFrame& frame, float* memDeint, float* memWork, float maxv, EvalResult* outResult)
 	{
-		const pixel_t* dstY = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_Y));
-		const pixel_t* dstU = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_U));
-		const pixel_t* dstV = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_V));
-
+		const pixel_t* srcY = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_Y));
 		int pitchY = frame->GetPitch(PLANAR_Y);
-		int pitchUV = frame->GetPitch(PLANAR_U);
 
 		for (int i = 0; i < numLogos; ++i) {
 			LogoDataParam& logo = deintArr[i];
@@ -1201,11 +1197,9 @@ class LogoFrame
 				continue;
 			}
 
-			int off = logo.getImgX() + logo.getImgY() * pitchY;
-			int offUV = (logo.getImgX() >> logo.getLogUVx()) + (logo.getImgY() >> logo.getLogUVy()) * pitchUV;
-
 			// フレームをインタレ解除
-			DeintY(memDeint, dstY + off, pitchY, logo.getWidth(), logo.getHeight());
+			int off = logo.getImgX() + logo.getImgY() * pitchY;
+			DeintY(memDeint, srcY + off, pitchY, logo.getWidth(), logo.getHeight());
 
 			// ロゴ評価
 			outResult[i].cost0 = EvaluateLogo(memDeint, maxv, logo, 0, memWork, logo.getWidth(), logo.getHeight());
@@ -1219,7 +1213,7 @@ class LogoFrame
 		auto memDeint = std::unique_ptr<float[]>(new float[maxYSize]);
 		auto memWork = std::unique_ptr<float[]>(new float[maxYSize]);
 		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
-		evalResults = std::unique_ptr<EvalResult[]>(new EvalResult[vi.num_frames]);
+		evalResults = std::unique_ptr<EvalResult[]>(new EvalResult[vi.num_frames * numLogos]);
 		for (int n = 0; n < vi.num_frames; ++n) {
 			PVideoFrame frame = clip->GetFrame(n, env);
 			ScanFrame<pixel_t>(frame, memDeint.get(), memWork.get(), maxv, &evalResults[n * numLogos]);
@@ -1307,14 +1301,14 @@ public:
 			int idx = n;
 			if (prevLogo == false && avgScores[n]) {
 				// ロゴ開始
-				if (frameScores[windowFrames + n]) {
+				if (frameScores[windowFrames + n] == 2) {
 					// 既にロゴがあるのでないところまで遡る
-					for (; frameScores[windowFrames + idx]; --idx);
+					for (; frameScores[windowFrames + idx] == 2; --idx);
 					logosec.push_back(idx + 1);
 				}
 				else {
 					// まだロゴがないのであるところまで辿る
-					for (; !frameScores[windowFrames + idx]; ++idx);
+					for (; frameScores[windowFrames + idx] == 0; ++idx);
 					logosec.push_back(idx);
 				}
 				prevLogo = true;
@@ -1322,14 +1316,14 @@ public:
 			}
 			else if (prevLogo && avgScores[n] == false) {
 				// ロゴ終了
-				if (frameScores[windowFrames + n]) {
+				if (frameScores[windowFrames + n] == 2) {
 					// まだロゴがあるのでないところまで辿る
-					for (; frameScores[windowFrames + idx]; ++idx);
+					for (; frameScores[windowFrames + idx] == 2; ++idx);
 					logosec.push_back(idx);
 				}
 				else {
 					// 既にロゴがないのであるところまで遡る
-					for (; !frameScores[windowFrames + idx]; --idx);
+					for (; frameScores[windowFrames + idx] == 0; --idx);
 					logosec.push_back(idx + 1);
 				}
 				prevLogo = false;
@@ -1343,13 +1337,12 @@ public:
 
 		std::ofstream os(outpath, std::ios::out);
 		int numLogoFrames = 0;
-		os << std::setw(5) << std::right;
 		for (int i = 0; i < (int)logosec.size(); i += 2) {
 			int start = logosec[i];
 			int end = logosec[i + 1];
 			numLogoFrames += end - start;
-			os << start << " S 0 ALL " << start << " " << start << std::endl;
-			os << end << " E 0 ALL " << end << " " << end << std::endl;
+			os << std::setw(6) << start << " S 0 ALL" << std::setw(7) << start << std::setw(7) << start << std::endl;
+			os << std::setw(6) << end << " E 0 ALL" << std::setw(7) << end << std::setw(7) << end << std::endl;
 		}
 		os.close();
 		logoRatio = (float)numLogoFrames / numFrames;
