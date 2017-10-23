@@ -181,6 +181,34 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ServiceSettings変更通知プロパティ
+        private ObservableCollection<ServiceSettingElement> _ServiceSettings = new ObservableCollection<ServiceSettingElement>();
+
+        public ObservableCollection<ServiceSettingElement> ServiceSettings {
+            get { return _ServiceSettings; }
+            set { 
+                if (_ServiceSettings == value)
+                    return;
+                _ServiceSettings = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region JlsCommandFiles変更通知プロパティ
+        private string[] _JlsCommandFiles;
+
+        public string[] JlsCommandFiles {
+            get { return _JlsCommandFiles; }
+            set { 
+                if (_JlsCommandFiles == value)
+                    return;
+                _JlsCommandFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region CurrentOperationResult変更通知プロパティ
         private string _CurrentOperationResult;
 
@@ -389,6 +417,66 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region Amt32bitPath変更通知プロパティ
+        public string Amt32bitPath {
+            get { return setting.Amt32bitPath; }
+            set {
+                if (setting.Amt32bitPath == value)
+                    return;
+                setting.Amt32bitPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ChapterExePath変更通知プロパティ
+        public string ChapterExePath {
+            get { return setting.ChapterExePath; }
+            set {
+                if (setting.ChapterExePath == value)
+                    return;
+                setting.ChapterExePath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region JoinLogoScpPath変更通知プロパティ
+        public string JoinLogoScpPath {
+            get { return setting.JoinLogoScpPath; }
+            set {
+                if (setting.JoinLogoScpPath == value)
+                    return;
+                setting.JoinLogoScpPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region FilterPath変更通知プロパティ
+        public string FilterPath {
+            get { return setting.FilterPath; }
+            set {
+                if (setting.FilterPath == value)
+                    return;
+                setting.FilterPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PostFilterPath変更通知プロパティ
+        public string PostFilterPath {
+            get { return setting.PostFilterPath; }
+            set {
+                if (setting.PostFilterPath == value)
+                    return;
+                setting.PostFilterPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region WorkPath変更通知プロパティ
         public string WorkPath {
             get { return setting.WorkPath; }
@@ -478,19 +566,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region Pulldown変更通知プロパティ
-        public bool Pulldown {
-            get { return setting.Pulldown; }
-            set {
-                if (setting.Pulldown == value)
-                    return;
-                setting.Pulldown = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region BitrateA変更通知プロパティ
         public double BitrateA
         {
@@ -531,6 +606,54 @@ namespace Amatsukaze.Models
                 if (setting.Bitrate.H264 == value)
                     return;
                 setting.Bitrate.H264 = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateCM変更通知プロパティ
+        public double BitrateCM {
+            get { return setting.BitrateCM; }
+            set { 
+                if (setting.BitrateCM == value)
+                    return;
+                setting.BitrateCM = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableFilterTmp変更通知プロパティ
+        public bool EnableFilterTmp {
+            get { return setting.EnableFilterTmp; }
+            set {
+                if (setting.EnableFilterTmp == value)
+                    return;
+                setting.EnableFilterTmp = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Pulldown変更通知プロパティ
+        public int MaxTmpGB {
+            get { return setting.MaxTmpGB; }
+            set {
+                if (setting.MaxTmpGB == value)
+                    return;
+                setting.MaxTmpGB = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DefaultJLSCommand変更通知プロパティ
+        public string DefaultJLSCommand {
+            get { return setting.DefaultJLSCommand; }
+            set {
+                if (setting.DefaultJLSCommand == value)
+                    return;
+                setting.DefaultJLSCommand = value;
                 RaisePropertyChanged();
             }
         }
@@ -632,10 +755,6 @@ namespace Amatsukaze.Models
             if (setting.EncoderType == EncoderType.NVEnc && setting.TwoPass)
             {
                 sb.Append("NVEncは2パスに対応していません\r\n");
-            }
-            if (setting.EncoderType != EncoderType.x264 && setting.Pulldown)
-            {
-                sb.Append("ソフトテレシネ保持はx264にしか対応してません\r\n");
             }
             SettingWarningText = sb.ToString();
         }
@@ -833,6 +952,13 @@ namespace Amatsukaze.Models
             EncoderTypeInt = (int)setting.EncoderType;
             MuxerPath = setting.MuxerPath;
             TimelineEditorPath = setting.TimelineEditorPath;
+            Amt32bitPath = setting.Amt32bitPath;
+
+            ChapterExePath = setting.ChapterExePath;
+            JoinLogoScpPath = setting.JoinLogoScpPath;
+            FilterPath = setting.FilterPath;
+            PostFilterPath = setting.PostFilterPath;
+
             WorkPath = setting.WorkPath;
             AlwaysShowDisk = setting.AlwaysShowDisk;
             AutoBuffer = setting.AutoBuffer;
@@ -840,7 +966,10 @@ namespace Amatsukaze.Models
             BitrateB = setting.Bitrate.B;
             BitrateH264 = setting.Bitrate.H264;
             TwoPass = setting.TwoPass;
-            Pulldown = setting.Pulldown;
+            EnableFilterTmp = setting.EnableFilterTmp;
+            MaxTmpGB = setting.MaxTmpGB;
+            DefaultJLSCommand = setting.DefaultJLSCommand;
+
             Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
             H264DecoderInt = (int)setting.H264Deocder;
             return Task.FromResult(0);
@@ -983,6 +1112,37 @@ namespace Amatsukaze.Models
         {
             DiskFreeSpace = space.Disks;
             return Task.FromResult(0);
+        }
+
+        public Task OnServiceSetting(ServiceSettingElement service)
+        {
+            for(int i = 0; i < _ServiceSettings.Count; ++i)
+            {
+                if(_ServiceSettings[i].ServiceId == service.ServiceId)
+                {
+                    _ServiceSettings[i] = service;
+                    return Task.FromResult(0);
+                }
+            }
+            _ServiceSettings.Add(service);
+            return Task.FromResult(0);
+        }
+
+        public Task OnLlsCommandFiles(JLSCommandFiles files)
+        {
+            JlsCommandFiles = files.Files.ToArray();
+            return Task.FromResult(0);
+        }
+
+        public Task OnLogoData(LogoData logoData)
+        {
+            var service = _ServiceSettings.FirstOrDefault(s => s.ServiceId == logoData.ServiceId);
+            if(service != null)
+            {
+                var target = service.LogoSettings.FirstOrDefault(s => s.FileName == logoData.FileName);
+                // TODO:
+            }
+            throw new NotImplementedException();
         }
     }
 }

@@ -1161,7 +1161,7 @@ public:
 	}
 };
 
-class LogoFrame
+class LogoFrame : AMTObject
 {
 	int numLogos;
 	std::unique_ptr<LogoDataParam[]> logoArr;
@@ -1217,13 +1217,20 @@ class LogoFrame
 		for (int n = 0; n < vi.num_frames; ++n) {
 			PVideoFrame frame = clip->GetFrame(n, env);
 			ScanFrame<pixel_t>(frame, memDeint.get(), memWork.get(), maxv, &evalResults[n * numLogos]);
+
+			if ((n % 5000) == 0) {
+				ctx.info("%6d/%d", n, vi.num_frames);
+			}
 		}
 		numFrames = vi.num_frames;
 		framesPerSec = (int)std::round((float)vi.fps_numerator / vi.fps_denominator);
+
+		ctx.info("Finished");
 	}
 
 public:
-	LogoFrame(const std::vector<std::string>& logofiles, float maskratio)
+	LogoFrame(AMTContext& ctx, const std::vector<std::string>& logofiles, float maskratio)
+		: AMTObject(ctx)
 	{
 		numLogos = (int)logofiles.size();
 		logoArr = std::unique_ptr<LogoDataParam[]>(new LogoDataParam[logofiles.size()]);

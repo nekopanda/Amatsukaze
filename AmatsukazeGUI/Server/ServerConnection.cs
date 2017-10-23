@@ -171,6 +171,15 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnFreeSpace:
                     userClient.OnFreeSpace((DiskFreeSpace)arg);
                     break;
+                case RPCMethodId.OnServiceSetting:
+                    userClient.OnServiceSetting((ServiceSettingElement)arg);
+                    break;
+                case RPCMethodId.OnLlsCommandFiles:
+                    userClient.OnLlsCommandFiles((JLSCommandFiles)arg);
+                    break;
+                case RPCMethodId.OnLogoData:
+                    userClient.OnLogoData((LogoData)arg);
+                    break;
                 case RPCMethodId.OnOperationResult:
                     userClient.OnOperationResult((string)arg);
                     break;
@@ -230,6 +239,21 @@ namespace Amatsukaze.Server
         public Task SetSetting(Setting setting)
         {
             return Send(RPCMethodId.SetSetting, setting);
+        }
+
+        public Task SetServiceSetting(ServiceSettingElement service)
+        {
+            return Send(RPCMethodId.SetServiceSetting, service);
+        }
+
+        public Task RequestServiceSetting()
+        {
+            return Send(RPCMethodId.RequestServiceSetting, null);
+        }
+
+        public Task RequestLogoData(string fileName)
+        {
+            return Send(RPCMethodId.RequestLogoData, fileName);
         }
     }
 }

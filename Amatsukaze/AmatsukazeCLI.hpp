@@ -198,7 +198,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring chapterExePath;
 	std::tstring joinLogoScpPath;
 	std::tstring joinLogoScpCmdPath;
-	std::tstring chapterJlsPath;
 	HANDLE inPipe = INVALID_HANDLE_VALUE;
 	HANDLE outPipe = INVALID_HANDLE_VALUE;
 	bool dumpStreamInfo = bool();
@@ -317,9 +316,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		else if (key == _T("--jls-cmd")) {
 			joinLogoScpCmdPath = getParam(argc, argv, i++);
 		}
-		else if (key == _T("--chapter-jls")) {
-			chapterJlsPath = getParam(argc, argv, i++);
-		}
 		else if (key == _T("--inpipe")) {
 			inPipe = (HANDLE)std::stoll(getParam(argc, argv, i++));
 		}
@@ -353,15 +349,12 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	}
 
 	// CM解析は４つ揃える必要がある
-	if (chapterExePath.size() > 0 || joinLogoScpPath.size() > 0 || chapterJlsPath.size() > 0) {
+	if (chapterExePath.size() > 0 || joinLogoScpPath.size() > 0) {
 		if (chapterExePath.size() == 0) {
 			THROW(ArgumentException, "chapter_exe.exeへのパスが設定されていません");
 		}
 		if (joinLogoScpPath.size() == 0) {
 			THROW(ArgumentException, "join_logo_scp.exeへのパスが設定されていません");
-		}
-		if (chapterJlsPath.size() == 0) {
-			THROW(ArgumentException, "chapterJlsへのパスが設定されていません");
 		}
 	}
 
@@ -394,7 +387,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		to_string(chapterExePath),
 		to_string(joinLogoScpPath),
 		to_string(joinLogoScpCmdPath),
-		to_string(chapterJlsPath),
 		inPipe,
 		outPipe,
 		dumpStreamInfo));

@@ -5,6 +5,8 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Amatsukaze.Server
 {
@@ -66,14 +68,22 @@ namespace Amatsukaze.Server
         [DataMember]
         public DecoderType H264Deocder { get; set; }
 
-        // depricated
-        [DataMember]
-        public string EncoderOption { get; set; }
-
         [DataMember]
         public string MuxerPath { get; set; }
         [DataMember]
         public string TimelineEditorPath { get; set; }
+
+        [DataMember]
+        public string Amt32bitPath { get; set; }
+        [DataMember]
+        public string ChapterExePath { get; set; }
+        [DataMember]
+        public string JoinLogoScpPath { get; set; }
+
+        [DataMember]
+        public string FilterPath { get; set; }
+        [DataMember]
+        public string PostFilterPath { get; set; }
 
         [DataMember]
         public string WorkPath { get; set; }
@@ -87,7 +97,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public BitrateSetting Bitrate { get; set; }
         [DataMember]
-        public bool Pulldown { get; set; }
+        public double BitrateCM { get; set; }
 
         [DataMember]
         public int NumParallel { get; set; }
@@ -95,6 +105,66 @@ namespace Amatsukaze.Server
         public bool EnableFilterTmp { get; set; }
         [DataMember]
         public int MaxTmpGB { get; set; }
+
+        [DataMember]
+        public string DefaultJLSCommand { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+    [DataContract]
+    public class LogoSetting : IExtensibleDataObject
+    {
+        [DataMember]
+        public bool Exists { get; set; }
+        [DataMember]
+        public string FileName { get; set; }
+        [DataMember]
+        public string LogoName { get; set; }
+        [DataMember]
+        public int ServiceId { get; set; }
+        [DataMember]
+        public bool Enabled { get; set; }
+        [DataMember]
+        public DateTime From { get; set; }
+        [DataMember]
+        public DateTime To { get; set; }
+
+        public DateTime FileLastModified { get; set; }
+
+        public bool CanUse(DateTime tstime)
+        {
+            return Exists && Enabled &&
+                From <= tstime && tstime <= To;
+        }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+
+        public static readonly string NO_LOGO = "### NO LOGO ###";
+    }
+
+    [DataContract]
+    public class ServiceSettingElement : IExtensibleDataObject
+    {
+        [DataMember]
+        public int ServiceId { get; set; }
+        [DataMember]
+        public string ServiceName { get; set; }
+        [DataMember]
+        public bool DisableCMCheck { get; set; }
+        [DataMember]
+        public string JLSCommand { get; set; }
+        [DataMember]
+        public List<LogoSetting> LogoSettings { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+    [DataContract]
+    public class ServiceSetting : IExtensibleDataObject
+    {
+        [DataMember]
+        public Dictionary<int, ServiceSettingElement> ServiceMap { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }
@@ -121,15 +191,34 @@ namespace Amatsukaze.Server
         public string DstPath { get; set; }
     }
 
+    public enum QueueState
+    {
+        Queue, Encoding, Complete, Failed, LogoPending
+    }
+
     [DataContract]
     public class QueueItem
     {
         [DataMember]
         public string Path { get; set; }
         [DataMember]
-        public bool IsComplete { get; set; }
+        public QueueState State { get; set; }
+
         [DataMember]
-        public bool IsEncoding { get; set; }
+        public int ServiceId { get; set; }
+        [DataMember]
+        public string ServiceName { get; set; }
+        [DataMember]
+        public int ImageWidth { get; set; }
+        [DataMember]
+        public int ImageHeight { get; set; }
+        [DataMember]
+        public DateTime TsTime { get; set; }
+
+        [DataMember]
+        public string FailReason { get; set; }
+        [DataMember]
+        public string JlsCommand { get; set; }
     }
 
     [DataContract]
@@ -324,5 +413,28 @@ namespace Amatsukaze.Server
         public int index { get; set; }
         [DataMember]
         public byte[] data { get; set; }
+    }
+
+    [DataContract]
+    public class JLSCommandFiles
+    {
+        [DataMember]
+        public List<string> Files { get; set; }
+    }
+
+    [DataContract]
+    public class LogoData
+    {
+        [DataMember]
+        public int ServiceId { get; set; }
+        [DataMember]
+        public string FileName { get; set; }
+        [DataMember]
+        public int ImageWith { get; set; }
+        [DataMember]
+        public int ImageHeight { get; set; }
+
+        // これはシリアライズできないので、別処理で送信する
+        public BitmapSource Image { get; set; }
     }
 }

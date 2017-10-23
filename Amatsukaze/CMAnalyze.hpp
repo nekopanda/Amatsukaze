@@ -94,7 +94,7 @@ private:
 		env->LoadPlugin(GetModulePath().c_str(), true, &result);
 		PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
 
-		logo::LogoFrame logof(setting_.getLogoPath(), 0.1f);
+		logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
 		logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
 		if (logof.getLogoRatio() < 0.5f) {

@@ -290,7 +290,6 @@ public:
 		std::string chapterExePath,
 		std::string joinLogoScpPath,
 		std::string joinLogoScpCmdPath,
-		std::string chapterJlsPath,
 		HANDLE inPipe,
 		HANDLE outPipe,
 		bool dumpStreamInfo)
@@ -322,7 +321,6 @@ public:
 		, chapterExePath(chapterExePath)
 		, joinLogoScpPath(joinLogoScpPath)
 		, joinLogoScpCmdPath(joinLogoScpCmdPath)
-		, chapterJlsPath(chapterJlsPath)
 		, inPipe(inPipe)
 		, outPipe(outPipe)
 		, dumpStreamInfo(dumpStreamInfo)
@@ -430,10 +428,6 @@ public:
 
 	std::string getJoinLogoScpCmdPath() const {
 		return joinLogoScpCmdPath;
-	}
-
-	std::string getChapterJlsPath() const {
-		return chapterJlsPath;
 	}
 
 	HANDLE getInPipe() const {
@@ -675,7 +669,6 @@ public:
 		ctx.info("chapterExePath: %s", chapterExePath.c_str());
 		ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
 		ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
-		ctx.info("chapterJlsPath: %s", chapterJlsPath.c_str());
 		if (serviceId > 0) {
 			ctx.info("ServiceId: %d", serviceId);
 		}
@@ -720,7 +713,6 @@ private:
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
-	std::string chapterJlsPath;
 	// フィルタ処理分離用
 	HANDLE inPipe;
 	HANDLE outPipe;

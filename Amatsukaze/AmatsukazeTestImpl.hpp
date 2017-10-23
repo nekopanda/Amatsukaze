@@ -417,7 +417,7 @@ static int LogoFrameTest(AMTContext& ctx, const TranscoderSetting& setting)
 		auto env = make_unique_ptr(CreateScriptEnvironment2());
 		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
 
-		logo::LogoFrame logof(setting.getLogoPath(), 0.1f);
+		logo::LogoFrame logof(ctx, setting.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
 		logof.writeResult(setting.getModeArgs());
 

@@ -43,5 +43,15 @@ namespace Amatsukaze.Views
                 target.Text = files[0];
             }
         }
+
+        private void DefaultJls_Drop(object sender, DragEventArgs e)
+        {
+            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            var target = sender as TextBox;
+            if (files != null && target != null)
+            {
+                target.Text = System.IO.Path.GetFileName(files[0]);
+            }
+        }
     }
 }

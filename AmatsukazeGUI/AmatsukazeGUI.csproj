@@ -99,9 +99,11 @@
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />
     <Compile Include="ViewModels\LogoImageViewModel.cs" />
+    <Compile Include="ViewModels\LogoViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
     <Compile Include="ViewModels\SelectOutPathViewModel.cs" />
     <Compile Include="ViewModels\ServerViewModel.cs" />
+    <Compile Include="ViewModels\ServiceSettingViewModel.cs" />
     <Compile Include="ViewModels\SettingViewModel.cs" />
     <Compile Include="ViewModels\SummaryItemViewModel.cs" />
     <Compile Include="ViewModels\SummaryViewModel.cs" />
@@ -117,6 +119,9 @@
     <Compile Include="Views\LogoImageWindow.xaml.cs">
       <DependentUpon>LogoImageWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\LogoItem.xaml.cs">
+      <DependentUpon>LogoItem.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\LogPanel.xaml.cs">
       <DependentUpon>LogPanel.xaml</DependentUpon>
     </Compile>
@@ -128,6 +133,9 @@
     </Compile>
     <Compile Include="Views\ServerWindow.xaml.cs">
       <DependentUpon>ServerWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\ServiceSettingPanel.xaml.cs">
+      <DependentUpon>ServiceSettingPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SettingPanel.xaml.cs">
       <DependentUpon>SettingPanel.xaml</DependentUpon>
@@ -164,6 +172,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\LogoImageWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\LogoItem.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -214,6 +226,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ServerWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\ServiceSettingPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

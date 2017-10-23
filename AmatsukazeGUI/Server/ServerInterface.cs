@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 
 namespace Amatsukaze.Server
 {
@@ -17,6 +18,8 @@ namespace Amatsukaze.Server
         Task RemoveQueue(string dirPath);
         Task PauseEncode(bool pause);
 
+        Task SetServiceSetting(ServiceSettingElement service);
+
         // 情報取得系
         Task RequestSetting();
         Task RequestQueue();
@@ -25,6 +28,9 @@ namespace Amatsukaze.Server
         Task RequestLogFile(LogItem item);
         Task RequestState();
         Task RequestFreeSpace();
+
+        Task RequestServiceSetting();
+        Task RequestLogoData(string fileName);
 
         void Finish();
     }
@@ -41,6 +47,11 @@ namespace Amatsukaze.Server
         Task OnLogFile(string str);
         Task OnState(State state);
         Task OnFreeSpace(DiskFreeSpace space);
+
+        Task OnServiceSetting(ServiceSettingElement service);
+        Task OnLlsCommandFiles(JLSCommandFiles files);
+        Task OnLogoData(LogoData logoData);
+
         Task OnOperationResult(string result);
         void Finish();
     }
@@ -51,6 +62,7 @@ namespace Amatsukaze.Server
         AddQueue,
         RemoveQueue,
         PauseEncode,
+        SetServiceSetting,
         RequestSetting,
         RequestQueue,
         RequestLog,
@@ -58,6 +70,8 @@ namespace Amatsukaze.Server
         RequestLogFile,
         RequestState,
         RequestFreeSpace,
+        RequestServiceSetting,
+        RequestLogoData,
 
         OnSetting = 200,
         OnQueueData,
@@ -69,6 +83,9 @@ namespace Amatsukaze.Server
         OnLogFile,
         OnState,
         OnFreeSpace,
+        OnServiceSetting,
+        OnLlsCommandFiles,
+        OnLogoData,
         OnOperationResult,
     }
 
@@ -85,6 +102,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.RemoveQueue, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
+            { RPCMethodId.SetServiceSetting, typeof(ServiceSettingElement) },
             { RPCMethodId.RequestSetting, null },
             { RPCMethodId.RequestQueue, null },
             { RPCMethodId.RequestLog, null },
@@ -92,6 +110,8 @@ namespace Amatsukaze.Server
             { RPCMethodId.RequestLogFile, typeof(LogItem) },
             { RPCMethodId.RequestState, null },
             { RPCMethodId.RequestFreeSpace, null },
+            { RPCMethodId.RequestServiceSetting, null },
+            { RPCMethodId.RequestLogoData, typeof(string) },
 
             { RPCMethodId.OnSetting, typeof(Setting) },
             { RPCMethodId.OnQueueData, typeof(QueueData) },
@@ -103,6 +123,9 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnState, typeof(State) },
             { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
+            { RPCMethodId.OnServiceSetting, typeof(ServiceSettingElement) },
+            { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
+            { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnOperationResult, typeof(string) }
         };
 
@@ -132,6 +155,13 @@ namespace Amatsukaze.Server
             var ms = new MemoryStream();
             var serializer = new DataContractSerializer(type);
             serializer.WriteObject(ms, obj);
+            // 画像だけ特別処理
+            if(obj is LogoData)
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(((LogoData)obj).Image));
+                encoder.Save(ms);
+            }
             var objbyes = ms.ToArray();
             //Debug.Print("Send: " + System.Text.Encoding.UTF8.GetString(objbyes));
             return Combine(
@@ -154,6 +184,11 @@ namespace Amatsukaze.Server
                 var s = new DataContractSerializer(argType);
                 var ms = new MemoryStream(data);
                 arg = s.ReadObject(ms);
+                // 画像だけ特別処理
+                if (arg is LogoData)
+                {
+                    ((LogoData)arg).Image = BitmapFrame.Create(ms);
+                }
             }
             return new RPCInfo() { id = id, arg = arg };
         }
