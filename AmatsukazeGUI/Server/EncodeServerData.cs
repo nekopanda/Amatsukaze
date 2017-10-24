@@ -130,8 +130,6 @@ namespace Amatsukaze.Server
         [DataMember]
         public DateTime To { get; set; }
 
-        public DateTime FileLastModified { get; set; }
-
         public bool CanUse(DateTime tstime)
         {
             return Exists && Enabled &&

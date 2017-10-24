@@ -99,7 +99,6 @@
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />
     <Compile Include="ViewModels\LogoImageViewModel.cs" />
-    <Compile Include="ViewModels\LogoViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
     <Compile Include="ViewModels\SelectOutPathViewModel.cs" />
     <Compile Include="ViewModels\ServerViewModel.cs" />

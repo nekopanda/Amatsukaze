@@ -61,6 +61,9 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
+        public void Initialize()
+        {
+        }
 
         #region SelectedServiceIndex変更通知プロパティ
         private int _SelectedServiceIndex = -1;
@@ -72,12 +75,15 @@ namespace Amatsukaze.ViewModels
                     return;
                 _SelectedServiceIndex = value;
                 RaisePropertyChanged("SelectedServiceItem");
+                RaisePropertyChanged("SelectedLogoItem");
                 RaisePropertyChanged();
             }
         }
 
-        public ServiceSettingElement SelectedServiceItem {
-            get {
+        public DisplayService SelectedServiceItem
+        {
+            get
+            {
                 if (_SelectedServiceIndex >= 0 && _SelectedServiceIndex < Model.ServiceSettings.Count)
                 {
                     return Model.ServiceSettings[_SelectedServiceIndex];
@@ -87,20 +93,37 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region SelectedCommandFileIndex変更通知プロパティ
-        private int _SelectedCommandFileIndex = -1;
+        #region SelectedLogoIndex変更通知プロパティ
+        private int _SelectedLogoIndex = -1;
 
-        public int SelectedCommandFileIndex {
-            get { return _SelectedCommandFileIndex; }
-            set { 
-                if (_SelectedCommandFileIndex == value)
+        public int SelectedLogoIndex
+        {
+            get { return _SelectedLogoIndex; }
+            set
+            {
+                if (_SelectedLogoIndex == value)
                     return;
-                _SelectedCommandFileIndex = value;
+                _SelectedLogoIndex = value;
+                RaisePropertyChanged("SelectedLogoItem");
                 RaisePropertyChanged();
             }
         }
 
+        public DisplayLogo SelectedLogoItem
+        {
+            get
+            {
+                var service = SelectedServiceItem;
+                if(service != null && service.LogoList != null &&
+                    _SelectedLogoIndex >= 0 &&
+                    _SelectedLogoIndex < service.LogoList.Length)
+                {
+                    return service.LogoList[_SelectedLogoIndex];
+                }
+                return null;
+            }
+        }
         #endregion
-
+        
     }
 }

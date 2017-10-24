@@ -30,6 +30,153 @@ namespace Amatsukaze.Models
         }
     }
 
+    public class DisplayService : NotificationObject
+    {
+        public ClientModel Model { get; set; }
+
+        public ServiceSettingElement Data { get; set; }
+
+        #region LogoList変更通知プロパティ
+        private DisplayLogo[] _LogoList;
+
+        public DisplayLogo[] LogoList
+        {
+            get
+            {
+                if(_LogoList == null)
+                {
+                    _LogoList = Data.LogoSettings
+                        .Where(s => s.Exists).Select(s => new DisplayLogo()
+                        {
+                            Setting = s,
+                            From = s.From,
+                            To = s.To,
+                        }).ToArray();
+
+                    // ロゴデータをリクエスト
+                    _LogoList
+                        .Select(logo => Model.Server.RequestLogoData(logo.Setting.FileName));
+                }
+                return _LogoList;
+            }
+        }
+        #endregion
+
+        #region JlsCommandFile変更通知プロパティ
+        public string JlsCommandFile
+        {
+            get
+            { return Data.JLSCommand; }
+            set
+            {
+                if (Data.JLSCommand == value)
+                    return;
+                Data.JLSCommand = value;
+                RaisePropertyChanged();
+                Model.UpdateService(this);
+            }
+        }
+        #endregion
+
+        public override string ToString()
+        {
+            return Data.ServiceName + "(" + Data.ServiceId + ")";
+        }
+    }
+
+    public class DisplayLogo : NotificationObject
+    {
+        public ClientModel Model { get; set; }
+
+        public LogoSetting Setting { get; set; }
+
+        #region Enabled変更通知プロパティ
+        public bool Enabled
+        {
+            get
+            { return Setting.Enabled; }
+            set
+            {
+                if (Setting.Enabled == value)
+                    return;
+                Setting.Enabled = value;
+                RaisePropertyChanged();
+                Model.UpdateLogo(this);
+            }
+        }
+        #endregion
+
+        #region Data変更通知プロパティ
+        private LogoData _Data;
+
+        public LogoData Data
+        {
+            get
+            { return _Data; }
+            set
+            {
+                if (_Data == value)
+                    return;
+                _Data = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region From変更通知プロパティ
+        private DateTime _From;
+
+        public DateTime From
+        {
+            get
+            { return _From; }
+            set
+            {
+                if (_From == value)
+                    return;
+                _From = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("DateChanged");
+            }
+        }
+        #endregion
+
+        #region To変更通知プロパティ
+        private DateTime _To;
+
+        public DateTime To
+        {
+            get
+            { return _To; }
+            set
+            {
+                if (_To == value)
+                    return;
+                _To = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("DateChanged");
+            }
+        }
+        #endregion
+
+        #region DateChanged変更通知プロパティ
+        public bool DateChanged
+        {
+            get { return Setting.From != _From || Setting.To != _To; }
+        }
+        #endregion
+
+        public string ToDateString
+        {
+            get { return Setting.To.ToString("yyyy/MM/dd"); }
+        }
+
+        public string FromDateString
+        {
+            get { return Setting.From.ToString("yyyy/MM/dd"); }
+        }
+    }
+
     public class ConsoleText : ConsoleTextBase
     {
         #region TextLines変更通知プロパティ
@@ -182,9 +329,10 @@ namespace Amatsukaze.Models
         #endregion
 
         #region ServiceSettings変更通知プロパティ
-        private ObservableCollection<ServiceSettingElement> _ServiceSettings = new ObservableCollection<ServiceSettingElement>();
+        private ObservableCollection<DisplayService> _ServiceSettings = new ObservableCollection<DisplayService>();
 
-        public ObservableCollection<ServiceSettingElement> ServiceSettings {
+        public ObservableCollection<DisplayService> ServiceSettings
+        {
             get { return _ServiceSettings; }
             set { 
                 if (_ServiceSettings == value)
@@ -759,6 +907,27 @@ namespace Amatsukaze.Models
             SettingWarningText = sb.ToString();
         }
 
+        private Task UpdateService(int serviceId)
+        {
+            var service = _ServiceSettings
+                .FirstOrDefault(s => s.Data.ServiceId == serviceId);
+            if (service != null)
+            {
+                return Server.SetServiceSetting(service.Data);
+            }
+            return Task.FromResult(0);
+        }
+
+        public Task UpdateLogo(DisplayLogo logo)
+        {
+            return UpdateService(logo.Setting.ServiceId);
+        }
+
+        public Task UpdateService(DisplayService service)
+        {
+            return UpdateService(service.Data.ServiceId);
+        }
+
         private void ConsoleText_TextChanged()
         {
             RaisePropertyChanged("ConsoleText");
@@ -1116,15 +1285,16 @@ namespace Amatsukaze.Models
 
         public Task OnServiceSetting(ServiceSettingElement service)
         {
+            var disp = new DisplayService() { Data = service };
             for(int i = 0; i < _ServiceSettings.Count; ++i)
             {
-                if(_ServiceSettings[i].ServiceId == service.ServiceId)
+                if(_ServiceSettings[i].Data.ServiceId == service.ServiceId)
                 {
-                    _ServiceSettings[i] = service;
+                    _ServiceSettings[i] = disp;
                     return Task.FromResult(0);
                 }
             }
-            _ServiceSettings.Add(service);
+            _ServiceSettings.Add(disp);
             return Task.FromResult(0);
         }
 
@@ -1136,13 +1306,18 @@ namespace Amatsukaze.Models
 
         public Task OnLogoData(LogoData logoData)
         {
-            var service = _ServiceSettings.FirstOrDefault(s => s.ServiceId == logoData.ServiceId);
-            if(service != null)
+            var service = _ServiceSettings
+                .FirstOrDefault(s => s.Data.ServiceId == logoData.ServiceId);
+            if (service != null)
             {
-                var target = service.LogoSettings.FirstOrDefault(s => s.FileName == logoData.FileName);
-                // TODO:
+                var logo = service.LogoList
+                    .FirstOrDefault(s => s.Setting.FileName == logoData.FileName);
+                if (logo != null)
+                {
+                    logo.Data = logoData;
+                }
             }
-            throw new NotImplementedException();
+            return Task.FromResult(0);
         }
     }
 }

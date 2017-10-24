@@ -1023,6 +1023,8 @@ namespace Amatsukaze.Server
 
         private AffinityCreator affinityCreator = new AffinityCreator();
 
+        private JLSCommandFiles jlsFiles = new JLSCommandFiles() { Files = new List<string>() };
+
         // キューに追加されるTSを解析するスレッド
         private Task queueThread;
         private BufferBlock<AddQueueDirectory> queueQ = new BufferBlock<AddQueueDirectory>();
@@ -1030,6 +1032,7 @@ namespace Amatsukaze.Server
         // ロゴファイルやJLSコマンドファイルを監視するスレッド
         private Task watchFileThread;
         private BufferBlock<int> watchFileQ = new BufferBlock<int>();
+        private bool serviceListUpdated;
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -1079,6 +1082,7 @@ namespace Amatsukaze.Server
             }
             ReadLog();
             queueThread = QueueThread();
+            watchFileThread = WatchFileThread();
         }
 
         #region IDisposable Support
@@ -1873,6 +1877,7 @@ namespace Amatsukaze.Server
                                 ServiceName = item.ServiceName
                             };
                             map.Add(item.ServiceId, newElement);
+                            serviceListUpdated = true;
                             waitItems.Add(client.OnServiceSetting(newElement));
                         }
                     }
@@ -1970,61 +1975,148 @@ namespace Amatsukaze.Server
             {
                 var completion = watchFileQ.OutputAvailableAsync();
 
-                DateTime logoDirTime = DateTime.MinValue;
-                DateTime jlsDirTime = DateTime.MinValue;
+                var logoDirTime = DateTime.MinValue;
+                var logoTime = new Dictionary<string,DateTime>();
+
+                var jlsDirTime = DateTime.MinValue;
+
+                // 初期化
+                foreach (var service in appData.services.ServiceMap.Values)
+                {
+                    foreach (var logo in service.LogoSettings)
+                    {
+                        // 全てのロゴは存在しないところからスタート
+                        logo.Exists = false;
+                    }
+                }
 
                 while (true)
                 {
                     string logopath = GetLogoDirectoryPath();
                     if (Directory.Exists(logopath))
                     {
+                        var map = appData.services.ServiceMap;
+
+                        var logoDict = new Dictionary<string, LogoSetting>();
+                        foreach (var service in map.Values)
+                        {
+                            foreach (var logo in service.LogoSettings)
+                            {
+                                logoDict.Add(logo.FileName, logo);
+                            }
+                        }
+
+                        var updatedServices = new List<int>();
+
                         var lastModified = Directory.GetLastWriteTime(logopath);
-                        if (logoDirTime != lastModified)
+                        if (logoDirTime != lastModified || serviceListUpdated)
                         {
                             logoDirTime = lastModified;
 
-                            var logoDict = new Dictionary<string, LogoSetting>();
-                            foreach(var service in appData.services.ServiceMap.Values)
+                            // ファイルの個数が変わった or サービスリストが変わった
+
+                            if (serviceListUpdated)
                             {
-                                foreach(var logo in service.LogoSettings)
-                                {
-                                    logoDict.Add(logo.FileName, logo);
-                                    logo.Exists = false;
-                                }
+                                // サービスリストが分かったら再度追加処理
+                                serviceListUpdated = false;
+                                logoTime.Clear();
                             }
 
-                            foreach(var filepath in Directory.GetFiles(logopath)
+                            var newTime = new Dictionary<string, DateTime>();
+                            foreach (var filepath in Directory.GetFiles(logopath)
                                 .Where(s => s.EndsWith(".ldg", StringComparison.OrdinalIgnoreCase)))
                             {
-                                var filename = Path.GetFileName(filepath);
-                                var lastMod = File.GetLastWriteTime(filepath);
-                                if (logoDict.ContainsKey(filename))
+                                newTime.Add(filepath, File.GetLastWriteTime(filepath));
+                            }
+
+                            foreach (var path in logoTime.Keys.Union(newTime.Keys))
+                            {
+                                if (!newTime.ContainsKey(path))
                                 {
-                                    var setting = logoDict[filename];
-                                    setting.Exists = true;
-                                    if(setting.FileLastModified != lastMod)
+                                    // 消えた
+                                    if (logoDict.ContainsKey(path))
                                     {
-                                        setting.FileLastModified = lastMod;
-                                        ReadLogoFile(setting, filepath);
+                                        logoDict[path].Exists = false;
+                                        updatedServices.Add(logoDict[path].ServiceId);
                                     }
                                 }
-                                else
+                                else if (!logoTime.ContainsKey(path))
                                 {
-                                    // 新しいとロゴ
-                                    var setting = new LogoSetting();
-                                    ReadLogoFile(setting, filepath);
+                                    // 追加された
+                                    if (logoDict.ContainsKey(path))
+                                    {
+                                        if (logoDict[path].Exists == false)
+                                        {
+                                            logoDict[path].Exists = true;
+                                            ReadLogoFile(logoDict[path], path);
+                                            updatedServices.Add(logoDict[path].ServiceId);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var setting = new LogoSetting();
+                                        ReadLogoFile(setting, path);
 
-                                    setting.Exists = true;
-                                    setting.Enabled = true;
-                                    setting.From = new DateTime(2000, 1, 1);
-                                    setting.To = new DateTime(2030, 12, 31);
-                                    setting.FileLastModified = lastMod;
+                                        if (map.ContainsKey(setting.ServiceId))
+                                        {
+                                            setting.Exists = true;
+                                            setting.Enabled = true;
+                                            setting.From = new DateTime(2000, 1, 1);
+                                            setting.To = new DateTime(2030, 12, 31);
 
-                                    //appData.services.ServiceMap
-                                    // TODO: サービスがない場合などなども処理できるようにデザイン修正
+                                            map[setting.ServiceId].LogoSettings.Add(setting);
+                                            updatedServices.Add(setting.ServiceId);
+                                        }
+                                    }
+                                }
+                                else if (logoTime[path] != newTime[path])
+                                {
+                                    // 変更されたファイル
+                                    if (logoDict.ContainsKey(path))
+                                    {
+                                        ReadLogoFile(logoDict[path], path);
+                                        updatedServices.Add(logoDict[path].ServiceId);
+                                    }
                                 }
                             }
 
+                            logoTime = newTime;
+                        }
+                        else
+                        {
+                            // ファイルは同じなので、個々のファイルの更新を見る
+                            foreach (var key in logoTime.Keys)
+                            {
+                                var lastMod = File.GetLastWriteTime(key);
+                                if (logoTime[key] != lastMod)
+                                {
+                                    logoTime[key] = lastMod;
+
+                                    if (logoDict.ContainsKey(key))
+                                    {
+                                        ReadLogoFile(logoDict[key], key);
+                                        updatedServices.Add(logoDict[key].ServiceId);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 更新をクライアントに通知
+                        foreach (var updatedServiceId in updatedServices.Distinct())
+                        {
+                            await client.OnServiceSetting(map[updatedServiceId]);
+                        }
+                    }
+                    string jlspath = GetJLDirectoryPath();
+                    if (Directory.Exists(jlspath))
+                    {
+                        var lastModified = Directory.GetLastWriteTime(jlspath);
+                        if (jlsDirTime != lastModified)
+                        {
+                            logoDirTime = lastModified;
+
+                            jlsFiles.Files = Directory.GetFiles(jlspath).ToList();
+                            await client.OnLlsCommandFiles(jlsFiles);
                         }
                     }
 
@@ -2178,8 +2270,17 @@ namespace Amatsukaze.Server
             var serviceMap = appData.services.ServiceMap;
             if(serviceMap.ContainsKey(service.ServiceId))
             {
-                serviceMap[service.ServiceId] = service;
-                await Task.WhenAll(UpdateQueueItems());
+                var old = serviceMap[service.ServiceId];
+                if (old.LogoSettings.Count == service.LogoSettings.Count)
+                {
+                    // ロゴのExitsフラグだけはこちらのデータを継承させる
+                    for (int i = 0; i < old.LogoSettings.Count; ++i)
+                    {
+                        service.LogoSettings[i].Exists = old.LogoSettings[i].Exists;
+                    }
+                    serviceMap[service.ServiceId] = service;
+                    await Task.WhenAll(UpdateQueueItems());
+                }
             }
             await client.OnServiceSetting(service);
         }

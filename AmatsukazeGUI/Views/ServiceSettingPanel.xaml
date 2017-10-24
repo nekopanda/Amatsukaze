@@ -5,36 +5,44 @@
              xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:v="clr-namespace:Amatsukaze.Views"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
              xmlns:s="clr-namespace:Amatsukaze.Server" 
              mc:Ignorable="d" 
              d:DesignHeight="400" d:DesignWidth="400"
              d:DataContext="{d:DesignInstance {x:Type vm:ServiceSettingViewModel}}">
     <Grid>
+        <Grid.Resources>
+            <DataTemplate DataType="{x:Type m:DisplayLogo}">
+                <v:LogoItem />
+            </DataTemplate>
+        </Grid.Resources>
+        
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="119*"/>
-            <ColumnDefinition Width="181*"/>
+            <ColumnDefinition Width="150"/>
+            <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="6,4,0,0" TextWrapping="Wrap" Text="サービス" VerticalAlignment="Top"/>
-        <ListBox x:Name="serviceListBox" Margin="0,25,241,0.333" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
+        <ListBox x:Name="serviceListBox" Margin="0,25,241,0.333" Grid.RowSpan="2" Grid.ColumnSpan="2" ItemsSource="{Binding Model.ServiceSettings}"/>
 
         <TextBlock x:Name="textBlock" Grid.Column="1" HorizontalAlignment="Left" Margin="9.333,2,0,0" TextWrapping="Wrap" Text="JoinLogoScpコマンドファイル" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="157"/>
+        <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" HorizontalAlignment="Left" Width="157" ItemsSource="{Binding Model.JlsCommandFiles}" Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="22" VerticalAlignment="Top"/>
 
         <TextBlock x:Name="textBlock2" Grid.Column="1" HorizontalAlignment="Left" Margin="10.333,5,0,0" Grid.Row="1" TextWrapping="Wrap" Text="ロゴファイル" VerticalAlignment="Top"/>
-        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1"/>
+        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1" ItemsSource="{Binding SelectedServiceItem.LogoList}"/>
 
-        <Button x:Name="button" Content="適用" HorizontalAlignment="Left" Margin="156.333,5,0,0" VerticalAlignment="Top" Width="54" Grid.Column="1" Grid.Row="2"/>
+        <Button x:Name="button" Content="適用" HorizontalAlignment="Left" Margin="156.333,5,0,0" VerticalAlignment="Top" Width="54" Grid.Column="1" Grid.Row="2" IsEnabled="{Binding SelectedLogoItem.DateChanged}"/>
         <TextBlock x:Name="textBlock3" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="84,7.333,0,0" Grid.Row="2" TextWrapping="Wrap"
                    Text="開始       ←ロゴファイル適用期間→      終了" VerticalAlignment="Top"/>
-        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="6,28.333,0,-24" Grid.Row="2" VerticalAlignment="Top"/>
-        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="190,28,0,0" Grid.Row="2" VerticalAlignment="Top"/>
+        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="6,28.333,0,-24" Grid.Row="2" VerticalAlignment="Top" SelectedDate="{Binding SelectedLogoItem.From, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="190,28,0,0" Grid.Row="2" VerticalAlignment="Top" SelectedDate="{Binding SelectedLogoItem.To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
     </Grid>
 </UserControl>
