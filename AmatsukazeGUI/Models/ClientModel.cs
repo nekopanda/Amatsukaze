@@ -10,6 +10,7 @@ using System.IO;
 using Livet;
 using Amatsukaze.Server;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks.Dataflow;
 
 namespace Amatsukaze.Models
 {
@@ -34,7 +35,22 @@ namespace Amatsukaze.Models
     {
         public ClientModel Model { get; set; }
 
-        public ServiceSettingElement Data { get; set; }
+        #region Data変更通知プロパティ
+        private ServiceSettingElement _Data;
+
+        public ServiceSettingElement Data {
+            get { return _Data; }
+            set { 
+                //if (_Data == value)
+                //    return;
+                _Data = value;
+
+                _LogoList = null;
+                RaisePropertyChanged("LogoList");
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         #region LogoList変更通知プロパティ
         private DisplayLogo[] _LogoList;
@@ -48,14 +64,17 @@ namespace Amatsukaze.Models
                     _LogoList = Data.LogoSettings
                         .Where(s => s.Exists).Select(s => new DisplayLogo()
                         {
+                            Model = Model,
                             Setting = s,
                             From = s.From,
                             To = s.To,
                         }).ToArray();
 
                     // ロゴデータをリクエスト
-                    _LogoList
-                        .Select(logo => Model.Server.RequestLogoData(logo.Setting.FileName));
+                    foreach(var logo in _LogoList)
+                    {
+                        Model.RequestLogoData(logo.Setting.FileName);
+                    }
                 }
                 return _LogoList;
             }
@@ -175,6 +194,13 @@ namespace Amatsukaze.Models
         {
             get { return Setting.From.ToString("yyyy/MM/dd"); }
         }
+
+        public void ApplyDate()
+        {
+            Setting.From = _From;
+            Setting.To = _To;
+            Model.UpdateLogo(this);
+        }
     }
 
     public class ConsoleText : ConsoleTextBase
@@ -251,6 +277,9 @@ namespace Amatsukaze.Models
         private State state = new State();
 
         public Func<object, string, Task> ServerAddressRequired;
+
+        private BufferBlock<string> requestLogoQ = new BufferBlock<string>();
+        private Task requestLogoThread;
 
         public string ServerIP
         {
@@ -852,6 +881,7 @@ namespace Amatsukaze.Models
             AddLog("クライアント起動");
 
             LoadAppData();
+            requestLogoThread = RequestLogoThread();
         }
 
         #region IDisposable Support
@@ -864,6 +894,8 @@ namespace Amatsukaze.Models
                 if (disposing)
                 {
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
+                    requestLogoQ.Complete();
+
                     if (Server is EncodeServer)
                     {
                         (Server as EncodeServer).Dispose();
@@ -892,6 +924,27 @@ namespace Amatsukaze.Models
             // GC.SuppressFinalize(this);
         }
         #endregion
+
+        private async Task RequestLogoThread()
+        {
+            try
+            {
+                while (await requestLogoQ.OutputAvailableAsync())
+                {
+                    var file = await requestLogoQ.ReceiveAsync();
+                    await Server.RequestLogoData(file);
+                }
+            }
+            catch (Exception exception)
+            {
+                await OnOperationResult("RequestLogoThreadがエラー終了しました: " + exception.Message);
+            }
+        }
+
+        public void RequestLogoData(string file)
+        {
+            requestLogoQ.Post(file);
+        }
 
         private void UpdateWarningText()
         {
@@ -1057,8 +1110,6 @@ namespace Amatsukaze.Models
                 "入力ファイル時間（秒）",
                 "出力ファイル時間（秒）",
                 "インシデント数",
-                "プルダウン",
-                "タイムコード",
                 "入力ファイルサイズ",
                 "中間ファイルサイズ",
                 "出力ファイルサイズ",
@@ -1087,8 +1138,6 @@ namespace Amatsukaze.Models
                     item.SrcVideoDuration.TotalSeconds.ToString(),
                     item.OutVideoDuration.TotalSeconds.ToString(),
                     item.Incident.ToString(),
-                    item.DisplayPulldown,
-                    item.DisplayTimecode,
                     item.SrcFileSize.ToString(),
                     item.IntVideoFileSize.ToString(),
                     item.OutFileSize.ToString(),
@@ -1134,6 +1183,7 @@ namespace Amatsukaze.Models
             BitrateA = setting.Bitrate.A;
             BitrateB = setting.Bitrate.B;
             BitrateH264 = setting.Bitrate.H264;
+            BitrateCM = setting.BitrateCM;
             TwoPass = setting.TwoPass;
             EnableFilterTmp = setting.EnableFilterTmp;
             MaxTmpGB = setting.MaxTmpGB;
@@ -1285,16 +1335,15 @@ namespace Amatsukaze.Models
 
         public Task OnServiceSetting(ServiceSettingElement service)
         {
-            var disp = new DisplayService() { Data = service };
             for(int i = 0; i < _ServiceSettings.Count; ++i)
             {
                 if(_ServiceSettings[i].Data.ServiceId == service.ServiceId)
                 {
-                    _ServiceSettings[i] = disp;
+                    _ServiceSettings[i].Data = service;
                     return Task.FromResult(0);
                 }
             }
-            _ServiceSettings.Add(disp);
+            _ServiceSettings.Add(new DisplayService() { Model = this, Data = service });
             return Task.FromResult(0);
         }
 

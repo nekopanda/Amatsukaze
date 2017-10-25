@@ -148,6 +148,10 @@ namespace Amatsukaze.ViewModels
 
         public string InputInfoText {
             get {
+                if(Item == null)
+                {
+                    return null;
+                }
                 string text = "入力フォルダ: " + Item.DirPath;
                 if(Item.Targets != null)
                 {

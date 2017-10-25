@@ -93,6 +93,34 @@ public:
 			}
 		}
 	}
+
+	std::unique_ptr<LogoDataParam> MakeFieldLogo(bool bottom)
+	{
+		auto logo = std::unique_ptr<LogoDataParam>(
+			new LogoDataParam(LogoData(w, h / 2, logUVx, logUVy), imgw, imgh / 2, imgx, imgy / 2));
+		
+		for (int y = 0; y < logo->h; ++y) {
+			for (int x = 0; x < logo->w; ++x) {
+				logo->aY[x + y * w] = aY[x + bottom + y * 2 * w];
+				logo->bY[x + y * w] = bY[x + bottom + y * 2 * w];
+			}
+		}
+
+		int UVoffset = ((int)bottom ^ (logo->imgy % 2));
+		int wUV = logo->w >> logUVx;
+		int hUV = logo->h >> logUVy;
+
+		for (int y = 0; y < hUV; ++y) {
+			for (int x = 0; x < wUV; ++x) {
+				logo->aU[x + y * wUV] = aU[x + UVoffset + y * 2 * wUV];
+				logo->bU[x + y * wUV] = bU[x + UVoffset + y * 2 * wUV];
+				logo->aV[x + y * wUV] = aV[x + UVoffset + y * 2 * wUV];
+				logo->bV[x + y * wUV] = bV[x + UVoffset + y * 2 * wUV];
+			}
+		}
+
+		return logo;
+	}
 };
 
 static void approxim_line(int n, double sum_x, double sum_y, double sum_x2, double sum_xy, double& a, double& b)
@@ -532,7 +560,17 @@ void DeintY(float* dst, const pixel_t* src, int srcPitch, int w, int h)
 	}
 }
 
-static float EvaluateLogo(const float *src,float maxv, LogoDataParam& logo, float fade, float* work, int w, int h)
+template <typename pixel_t>
+void CopyY(float* dst, const pixel_t* src, int srcPitch, int w, int h)
+{
+	for (int y = 0; y < h; ++y) {
+		for (int x = 0; x < w; ++x) {
+			dst[x + y * w] = src[x + y * srcPitch];
+		}
+	}
+}
+
+static float EvaluateLogo(const float *src,float maxv, LogoDataParam& logo, float fade, float* work, int w, int h, int stride)
 {
 	// ロゴを評価 //
 	const float *logoAY = logo.GetA(PLANAR_Y);
@@ -542,7 +580,7 @@ static float EvaluateLogo(const float *src,float maxv, LogoDataParam& logo, floa
 	// ロゴを除去
 	for (int y = 0; y < h; ++y) {
 		for (int x = 0; x < w; ++x) {
-			float srcv = src[x + y * w];
+			float srcv = src[x + y * stride];
 			float a = logoAY[x + y * w];
 			float b = logoBY[x + y * w];
 			float bg = a * srcv + b * maxv;
@@ -790,7 +828,7 @@ class LogoAnalyzer : AMTObject
 				for (int fi = 0; fi < numFade; ++fi) {
 					float fade = 0.1f * fi;
 					// ロゴを評価
-					float result = EvaluateLogo(memDeint.get(), 255.0f, deintLogo, fade, memWork.get(), scanw, scanh);
+					float result = EvaluateLogo(memDeint.get(), 255.0f, deintLogo, fade, memWork.get(), scanw, scanh, scanw);
 					if (result < minResult) {
 						minResult = result;
 						minFadeIndex = fi;
@@ -927,6 +965,349 @@ extern "C" __declspec(dllexport) bool ScanLogo(AMTContext* ctx,
 	return false;
 }
 
+struct LogoAnalyzeFrame
+{
+	float p[11], t0, t1, b0, b1;
+};
+
+// ロゴ除去用解析フィルタ
+class AMTAnalyzeLogo : public GenericVideoFilter
+{
+	VideoInfo srcvi;
+
+	std::unique_ptr<LogoDataParam> logo;
+	std::unique_ptr<LogoDataParam> deintLogo;
+	std::unique_ptr<LogoDataParam> fieldLogoT;
+	std::unique_ptr<LogoDataParam> fieldLogoB;
+	LogoHeader header;
+	float maskratio;
+
+	float logothresh;
+
+	template <typename pixel_t>
+	PVideoFrame GetFrameT(int n, IScriptEnvironment2* env)
+	{
+		size_t YSize = header.w * header.h;
+		auto memCopy = std::unique_ptr<float[]>(new float[YSize]);
+		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+
+		PVideoFrame dst = env->NewVideoFrame(vi);
+		LogoAnalyzeFrame* pDst = reinterpret_cast<LogoAnalyzeFrame*>(dst->GetWritePtr());
+
+		float maxv = (float)((1 << srcvi.BitsPerComponent()) - 1);
+		int fToffset = (fieldLogoT->getImgY() % 2);
+
+		for (int i = 0; i < 8; ++i) {
+			int nsrc = std::max(0, std::min(srcvi.num_frames - 1, n * 8 + i));
+			PVideoFrame frame = child->GetFrame(nsrc, env);
+
+			const pixel_t* srcY = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_Y));
+			const pixel_t* srcU = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_U));
+			const pixel_t* srcV = reinterpret_cast<const pixel_t*>(frame->GetReadPtr(PLANAR_V));
+
+			int pitchY = frame->GetPitch(PLANAR_Y) / sizeof(pixel_t);
+			int pitchUV = frame->GetPitch(PLANAR_U) / sizeof(pixel_t);
+			int off = header.imgx + header.imgy * pitchY;
+			int offUV = (header.imgx >> header.logUVx) + (header.imgy >> header.logUVy) * pitchUV;
+
+			CopyY(memCopy.get(), srcY + off, pitchY, header.w, header.h);
+
+			// フレームをインタレ解除
+			DeintY(memDeint.get(), srcY + off, pitchY, header.w, header.h);
+
+			LogoAnalyzeFrame info;
+			for (int f = 0; f <= 10; ++f) {
+				info.p[f] = EvaluateLogo(memDeint.get(), maxv, *deintLogo, (float)f / 10.0f, memWork.get(), header.w, header.h, header.w);
+			}
+			info.t0 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
+			info.t1 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
+			info.b0 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoB, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
+			info.b1 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoB, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
+
+			pDst[i] = info;
+		}
+
+		return dst;
+	}
+
+	inline static int nblocks(int n, int block)
+	{
+		return (n + block - 1) / block;
+	}
+
+public:
+	AMTAnalyzeLogo(PClip clip, const std::string& logoPath, float maskratio, IScriptEnvironment* env)
+		: GenericVideoFilter(clip)
+		, srcvi(vi)
+		, maskratio(maskratio)
+	{
+		try {
+			logo = std::unique_ptr<LogoDataParam>(
+				new LogoDataParam(LogoData::Load(logoPath, &header), &header));
+		}
+		catch (const IOException&) {
+			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
+		}
+
+		deintLogo = std::unique_ptr<LogoDataParam>(
+			new LogoDataParam(LogoData(header.w, header.h, header.logUVx, header.logUVy), &header));
+		DeintLogo(*deintLogo, *logo, header.w, header.h);
+		deintLogo->CreateLogoMask(maskratio);
+
+		fieldLogoT = deintLogo->MakeFieldLogo(false);
+		fieldLogoT->CreateLogoMask(maskratio);
+		fieldLogoB = deintLogo->MakeFieldLogo(true);
+		fieldLogoB->CreateLogoMask(maskratio);
+
+		int out_bytes = sizeof(LogoAnalyzeFrame) * 8;
+		vi.pixel_type = VideoInfo::CS_BGR32;
+		vi.width = 64;
+		vi.height = nblocks(out_bytes, vi.width * 4);
+
+		vi.num_frames = nblocks(vi.num_frames, 8);
+	}
+
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env_)
+	{
+		IScriptEnvironment2* env = static_cast<IScriptEnvironment2*>(env_);
+
+		int pixelSize = srcvi.ComponentSize();
+		switch (pixelSize) {
+		case 1:
+			return GetFrameT<uint8_t>(n, env);
+		case 2:
+			return GetFrameT<uint16_t>(n, env);
+		default:
+			env->ThrowError("[AMTAnalyzeLogo] Unsupported pixel format");
+		}
+
+		return PVideoFrame();
+	}
+
+	static AVSValue __cdecl Create(AVSValue args, void* user_data, IScriptEnvironment* env)
+	{
+		return new AMTAnalyzeLogo(
+			args[0].AsClip(),       // source
+			args[1].AsString(),			// logopath
+			(float)args[2].AsFloat(10) / 100.0f, // maskratio
+			env
+		);
+	}
+};
+
+class AMTEraseLogo2 : public GenericVideoFilter
+{
+	PClip analyzeclip;
+
+	std::unique_ptr<LogoDataParam> logo;
+	LogoHeader header;
+	int mode;
+
+	template <typename pixel_t>
+	void Delogo(pixel_t* dst, int w, int h, int logopitch, int imgpitch, float maxv, const float* A, const float* B, float fade)
+	{
+		for (int y = 0; y < h; ++y) {
+			for (int x = 0; x < w; ++x) {
+				float srcv = dst[x + y * imgpitch];
+				float a = A[x + y * logopitch];
+				float b = B[x + y * logopitch];
+				float bg = a * srcv + b * maxv;
+				float tmp = fade * bg + (1 - fade) * srcv;
+				dst[x + y * imgpitch] = (pixel_t)std::min(std::max(tmp + 0.5f, 0.0f), maxv);
+			}
+		}
+	}
+
+	void CalcFade(int n, float& fadeT, float& fadeB, IScriptEnvironment2* env)
+	{
+		enum {
+			DIST = 20,
+		};
+		LogoAnalyzeFrame frames[DIST * 2 + 1];
+
+		int prev_n = INT_MAX;
+		PVideoFrame frame;
+		for (int i = -DIST; i <= DIST; ++i) {
+			int analyze_n = (n + i) >> 3;
+			int idx = (n + i) & 7;
+
+			if (analyze_n != prev_n) {
+				frame = child->GetFrame(analyze_n, env);
+				prev_n = analyze_n;
+			}
+
+			const LogoAnalyzeFrame* pInfo =
+				reinterpret_cast<const LogoAnalyzeFrame*>(frame->GetReadPtr());
+			frames[i + DIST] = pInfo[idx];
+		}
+		frame = nullptr;
+
+		int before_cnt = 0;
+		int after_cnt = 0;
+		for (int i = 0; i < DIST; ++i) {
+			before_cnt += (frames[i].p[0] > frames[i].p[10]);
+			after_cnt += (frames[DIST + 1 + i].p[0] > frames[DIST + 1 + i].p[10]);
+		}
+		bool before_on = (before_cnt > DIST / 2);
+		bool after_on = (after_cnt > DIST / 2);
+
+		if (before_on != after_on) {
+			// 切り替わり
+			int minfades[DIST * 2 + 1];
+			for (int i = 0; i < DIST * 2 + 1; ++i) {
+				minfades[i] = (int)(std::min_element(frames[i].p, frames[i].p + 11) - frames[i].p);
+			}
+			// 前後4フレームを見てフェードしてるか突然消えてるか判断
+			float before_fades = 0;
+			float after_fades = 0;
+			for (int i = 1; i <= 4; ++i) {
+				before_fades += minfades[DIST - i];
+				after_fades += minfades[DIST + i];
+			}
+			before_fades /= 4 * 10;
+			after_fades /= 4 * 10;
+			// しきい値は適当
+			if ((before_fades < 0.3 && after_fades > 0.7) ||
+				(before_fades > 0.7 && after_fades < 0.3))
+			{
+				// 急な変化 -> フィールドごとに見る
+				fadeT = (frames[DIST].t0 > frames[DIST].t1 ? 1.0f : 0.0f);
+				fadeB = (frames[DIST].b0 > frames[DIST].b1 ? 1.0f : 0.0f);
+			}
+			else {
+				// 緩やかな変化 -> フレームごとに見る
+				fadeT = fadeB = (minfades[DIST] / 10.0f);
+			}
+		}
+		else {
+			// ON or OFF
+			fadeT = fadeB = (before_on ? 1.0f : 0.0f);
+		}
+	}
+
+	template <typename pixel_t>
+	PVideoFrame GetFrameT(int n, IScriptEnvironment2* env)
+	{
+		PVideoFrame frame = child->GetFrame(n, env);
+		env->MakeWritable(&frame);
+
+		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
+		pixel_t* dstY = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_Y));
+		pixel_t* dstU = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_U));
+		pixel_t* dstV = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_V));
+
+		int pitchY = frame->GetPitch(PLANAR_Y) / sizeof(pixel_t);
+		int pitchUV = frame->GetPitch(PLANAR_U) / sizeof(pixel_t);
+		int off = header.imgx + header.imgy * pitchY;
+		int offUV = (header.imgx >> header.logUVx) + (header.imgy >> header.logUVy) * pitchUV;
+
+		if (mode == 0) { // 通常
+			float fadeT, fadeB;
+			CalcFade(n, fadeT, fadeB, env);
+
+			// 最適Fade値でロゴ除去
+			const float *logoAY = logo->GetA(PLANAR_Y);
+			const float *logoBY = logo->GetB(PLANAR_Y);
+			const float *logoAU = logo->GetA(PLANAR_U);
+			const float *logoBU = logo->GetB(PLANAR_U);
+			const float *logoAV = logo->GetA(PLANAR_V);
+			const float *logoBV = logo->GetB(PLANAR_V);
+
+			int wUV = (header.w >> header.logUVx);
+			int hUV = (header.h >> header.logUVy);
+
+			if (fadeT == fadeB) {
+				// フレーム処理
+				Delogo(dstY + off, header.w, header.h, header.w, pitchY, maxv, logoAY, logoBY, fadeT);
+				Delogo(dstU + offUV, wUV, hUV, wUV, pitchUV, maxv, logoAU, logoBU, fadeT);
+				Delogo(dstV + offUV, wUV, hUV, wUV, pitchUV, maxv, logoAV, logoBV, fadeT);
+			}
+			else {
+				// フィールド処理
+
+				Delogo(dstY + off, header.w, header.h / 2, header.w * 2, pitchY * 2, maxv, logoAY, logoBY, fadeT);
+				Delogo(dstY + off + pitchY, header.w, header.h / 2, header.w * 2, pitchY * 2, maxv, logoAY + header.w, logoBY + header.w, fadeB);
+
+				int uvparity = ((header.imgy / 2) % 2);
+				int tuvoff = uvparity * pitchUV;
+				int buvoff = !uvparity * pitchUV;
+				int tuvoffl = uvparity * wUV;
+				int buvoffl = !uvparity * wUV;
+
+				Delogo(dstU + offUV + tuvoff, wUV, hUV / 2, wUV * 2, pitchUV * 2, maxv, logoAU + tuvoffl, logoBU + tuvoffl, fadeT);
+				Delogo(dstV + offUV + tuvoff, wUV, hUV / 2, wUV * 2, pitchUV * 2, maxv, logoAV + tuvoffl, logoBV + tuvoffl, fadeT);
+
+				Delogo(dstU + offUV + buvoff, wUV, hUV / 2, wUV * 2, pitchUV * 2, maxv, logoAU + buvoffl, logoBU + buvoffl, fadeB);
+				Delogo(dstV + offUV + buvoff, wUV, hUV / 2, wUV * 2, pitchUV * 2, maxv, logoAV + buvoffl, logoBV + buvoffl, fadeB);
+			}
+
+			return frame;
+		}
+
+		// ロゴフレームデバッグ用
+		float fadeT, fadeB;
+		CalcFade(n, fadeT, fadeB, env);
+
+		const char* str = "X";
+		if (fadeT == fadeB) {
+			str = (fadeT < 0.5) ? "X" : "O";
+		}
+		else {
+			str = (fadeT < fadeB) ? "BTM" : "TOP";
+		}
+
+		char buf[200];
+		sprintf_s(buf, "%s %.1f vs %.1f", str, fadeT, fadeB);
+		DrawText(frame, true, 0, 0, buf);
+
+		return frame;
+	}
+
+public:
+	AMTEraseLogo2(PClip clip, PClip analyzeclip, const std::string& logoPath, int mode, IScriptEnvironment* env)
+		: GenericVideoFilter(clip)
+		, analyzeclip(analyzeclip)
+		, mode(mode)
+	{
+		try {
+			logo = std::unique_ptr<LogoDataParam>(
+				new LogoDataParam(LogoData::Load(logoPath, &header), &header));
+		}
+		catch (const IOException&) {
+			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
+		}
+	}
+
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env_)
+	{
+		IScriptEnvironment2* env = static_cast<IScriptEnvironment2*>(env_);
+
+		int pixelSize = vi.ComponentSize();
+		switch (pixelSize) {
+		case 1:
+			return GetFrameT<uint8_t>(n, env);
+		case 2:
+			return GetFrameT<uint16_t>(n, env);
+		default:
+			env->ThrowError("[AMTEraseLogo] Unsupported pixel format");
+		}
+
+		return PVideoFrame();
+	}
+
+	static AVSValue __cdecl Create(AVSValue args, void* user_data, IScriptEnvironment* env)
+	{
+		return new AMTEraseLogo2(
+			args[0].AsClip(),       // source
+			args[1].AsClip(),       // analyzeclip
+			args[2].AsString(),			// logopath
+			args[3].AsInt(0),       // mode
+			env
+		);
+	}
+};
+
 // 黄金比探索 //
 
 template <typename Op, bool shortHead>
@@ -1045,7 +1426,7 @@ class AMTEraseLogo : public GenericVideoFilter
 					return (x2 - x0) < 0.01f;
 				}
 				float f(float x) {
-					return EvaluateLogo(img, maxv, logo, x, work, w, h);
+					return EvaluateLogo(img, maxv, logo, x, work, w, h, w);
 				}
 			} op(memDeint.get(), memWork.get(), maxv, logothresh, *deintLogo, header.w, header.h);
 
@@ -1086,8 +1467,8 @@ class AMTEraseLogo : public GenericVideoFilter
 		}
 
 		// ロゴフレームデバッグ用
-		float cost0 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 0, memWork.get(), header.w, header.h);
-		float cost1 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 1, memWork.get(), header.w, header.h);
+		float cost0 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 0, memWork.get(), header.w, header.h, header.w);
+		float cost1 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 1, memWork.get(), header.w, header.h, header.w);
 
 		char buf[200];
 		sprintf_s(buf, "%s %d vs %d", (cost0 <= cost1) ? "X" : "O", (int)cost0, (int)cost1);
@@ -1202,8 +1583,8 @@ class LogoFrame : AMTObject
 			DeintY(memDeint, srcY + off, pitchY, logo.getWidth(), logo.getHeight());
 
 			// ロゴ評価
-			outResult[i].cost0 = EvaluateLogo(memDeint, maxv, logo, 0, memWork, logo.getWidth(), logo.getHeight());
-			outResult[i].cost1 = EvaluateLogo(memDeint, maxv, logo, 1, memWork, logo.getWidth(), logo.getHeight());
+			outResult[i].cost0 = EvaluateLogo(memDeint, maxv, logo, 0, memWork, logo.getWidth(), logo.getHeight(), logo.getWidth());
+			outResult[i].cost1 = EvaluateLogo(memDeint, maxv, logo, 1, memWork, logo.getWidth(), logo.getHeight(), logo.getWidth());
 		}
 	}
 

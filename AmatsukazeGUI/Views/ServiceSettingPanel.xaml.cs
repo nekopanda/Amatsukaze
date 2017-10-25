@@ -24,5 +24,10 @@ namespace Amatsukaze.Views
         {
             InitializeComponent();
         }
+
+        private void Calendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Mouse.Capture(null);
+        }
     }
 }

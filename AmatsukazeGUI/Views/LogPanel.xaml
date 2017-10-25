@@ -29,8 +29,6 @@
                     <GridViewColumn Header="入力サイズ[MB]" DisplayMemberBinding="{Binding DisplaySrcFileSize}"/>
                     <GridViewColumn Header="出力サイズ[%]" DisplayMemberBinding="{Binding DisplayCompressionRate}"/>
                     <GridViewColumn Header="ビットレート(Mbit/s)" DisplayMemberBinding="{Binding DisplayOutBitrate}"/>
-                    <GridViewColumn Header="PD" DisplayMemberBinding="{Binding DisplayPulldown, Mode=OneWay}"/>
-                    <GridViewColumn Header="TC" DisplayMemberBinding="{Binding DisplayTimecode, Mode=OneWay}"/>
                 </GridView>
             </ListView.View>
             <ListView.ContextMenu>
@@ -78,9 +76,9 @@
                 <TextBlock HorizontalAlignment="Left" Text="中間サイズ[%]" VerticalAlignment="Top" Margin="0,208,0,0"/>
                 <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntVideoRate}" VerticalAlignment="Top" Margin="0,208,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="プルダウン" VerticalAlignment="Top" Margin="0,224,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayPulldown}" VerticalAlignment="Top" Margin="0,224,0,0" Grid.Column="1"/>
+                <TextBlock HorizontalAlignment="Left" Text="-" VerticalAlignment="Top" Margin="0,224,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="タイムコード" VerticalAlignment="Top" Margin="0,240,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTimecode}" VerticalAlignment="Top" Margin="0,240,0,0" Grid.Column="1"/>
+                <TextBlock HorizontalAlignment="Left" Text="-" VerticalAlignment="Top" Margin="0,240,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="出力ファイル数" VerticalAlignment="Top" Margin="0,256,0,0"/>
                 <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutNum}" VerticalAlignment="Top" Margin="0,256,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="インシデント数" VerticalAlignment="Top" Margin="0,272,0,0"/>

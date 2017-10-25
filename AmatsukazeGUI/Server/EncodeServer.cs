@@ -196,6 +196,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.PauseEncode:
                     server.PauseEncode((bool)arg);
                     break;
+                case RPCMethodId.SetServiceSetting:
+                    server.SetServiceSetting((ServiceSettingElement)arg);
+                    break;
                 case RPCMethodId.RequestSetting:
                     server.RequestSetting();
                     break;
@@ -216,6 +219,12 @@ namespace Amatsukaze.Server
                     break;
                 case RPCMethodId.RequestFreeSpace:
                     server.RequestFreeSpace();
+                    break;
+                case RPCMethodId.RequestServiceSetting:
+                    server.RequestServiceSetting();
+                    break;
+                case RPCMethodId.RequestLogoData:
+                    server.RequestLogoData((string)arg);
                     break;
             }
         }
@@ -559,8 +568,6 @@ namespace Amatsukaze.Server
                         MaxDiff = json.audiodiff.maxdiff,
                         MaxDiffPos = json.audiodiff.maxdiffpos
                     },
-                    Pulldown = ((int)json.pulldown != 0),
-                    Timecode = ((int)json.timecode != 0),
                     Incident = incident
                 };
             }
@@ -649,17 +656,11 @@ namespace Amatsukaze.Server
             {
                 DateTime now = DateTime.Now;
 
-
                 if (File.Exists(src.Path) == false)
                 {
                     return FailLogItem(src.Path, "入力ファイルが見つかりません", now, now);
                 }
 
-                server.UpdateQueueItem(src);
-                if(src.State != QueueState.Queue)
-                {
-                    return null;
-                }
                 var serviceSetting = server.appData.services.ServiceMap[src.ServiceId];
                 var logofiles = serviceSetting.LogoSettings
                     .Where(s => s.CanUse(src.TsTime))
@@ -702,13 +703,15 @@ namespace Amatsukaze.Server
                     localdst = tmpBase + "-out.mp4";
                 }
 
-                AnonymousPipeServerStream readPipe = 
-                    new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
-                AnonymousPipeServerStream writePipe = 
-                    new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
-
-                string outHandle = readPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
-                string inHandle = writePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                AnonymousPipeServerStream readPipe = null, writePipe = null;
+                string outHandle = null, inHandle = null;
+                if(server.appData.setting.EnableFilterTmp)
+                {
+                    readPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+                    writePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+                    outHandle = readPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                    inHandle = writePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                }
 
                 string json = Path.Combine(
                     Path.GetDirectoryName(localdst),
@@ -750,18 +753,28 @@ namespace Amatsukaze.Server
                 {
                     using (var p = Process.Start(psi))
                     {
-                        if(server.appData.setting.EnableFilterTmp == false)
+                        try
                         {
-                            // アフィニティを設定
-                            IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
-                            Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
-                            p.ProcessorAffinity = affinityMask;
+                            if (server.appData.setting.EnableFilterTmp == false)
+                            {
+                                // アフィニティを設定
+                                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
+                                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
+                                p.ProcessorAffinity = affinityMask;
+                            }
+                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
                         }
-                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                        catch(InvalidOperationException)
+                        {
+                            // 既にプロセスが終了していると例外が出るが無視する
+                        }
 
-                        // クライアントハンドルを閉じる
-                        readPipe.DisposeLocalCopyOfClientHandle();
-                        writePipe.DisposeLocalCopyOfClientHandle();
+                        if(readPipe != null)
+                        {
+                            // クライアントハンドルを閉じる
+                            readPipe.DisposeLocalCopyOfClientHandle();
+                            writePipe.DisposeLocalCopyOfClientHandle();
+                        }
 
                         current = new TranscodeTask()
                         {
@@ -796,8 +809,11 @@ namespace Amatsukaze.Server
                 }
                 finally
                 {
-                    readPipe.Close();
-                    writePipe.Close();
+                    if(readPipe != null)
+                    {
+                        readPipe.Close();
+                        writePipe.Close();
+                    }
                     current.logWriter = null;
                     current = null;
                 }
@@ -904,10 +920,15 @@ namespace Amatsukaze.Server
                     }
                     var src = itemList[dir.CurrentHead++];
 
-                    src.State = QueueState.Encoding;
-                    waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                    LogItem logItem = null;
 
-                    var logItem = await ProcessItem(server, src);
+                    server.UpdateQueueItem(src);
+                    if (src.State == QueueState.Queue)
+                    {
+                        src.State = QueueState.Encoding;
+                        waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                        logItem = await ProcessItem(server, src);
+                    }
 
                     if (logItem == null)
                     {
@@ -1424,11 +1445,11 @@ namespace Amatsukaze.Server
                 .Append(appData.setting.TimelineEditorPath)
                 .Append("\" -j \"")
                 .Append(json)
-                .Append("\" -32bitlib \"")
+                .Append("\" --32bitlib \"")
                 .Append(appData.setting.Amt32bitPath)
-                .Append("\" -chapter-exe \"")
+                .Append("\" --chapter-exe \"")
                 .Append(appData.setting.ChapterExePath)
-                .Append("\" -jls \"")
+                .Append("\" --jls \"")
                 .Append(appData.setting.JoinLogoScpPath)
                 .Append("\" -f \"")
                 .Append(appData.setting.FilterPath)
@@ -1452,8 +1473,8 @@ namespace Amatsukaze.Server
 
             if(string.IsNullOrEmpty(jlscommand) == false)
             {
-                sb.Append(" -jls-cmd \"")
-                    .Append(jlscommand)
+                sb.Append(" --jls-cmd \"")
+                    .Append(GetJLDirectoryPath() + "\\" + jlscommand)
                     .Append("\"");
             }
 
@@ -1494,9 +1515,18 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --error-on-no-logo");
             }
-
-            sb.Append(" --in-pipe ").Append(inHandle);
-            sb.Append(" --out-pipe ").Append(outHandle);
+            if(inHandle != null)
+            {
+                sb.Append(" --in-pipe ").Append(inHandle);
+                sb.Append(" --out-pipe ").Append(outHandle);
+            }
+            if(logofiles != null)
+            {
+                foreach(var logo in logofiles)
+                {
+                    sb.Append(" --logo \"").Append(GetLogoFilePath(logo)).Append("\"");
+                }
+            }
 
             return sb.ToString();
         }
@@ -1874,7 +1904,8 @@ namespace Amatsukaze.Server
                             // 新しいサービスを登録
                             var newElement = new ServiceSettingElement() {
                                 ServiceId = item.ServiceId,
-                                ServiceName = item.ServiceName
+                                ServiceName = item.ServiceName,
+                                LogoSettings = new List<LogoSetting>()
                             };
                             map.Add(item.ServiceId, newElement);
                             serviceListUpdated = true;
@@ -2024,32 +2055,33 @@ namespace Amatsukaze.Server
 
                             var newTime = new Dictionary<string, DateTime>();
                             foreach (var filepath in Directory.GetFiles(logopath)
-                                .Where(s => s.EndsWith(".ldg", StringComparison.OrdinalIgnoreCase)))
+                                .Where(s => s.EndsWith(".lgd", StringComparison.OrdinalIgnoreCase)))
                             {
                                 newTime.Add(filepath, File.GetLastWriteTime(filepath));
                             }
 
                             foreach (var path in logoTime.Keys.Union(newTime.Keys))
                             {
+                                var name = Path.GetFileName(path);
                                 if (!newTime.ContainsKey(path))
                                 {
                                     // 消えた
-                                    if (logoDict.ContainsKey(path))
+                                    if (logoDict.ContainsKey(name))
                                     {
-                                        logoDict[path].Exists = false;
-                                        updatedServices.Add(logoDict[path].ServiceId);
+                                        logoDict[name].Exists = false;
+                                        updatedServices.Add(logoDict[name].ServiceId);
                                     }
                                 }
                                 else if (!logoTime.ContainsKey(path))
                                 {
                                     // 追加された
-                                    if (logoDict.ContainsKey(path))
+                                    if (logoDict.ContainsKey(name))
                                     {
-                                        if (logoDict[path].Exists == false)
+                                        if (logoDict[name].Exists == false)
                                         {
-                                            logoDict[path].Exists = true;
-                                            ReadLogoFile(logoDict[path], path);
-                                            updatedServices.Add(logoDict[path].ServiceId);
+                                            logoDict[name].Exists = true;
+                                            ReadLogoFile(logoDict[name], path);
+                                            updatedServices.Add(logoDict[name].ServiceId);
                                         }
                                     }
                                     else
@@ -2072,10 +2104,10 @@ namespace Amatsukaze.Server
                                 else if (logoTime[path] != newTime[path])
                                 {
                                     // 変更されたファイル
-                                    if (logoDict.ContainsKey(path))
+                                    if (logoDict.ContainsKey(name))
                                     {
-                                        ReadLogoFile(logoDict[path], path);
-                                        updatedServices.Add(logoDict[path].ServiceId);
+                                        ReadLogoFile(logoDict[name], path);
+                                        updatedServices.Add(logoDict[name].ServiceId);
                                     }
                                 }
                             }
@@ -2092,19 +2124,26 @@ namespace Amatsukaze.Server
                                 {
                                     logoTime[key] = lastMod;
 
-                                    if (logoDict.ContainsKey(key))
+                                    var name = Path.GetFileName(key);
+                                    if (logoDict.ContainsKey(name))
                                     {
-                                        ReadLogoFile(logoDict[key], key);
-                                        updatedServices.Add(logoDict[key].ServiceId);
+                                        ReadLogoFile(logoDict[name], key);
+                                        updatedServices.Add(logoDict[name].ServiceId);
                                     }
                                 }
                             }
                         }
 
-                        // 更新をクライアントに通知
-                        foreach (var updatedServiceId in updatedServices.Distinct())
+                        if(updatedServices.Count > 0)
                         {
-                            await client.OnServiceSetting(map[updatedServiceId]);
+                            // 更新をクライアントに通知
+                            foreach (var updatedServiceId in updatedServices.Distinct())
+                            {
+                                await client.OnServiceSetting(map[updatedServiceId]);
+                            }
+                            // キューを再始動
+                            await Task.WhenAll(UpdateQueueItems());
+                            await StartEncodeWhenNotStarted();
                         }
                     }
                     string jlspath = GetJLDirectoryPath();
@@ -2113,9 +2152,10 @@ namespace Amatsukaze.Server
                         var lastModified = Directory.GetLastWriteTime(jlspath);
                         if (jlsDirTime != lastModified)
                         {
-                            logoDirTime = lastModified;
+                            jlsDirTime = lastModified;
 
-                            jlsFiles.Files = Directory.GetFiles(jlspath).ToList();
+                            jlsFiles.Files = Directory.GetFiles(jlspath)
+                                .Select(s => Path.GetFileName(s)).ToList();
                             await client.OnLlsCommandFiles(jlsFiles);
                         }
                     }
@@ -2280,6 +2320,7 @@ namespace Amatsukaze.Server
                     }
                     serviceMap[service.ServiceId] = service;
                     await Task.WhenAll(UpdateQueueItems());
+                    await StartEncodeWhenNotStarted();
                 }
             }
             await client.OnServiceSetting(service);

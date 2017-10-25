@@ -307,10 +307,6 @@ namespace Amatsukaze.Server
         public string MachineName { get; set; }
 
         [DataMember]
-        public bool Pulldown { get; set; }
-        [DataMember]
-        public bool Timecode { get; set; }
-        [DataMember]
         public int Incident { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
@@ -320,7 +316,7 @@ namespace Amatsukaze.Server
         public string DisplayResult { get { return Success ? ((Incident > 0) ? "△" : "〇") : "×"; } }
         public string DisplaySrcDirectory { get { return Path.GetDirectoryName(SrcPath); } }
         public string DisplaySrcFileName { get { return Path.GetFileName(SrcPath); } }
-        public string DisplayOutNum { get { return OutPath.Count.ToString(); } }
+        public string DisplayOutNum { get { return (OutPath == null) ? "-" : OutPath.Count.ToString(); } }
         public string DisplayNumIncident { get { return Incident.ToString(); } }
         public string DisplayEncodeStart { get { return EncodeStartDate.ToGUIString(); } }
         public string DisplayEncodeFinish { get { return EncodeFinishDate.ToGUIString(); } }
@@ -354,9 +350,6 @@ namespace Amatsukaze.Server
         public string DisplayOutBitrate { get { return (SrcVideoDuration != null)
                     ? ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
                     : null; } }
-
-        public string DisplayPulldown { get { return Pulldown ? "Y" : ""; } }
-        public string DisplayTimecode { get { return Timecode ? "Y" : ""; } }
     }
 
     [DataContract]

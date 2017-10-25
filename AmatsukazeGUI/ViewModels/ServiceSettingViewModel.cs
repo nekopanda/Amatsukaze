@@ -124,6 +124,29 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
-        
+
+        #region ApplyDateCommand
+        private ViewModelCommand _ApplyDateCommand;
+
+        public ViewModelCommand ApplyDateCommand {
+            get {
+                if (_ApplyDateCommand == null)
+                {
+                    _ApplyDateCommand = new ViewModelCommand(ApplyDate);
+                }
+                return _ApplyDateCommand;
+            }
+        }
+
+        public void ApplyDate()
+        {
+            var logo = SelectedLogoItem;
+            if(logo != null)
+            {
+                logo.ApplyDate();
+            }
+        }
+        #endregion
+
     }
 }

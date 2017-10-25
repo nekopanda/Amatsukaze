@@ -30,19 +30,24 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="6,4,0,0" TextWrapping="Wrap" Text="サービス" VerticalAlignment="Top"/>
-        <ListBox x:Name="serviceListBox" Margin="0,25,241,0.333" Grid.RowSpan="2" Grid.ColumnSpan="2" ItemsSource="{Binding Model.ServiceSettings}"/>
+        <ListBox x:Name="serviceListBox" Margin="0,25,0,0.333" Grid.RowSpan="2" ItemsSource="{Binding Model.ServiceSettings}" SelectedIndex="{Binding SelectedServiceIndex, Mode=TwoWay}"/>
 
         <TextBlock x:Name="textBlock" Grid.Column="1" HorizontalAlignment="Left" Margin="9.333,2,0,0" TextWrapping="Wrap" Text="JoinLogoScpコマンドファイル" VerticalAlignment="Top"/>
         <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" HorizontalAlignment="Left" Width="157" ItemsSource="{Binding Model.JlsCommandFiles}" Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="22" VerticalAlignment="Top"/>
 
         <TextBlock x:Name="textBlock2" Grid.Column="1" HorizontalAlignment="Left" Margin="10.333,5,0,0" Grid.Row="1" TextWrapping="Wrap" Text="ロゴファイル" VerticalAlignment="Top"/>
-        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1" ItemsSource="{Binding SelectedServiceItem.LogoList}"/>
+        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1" ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}"/>
 
-        <Button x:Name="button" Content="適用" HorizontalAlignment="Left" Margin="156.333,5,0,0" VerticalAlignment="Top" Width="54" Grid.Column="1" Grid.Row="2" IsEnabled="{Binding SelectedLogoItem.DateChanged}"/>
+        <Button x:Name="button" Content="適用" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="310,5,0,0" VerticalAlignment="Top" Width="54" Grid.Row="2" IsEnabled="{Binding SelectedLogoItem.DateChanged}" Command="{Binding ApplyDateCommand}"/>
         <TextBlock x:Name="textBlock3" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="84,7.333,0,0" Grid.Row="2" TextWrapping="Wrap"
                    Text="開始       ←ロゴファイル適用期間→      終了" VerticalAlignment="Top"/>
-        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="6,28.333,0,-24" Grid.Row="2" VerticalAlignment="Top" SelectedDate="{Binding SelectedLogoItem.From, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="190,28,0,0" Grid.Row="2" VerticalAlignment="Top" SelectedDate="{Binding SelectedLogoItem.To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="6,28.333,0,-24" Grid.Row="2" VerticalAlignment="Top"
+                  SelectedDate="{Binding SelectedLogoItem.From, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" DisplayDate="{Binding SelectedLogoItem.From}"
+                  SelectedDatesChanged="Calendar_SelectedDatesChanged"/>
+        
+        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="190,28,0,0" Grid.Row="2" VerticalAlignment="Top"
+                  SelectedDate="{Binding SelectedLogoItem.To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" DisplayDate="{Binding SelectedLogoItem.To}"
+                  SelectedDatesChanged="Calendar_SelectedDatesChanged"/>
 
     </Grid>
 </UserControl>
