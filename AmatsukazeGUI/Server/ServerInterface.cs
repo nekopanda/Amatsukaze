@@ -19,6 +19,7 @@ namespace Amatsukaze.Server
         Task PauseEncode(bool pause);
 
         Task SetServiceSetting(ServiceSettingElement service);
+        Task AddNoLogo(int ServiceId);
 
         // 情報取得系
         Task RequestSetting();
@@ -63,6 +64,7 @@ namespace Amatsukaze.Server
         RemoveQueue,
         PauseEncode,
         SetServiceSetting,
+        AddNoLogo,
         RequestSetting,
         RequestQueue,
         RequestLog,
@@ -103,6 +105,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RemoveQueue, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingElement) },
+            { RPCMethodId.AddNoLogo, typeof(int) },
             { RPCMethodId.RequestSetting, null },
             { RPCMethodId.RequestQueue, null },
             { RPCMethodId.RequestLog, null },
@@ -213,7 +216,8 @@ namespace Amatsukaze.Server
                     server.RequestLog(),
                     server.RequestConsole(),
                     server.RequestState(),
-                    server.RequestFreeSpace());
+                    server.RequestFreeSpace(),
+                    server.RequestServiceSetting());
         }
     }
 }

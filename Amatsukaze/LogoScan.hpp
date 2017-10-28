@@ -101,8 +101,8 @@ public:
 		
 		for (int y = 0; y < logo->h; ++y) {
 			for (int x = 0; x < logo->w; ++x) {
-				logo->aY[x + y * w] = aY[x + bottom + y * 2 * w];
-				logo->bY[x + y * w] = bY[x + bottom + y * 2 * w];
+				logo->aY[x + y * w] = aY[x + (bottom + y * 2) * w];
+				logo->bY[x + y * w] = bY[x + (bottom + y * 2) * w];
 			}
 		}
 
@@ -112,10 +112,10 @@ public:
 
 		for (int y = 0; y < hUV; ++y) {
 			for (int x = 0; x < wUV; ++x) {
-				logo->aU[x + y * wUV] = aU[x + UVoffset + y * 2 * wUV];
-				logo->bU[x + y * wUV] = bU[x + UVoffset + y * 2 * wUV];
-				logo->aV[x + y * wUV] = aV[x + UVoffset + y * 2 * wUV];
-				logo->bV[x + y * wUV] = bV[x + UVoffset + y * 2 * wUV];
+				logo->aU[x + y * wUV] = aU[x + (UVoffset + y * 2) * wUV];
+				logo->bU[x + y * wUV] = bU[x + (UVoffset + y * 2) * wUV];
+				logo->aV[x + y * wUV] = aV[x + (UVoffset + y * 2) * wUV];
+				logo->bV[x + y * wUV] = bV[x + (UVoffset + y * 2) * wUV];
 			}
 		}
 
@@ -1022,8 +1022,8 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 			}
 			info.t0 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
 			info.t1 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
-			info.b0 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoB, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
-			info.b1 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoB, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
+			info.b0 = EvaluateLogo(memCopy.get() + !fToffset * header.w, maxv, *fieldLogoB, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
+			info.b1 = EvaluateLogo(memCopy.get() + !fToffset * header.w, maxv, *fieldLogoB, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
 
 			pDst[i] = info;
 		}
@@ -1055,10 +1055,18 @@ public:
 		DeintLogo(*deintLogo, *logo, header.w, header.h);
 		deintLogo->CreateLogoMask(maskratio);
 
-		fieldLogoT = deintLogo->MakeFieldLogo(false);
+		fieldLogoT = logo->MakeFieldLogo(false);
 		fieldLogoT->CreateLogoMask(maskratio);
-		fieldLogoB = deintLogo->MakeFieldLogo(true);
+		fieldLogoB = logo->MakeFieldLogo(true);
 		fieldLogoB->CreateLogoMask(maskratio);
+
+		// for debug
+		//LogoHeader hT = header;
+		//hT.h /= 2;
+		//hT.imgh /= 2;
+		//hT.imgy /= 2;
+		//fieldLogoT->Save("logoT.lgd", &hT);
+		//fieldLogoB->Save("logoB.lgd", &hT);
 
 		int out_bytes = sizeof(LogoAnalyzeFrame) * 8;
 		vi.pixel_type = VideoInfo::CS_BGR32;
@@ -1122,18 +1130,19 @@ class AMTEraseLogo2 : public GenericVideoFilter
 	void CalcFade(int n, float& fadeT, float& fadeB, IScriptEnvironment2* env)
 	{
 		enum {
-			DIST = 20,
+			DIST = 8,
 		};
 		LogoAnalyzeFrame frames[DIST * 2 + 1];
 
 		int prev_n = INT_MAX;
 		PVideoFrame frame;
 		for (int i = -DIST; i <= DIST; ++i) {
-			int analyze_n = (n + i) >> 3;
-			int idx = (n + i) & 7;
+			int nsrc = std::max(0, std::min(vi.num_frames - 1, n + i));
+			int analyze_n = (nsrc + i) >> 3;
+			int idx = (nsrc + i) & 7;
 
 			if (analyze_n != prev_n) {
-				frame = child->GetFrame(analyze_n, env);
+				frame = analyzeclip->GetFrame(analyze_n, env);
 				prev_n = analyze_n;
 			}
 

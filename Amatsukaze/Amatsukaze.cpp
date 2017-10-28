@@ -15,6 +15,7 @@
 #include "TextOut.cpp"
 
 HMODULE g_DllHandle;
+bool g_av_initialized = false;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
 	if (dwReason == DLL_PROCESS_ATTACH) g_DllHandle = hModule;
@@ -31,11 +32,17 @@ extern "C" __declspec(dllexport) void InitAmatsukazeDLL()
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors) {
 	// 直接リンクしているのでvectorsを格納する必要はない
 
-	// FFMPEGライブラリ初期化
-	av_register_all();
+	if (g_av_initialized == false) {
+		// FFMPEGライブラリ初期化
+		av_register_all();
+		g_av_initialized = true;
+	}
 
 	env->AddFunction("AMTSource", "s", av::CreateAMTSource, 0);
 	env->AddFunction("AMTEraseLogo", "cs[mode]i[maskratio]i", logo::AMTEraseLogo::Create, 0);
+
+	env->AddFunction("AMTAnalyzeLogo", "cs[maskratio]i", logo::AMTAnalyzeLogo::Create, 0);
+	env->AddFunction("AMTEraseLogo2", "ccs[mode]i", logo::AMTEraseLogo2::Create, 0);
 
 	return "Amatsukaze plugin";
 }

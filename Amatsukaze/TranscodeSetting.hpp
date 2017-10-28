@@ -561,6 +561,14 @@ public:
 		return ss.str();
 	}
 
+	std::string getTmpChapterExeOutPath(int vindex) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/chapter_exe_o" << vindex << ".txt";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
 	std::string getTmpTrimAVSPath(int vindex) const
 	{
 		std::ostringstream ss;

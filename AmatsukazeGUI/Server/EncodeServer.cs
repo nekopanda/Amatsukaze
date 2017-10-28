@@ -199,6 +199,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.SetServiceSetting:
                     server.SetServiceSetting((ServiceSettingElement)arg);
                     break;
+                case RPCMethodId.AddNoLogo:
+                    server.AddNoLogo((int)arg);
+                    break;
                 case RPCMethodId.RequestSetting:
                     server.RequestSetting();
                     break;
@@ -876,6 +879,11 @@ namespace Amatsukaze.Server
                     }
 
                     return log;
+                }
+                else if(exitCode == 100)
+                {
+                    // マッチするロゴがなかった
+                    return FailLogItem(src.Path, "マッチするロゴがありませんでした", start, finish);
                 }
                 else
                 {
@@ -1890,16 +1898,7 @@ namespace Amatsukaze.Server
                     var map = appData.services.ServiceMap;
                     foreach (var item in target.Items)
                     {
-                        if (map.ContainsKey(item.ServiceId))
-                        {
-                            if (map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)))
-                            {
-                                // OK
-                                item.State = QueueState.Queue;
-                                continue;
-                            }
-                        }
-                        else
+                        if (map.ContainsKey(item.ServiceId) == false)
                         {
                             // 新しいサービスを登録
                             var newElement = new ServiceSettingElement() {
@@ -1911,6 +1910,8 @@ namespace Amatsukaze.Server
                             serviceListUpdated = true;
                             waitItems.Add(client.OnServiceSetting(newElement));
                         }
+
+                        UpdateQueueItem(item);
                     }
 
                     if (target.Items.Count == 0)
@@ -2017,7 +2018,7 @@ namespace Amatsukaze.Server
                     foreach (var logo in service.LogoSettings)
                     {
                         // 全てのロゴは存在しないところからスタート
-                        logo.Exists = false;
+                        logo.Exists = (logo.FileName == LogoSetting.NO_LOGO);
                     }
                 }
 
@@ -2033,7 +2034,10 @@ namespace Amatsukaze.Server
                         {
                             foreach (var logo in service.LogoSettings)
                             {
-                                logoDict.Add(logo.FileName, logo);
+                                if(logo.FileName != LogoSetting.NO_LOGO)
+                                {
+                                    logoDict.Add(logo.FileName, logo);
+                                }
                             }
                         }
 
@@ -2214,6 +2218,19 @@ namespace Amatsukaze.Server
             }
         }
 
+        private static LogoSetting MakeNoLogoSetting(int serviceId)
+        {
+            return new LogoSetting() {
+                FileName = LogoSetting.NO_LOGO,
+                LogoName = "ロゴなし",
+                ServiceId = serviceId,
+                Exists = true,
+                Enabled = false,
+                From = new DateTime(2000, 1, 1),
+                To = new DateTime(2030, 12, 31)
+            };
+        }
+
         public Task SetSetting(Setting setting)
         {
             appData.setting = setting;
@@ -2338,6 +2355,10 @@ namespace Amatsukaze.Server
         private AMTContext amtcontext = new AMTContext();
         public Task RequestLogoData(string fileName)
         {
+            if(fileName == LogoSetting.NO_LOGO)
+            {
+                return client.OnOperationResult("[RequestLogoData] 不正な操作です");
+            }
             string logopath = GetLogoFilePath(fileName);
             try
             {
@@ -2355,6 +2376,18 @@ namespace Amatsukaze.Server
                 return client.OnOperationResult(
                     "ロゴファイルを開けません。パス:" + logopath + "メッセージ: " + exception.Message);
             }
+        }
+
+        public Task AddNoLogo(int ServiceId)
+        {
+            var serviceMap = appData.services.ServiceMap;
+            if (serviceMap.ContainsKey(ServiceId))
+            {
+                var service = serviceMap[ServiceId];
+                service.LogoSettings.Add(MakeNoLogoSetting(ServiceId));
+                return client.OnServiceSetting(service);
+            }
+            return Task.FromResult(0);
         }
     }
 }

@@ -211,5 +211,102 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region QueueFileSelectedIndex変更通知プロパティ
+        private int _QueueFileSelectedIndex = -1;
+
+        public int QueueFileSelectedIndex {
+            get { return _QueueFileSelectedIndex; }
+            set { 
+                if (_QueueFileSelectedIndex == value)
+                    return;
+                _QueueFileSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("SetectedQueueFile");
+                RaisePropertyChanged("IsQueueFileSelected");
+            }
+        }
+
+        public QueueItem SetectedQueueFile {
+            get {
+                var queueItem = SetectedQueueItem;
+                if(queueItem == null)
+                {
+                    return null;
+                }
+                if (_QueueFileSelectedIndex >= 0 && _QueueFileSelectedIndex < queueItem.Items.Count)
+                {
+                    return queueItem.Items[_QueueFileSelectedIndex];
+                }
+                return null;
+            }
+        }
+
+        public bool IsQueueFileSelected {
+            get {
+                return SetectedQueueFile != null;
+            }
+        }
+        #endregion
+
+        #region OpenLogoAnalyzeCommand
+        private ViewModelCommand _OpenLogoAnalyzeCommand;
+
+        public ViewModelCommand OpenLogoAnalyzeCommand {
+            get {
+                if (_OpenLogoAnalyzeCommand == null)
+                {
+                    _OpenLogoAnalyzeCommand = new ViewModelCommand(OpenLogoAnalyze);
+                }
+                return _OpenLogoAnalyzeCommand;
+            }
+        }
+
+        public void OpenLogoAnalyze()
+        {
+            var file = SetectedQueueFile;
+            if (file == null)
+            {
+                return;
+            }
+            var workpath = Model.WorkPath;
+            if(Directory.Exists(workpath) == false)
+            {
+                MessageBox.Show("一時ファイルフォルダがアクセスできる場所に設定されていないため起動できません");
+                return;
+            }
+            var apppath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            System.Diagnostics.Process.Start(apppath, "-l logo --file \"" + file.Path + "\" --work \"" + workpath + "\"");
+        }
+        #endregion
+
+        #region OpenFileInExplorerCommand
+        private ViewModelCommand _OpenFileInExplorerCommand;
+
+        public ViewModelCommand OpenFileInExplorerCommand {
+            get {
+                if (_OpenFileInExplorerCommand == null)
+                {
+                    _OpenFileInExplorerCommand = new ViewModelCommand(OpenFileInExplorer);
+                }
+                return _OpenFileInExplorerCommand;
+            }
+        }
+
+        public void OpenFileInExplorer()
+        {
+            var file = SetectedQueueFile;
+            if (file == null)
+            {
+                return;
+            }
+            if (File.Exists(file.Path) == false)
+            {
+                MessageBox.Show("ファイルが見つかりません");
+                return;
+            }
+            System.Diagnostics.Process.Start("EXPLORER.EXE", "/select, \"" + file.Path + "\"");
+        }
+        #endregion
+
     }
 }

@@ -36,7 +36,14 @@
         <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" HorizontalAlignment="Left" Width="157" ItemsSource="{Binding Model.JlsCommandFiles}" Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="22" VerticalAlignment="Top"/>
 
         <TextBlock x:Name="textBlock2" Grid.Column="1" HorizontalAlignment="Left" Margin="10.333,5,0,0" Grid.Row="1" TextWrapping="Wrap" Text="ロゴファイル" VerticalAlignment="Top"/>
-        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1" ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}"/>
+        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1"
+                 ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="「ロゴなし」を追加" Command="{Binding AddNoLogoCommand}" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
+        </ListBox>
 
         <Button x:Name="button" Content="適用" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="310,5,0,0" VerticalAlignment="Top" Width="54" Grid.Row="2" IsEnabled="{Binding SelectedLogoItem.DateChanged}" Command="{Binding ApplyDateCommand}"/>
         <TextBlock x:Name="textBlock3" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="84,7.333,0,0" Grid.Row="2" TextWrapping="Wrap"

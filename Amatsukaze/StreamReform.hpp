@@ -1007,7 +1007,8 @@ private:
 				if (audioState.time < file.time) {
 					double audioDuration = file.time - audioState.time;
 					double audioPts = endPts - audioDuration;
-					fillAudioFrames(file, 0, format.audioFormat[0], audioPts, audioDuration);
+					// ステレオに変換されているはずなので、音声フォーマットは問わない
+					fillAudioFrames(file, 0, nullptr, audioPts, audioDuration);
 				}
 			}
 
@@ -1097,13 +1098,13 @@ private:
       }
       double audioDuration = file.time - audioState.time;
       double audioPts = endPts - audioDuration;
-      fillAudioFrames(file, i, format.audioFormat[i], audioPts, audioDuration);
+      fillAudioFrames(file, i, &format.audioFormat[i], audioPts, audioDuration);
     }
   }
 
 	void fillAudioFrames(
 		OutFileState& file, int index, // 対象ファイルと音声インデックス
-		const AudioFormat& format, // 音声フォーマット
+		const AudioFormat* format, // 音声フォーマット
     double pts, double duration) // 開始修正PTSと90kHzでのタイムスパン
 	{
 		auto& state = file.audioState[index];
@@ -1143,7 +1144,7 @@ private:
 	// lastFrameから順番に見て音声フレームを入れる
 	void fillAudioFramesInOrder(
 		OutFileState& file, int index, // 対象ファイルと音声インデックス
-		const AudioFormat& format, // 音声フォーマット
+		const AudioFormat* format, // 音声フォーマット
     double& pts, double& duration) // 開始修正PTSと90kHzでのタイムスパン
 	{
 		auto& state = file.audioState[index];
@@ -1172,7 +1173,7 @@ private:
 				++nskipped;
 				continue;
 			}
-			if (frame.format != format) {
+			if (format != nullptr && frame.format != *format) {
 				// フォーマットが違うのでスキップ
 				continue;
 			}

@@ -187,9 +187,13 @@ public:
 					if (frameInfo.error == 0) {
 						decodedBuffer.add((uint8_t*)samples, frameInfo.samples * 2);
 
-						// ダウンミックスしているので2chになるはずだが
+						// ダウンミックスしているので2chになるはず
 						int numChannels = frameInfo.num_front_channels +
 							frameInfo.num_back_channels + frameInfo.num_side_channels + frameInfo.num_lfe_channels;
+
+						if (numChannels != 2) {
+							THROW(FormatException, "デコードされた音声が2chではありません");
+						}
 
 						AudioFrameData frameData;
 						frameData.numSamples = frameInfo.original_samples / numChannels;

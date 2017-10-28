@@ -475,6 +475,10 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 
 		return 0;
 	}
+	catch (const NoLogoException&) {
+		// ÉçÉSñ≥ÇµÇÕ100Ç∆Ç∑ÇÈ
+		return 100;
+	}
 	catch (const Exception&) {
 		return 1;
 	}

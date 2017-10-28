@@ -148,5 +148,28 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region AddNoLogoCommand
+        private ViewModelCommand _AddNoLogoCommand;
+
+        public ViewModelCommand AddNoLogoCommand {
+            get {
+                if (_AddNoLogoCommand == null)
+                {
+                    _AddNoLogoCommand = new ViewModelCommand(AddNoLogo);
+                }
+                return _AddNoLogoCommand;
+            }
+        }
+
+        public void AddNoLogo()
+        {
+            var service = SelectedServiceItem;
+            if(service != null)
+            {
+                Model.Server.AddNoLogo(service.Data.ServiceId);
+            }
+        }
+        #endregion
+
     }
 }

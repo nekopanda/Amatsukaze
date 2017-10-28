@@ -217,6 +217,27 @@ namespace Amatsukaze.Server
         public string FailReason { get; set; }
         [DataMember]
         public string JlsCommand { get; set; }
+
+        public bool IsComplete { get { return State == QueueState.Complete; } }
+        public bool IsEncoding { get { return State == QueueState.Encoding; } }
+        public bool IsError { get { return State == QueueState.Failed; } }
+        public bool IsPending { get { return State == QueueState.LogoPending; } }
+        public string TsTimeString { get { return TsTime.ToString("yyyy年MM月dd日"); } }
+        public string FileName { get { return System.IO.Path.GetFileName(Path); } }
+
+        public string StateString {
+            get {
+                switch (State)
+                {
+                    case QueueState.Queue: return "待ち";
+                    case QueueState.Encoding: return "エンコード中";
+                    case QueueState.Failed: return "失敗";
+                    case QueueState.LogoPending: return "ペンディング";
+                    case QueueState.Complete: return "完了";
+                }
+                return "不明";
+            }
+        }
     }
 
     [DataContract]

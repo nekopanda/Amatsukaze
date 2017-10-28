@@ -14,6 +14,7 @@
 #include <string>
 
 #include "StreamUtils.hpp"
+#include "PerformanceUtil.hpp"
 
 // スレッドはstart()で開始（コンストラクタから仮想関数を呼ぶことはできないため）
 // run()は派生クラスで実装されているのでrun()が終了する前に派生クラスのデストラクタが終了しないように注意！
@@ -62,7 +63,7 @@ private:
 	}
 };
 
-template <typename T>
+template <typename T, bool PERF = false>
 class DataPumpThread : private ThreadBase
 {
 public:
@@ -82,7 +83,9 @@ public:
 	{
 		auto& lock = with(critical_section_);
 		while (current_ >= maximum_) {
+			if (PERF) producer.start();
 			cond_full_.wait(critical_section_);
+			if (PERF) producer.stop();
 		}
 		if (data_.size() == 0) {
 			cond_empty_.signal();
@@ -93,6 +96,8 @@ public:
 
 	void start() {
 		finished_ = false;
+		producer.reset();
+		consumer.reset();
 		ThreadBase::start();
 	}
 
@@ -106,6 +111,11 @@ public:
 	}
 
 	bool isRunning() { return ThreadBase::isRunning(); }
+
+	void getTotalWait(double& prod, double& cons) {
+		prod = producer.getTotal();
+		cons = consumer.getTotal();
+	}
 
 protected:
 	virtual void OnDataReceived(T&& data) = 0;
@@ -122,6 +132,9 @@ private:
 
 	bool finished_;
 
+	Stopwatch producer;
+	Stopwatch consumer;
+
 	virtual void run()
 	{
 		while (true) {
@@ -130,7 +143,9 @@ private:
 				auto& lock = with(critical_section_);
 				while (data_.size() == 0) {
 					if (finished_) return;
+					if (PERF) consumer.start();
 					cond_empty_.wait(critical_section_);
+					if (PERF) consumer.stop();
 					if (finished_) return;
 				}
 				auto& entry = data_.front();

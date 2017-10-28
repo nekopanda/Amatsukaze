@@ -73,7 +73,10 @@ namespace Amatsukaze.Models
                     // ロゴデータをリクエスト
                     foreach(var logo in _LogoList)
                     {
-                        Model.RequestLogoData(logo.Setting.FileName);
+                        if(logo.Setting.FileName != LogoSetting.NO_LOGO)
+                        {
+                            Model.RequestLogoData(logo.Setting.FileName);
+                        }
                     }
                 }
                 return _LogoList;

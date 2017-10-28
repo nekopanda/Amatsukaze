@@ -255,5 +255,10 @@ namespace Amatsukaze.Server
         {
             return Send(RPCMethodId.RequestLogoData, fileName);
         }
+
+        public Task AddNoLogo(int ServiceId)
+        {
+            return Send(RPCMethodId.AddNoLogo, ServiceId);
+        }
     }
 }

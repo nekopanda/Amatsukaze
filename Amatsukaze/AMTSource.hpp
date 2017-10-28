@@ -6,6 +6,7 @@
 #pragma comment(lib, "avisynth.lib")
 
 #include <memory>
+#include <mutex>
 
 #include "Tree.hpp"
 #include "List.hpp"
@@ -53,6 +54,8 @@ class AMTSource : public IClip, AMTObject
   List<CacheFrame*> recentAccessed;
 
   VideoInfo vi;
+
+	std::mutex mutex;
 
 	File waveFile;
 
@@ -384,6 +387,8 @@ public:
 
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env)
   {
+		std::lock_guard<std::mutex> guard(mutex);
+
     // キャッシュにあれば返す
     auto it = frameCache.find(n);
     if (it != frameCache.end()) {
@@ -428,6 +433,8 @@ public:
 
   void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env)
   {
+		std::lock_guard<std::mutex> guard(mutex);
+
 		if (audioFrames.size() == 0) return;
 
 		const int sampleBytes = 4; // 16bitステレオ前提
@@ -455,7 +462,8 @@ public:
   bool __stdcall GetParity(int n) { return 1; }
 	int __stdcall SetCacheHints(int cachehints, int frame_range)
 	{
-		if (cachehints == CACHE_GET_MTMODE) return MT_SERIALIZED;
+		// 直接インスタンス化される場合、MTGuardが入らないのでMT_NICE_FILTER以外ダメ
+		if (cachehints == CACHE_GET_MTMODE) return MT_NICE_FILTER;
 		return 0;
 	};
 };

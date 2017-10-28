@@ -10,6 +10,16 @@
 #include "TranscodeSetting.hpp"
 #include "LogoScan.hpp"
 #include "ProcessThread.hpp"
+#include "PerformanceUtil.hpp"
+
+static void PrintFileAll(const std::string& path)
+{
+	File file(path, "r");
+	int sz = (int)file.size();
+	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
+	auto rsz = file.read(MemoryChunk(buf.get(), sz));
+	fwrite(buf.get(), 1, strnlen_s((char*)buf.get(), rsz), stderr);
+}
 
 class CMAnalyze : public AMTObject
 {
@@ -20,21 +30,40 @@ public:
 		: AMTObject(ctx)
 		, setting_(setting)
 	{
+		Stopwatch sw;
 		std::string avspath = makeAVSFile(videoFileIndex);
 
 		// ロゴ解析
 		if (setting_.getLogoPath().size() > 0) {
-			ctx.info("[ロゴ情報取得]");
+			ctx.info("[ロゴ解析]");
+			sw.start();
 			logoFrame(videoFileIndex, avspath);
+			ctx.info("完了: %.2f秒", sw.getAndReset());
+
+			ctx.info("[ロゴ解析結果]");
+			ctx.info("マッチしたロゴ: %s", logopath.c_str());
+			PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
 		}
 
 		// チャプター解析
-		ctx.info("[チャプター情報取得]");
+		ctx.info("[無音・シーンチェンジ解析]");
+		sw.start();
 		chapterExe(videoFileIndex, avspath);
+		ctx.info("完了: %.2f秒", sw.getAndReset());
+
+		ctx.info("[無音・シーンチェンジ解析結果]");
+		PrintFileAll(setting_.getTmpChapterExeOutPath(videoFileIndex));
 
 		// CM推定
-		ctx.info("[CM推定]");
+		ctx.info("[CM解析]");
+		sw.start();
 		joinLogoScp(videoFileIndex);
+		ctx.info("完了: %.2f秒", sw.getAndReset());
+
+		ctx.info("[CM解析結果 - TrimAVS]");
+		PrintFileAll(setting_.getTmpTrimAVSPath(videoFileIndex));
+		ctx.info("[CM解析結果 - 詳細]");
+		PrintFileAll(setting_.getTmpJlsPath(videoFileIndex));
 
 		// AVSファイルからCM区間を読む
 		readTrimAVS(videoFileIndex, numFrames);
@@ -83,6 +112,7 @@ private:
 		std::ofstream out(avspath);
 		out << "LoadPlugin(\"" << setting_.get32bitPath() << "\")" << std::endl;
 		out << "AMTSource(\"" << setting_.getTmpAMTSourcePath(videoFileIndex) << "\")" << std::endl;
+		out << "Prefetch(1)" << std::endl;
 		return avspath;
 	}
 
@@ -94,12 +124,17 @@ private:
 		env->LoadPlugin(GetModulePath().c_str(), true, &result);
 		PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
 
+		auto vi = clip->GetVideoInfo();
+		int duration = vi.num_frames * vi.fps_numerator / vi.fps_denominator;
+
 		logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
 		logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
+
 		if (logof.getLogoRatio() < 0.5f) {
-			if (setting_.getErrorOnNoLogo()) {
-				THROW(FormatException, "マッチするロゴが見つかりませんでした");
+			// 3分以下のファイルはロゴが見つからなくても無視する
+			if (duration > 180 && setting_.getErrorOnNoLogo()) {
+				THROW(NoLogoException, "マッチするロゴが見つかりませんでした");
 			}
 		}
 
@@ -117,7 +152,10 @@ private:
 
 	void chapterExe(int videoFileIndex, const std::string& avspath)
 	{
-		MySubProcess process(MakeChapterExeArgs(videoFileIndex, avspath));
+		File stdoutf(setting_.getTmpChapterExeOutPath(videoFileIndex), "wb");
+		auto args = MakeChapterExeArgs(videoFileIndex, avspath);
+		ctx.info(args.c_str());
+		MySubProcess process(args, &stdoutf);
 		int exitCode = process.join();
 		if (exitCode != 0) {
 			THROWF(FormatException, "ChapterExeがエラーコード(%d)を返しました", exitCode);
@@ -140,7 +178,9 @@ private:
 
 	void joinLogoScp(int videoFileIndex)
 	{
-		MySubProcess process(MakeJoinLogoScpArgs(videoFileIndex));
+		auto args = MakeJoinLogoScpArgs(videoFileIndex);
+		ctx.info(args.c_str());
+		MySubProcess process(args);
 		int exitCode = process.join();
 		if (exitCode != 0) {
 			THROWF(FormatException, "join_logo_scp.exeがエラーコード(%d)を返しました", exitCode);
@@ -182,14 +222,15 @@ private:
 	}
 };
 
-class MakeChapter
+class MakeChapter : public AMTObject
 {
 public:
-	MakeChapter(
+	MakeChapter(AMTContext& ctx,
 		const TranscoderSetting& setting,
 		const StreamReformInfo& reformInfo,
 		int videoFileIndex)
-		: setting(setting)
+		: AMTObject(ctx)
+		, setting(setting)
 		, reformInfo(reformInfo)
 	{
 		makeBase(
@@ -388,9 +429,13 @@ private:
 
 		std::ofstream file(setting.getTmpChapterPath(videoFileIndex, encoderIndex));
 
+		ctx.info("ファイル: %d-%d", videoFileIndex, encoderIndex);
+
 		int sumframes = 0;
 		for (int i = 0; i < (int)chapters.size(); ++i) {
 			auto& c = chapters[i];
+
+			ctx.info("%5d: %s", c.frameStart, c.comment.c_str());
 
 			int ms = (int)std::round(sumframes * frameMs);
 			int s = ms / 1000;

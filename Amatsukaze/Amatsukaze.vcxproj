@@ -164,6 +164,7 @@
     <ClInclude Include="LogoGUISupport.hpp" />
     <ClInclude Include="LogoScan.hpp" />
     <ClInclude Include="PacketCache.hpp" />
+    <ClInclude Include="PerformanceUtil.hpp" />
     <ClInclude Include="ProcessThread.hpp" />
     <ClInclude Include="H264VideoParser.hpp" />
     <ClInclude Include="Mpeg2PsWriter.hpp" />
