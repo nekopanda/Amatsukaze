@@ -1060,8 +1060,8 @@ private:
 #include <memory>
 
 std::wstring GetAribString(MemoryChunk mc) {
-	int bufsize = mc.length + 1;
+	int bufsize = (int)mc.length + 1;
 	auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[bufsize]);
-	int dstLen = aribstring::CAribString::AribToString(buf.get(), bufsize, mc.data, mc.length);
+	int dstLen = aribstring::CAribString::AribToString(buf.get(), bufsize, mc.data, (int)mc.length);
 	return std::wstring(buf.get(), buf.get() + dstLen);
 }

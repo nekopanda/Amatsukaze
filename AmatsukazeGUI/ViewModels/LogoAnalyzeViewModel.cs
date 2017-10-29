@@ -177,7 +177,6 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        private Task currentTask;
         public async void StartScan()
         {
             if(Model.NowScanning)
@@ -194,7 +193,8 @@ namespace Amatsukaze.ViewModels
 
             try
             {
-                currentTask = Model.Analyze(App.Option.FilePath, App.Option.WorkPath, RectPosition, RectSize, Threshold, MaxFrames);
+                var srcpath = App.Option.SlimTs ? tmpTs : App.Option.FilePath;
+                currentTask = Model.Analyze(srcpath, App.Option.WorkPath, RectPosition, RectSize, Threshold, MaxFrames);
                 await currentTask;
 
                 var vm = new LogoImageViewModel();
@@ -203,7 +203,10 @@ namespace Amatsukaze.ViewModels
             }
             catch(IOException exception)
             {
-                MessageBox.Show(exception.Message);
+                if (Model.CancelScanning == false)
+                {
+                    MessageBox.Show(exception.Message);
+                }
             }
             finally
             {
@@ -212,12 +215,29 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region CanClose変更通知プロパティ
+        private bool _CanClose = false;
+
+        public bool CanClose {
+            get { return _CanClose; }
+            set {
+                if (_CanClose == value)
+                    return;
+                _CanClose = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        private Task currentTask;
+        private string tmpTs;
+
         public LogoAnalyzeViewModel()
         {
             Model = new LogoAnalyzeModel();
         }
 
-        private bool Prepare()
+        private async Task<bool> Prepare()
         {
             if (string.IsNullOrWhiteSpace(App.Option.WorkPath))
             {
@@ -241,36 +261,56 @@ namespace Amatsukaze.ViewModels
                     App.Option.FilePath = openFileDialog.FileName;
                 }
 
-                Model.Load(App.Option.FilePath);
+                if(App.Option.SlimTs)
+                {
+                    int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+                    tmpTs = App.Option.WorkPath + "\\slimts-" + pid + ".ts";
+                    currentTask = Model.MakeSlimFile(App.Option.FilePath, tmpTs);
+                    await currentTask;
+                    Model.Load(tmpTs);
+                }
+                else
+                {
+                    Model.Load(App.Option.FilePath);
+                }
             }
             catch (IOException exception)
             {
+                if (Model.CancelScanning)
+                {
+                    return true;
+                }
                 MessageBox.Show(exception.Message);
                 return false;
+            }
+            finally
+            {
+                currentTask = null;
             }
             return true;
         }
 
-        public void Initialize()
+        public async void Initialize()
         {
-            if(Prepare() == false)
+            if(await Prepare() == false)
             {
                 // アプリ終了
-                Application.Current.Shutdown(1);
+                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "WindowAction"));
             }
         }
 
-        public async void WindowClosed()
+        public async void CloseCanceledCallback()
         {
-            // ウィンドウが閉じられた
-
             if (currentTask != null)
             {
                 // 実行中ならキャンセル
                 Model.CancelScanning = true;
 
                 // 3秒待つ
-                await Task.Delay(3000);
+                for(int i = 0; i < 12 && currentTask != null; ++i)
+                {
+                    await Task.Delay(250);
+                }
 
                 if (currentTask != null)
                 {
@@ -278,6 +318,22 @@ namespace Amatsukaze.ViewModels
                     Environment.Exit(1);
                 }
             }
+
+            CanClose = true;
+
+            Model.Close();
+            if(string.IsNullOrEmpty(tmpTs) == false && File.Exists(tmpTs))
+            {
+                try
+                {
+                    File.Delete(tmpTs);
+                }
+                catch(Exception) { }
+            }
+
+            await DispatcherHelper.UIDispatcher.BeginInvoke((Action)(() => {
+                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "WindowAction"));
+            }));
         }
     }
 }

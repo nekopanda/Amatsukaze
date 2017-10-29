@@ -330,6 +330,7 @@ public:
 		write(MemoryChunk(dataptr, sizeof(T)*arr.size()));
 	}
 	size_t read(MemoryChunk mc) const {
+		if (mc.length == 0) return 0;
 		size_t ret = fread(mc.data, 1, mc.length, fp_);
 		if (ret <= 0) {
 			THROWF(IOException, "failed to read from file");

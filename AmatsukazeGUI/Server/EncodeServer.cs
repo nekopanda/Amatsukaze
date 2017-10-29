@@ -1189,7 +1189,7 @@ namespace Amatsukaze.Server
 
         private string GetLogoDirectoryPath()
         {
-            return "logo";
+            return Path.GetFullPath("logo");
         }
 
         private string GetLogoFilePath(string fileName)
@@ -1199,7 +1199,7 @@ namespace Amatsukaze.Server
 
         private string GetJLDirectoryPath()
         {
-            return "JL";
+            return Path.GetFullPath("JL");
         }
         #endregion
 

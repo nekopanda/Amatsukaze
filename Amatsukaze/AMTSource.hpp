@@ -36,6 +36,7 @@ class AMTSource : public IClip, AMTObject
 {
 	const std::vector<FilterSourceFrame>& frames;
 	const std::vector<FilterAudioFrame>& audioFrames;
+	int audioSamplesPerFrame;
 
   InputContext inputCtx;
   CodecContext codecCtx;
@@ -97,10 +98,17 @@ class AMTSource : public IClip, AMTObject
     //vi.pixel_type = VideoInfo::CS_YV12;
     
 		if (audioFrames.size() > 0) {
-			int samplesPerFrame = audioFrames[0].waveLength / 4; // 16bitステレオ前提
+			audioSamplesPerFrame = 1024;
+			// waveLengthはゼロのこともあるので注意
+			for (int i = 0; i < (int)audioFrames.size(); ++i) {
+				if (audioFrames[i].waveLength != 0) {
+					audioSamplesPerFrame = audioFrames[i].waveLength / 4; // 16bitステレオ前提
+					break;
+				}
+			}
 			vi.audio_samples_per_second = afmt.sampleRate;
 			vi.sample_type = SAMPLE_INT16;
-			vi.num_audio_samples = samplesPerFrame * audioFrames.size();
+			vi.num_audio_samples = audioSamplesPerFrame * audioFrames.size();
 			vi.nchannels = 2;
 		}
 		else {
@@ -438,17 +446,27 @@ public:
 		if (audioFrames.size() == 0) return;
 
 		const int sampleBytes = 4; // 16bitステレオ前提
-		int samplesPerFrame = audioFrames[0].waveLength / sampleBytes;
+		int frameWaveLength = audioSamplesPerFrame * sampleBytes;
 		uint8_t* ptr = (uint8_t*)buf;
-		for(__int64 frameIndex = start / samplesPerFrame, frameOffset = start % samplesPerFrame;
+		for(__int64 frameIndex = start / audioSamplesPerFrame, frameOffset = start % audioSamplesPerFrame;
 			count > 0 && frameIndex < (__int64)audioFrames.size();
 			++frameIndex, frameOffset = 0)
 		{
-			waveFile.seek(audioFrames[(size_t)frameIndex].waveOffset + frameOffset * sampleBytes, SEEK_SET);
+			// このフレームで埋めるべきバイト数
 			int readBytes = std::min<int>(
-				(int)(audioFrames[(size_t)frameIndex].waveLength - frameOffset * sampleBytes),
+				(int)(frameWaveLength - frameOffset * sampleBytes),
 				(int)count * sampleBytes);
-			waveFile.read(MemoryChunk(ptr, readBytes));
+
+			if (audioFrames[(size_t)frameIndex].waveLength != 0) {
+				// waveがあるなら読む
+				waveFile.seek(audioFrames[(size_t)frameIndex].waveOffset + frameOffset * sampleBytes, SEEK_SET);
+				waveFile.read(MemoryChunk(ptr, readBytes));
+			}
+			else {
+				// ない場合はゼロ埋めする
+				memset(ptr, 0x00, readBytes);
+			}
+
 			ptr += readBytes;
 			count -= readBytes / sampleBytes;
 		}

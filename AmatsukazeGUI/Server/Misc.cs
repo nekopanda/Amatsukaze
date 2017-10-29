@@ -26,8 +26,10 @@ namespace Amatsukaze.Server
     {
         public LaunchType LaunchType = LaunchType.Standalone;
         public int ServerPort = 32768;
+
         public string FilePath;
         public string WorkPath;
+        public bool SlimTs;
 
         public GUIOPtion(string[] args)
         {
@@ -71,6 +73,10 @@ namespace Amatsukaze.Server
                 {
                     WorkPath = args[i + 1];
                     ++i;
+                }
+                else if(arg == "--slimts")
+                {
+                    SlimTs = true;
                 }
             }
         }

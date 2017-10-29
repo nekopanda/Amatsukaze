@@ -228,13 +228,10 @@ namespace Amatsukaze.Models
         private static extern void MediaFile_Delete(IntPtr ptr);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern int MediaFile_GetWidth(IntPtr ptr);
+        private static extern bool MediaFile_DecodeFrame(IntPtr ptr, float pos, ref int width, ref int height);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern int MediaFile_GetHeight(IntPtr ptr);
-
-        [DllImport("Amatsukaze.dll")]
-        private static unsafe extern bool MediaFile_GetFrame(IntPtr ptr, float pos, byte* buf, int stride);
+        private static unsafe extern void MediaFile_GetFrame(IntPtr ptr, byte* rgb, int width, int height);
         #endregion
 
         public MediaFile(AMTContext ctx, string filepath)
@@ -275,27 +272,28 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        public int Width { get { return MediaFile_GetWidth(Ptr); } }
-
-        public int Height { get { return MediaFile_GetHeight(Ptr); } }
-
         // 失敗したらnullが返るので注意
         public BitmapSource GetFrame(float pos)
         {
-            int stride = Width * 3;
-            byte[] buffer = new byte[stride * Height];
-            unsafe
+            int width = 0, height = 0;
+            if(MediaFile_DecodeFrame(Ptr, pos, ref width, ref height))
             {
-                fixed(byte* pbuffer = buffer)
+                if(width != 0 && height != 0)
                 {
-                    if(MediaFile_GetFrame(Ptr, pos, pbuffer, stride) == false)
+                    int stride = width * 3;
+                    byte[] buffer = new byte[stride * height];
+                    unsafe
                     {
-                        return null;
+                        fixed (byte* pbuffer = buffer)
+                        {
+                            MediaFile_GetFrame(Ptr, pbuffer, width, height);
+                        }
                     }
+                    return BitmapSource.Create(
+                        width, height, 96, 96, PixelFormats.Bgr24, null, buffer, stride);
                 }
             }
-            return BitmapSource.Create(
-                Width, Height, 96, 96, PixelFormats.Bgr24, null, buffer, stride);
+            return null;
         }
     }
 
@@ -451,6 +449,71 @@ namespace Amatsukaze.Models
             if(!ScanLogo(ctx.Ptr, srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb))
             {
                 throw new IOException(ctx.GetError());
+            }
+        }
+    }
+
+    public delegate bool TsSlimCallback();
+
+    public class TsSlimFilter : IDisposable
+    {
+        public AMTContext Ctx { private set; get; }
+        public IntPtr Ptr { private set; get; }
+
+        #region Natives
+        [DllImport("Amatsukaze.dll")]
+        private static extern IntPtr TsSlimFilter_Create(IntPtr ctx, int videoPid);
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern void TsSlimFilter_Delete(IntPtr ptr);
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern bool TsSlimFilter_Exec(IntPtr ptr, string srcpath, string dstpath, TsSlimCallback cb);
+        #endregion
+
+        public TsSlimFilter(AMTContext ctx, int videoPid)
+        {
+            Ctx = ctx;
+            Ptr = TsSlimFilter_Create(Ctx.Ptr, videoPid);
+            if (Ptr == IntPtr.Zero)
+            {
+                throw new IOException(Ctx.GetError());
+            }
+        }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // 重複する呼び出しを検出するには
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                TsSlimFilter_Delete(Ptr);
+                Ptr = IntPtr.Zero;
+                disposedValue = true;
+            }
+        }
+
+        ~TsSlimFilter()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(false);
+        }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
+        public void Exec(string srcpath, string dstpath, TsSlimCallback cb)
+        {
+            if(!TsSlimFilter_Exec(Ptr, srcpath, dstpath, cb))
+            {
+                throw new IOException(Ctx.GetError());
             }
         }
     }

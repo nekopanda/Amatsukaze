@@ -66,6 +66,10 @@ public:
 		return time;
 	}
 
+	std::vector<int> getSetPids() const {
+		return handlerTable.getSetPids();
+	}
+
 private:
 	class PSIDelegator : public PsiUpdatedDetector {
 		TsInfoParser& this_;
@@ -161,7 +165,7 @@ private:
 			}
 			numPrograms = (int)programs.size();
 			// 少ないときだけ増やす（逆に減らすとhandlerTableにダングリングポインタが残るので注意）
-			if (programList.size() < numPrograms) {
+			if ((int)programList.size() < numPrograms) {
 				programList.resize(programs.size());
 			}
 			for (int i = 0; i < (int)programs.size(); ++i) {
@@ -356,6 +360,10 @@ public:
 		return parser.getServiceList()[i].name.c_str();
 	}
 
+	std::vector<int> getSetPids() const {
+		return parser.getSetPids();
+	}
+
 private:
 	class SpTsPacketParser : public TsPacketParser {
 		TsInfo& this_;
@@ -388,3 +396,68 @@ extern "C" __declspec(dllexport) int TsInfo_GetNumService(TsInfo* ptr) { return 
 extern "C" __declspec(dllexport) int TsInfo_GetServiceId(TsInfo* ptr, int i) { return ptr->GetServiceId(i); }
 extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetProviderName(TsInfo* ptr, int i) { return ptr->GetProviderName(i); }
 extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetServiceName(TsInfo* ptr, int i) { return ptr->GetServiceName(i); }
+
+typedef bool(*TS_SLIM_CALLBACK)();
+
+class TsSlimFilter : AMTObject
+{
+public:
+	TsSlimFilter(AMTContext& ctx, int videoPid)
+		: AMTObject(ctx)
+		, videoPid(videoPid)
+	{ }
+
+	bool exec(const char* srcpath, const char* dstpath, TS_SLIM_CALLBACK cb)
+	{
+		try {
+			File srcfile(srcpath, "rb");
+			File dstfile(dstpath, "wb");
+			pfile = &dstfile;
+			videoOk = false;
+			enum {
+				BUFSIZE = 4 * 1024 * 1024
+			};
+			auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
+			MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
+			size_t readBytes;
+			SpTsPacketParser packetParser(*this);
+			do {
+				readBytes = srcfile.read(buffer);
+				packetParser.inputTS(MemoryChunk(buffer.data, readBytes));
+				if (cb() == false) return false;
+			} while (readBytes == buffer.length);
+			packetParser.flush();
+			return true;
+		}
+		catch (const Exception& exception) {
+			ctx.setError(exception);
+		}
+		return false;
+	}
+
+private:
+	class SpTsPacketParser : public TsPacketParser {
+		TsSlimFilter& this_;
+	public:
+		SpTsPacketParser(TsSlimFilter& this_)
+			: TsPacketParser(this_.ctx)
+			, this_(this_) { }
+
+		virtual void onTsPacket(TsPacket packet) {
+			if (this_.videoOk == false && packet.PID() == this_.videoPid) {
+				this_.videoOk = true;
+			}
+			if (this_.videoOk) {
+				this_.pfile->write(packet);
+			}
+		}
+	};
+
+	File* pfile;
+	int videoPid;
+	bool videoOk;
+};
+
+extern "C" __declspec(dllexport) void* TsSlimFilter_Create(AMTContext* ctx, int videoPid) { return new TsSlimFilter(*ctx, videoPid); }
+extern "C" __declspec(dllexport) void TsSlimFilter_Delete(TsSlimFilter* ptr) { delete ptr; }
+extern "C" __declspec(dllexport) bool TsSlimFilter_Exec(TsSlimFilter* ptr, const char* srcpath, const char* dstpath, TS_SLIM_CALLBACK cb) { return ptr->exec(srcpath, dstpath, cb); }

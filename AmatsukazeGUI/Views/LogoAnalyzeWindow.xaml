@@ -7,11 +7,20 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         Title="ロゴ解析" Height="600" Width="800">
+    <Window.Resources>
+        <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"/>
+    </Window.Resources>
 
     <Window.DataContext>
         <vm:LogoAnalyzeViewModel/>
     </Window.DataContext>
-
+    
+    <i:Interaction.Behaviors>
+        <l:WindowCloseCancelBehavior CanClose="{Binding CanClose}"
+                                     CloseCanceledCallbackMethodTarget="{Binding}"
+                                     CloseCanceledCallbackMethodName="CloseCanceledCallback" />
+    </i:Interaction.Behaviors>
+    
     <i:Interaction.Triggers>
 
         <!--Viewに特別な要件が存在しない限りは、トリガーやアクションの自作にこだわらず積極的にコードビハインドを使いましょう -->
@@ -27,14 +36,15 @@
         <i:EventTrigger EventName="Closed">
             <l:DataContextDisposeAction/>
         </i:EventTrigger>
-        <i:EventTrigger EventName="Closed">
-            <l:LivetCallMethodAction MethodTarget="{Binding}" MethodName="WindowClosed"/>
-        </i:EventTrigger>
 
         <!--WindowのCloseキャンセル処理に対応する場合は、WindowCloseCancelBehaviorの使用を検討してください-->
         <l:InteractionMessageTrigger MessageKey="ScanComplete" Messenger="{Binding Messenger}">
             <l:TransitionInteractionMessageAction WindowType="{x:Type v:LogoImageWindow}"
                 Mode="Modal" InvokeActionOnlyWhenWindowIsActive="False" />
+        </l:InteractionMessageTrigger>
+        
+        <l:InteractionMessageTrigger MessageKey="WindowAction" Messenger="{Binding Messenger}">
+            <l:WindowInteractionMessageAction />
         </l:InteractionMessageTrigger>
         
     </i:Interaction.Triggers>
@@ -54,6 +64,17 @@
                            Width="{Binding RectSize.Width}" Height="{Binding RectSize.Height}"
                            Stroke="#FF5F55FF" StrokeDashArray="1 2" StrokeDashCap="Triangle" StrokeThickness="2" HorizontalAlignment="Left" VerticalAlignment="Top" Canvas.Left="{Binding RectPosition.X}" Canvas.Top="{Binding RectPosition.Y}" />
                 </Canvas>
+                <TextBlock Text="読み込み中・・・しばらくお待ち下さい。" FontSize="36">
+                    <TextBlock.Style>
+                        <Style TargetType="{x:Type TextBlock}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Model.IsNoImage}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
         </ScrollViewer>
         <Grid Grid.Row="0">

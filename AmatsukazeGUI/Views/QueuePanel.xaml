@@ -79,6 +79,7 @@
             <ListBox.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
+                    <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
                 </ContextMenu>
             </ListBox.ContextMenu>

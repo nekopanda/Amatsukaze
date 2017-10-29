@@ -14,8 +14,9 @@
 
 static void PrintFileAll(const std::string& path)
 {
-	File file(path, "r");
+	File file(path, "rb");
 	int sz = (int)file.size();
+	if (sz == 0) return;
 	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
 	auto rsz = file.read(MemoryChunk(buf.get(), sz));
 	fwrite(buf.get(), 1, strnlen_s((char*)buf.get(), rsz), stderr);
@@ -40,9 +41,11 @@ public:
 			logoFrame(videoFileIndex, avspath);
 			ctx.info("Š®—¹: %.2f•b", sw.getAndReset());
 
-			ctx.info("[ƒƒS‰ðÍŒ‹‰Ê]");
-			ctx.info("ƒ}ƒbƒ`‚µ‚½ƒƒS: %s", logopath.c_str());
-			PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
+			if (logopath.size() > 0) {
+				ctx.info("[ƒƒS‰ðÍŒ‹‰Ê]");
+				ctx.info("ƒ}ƒbƒ`‚µ‚½ƒƒS: %s", logopath.c_str());
+				PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
+			}
 		}
 
 		// ƒ`ƒƒƒvƒ^[‰ðÍ
@@ -125,7 +128,7 @@ private:
 		PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
 
 		auto vi = clip->GetVideoInfo();
-		int duration = vi.num_frames * vi.fps_numerator / vi.fps_denominator;
+		int duration = vi.num_frames * vi.fps_denominator / vi.fps_numerator;
 
 		logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
@@ -133,12 +136,16 @@ private:
 
 		if (logof.getLogoRatio() < 0.5f) {
 			// 3•ªˆÈ‰º‚Ìƒtƒ@ƒCƒ‹‚ÍƒƒS‚ªŒ©‚Â‚©‚ç‚È‚­‚Ä‚à–³Ž‹‚·‚é
-			if (duration > 180 && setting_.getErrorOnNoLogo()) {
+			if (duration <= 180) {
+				ctx.info("ƒ}ƒbƒ`‚·‚éƒƒS‚Í‚ ‚è‚Ü‚¹‚ñ‚Å‚µ‚½‚ªA“®‰æ‚Ì’·‚³‚ª%d•b(180•bˆÈ‰º)‚È‚Ì‚Å–³Ž‹‚µ‚Ü‚·", duration);
+			}
+			else if (setting_.getErrorOnNoLogo()) {
 				THROW(NoLogoException, "ƒ}ƒbƒ`‚·‚éƒƒS‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½");
 			}
 		}
-
-		logopath = setting_.getLogoPath()[logof.getBestLogo()];
+		else {
+			logopath = setting_.getLogoPath()[logof.getBestLogo()];
+		}
 	}
 
 	std::string MakeChapterExeArgs(int videoFileIndex, const std::string& avspath)

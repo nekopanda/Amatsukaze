@@ -435,7 +435,7 @@ std::vector<Descriptor> ParseDescriptors(MemoryChunk mc)
 {
 	std::vector<Descriptor> list;
 	int offset = 0;
-	while (offset < mc.length) {
+	while (offset < (int)mc.length) {
 		list.push_back(Descriptor(&mc.data[offset], mc.data[offset + 1]));
 		offset += 2 + mc.data[offset + 1];
 	}
@@ -459,7 +459,7 @@ struct ServiceDescriptor
 		payload_ = desc.payload();
 		service_provider_name_ = &payload_.data[1];
 		service_name_ = service_provider_name_ + 1 + *service_provider_name_;
-		return 3 + *service_provider_name_ + *service_name_ <= payload_.length;
+		return (3 + *service_provider_name_ + *service_name_) <= (int)payload_.length;
 	}
 
 private:
@@ -879,6 +879,17 @@ public:
 			}
 		}
 		handlers.clear();
+	}
+
+	std::vector<int> getSetPids() const {
+		std::vector<int> pids;
+		for (auto pair : constHandlers) {
+			pids.push_back(pair.first);
+		}
+		for (auto pair : handlers) {
+			pids.push_back(pair.second);
+		}
+		return pids;
 	}
 
 private:

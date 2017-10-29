@@ -61,6 +61,7 @@ public:
 	Frame& operator=(const Frame& src) {
 		av_frame_unref(frame_);
 		av_frame_ref(frame_, src());
+		return *this;
 	}
 private:
 	AVFrame* frame_;

@@ -45,8 +45,6 @@ public:
 
 	StreamReformInfo split()
 	{
-		writeHandler.resetSize();
-
 		readAll();
 
 		// for debug
@@ -79,13 +77,11 @@ protected:
 			}
 		}
 		void open(const std::string& path) {
+			totalIntVideoSize_ = 0;
 			file_ = std::unique_ptr<File>(new File(path, "wb"));
 		}
 		void close() {
 			file_ = nullptr;
-		}
-		void resetSize() {
-			totalIntVideoSize_ = 0;
 		}
 		int64_t getTotalSize() const {
 			return totalIntVideoSize_;

@@ -12,13 +12,13 @@ class GUIMediaFile : public AMTObject
 	AVStream *videoStream;
 	SwsContext * swsctx;
 
-	bool initialized;
-
 	// OnFrameDecodedで直前にデコードされたフレーム
 	// まだデコードしてない場合は-1
 	int lastDecodeFrame;
 
 	int64_t fileSize;
+
+	Frame prevframe;
 	int width, height;
 
 	void MakeCodecContext() {
@@ -39,6 +39,10 @@ class GUIMediaFile : public AMTObject
 
 	void init(AVFrame* frame)
 	{
+		if (swsctx) {
+			sws_freeContext(swsctx);
+			swsctx = nullptr;
+		}
 		width = frame->width;
 		height = frame->height;
 		swsctx = sws_getCachedContext(NULL, width, height,
@@ -46,14 +50,14 @@ class GUIMediaFile : public AMTObject
 			AV_PIX_FMT_BGR24, 0, 0, 0, 0);
 	}
 
-	void ConvertToRGB(uint8_t* rgb, int stride, AVFrame* frame)
+	void ConvertToRGB(uint8_t* rgb, AVFrame* frame)
 	{
 		uint8_t * outData[1] = { rgb };
-		int outLinesize[1] = { stride };
+		int outLinesize[1] = { width * 3 };
 		sws_scale(swsctx, frame->data, frame->linesize, 0, height, outData, outLinesize);
 	}
 
-	bool DecodeOneFrame(uint8_t* rgb, int stride) {
+	bool DecodeOneFrame(int64_t startpos) {
 		Frame frame;
 		AVPacket packet = AVPacket();
 		bool ok = false;
@@ -65,20 +69,24 @@ class GUIMediaFile : public AMTObject
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
 					// 最初はIフレームまでスキップ
 					if (lastDecodeFrame != -1 || frame()->key_frame) {
-						if (initialized == false) {
+						if (frame()->width != width || frame()->height != height) {
 							init(frame());
-							initialized = true;
 						}
-						if (rgb) {
-							ConvertToRGB(rgb, stride, frame());
-						}
+						prevframe = frame;
 						ok = true;
 					}
 				}
 			}
+			int64_t packetpos = packet.pos;
 			av_packet_unref(&packet);
 			if (ok) {
 				break;
+			}
+			if (packetpos != -1) {
+				if (packetpos - startpos > 50 * 1024 * 1024) {
+					// 50MB読んでもデコードできなかったら終了
+					return false;
+				}
 			}
 		}
 		return ok;
@@ -88,7 +96,9 @@ public:
 	GUIMediaFile(AMTContext& ctx, const char* filepath)
 		: AMTObject(ctx)
 		, inputCtx(filepath)
-		, initialized(false)
+		, width(-1)
+		, height(-1)
+		, swsctx(nullptr)
 	{
 		{
 			File file(filepath, "rb");
@@ -103,7 +113,7 @@ public:
 		}
 		lastDecodeFrame = -1;
 		MakeCodecContext();
-		DecodeOneFrame(nullptr, 0);
+		DecodeOneFrame(0);
 	}
 
 	~GUIMediaFile() {
@@ -111,10 +121,13 @@ public:
 		swsctx = nullptr;
 	}
 
-	int getWidth() const { return width; }
-	int getHeight() const { return height; }
+	void getFrame(uint8_t* rgb, int width, int height) {
+		if (this->width == width && this->height && height) {
+			ConvertToRGB(rgb, prevframe());
+		}
+	}
 
-	bool getFrame(float pos, uint8_t* rgb, int stride) {
+	bool decodeFrame(float pos, int* pwidth, int* pheight) {
 		ctx.setError(Exception());
 		try {
 			int64_t fileOffset = int64_t(fileSize * pos);
@@ -123,7 +136,11 @@ public:
 			}
 			lastDecodeFrame = -1;
 			MakeCodecContext();
-			return DecodeOneFrame(rgb, stride);
+			if (DecodeOneFrame(fileOffset)) {
+				*pwidth = width;
+				*pheight = height;
+			}
+			return true;
 		}
 		catch (const Exception& exception) {
 			ctx.setError(exception);
@@ -144,9 +161,10 @@ extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const c
 	return nullptr;
 }
 extern "C" __declspec(dllexport) void MediaFile_Delete(av::GUIMediaFile* ptr) { delete ptr; }
-extern "C" __declspec(dllexport) int MediaFile_GetWidth(av::GUIMediaFile* ptr) { return ptr->getWidth(); }
-extern "C" __declspec(dllexport) int MediaFile_GetHeight(av::GUIMediaFile* ptr) { return ptr->getHeight(); }
-extern "C" __declspec(dllexport) bool MediaFile_GetFrame(av::GUIMediaFile* ptr, float pos, uint8_t* rgb, int stride) { return ptr->getFrame(pos, rgb, stride); }
+extern "C" __declspec(dllexport) bool MediaFile_DecodeFrame(
+	av::GUIMediaFile* ptr, float pos, int* pwidth, int* pheight) { return ptr->decodeFrame(pos, pwidth, pheight); }
+extern "C" __declspec(dllexport) void MediaFile_GetFrame(
+	av::GUIMediaFile* ptr, uint8_t* rgb, int width, int height) { ptr->getFrame(rgb, width, height); }
 
 namespace logo {
 

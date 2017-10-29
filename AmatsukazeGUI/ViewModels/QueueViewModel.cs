@@ -115,6 +115,28 @@ namespace Amatsukaze.ViewModels
             }
         }
 
+        private void LaunchLogoAnalyze(bool slimts)
+        {
+            var file = SetectedQueueFile;
+            if (file == null)
+            {
+                return;
+            }
+            var workpath = Model.WorkPath;
+            if (Directory.Exists(workpath) == false)
+            {
+                MessageBox.Show("一時ファイルフォルダがアクセスできる場所に設定されていないため起動できません");
+                return;
+            }
+            var apppath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var args = "-l logo --file \"" + file.Path + "\" --work \"" + workpath + "\"";
+            if(slimts)
+            {
+                args += " --slimts";
+            }
+            System.Diagnostics.Process.Start(apppath, args);
+        }
+
         #region QueueItemSelectedIndex変更通知プロパティ
         private int _QueueItemSelectedIndex = -1;
 
@@ -263,19 +285,26 @@ namespace Amatsukaze.ViewModels
 
         public void OpenLogoAnalyze()
         {
-            var file = SetectedQueueFile;
-            if (file == null)
-            {
-                return;
+            LaunchLogoAnalyze(false);
+        }
+        #endregion
+
+        #region OpenLogoAnalyzeSlimTsCommand
+        private ViewModelCommand _OpenLogoAnalyzeSlimTsCommand;
+
+        public ViewModelCommand OpenLogoAnalyzeSlimTsCommand {
+            get {
+                if (_OpenLogoAnalyzeSlimTsCommand == null)
+                {
+                    _OpenLogoAnalyzeSlimTsCommand = new ViewModelCommand(OpenLogoAnalyzeSlimTs);
+                }
+                return _OpenLogoAnalyzeSlimTsCommand;
             }
-            var workpath = Model.WorkPath;
-            if(Directory.Exists(workpath) == false)
-            {
-                MessageBox.Show("一時ファイルフォルダがアクセスできる場所に設定されていないため起動できません");
-                return;
-            }
-            var apppath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            System.Diagnostics.Process.Start(apppath, "-l logo --file \"" + file.Path + "\" --work \"" + workpath + "\"");
+        }
+
+        public void OpenLogoAnalyzeSlimTs()
+        {
+            LaunchLogoAnalyze(true);
         }
         #endregion
 

@@ -770,7 +770,9 @@ class LogoAnalyzer : AMTObject
 
 			if ((readCount % 200) == 0) {
 				float progress = (float)currentPos / filesize * 50;
-				pThis->cb(progress, readCount, 0, pThis->numFrames);
+				if (pThis->cb(progress, readCount, 0, pThis->numFrames) == false) {
+					THROW(RuntimeException, "Cancel requested");
+				}
 			}
 
 			return true;
@@ -838,7 +840,9 @@ class LogoAnalyzer : AMTObject
 
 				if ((i % 100) == 0) {
 					float progress = (float)i / numFrames * 25 + progressbase;
-					cb(progress, i, numFrames, numFrames);
+					if (cb(progress, i, numFrames, numFrames) == false) {
+						THROW(RuntimeException, "Cancel requested");
+					}
 				}
 			}
 
@@ -939,7 +943,9 @@ public:
 		ReMakeLogo();
 		//ReMakeLogo();
 
-		cb(1, numFrames, numFrames, numFrames);
+		if (cb(1, numFrames, numFrames, numFrames) == false) {
+			THROW(RuntimeException, "Cancel requested");
+		}
 
 		LogoHeader header(scanw, scanh, logUVx, logUVy, imgw, imgh, scanx, scany, "No Name");
 		header.serviceId = serviceId;

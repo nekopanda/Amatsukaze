@@ -32,6 +32,13 @@ namespace Amatsukaze.Models
                     return;
                 _CurrentImage = value;
                 RaisePropertyChanged();
+                RaisePropertyChanged("IsNoImage");
+            }
+        }
+
+        public bool IsNoImage {
+            get {
+                return _CurrentImage == null;
             }
         }
         #endregion
@@ -184,6 +191,40 @@ namespace Amatsukaze.Models
         public LogoAnalyzeModel()
         {
             context = new AMTContext();
+        }
+
+        public void Close()
+        {
+            if(mediafile != null)
+            {
+                mediafile.Dispose();
+                mediafile = null;
+            }
+        }
+
+        private bool MakeSlimCallback()
+        {
+            return CancelScanning == false;
+        }
+
+        public async Task MakeSlimFile(string srcpath, string dstpath)
+        {
+            using (var info = new TsInfo(context))
+            {
+                info.ReadFile(srcpath);
+                var progList = info.GetProgramList();
+                if(progList.Length == 0)
+                {
+                    MessageBox.Show("TSファイルが読めません");
+                }
+                else
+                {
+                    using (var filter = new TsSlimFilter(context, progList[0].VideoPid))
+                    {
+                        await Task.Run(() => filter.Exec(srcpath, dstpath, MakeSlimCallback));
+                    }
+                }
+            }
         }
 
         public void Load(string filepath)
