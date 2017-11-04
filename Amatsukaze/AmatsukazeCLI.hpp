@@ -469,6 +469,10 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 			test::LosslessFileTest(ctx, setting);
 		else if (mode == "test_logoframe")
 			test::LogoFrameTest(ctx, setting);
+		else if (mode == "test_dualmono")
+			test::SplitDualMonoAAC(ctx, setting);
+		else if (mode == "test_aacdecode")
+			test::AACDecodeTest(ctx, setting);
 
 		else
 			PRINTF("--modeÇÃéwíËÇ™ä‘à·Ç¡ÇƒÇ¢Ç‹Ç∑: %s\n", mode.c_str());
@@ -478,6 +482,11 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 	catch (const NoLogoException&) {
 		// ÉçÉSñ≥ÇµÇÕ100Ç∆Ç∑ÇÈ
 		return 100;
+	}
+	catch (const AvisynthError& avserror) {
+		ctx.error("AviSynth Error");
+		ctx.error(avserror.msg);
+		return 2;
 	}
 	catch (const Exception&) {
 		return 1;

@@ -423,6 +423,10 @@ typedef struct
     uint8_t element_id[MAX_CHANNELS];
     uint8_t internal_channel[MAX_CHANNELS];
 
+		// Nekopanda
+		int element_start[MAX_CHANNELS];
+		int element_end[MAX_CHANNELS];
+
     /* Configuration data */
     NeAACDecConfiguration config;
 

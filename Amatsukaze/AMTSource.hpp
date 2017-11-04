@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <mutex>
+#include <set>
 
 #include "Tree.hpp"
 #include "List.hpp"
@@ -53,6 +54,9 @@ class AMTSource : public IClip, AMTObject
 
   Tree<int, CacheFrame*> frameCache;
   List<CacheFrame*> recentAccessed;
+
+	// デコードできなかったフレームリスト
+	std::set<int> failedFrames;
 
   VideoInfo vi;
 
@@ -342,10 +346,22 @@ class AMTSource : public IClip, AMTObject
       }
       av_packet_unref(&packet);
       if (lastDecodeFrame >= goal) {
-        break;
+				break;
       }
     }
   }
+
+	void registerFailedFrames(int begin, int end, IScriptEnvironment* env)
+	{
+		for (int f = begin; f < end; ++f) {
+			failedFrames.insert(f);
+		}
+		// デコード不可フレーム数が１割を超える場合はエラーとする
+		if (failedFrames.size() * 10 > frames.size()) {
+			env->ThrowError("[AMTSource] デコードできないフレーム数が多すぎます -> %dフレームがデコード不可",
+				(int)failedFrames.size());
+		}
+	}
 
 public:
   AMTSource(AMTContext& ctx,
@@ -404,6 +420,11 @@ public:
       return it->value->data;
     }
 
+		// デコードできないフレームは諦める
+		if (failedFrames.find(n) != failedFrames.end()) {
+			return ForceGetFrame(n, env);
+		}
+
     // キャッシュにないのでデコードする
     if (lastDecodeFrame != -1 && n > lastDecodeFrame && n < lastDecodeFrame + seekDistance) {
       // 前にすすめる
@@ -412,7 +433,7 @@ public:
     else {
       // シークしてデコードする
       int keyNum = frames[n].keyFrame;
-      for (int i = 0; i < 3; ++i) {
+      for (int i = 0; ; ++i) {
         int64_t fileOffset = frames[keyNum].fileOffset / 188 * 188;
         if (av_seek_frame(inputCtx(), -1, fileOffset, AVSEEK_FLAG_BYTE) < 0) {
           THROW(FormatException, "av_seek_frame failed");
@@ -426,12 +447,22 @@ public:
         }
         if (keyNum <= 0) {
           // これ以上戻れない
+					// nからlastDecodeFrameまでをデコード不可とする
+					registerFailedFrames(n, lastDecodeFrame, env);
           break;
         }
         if (lastDecodeFrame >= 0 && lastDecodeFrame < n) {
           // データが足りなくてゴールに到達できなかった
+					// このフレームより後ろは全てデコード不可とする
+					registerFailedFrames(lastDecodeFrame + 1, (int)frames.size(), env);
           break;
         }
+				if (i == 2) {
+					// デコード失敗
+					// nからlastDecodeFrameまでをデコード不可とする
+					registerFailedFrames(n, lastDecodeFrame, env);
+					break;
+				}
         keyNum -= std::max(5, keyNum - frames[keyNum - 1].keyFrame);
       }
     }

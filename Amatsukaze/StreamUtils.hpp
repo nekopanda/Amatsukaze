@@ -541,7 +541,7 @@ const char* getAudioChannelString(AUDIO_CHANNELS channels) {
 	case AUDIO_32_LFE: return "5.1ch";
 	case AUDIO_21: return "2/1";
 	case AUDIO_22: return "2/2";
-	case AUDIO_2LANG: return "2âπê∫";
+	case AUDIO_2LANG: return "ÉfÉÖÉAÉãÉÇÉm";
 	case AUDIO_52_LFE: return "7.1ch";
 	case AUDIO_33_LFE: return "3/3.1";
 	case AUDIO_2_22_LFE: return "2/0/0-2/0/2-0.1";

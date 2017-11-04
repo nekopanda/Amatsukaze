@@ -197,10 +197,7 @@ namespace Amatsukaze.Server
                     server.PauseEncode((bool)arg);
                     break;
                 case RPCMethodId.SetServiceSetting:
-                    server.SetServiceSetting((ServiceSettingElement)arg);
-                    break;
-                case RPCMethodId.AddNoLogo:
-                    server.AddNoLogo((int)arg);
+                    server.SetServiceSetting((ServiceSettingUpdate)arg);
                     break;
                 case RPCMethodId.RequestSetting:
                     server.RequestSetting();
@@ -298,7 +295,7 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnOperationResult, result);
         }
 
-        public Task OnServiceSetting(ServiceSettingElement service)
+        public Task OnServiceSetting(ServiceSettingUpdate service)
         {
             return Send(RPCMethodId.OnServiceSetting, service);
         }
@@ -347,7 +344,7 @@ namespace Amatsukaze.Server
 
             public override void OnAddLine(string text)
             {
-                if(TextLines.Count > maxLines)
+                if (TextLines.Count > maxLines)
                 {
                     TextLines.RemoveRange(0, 100);
                 }
@@ -356,7 +353,7 @@ namespace Amatsukaze.Server
 
             public override void OnReplaceLine(string text)
             {
-                if(TextLines.Count == 0)
+                if (TextLines.Count == 0)
                 {
                     TextLines.Add(text);
                 }
@@ -486,7 +483,7 @@ namespace Amatsukaze.Server
                             // 終了
                             return;
                         }
-                        if(transcode.logWriter != null)
+                        if (transcode.logWriter != null)
                         {
                             transcode.logWriter.Write(buffer, 0, readBytes);
                         }
@@ -627,7 +624,7 @@ namespace Amatsukaze.Server
                         }
                     }
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     if (transcode.numFinishedEncoders >= transcode.fragments.Length)
                     {
@@ -642,9 +639,9 @@ namespace Amatsukaze.Server
                     KillProcess();
 
                     // 一時ファイルを消す
-                    foreach(var fragment in transcode.fragments)
+                    foreach (var fragment in transcode.fragments)
                     {
-                        if(File.Exists(fragment.tmpFile))
+                        if (File.Exists(fragment.tmpFile))
                         {
                             File.Delete(fragment.tmpFile);
                         }
@@ -669,7 +666,7 @@ namespace Amatsukaze.Server
                     .Where(s => s.CanUse(src.TsTime))
                     .Select(s => s.FileName)
                     .ToArray();
-                if(logofiles.Length == 0)
+                if (logofiles.Length == 0)
                 {
                     // これは必要ないはず
                     src.FailReason = "ロゴ設定がありません";
@@ -696,7 +693,7 @@ namespace Amatsukaze.Server
 
                     byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
                     var refhash = hashList[name];
-                    if(hash.SequenceEqual(refhash) == false)
+                    if (hash.SequenceEqual(refhash) == false)
                     {
                         File.Delete(localsrc);
                         return FailLogItem(src.Path, "コピーしたファイルのハッシュが一致しません", now, now);
@@ -708,7 +705,7 @@ namespace Amatsukaze.Server
 
                 AnonymousPipeServerStream readPipe = null, writePipe = null;
                 string outHandle = null, inHandle = null;
-                if(server.appData.setting.EnableFilterTmp)
+                if (server.appData.setting.EnableFilterTmp)
                 {
                     readPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
                     writePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
@@ -725,8 +722,8 @@ namespace Amatsukaze.Server
                 string logpath = Path.Combine(
                     Path.GetDirectoryName(dstpath),
                     Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
-                string jlscmd = serviceSetting.DisableCMCheck ? 
-                    null : 
+                string jlscmd = serviceSetting.DisableCMCheck ?
+                    null :
                     (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
                     server.appData.setting.DefaultJLSCommand :
                     serviceSetting.JLSCommand);
@@ -767,20 +764,19 @@ namespace Amatsukaze.Server
                             }
                             p.PriorityClass = ProcessPriorityClass.BelowNormal;
                         }
-                        catch(InvalidOperationException)
+                        catch (InvalidOperationException)
                         {
                             // 既にプロセスが終了していると例外が出るが無視する
                         }
 
-                        if(readPipe != null)
+                        if (readPipe != null)
                         {
                             // クライアントハンドルを閉じる
                             readPipe.DisposeLocalCopyOfClientHandle();
                             writePipe.DisposeLocalCopyOfClientHandle();
                         }
 
-                        current = new TranscodeTask()
-                        {
+                        current = new TranscodeTask() {
                             thread = this,
                             src = src,
                             process = p,
@@ -805,14 +801,14 @@ namespace Amatsukaze.Server
                     Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
                     throw w32e;
                 }
-                catch(IOException ioe)
+                catch (IOException ioe)
                 {
                     Util.AddLog(id, "ログファイル生成に失敗");
                     throw ioe;
                 }
                 finally
                 {
-                    if(readPipe != null)
+                    if (readPipe != null)
                     {
                         readPipe.Close();
                         writePipe.Close();
@@ -823,7 +819,7 @@ namespace Amatsukaze.Server
 
                 DateTime finish = DateTime.Now;
 
-                if(hashList != null)
+                if (hashList != null)
                 {
                     File.Delete(localsrc);
                 }
@@ -880,7 +876,7 @@ namespace Amatsukaze.Server
 
                     return log;
                 }
-                else if(exitCode == 100)
+                else if (exitCode == 100)
                 {
                     // マッチするロゴがなかった
                     return FailLogItem(src.Path, "マッチするロゴがありませんでした", start, finish);
@@ -1028,7 +1024,7 @@ namespace Amatsukaze.Server
         private class EncodeException : Exception
         {
             public EncodeException(string message)
-                :base(message)
+                : base(message)
             {
             }
         }
@@ -1045,6 +1041,9 @@ namespace Amatsukaze.Server
 
         private long occupiedStorage;
         private BufferBlock<int> storageQ = new BufferBlock<int>();
+
+        private Task encodeThread;
+        private BufferBlock<int> startEncodeQ = new BufferBlock<int>();
 
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private LogData log;
@@ -1068,7 +1067,7 @@ namespace Amatsukaze.Server
 
         public bool EncodePaused {
             get { return encodePaused; }
-            set { 
+            set {
                 if (encodePaused == value)
                     return;
                 encodePaused = value;
@@ -1082,7 +1081,7 @@ namespace Amatsukaze.Server
 
         public bool NowEncoding {
             get { return nowEncoding; }
-            set { 
+            set {
                 if (nowEncoding == value)
                     return;
                 nowEncoding = value;
@@ -1110,6 +1109,7 @@ namespace Amatsukaze.Server
                 RaisePropertyChanged("ClientManager");
             }
             ReadLog();
+            encodeThread = EncodeThread();
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
         }
@@ -1126,14 +1126,15 @@ namespace Amatsukaze.Server
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
 
                     // 終了時にプロセスが残らないようにする
-                    foreach(var task in taskList)
+                    foreach (var task in taskList)
                     {
-                        if(task != null)
+                        if (task != null)
                         {
                             task.KillProcess();
                         }
                     }
 
+                    startEncodeQ.Complete();
                     queueQ.Complete();
                     watchFileQ.Complete();
                 }
@@ -1180,7 +1181,7 @@ namespace Amatsukaze.Server
         private string ReadLogFIle(DateTime start)
         {
             var logpath = GetLogFileBase(start) + ".txt";
-            if(File.Exists(logpath) == false)
+            if (File.Exists(logpath) == false)
             {
                 return "ログファイルが見つかりません。パス: " + logpath;
             }
@@ -1214,10 +1215,10 @@ namespace Amatsukaze.Server
 
         private static string GetExePath(string basePath, string pattern)
         {
-            foreach(var path in Directory.GetFiles(basePath))
+            foreach (var path in Directory.GetFiles(basePath))
             {
                 var fname = Path.GetFileName(path);
-                if(fname.StartsWith(pattern) && fname.EndsWith(".exe"))
+                if (fname.StartsWith(pattern) && fname.EndsWith(".exe"))
                 {
                     return path;
                 }
@@ -1260,7 +1261,7 @@ namespace Amatsukaze.Server
                 {
                     appData.setting.Bitrate = new BitrateSetting();
                 }
-                if(appData.services == null)
+                if (appData.services == null)
                 {
                     appData.services = new ServiceSetting();
                 }
@@ -1287,8 +1288,7 @@ namespace Amatsukaze.Server
             string path = GetHistoryFilePath();
             if (File.Exists(path) == false)
             {
-                log = new LogData()
-                {
+                log = new LogData() {
                     Items = new List<LogItem>()
                 };
                 return;
@@ -1335,11 +1335,11 @@ namespace Amatsukaze.Server
             {
                 return appData.setting.X264Path;
             }
-            else if(appData.setting.EncoderType == EncoderType.x265)
+            else if (appData.setting.EncoderType == EncoderType.x265)
             {
                 return appData.setting.X265Path;
             }
-            else if(appData.setting.EncoderType == EncoderType.QSVEnc)
+            else if (appData.setting.EncoderType == EncoderType.QSVEnc)
             {
                 return appData.setting.QSVEncPath;
             }
@@ -1396,7 +1396,7 @@ namespace Amatsukaze.Server
             string workPath = string.IsNullOrEmpty(appData.setting.WorkPath)
                 ? "./" : appData.setting.WorkPath;
             string encoderPath = GetEncoderPath();
-            
+
             if (string.IsNullOrEmpty(encoderPath))
             {
                 throw new ArgumentException("エンコーダパスが指定されていません");
@@ -1427,13 +1427,13 @@ namespace Amatsukaze.Server
             }
 
             double bitrateCM = appData.setting.BitrateCM;
-            if(bitrateCM == 0)
+            if (bitrateCM == 0)
             {
                 bitrateCM = 1;
             }
 
             StringBuilder sb = new StringBuilder();
-            if(isGeneric)
+            if (isGeneric)
             {
                 sb.Append("--mode g ");
             }
@@ -1474,12 +1474,12 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
-            if(bitrateCM != 1)
+            if (bitrateCM != 1)
             {
                 sb.Append(" -bcm ").Append(bitrateCM);
             }
 
-            if(string.IsNullOrEmpty(jlscommand) == false)
+            if (string.IsNullOrEmpty(jlscommand) == false)
             {
                 sb.Append(" --jls-cmd \"")
                     .Append(GetJLDirectoryPath() + "\\" + jlscommand)
@@ -1523,14 +1523,14 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --error-on-no-logo");
             }
-            if(inHandle != null)
+            if (inHandle != null)
             {
                 sb.Append(" --in-pipe ").Append(inHandle);
                 sb.Append(" --out-pipe ").Append(outHandle);
             }
-            if(logofiles != null)
+            if (logofiles != null)
             {
-                foreach(var logo in logofiles)
+                foreach (var logo in logofiles)
                 {
                     sb.Append(" --logo \"").Append(GetLogoFilePath(logo)).Append("\"");
                 }
@@ -1563,15 +1563,6 @@ namespace Amatsukaze.Server
         {
             Util.AddLog(str);
             return client.OnOperationResult(str);
-        }
-
-        private Task StartEncodeWhenNotStarted()
-        {
-            if(nowEncoding == false && encodePaused == false)
-            {
-                return StartEncode();
-            }
-            return Task.FromResult(0);
         }
 
         private async Task StartEncode()
@@ -1712,6 +1703,26 @@ namespace Amatsukaze.Server
             waitList.Add(RequestState());
 
             await Task.WhenAll(waitList.ToArray());
+        }
+
+        private async Task EncodeThread()
+        {
+            try
+            {
+                while (await startEncodeQ.OutputAvailableAsync())
+                {
+                    await startEncodeQ.ReceiveAsync();
+
+                    if (nowEncoding == false && encodePaused == false)
+                    {
+                        await StartEncode();
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                await client.OnOperationResult("EncodeThreadがエラー終了しました: " + exception.Message);
+            }
         }
 
         private async Task FilterThread()
@@ -1858,7 +1869,7 @@ namespace Amatsukaze.Server
                     {
                         await client.OnOperationResult(
                             "出力先フォルダが存在しません:" + dir.DstPath);
-                        return;
+                        continue;
                     }
 
                     var target = new QueueDirectory() {
@@ -1888,6 +1899,7 @@ namespace Amatsukaze.Server
                                     ServiceName = (service.ServiceId != 0) ? service.ServiceName : "Unknown",
                                     State = QueueState.LogoPending
                                 });
+                                Debug.Print("解析完了: " + filepath);
                                 continue;
                             }
                         }
@@ -1908,7 +1920,11 @@ namespace Amatsukaze.Server
                             };
                             map.Add(item.ServiceId, newElement);
                             serviceListUpdated = true;
-                            waitItems.Add(client.OnServiceSetting(newElement));
+                            waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate() {
+                                Type = ServiceSettingUpdateType.Update,
+                                ServiceId = newElement.ServiceId,
+                                Data = newElement
+                            }));
                         }
 
                         UpdateQueueItem(item);
@@ -1918,7 +1934,7 @@ namespace Amatsukaze.Server
                     {
                         await client.OnOperationResult(
                             "エンコード対象ファイルが見つかりません。パス:" + dir.DirPath);
-                        return;
+                        continue;
                     }
 
                     queue.Add(target);
@@ -1928,7 +1944,7 @@ namespace Amatsukaze.Server
                     }));
                     waitItems.Add(RequestFreeSpace());
 
-                    waitItems.Add(StartEncodeWhenNotStarted());
+                    startEncodeQ.Post(0);
 
                     await Task.WhenAll(waitItems.ToArray());
                 }
@@ -2143,11 +2159,15 @@ namespace Amatsukaze.Server
                             // 更新をクライアントに通知
                             foreach (var updatedServiceId in updatedServices.Distinct())
                             {
-                                await client.OnServiceSetting(map[updatedServiceId]);
+                                await client.OnServiceSetting(new ServiceSettingUpdate() {
+                                    Type = ServiceSettingUpdateType.Update,
+                                    ServiceId = updatedServiceId,
+                                    Data = map[updatedServiceId]
+                                });
                             }
                             // キューを再始動
                             await Task.WhenAll(UpdateQueueItems());
-                            await StartEncodeWhenNotStarted();
+                            startEncodeQ.Post(0);
                         }
                     }
                     string jlspath = GetJLDirectoryPath();
@@ -2266,7 +2286,7 @@ namespace Amatsukaze.Server
         {
             EncodePaused = pause;
             Task task = RequestState();
-            await StartEncodeWhenNotStarted();
+            startEncodeQ.Post(0);
             await task;
         }
 
@@ -2322,25 +2342,47 @@ namespace Amatsukaze.Server
             });
         }
 
-        public async Task SetServiceSetting(ServiceSettingElement service)
+        public async Task SetServiceSetting(ServiceSettingUpdate update)
         {
             var serviceMap = appData.services.ServiceMap;
-            if(serviceMap.ContainsKey(service.ServiceId))
+            if(serviceMap.ContainsKey(update.ServiceId))
             {
-                var old = serviceMap[service.ServiceId];
-                if (old.LogoSettings.Count == service.LogoSettings.Count)
+                if (update.Type == ServiceSettingUpdateType.Update)
                 {
-                    // ロゴのExitsフラグだけはこちらのデータを継承させる
-                    for (int i = 0; i < old.LogoSettings.Count; ++i)
+                    var old = serviceMap[update.ServiceId];
+                    if (old.LogoSettings.Count == update.Data.LogoSettings.Count)
                     {
-                        service.LogoSettings[i].Exists = old.LogoSettings[i].Exists;
+                        // ロゴのExitsフラグだけはこちらのデータを継承させる
+                        for (int i = 0; i < old.LogoSettings.Count; ++i)
+                        {
+                            update.Data.LogoSettings[i].Exists = old.LogoSettings[i].Exists;
+                        }
+                        serviceMap[update.ServiceId] = update.Data;
+                        await Task.WhenAll(UpdateQueueItems());
+                        startEncodeQ.Post(0);
                     }
-                    serviceMap[service.ServiceId] = service;
-                    await Task.WhenAll(UpdateQueueItems());
-                    await StartEncodeWhenNotStarted();
+                }
+                else if (update.Type == ServiceSettingUpdateType.AddNoLogo)
+                {
+                    var service = serviceMap[update.ServiceId];
+                    service.LogoSettings.Add(MakeNoLogoSetting(update.ServiceId));
+                    update.Type = ServiceSettingUpdateType.Update;
+                    update.Data = service;
+                }
+                else if (update.Type == ServiceSettingUpdateType.Remove)
+                {
+                    serviceMap.Remove(update.ServiceId);
+                    update.Data = null;
+                }
+                else if (update.Type == ServiceSettingUpdateType.RemoveLogo)
+                {
+                    var service = serviceMap[update.ServiceId];
+                    service.LogoSettings.RemoveAt(update.RemoveLogoIndex);
+                    update.Type = ServiceSettingUpdateType.Update;
+                    update.Data = service;
                 }
             }
-            await client.OnServiceSetting(service);
+            await client.OnServiceSetting(update);
         }
 
         public async Task RequestServiceSetting()
@@ -2348,7 +2390,11 @@ namespace Amatsukaze.Server
             var serviceMap = appData.services.ServiceMap;
             foreach(var service in serviceMap.Values)
             {
-                await client.OnServiceSetting(service);
+                await client.OnServiceSetting(new ServiceSettingUpdate() {
+                    Type = ServiceSettingUpdateType.Update,
+                    ServiceId = service.ServiceId,
+                    Data = service
+                });
             }
         }
 
@@ -2376,18 +2422,6 @@ namespace Amatsukaze.Server
                 return client.OnOperationResult(
                     "ロゴファイルを開けません。パス:" + logopath + "メッセージ: " + exception.Message);
             }
-        }
-
-        public Task AddNoLogo(int ServiceId)
-        {
-            var serviceMap = appData.services.ServiceMap;
-            if (serviceMap.ContainsKey(ServiceId))
-            {
-                var service = serviceMap[ServiceId];
-                service.LogoSettings.Add(MakeNoLogoSetting(ServiceId));
-                return client.OnServiceSetting(service);
-            }
-            return Task.FromResult(0);
         }
     }
 }

@@ -344,12 +344,14 @@ namespace Amatsukaze.Server
         public string DisplayEncodeDuration { get { return EncodeDuration.ToGUIString(); } }
         public string DisplaySrcDurationo { get { return (SrcVideoDuration != null) ? SrcVideoDuration.ToGUIString() : null; } }
         public string DisplayOutDuration { get { return (OutVideoDuration != null) ? OutVideoDuration.ToGUIString() : null; } }
-        public string DisplayVideoNotIncluded { get {
-            if (SrcVideoDuration == null) return null;
-            var s = SrcVideoDuration.TotalMilliseconds;
-            var o = OutVideoDuration.TotalMilliseconds;
-            return ((double)(s - o) / (double)s * 100.0).ToString("F2");
-        } }
+        public string DisplayVideoNotIncluded {
+            get {
+                if (SrcVideoDuration == null) return null;
+                var s = SrcVideoDuration.TotalMilliseconds;
+                var o = OutVideoDuration.TotalMilliseconds;
+                return ((double)(s - o) / (double)s * 100.0).ToString("F2");
+            }
+        }
         public string DisplaySrcFileSize { get { return ((double)SrcFileSize / (1024 * 1024)).ToString("F2"); } }
         public string DisplayIntFileSize { get { return ((double)IntVideoFileSize / (1024 * 1024)).ToString("F2"); } }
         public string DisplayOutFileSize { get { return ((double)OutFileSize / (1024 * 1024)).ToString("F2"); } }
@@ -362,15 +364,27 @@ namespace Amatsukaze.Server
         public string DisplayReason { get { return Reason; } }
         public string DisplayAudioMaxDiff { get { return (AudioDiff != null) ? AudioDiff.MaxDiff.ToString("F2") : null; } }
         public string DisplayAudioMaxDiffPos { get { return (AudioDiff != null) ? AudioDiff.MaxDiffPos.ToString("F2") : null; } }
-        public string DisplayEncodeSpeed { get { return (SrcVideoDuration != null)
-                    ? (SrcVideoDuration.TotalSeconds / EncodeDuration.TotalSeconds).ToString("F2")
-                    : null; } }
-        public string DisplaySrcBitrate { get { return (SrcVideoDuration != null)
-                    ? ((double)SrcFileSize / (SrcVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
-                    : null; } }
-        public string DisplayOutBitrate { get { return (SrcVideoDuration != null)
-                    ? ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
-                    : null; } }
+        public string DisplayEncodeSpeed {
+            get {
+                return (SrcVideoDuration != null)
+? (SrcVideoDuration.TotalSeconds / EncodeDuration.TotalSeconds).ToString("F2")
+: null;
+            }
+        }
+        public string DisplaySrcBitrate {
+            get {
+                return (SrcVideoDuration != null)
+? ((double)SrcFileSize / (SrcVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
+: null;
+            }
+        }
+        public string DisplayOutBitrate {
+            get {
+                return (SrcVideoDuration != null)
+? ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
+: null;
+            }
+        }
     }
 
     [DataContract]
@@ -408,7 +422,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<DiskItem> Disks { get; set; }
     }
-    
+
     [DataContract]
     public class ConsoleData
     {
@@ -417,7 +431,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<string> text { get; set; }
     }
-    
+
     [DataContract]
     public class ConsoleUpdate
     {
@@ -448,5 +462,29 @@ namespace Amatsukaze.Server
 
         // これはシリアライズできないので、別処理で送信する
         public BitmapSource Image { get; set; }
+    }
+
+    public enum ServiceSettingUpdateType
+    {
+        Update,
+        AddNoLogo,
+        Remove,
+        RemoveLogo,
+    }
+
+    [DataContract]
+    public class ServiceSettingUpdate
+    {
+        [DataMember]
+        public ServiceSettingUpdateType Type { get; set; }
+
+        [DataMember]
+        public int ServiceId { get; set; }
+
+        [DataMember]
+        public ServiceSettingElement Data { get; set; }
+
+        [DataMember]
+        public int RemoveLogoIndex { get; set; }
     }
 }

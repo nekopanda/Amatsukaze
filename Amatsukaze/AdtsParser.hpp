@@ -46,7 +46,7 @@ struct AdtsHeader {
 			if (layer != 0) return false; // 固定
 
 			protection_absent = reader.read<1>();
-			uint8_t profile = reader.read<2>();
+			profile = reader.read<2>();
 			sampling_frequency_index = reader.read<4>();
 			uint8_t private_bit = reader.read<1>();
 			channel_configuration = reader.read<3>();
@@ -78,6 +78,7 @@ struct AdtsHeader {
 	}
 
 	uint8_t protection_absent;
+	uint8_t profile;
 	uint8_t sampling_frequency_index;
 	uint8_t channel_configuration;
 	uint16_t frame_length;
@@ -402,3 +403,117 @@ private:
 	}
 };
 
+// デュアルモノAACを2つのAACに無劣化分離する
+class DualMonoSplitter : AMTObject
+{
+public:
+	DualMonoSplitter(AMTContext& ctx)
+		: AMTObject(ctx)
+		, hAacDec(NULL)
+	{ }
+
+	~DualMonoSplitter() {
+		closeDecoder();
+	}
+
+	void inputPacket(MemoryChunk frame)
+	{
+		AdtsHeader header;
+		if (!header.parse(frame.data, (int)frame.length)) {
+			THROW(FormatException, "[DualMonoSplitter] ヘッダをparseできなかった");
+		}
+		// ストリームを解析するのは面倒なのでデコードしちゃう
+		if (hAacDec == NULL) {
+			resetDecoder(MemoryChunk(frame.data, frame.length));
+		}
+		NeAACDecFrameInfo frameInfo;
+		void* samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data, (int)frame.length);
+		if (frameInfo.error != 0) {
+			// ここでは大丈夫だとは思うけど一応エラー対策はやっておく
+			resetDecoder(MemoryChunk(frame.data, frame.length));
+			samples = NeAACDecDecode(hAacDec, &frameInfo, frame.data, (int)frame.length);
+		}
+		if (frameInfo.error == 0) {
+			if (frameInfo.fr_ch_ele != 2) {
+				THROWF(FormatException, "デュアルモノAACのエレメント数不正 %d != 2", frameInfo.fr_ch_ele);
+			}
+
+			for (int i = 0; i < 2; ++i) {
+				BitWriter writer(buf);
+
+				int start_bits = frameInfo.element_start[i];
+				int end_bits = frameInfo.element_end[i];
+				int frame_length = (end_bits - start_bits + 3 + 7) / 8 + 7;
+
+				// ヘッダ
+				writer.write<12>(0xFFF); // sync word
+				writer.write<1>(1); // ID
+				writer.write<2>(0); // layer
+				writer.write<1>(1); // protection_absend
+				writer.write<2>(header.profile); // profile
+				writer.write<4>(header.sampling_frequency_index); // 
+				writer.write<1>(0); // private bits
+				writer.write<3>(1); // channel_configuration
+				writer.write<1>(0); // original_copy
+				writer.write<1>(0); // home
+				writer.write<1>(0); // copyright_identification_bit
+				writer.write<1>(0); // copyright_identification_start
+				writer.write<13>(frame_length); // frame_length
+				writer.write<11>((1 << 11) - 1); // adts_buffer_fullness(all ones means variable bit rate)
+				writer.write<2>(0); // number_of_raw_data_blocks_in_frame
+
+				// SPE１つ
+				BitReader reader(frame);
+				reader.skip(start_bits);
+				int bitpos = start_bits;
+				for (; bitpos + 8 <= end_bits; bitpos += 8) {
+					writer.write<8>(reader.read<8>());
+				}
+				int remain = end_bits - bitpos;
+				if (remain > 0) {
+					writer.writen(reader.readn(remain), remain);
+				}
+				writer.write<3>(ID_END);
+				writer.byteAlign<0>();
+				writer.flush();
+
+				if (buf.size() != frame_length) {
+					THROW(RuntimeException, "サイズが合わない");
+				}
+
+				OnOutFrame(i, buf);
+				buf.clear();
+			}
+		}
+	}
+
+	virtual void OnOutFrame(int index, MemoryChunk mc) = 0;
+
+private:
+	NeAACDecHandle hAacDec;
+	AutoBuffer buf;
+
+	void closeDecoder() {
+		if (hAacDec != NULL) {
+			NeAACDecClose(hAacDec);
+			hAacDec = NULL;
+		}
+	}
+
+	bool resetDecoder(MemoryChunk data) {
+		closeDecoder();
+
+		hAacDec = NeAACDecOpen();
+		NeAACDecConfigurationPtr conf = NeAACDecGetCurrentConfiguration(hAacDec);
+		conf->outputFormat = FAAD_FMT_16BIT;
+		NeAACDecSetConfiguration(hAacDec, conf);
+
+		unsigned long samplerate;
+		unsigned char channels;
+		if (NeAACDecInit(hAacDec, data.data, (int)data.length, &samplerate, &channels)) {
+			ctx.warn("NeAACDecInitに失敗");
+			return false;
+		}
+		return true;
+	}
+};

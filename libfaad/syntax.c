@@ -346,9 +346,11 @@ static void decode_sce_lfe(NeAACDecStruct *hDecoder,
 
     /* save the syntax element id */
     hDecoder->element_id[hDecoder->fr_ch_ele] = id_syn_ele;
+		hDecoder->element_start[hDecoder->fr_ch_ele] = faad_getpos(ld) - 3;
 
     /* decode the element */
     hInfo->error = single_lfe_channel_element(hDecoder, ld, channels, &tag);
+		hDecoder->element_end[hDecoder->fr_ch_ele] = faad_getpos(ld);
 
     /* map output channels position to internal data channels */
     if (hDecoder->element_output_channels[hDecoder->fr_ch_ele] == 2)
@@ -397,9 +399,11 @@ static void decode_cpe(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *hInfo, bitfi
 
     /* save the syntax element id */
     hDecoder->element_id[hDecoder->fr_ch_ele] = id_syn_ele;
+		hDecoder->element_start[hDecoder->fr_ch_ele] = faad_getpos(ld);
 
     /* decode the element */
     hInfo->error = channel_pair_element(hDecoder, ld, channels, &tag);
+		hDecoder->element_end[hDecoder->fr_ch_ele] = faad_getpos(ld);
 
     /* map output channel position to internal data channels */
     if (hDecoder->pce_set)

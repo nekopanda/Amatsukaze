@@ -428,4 +428,88 @@ static int LogoFrameTest(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
+class TestSplitDualMono : public DualMonoSplitter
+{
+	std::unique_ptr<File> file0;
+	std::unique_ptr<File> file1;
+public:
+	TestSplitDualMono(AMTContext& ctx, const std::vector<std::string>& outpaths)
+		: DualMonoSplitter(ctx)
+		, file0(new File(outpaths[0].c_str(), "wb"))
+		, file1(new File(outpaths[1].c_str(), "wb"))
+	{ }
+
+	virtual void OnOutFrame(int index, MemoryChunk mc)
+	{
+		((index == 0) ? file0.get() : file1.get())->write(mc);
+	}
+};
+
+static int SplitDualMonoAAC(AMTContext& ctx, const TranscoderSetting& setting)
+{
+	std::vector<std::string> outpaths;
+	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 0));
+	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 1));
+	TestSplitDualMono splitter(ctx, outpaths);
+
+	File src(setting.getSrcFilePath(), "rb");
+	int sz = (int)src.size();
+	std::unique_ptr<uint8_t[]> buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
+	src.read(MemoryChunk(buf.get(), sz));
+
+	for (int offset = 0; offset + 7 <= sz; ) {
+		AdtsHeader header;
+		if (!header.parse(buf.get() + offset, 7)) {
+			THROW(FormatException, "Failed to parse AAC frame ...");
+		}
+		if (offset + header.frame_length > sz) {
+			THROW(FormatException, "frame_length too long ...");
+		}
+		splitter.inputPacket(MemoryChunk(buf.get() + offset, header.frame_length));
+		offset += header.frame_length;
+	}
+
+	return 0;
+}
+
+static int AACDecodeTest(AMTContext& ctx, const TranscoderSetting& setting)
+{
+	File src(setting.getSrcFilePath(), "rb");
+	int sz = (int)src.size();
+	std::unique_ptr<uint8_t[]> buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
+	src.read(MemoryChunk(buf.get(), sz));
+
+	NeAACDecHandle hAacDec = NeAACDecOpen();
+	NeAACDecConfigurationPtr conf = NeAACDecGetCurrentConfiguration(hAacDec);
+	conf->outputFormat = FAAD_FMT_16BIT;
+	NeAACDecSetConfiguration(hAacDec, conf);
+
+
+	for (int offset = 0; offset + 7 <= sz; ) {
+		AdtsHeader header;
+		if (!header.parse(buf.get() + offset, 7)) {
+			THROW(FormatException, "Failed to parse AAC frame ...");
+		}
+		if (offset + header.frame_length > sz) {
+			THROW(FormatException, "frame_length too long ...");
+		}
+		if (offset == 0) {
+			unsigned long samplerate;
+			unsigned char channels;
+			if (NeAACDecInit(hAacDec, buf.get() + offset, (int)header.frame_length, &samplerate, &channels)) {
+				ctx.warn("NeAACDecInitÇ…é∏îs");
+				return 1;
+			}
+		}
+		NeAACDecFrameInfo frameInfo;
+		void* samples = NeAACDecDecode(hAacDec, &frameInfo, buf.get() + offset, header.frame_length);
+		if (frameInfo.error != 0) {
+			THROW(FormatException, "ÉfÉRÅ[Éhé∏îs ...");
+		}
+		offset += header.frame_length;
+	}
+
+	return 0;
+}
+
 } // namespace test

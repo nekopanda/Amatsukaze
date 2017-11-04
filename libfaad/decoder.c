@@ -575,6 +575,9 @@ static void create_channel_config(NeAACDecStruct *hDecoder, NeAACDecFrameInfo *h
 	hInfo->fr_ch_ele = hDecoder->fr_ch_ele;
 	for (int i = 0; i < hDecoder->fr_ch_ele; ++i) {
 		hInfo->element_id[i] = hDecoder->element_id[i];
+		/* ƒ`ƒƒƒ“ƒlƒ‹•ª—£‚Ì‚½‚ß‚ÌŠg’£ */
+		hInfo->element_start[i] = hDecoder->element_start[i];
+		hInfo->element_end[i] = hDecoder->element_end[i];
 	}
 
     hInfo->num_front_channels = 0;

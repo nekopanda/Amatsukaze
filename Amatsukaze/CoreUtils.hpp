@@ -50,6 +50,9 @@ DEFINE_EXCEPTION(NoLogoException)
 static void throw_exception_(const Exception& exc)
 {
 	PRINTF("%s\n", exc.message());
+#if 1
+	MessageBox(NULL, exc.message(), "Amatsukaze Error", MB_OK);
+#endif
 	exc.raise();
 }
 

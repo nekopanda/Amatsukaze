@@ -28,9 +28,10 @@ struct LogoHeader {
 		, imgh(imgh)
 		, imgx(imgx)
 		, imgy(imgy)
+		, name()
 		, reserved()
 	{
-		strcpy_s(this->name, name.c_str());
+		strncpy_s(this->name, name.c_str(), sizeof(name) - 1);
 	}
 };
 
@@ -162,7 +163,7 @@ protected:
 		file.writeValue(fh);
 
 		LOGO_HEADER h = { 0 };
-		strcpy_s(h.name, header->name);
+		strncpy_s(h.name, header->name, sizeof(h.name) - 1);
 		h.x = header->imgx;
 		h.y = header->imgy;
 		h.w = header->w;

@@ -196,7 +196,11 @@ typedef struct NeAACDecFrameInfo
 
     /* ARIB拡張を正しく認識するために拡張 */
     unsigned char fr_ch_ele;
-    unsigned char element_id[64];
+		unsigned char element_id[64];
+
+		/* チャンネル分離のための拡張 */
+		int element_start[64];
+		int element_end[64];
 
     /* 時間を正しく計算するため出力しなくてもサンプル数は出しておく */
     unsigned long original_samples;

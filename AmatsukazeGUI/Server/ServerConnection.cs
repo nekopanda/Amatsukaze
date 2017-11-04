@@ -172,7 +172,7 @@ namespace Amatsukaze.Server
                     userClient.OnFreeSpace((DiskFreeSpace)arg);
                     break;
                 case RPCMethodId.OnServiceSetting:
-                    userClient.OnServiceSetting((ServiceSettingElement)arg);
+                    userClient.OnServiceSetting((ServiceSettingUpdate)arg);
                     break;
                 case RPCMethodId.OnLlsCommandFiles:
                     userClient.OnLlsCommandFiles((JLSCommandFiles)arg);
@@ -241,9 +241,9 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.SetSetting, setting);
         }
 
-        public Task SetServiceSetting(ServiceSettingElement service)
+        public Task SetServiceSetting(ServiceSettingUpdate update)
         {
-            return Send(RPCMethodId.SetServiceSetting, service);
+            return Send(RPCMethodId.SetServiceSetting, update);
         }
 
         public Task RequestServiceSetting()
@@ -254,11 +254,6 @@ namespace Amatsukaze.Server
         public Task RequestLogoData(string fileName)
         {
             return Send(RPCMethodId.RequestLogoData, fileName);
-        }
-
-        public Task AddNoLogo(int ServiceId)
-        {
-            return Send(RPCMethodId.AddNoLogo, ServiceId);
         }
     }
 }

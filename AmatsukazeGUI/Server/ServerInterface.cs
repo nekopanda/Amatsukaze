@@ -18,8 +18,7 @@ namespace Amatsukaze.Server
         Task RemoveQueue(string dirPath);
         Task PauseEncode(bool pause);
 
-        Task SetServiceSetting(ServiceSettingElement service);
-        Task AddNoLogo(int ServiceId);
+        Task SetServiceSetting(ServiceSettingUpdate update);
 
         // 情報取得系
         Task RequestSetting();
@@ -49,7 +48,7 @@ namespace Amatsukaze.Server
         Task OnState(State state);
         Task OnFreeSpace(DiskFreeSpace space);
 
-        Task OnServiceSetting(ServiceSettingElement service);
+        Task OnServiceSetting(ServiceSettingUpdate update);
         Task OnLlsCommandFiles(JLSCommandFiles files);
         Task OnLogoData(LogoData logoData);
 
@@ -64,7 +63,6 @@ namespace Amatsukaze.Server
         RemoveQueue,
         PauseEncode,
         SetServiceSetting,
-        AddNoLogo,
         RequestSetting,
         RequestQueue,
         RequestLog,
@@ -104,8 +102,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.RemoveQueue, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
-            { RPCMethodId.SetServiceSetting, typeof(ServiceSettingElement) },
-            { RPCMethodId.AddNoLogo, typeof(int) },
+            { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.RequestSetting, null },
             { RPCMethodId.RequestQueue, null },
             { RPCMethodId.RequestLog, null },
@@ -126,7 +123,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnState, typeof(State) },
             { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
-            { RPCMethodId.OnServiceSetting, typeof(ServiceSettingElement) },
+            { RPCMethodId.OnServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnOperationResult, typeof(string) }
@@ -146,6 +143,21 @@ namespace Amatsukaze.Server
             return rv;
         }
 
+        public static byte[] Serialize(Type type, object obj)
+        {
+            var ms = new MemoryStream();
+            var serializer = new DataContractSerializer(type);
+            serializer.WriteObject(ms, obj);
+            // 画像だけ特別処理
+            if (obj is LogoData)
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(((LogoData)obj).Image));
+                encoder.Save(ms);
+            }
+            return ms.ToArray();
+        }
+
         public static byte[] Serialize(RPCMethodId id, object obj)
         {
             Type type = ArgumentTypes[id];
@@ -155,17 +167,7 @@ namespace Amatsukaze.Server
                     BitConverter.GetBytes((short)id),
                     BitConverter.GetBytes((int)0));
             }
-            var ms = new MemoryStream();
-            var serializer = new DataContractSerializer(type);
-            serializer.WriteObject(ms, obj);
-            // 画像だけ特別処理
-            if(obj is LogoData)
-            {
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(((LogoData)obj).Image));
-                encoder.Save(ms);
-            }
-            var objbyes = ms.ToArray();
+            var objbyes = Serialize(type, obj);
             //Debug.Print("Send: " + System.Text.Encoding.UTF8.GetString(objbyes));
             return Combine(
                 BitConverter.GetBytes((short)id),
@@ -173,7 +175,20 @@ namespace Amatsukaze.Server
                 objbyes);
         }
 
-        public static async Task<RPCInfo> Deserialize(NetworkStream ns)
+        public static object Deserialize(Type type, byte[] data)
+        {
+            var s = new DataContractSerializer(type);
+            var ms = new MemoryStream(data);
+            var arg = s.ReadObject(ms);
+            // 画像だけ特別処理
+            if (arg is LogoData)
+            {
+                ((LogoData)arg).Image = BitmapFrame.Create(ms);
+            }
+            return arg;
+        }
+
+        public static async Task<RPCInfo> Deserialize(Stream ns)
         {
             var headerbytes = await ReadBytes(ns, HEADER_SIZE);
             var id = (RPCMethodId)BitConverter.ToInt16(headerbytes, 0);
@@ -183,20 +198,12 @@ namespace Amatsukaze.Server
             {
                 var data = await RPCTypes.ReadBytes(ns, csize);
                 //Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
-                var argType = RPCTypes.ArgumentTypes[id];
-                var s = new DataContractSerializer(argType);
-                var ms = new MemoryStream(data);
-                arg = s.ReadObject(ms);
-                // 画像だけ特別処理
-                if (arg is LogoData)
-                {
-                    ((LogoData)arg).Image = BitmapFrame.Create(ms);
-                }
+                arg = Deserialize(RPCTypes.ArgumentTypes[id], data);
             }
             return new RPCInfo() { id = id, arg = arg };
         }
 
-        private static async Task<byte[]> ReadBytes(NetworkStream ns, int size)
+        private static async Task<byte[]> ReadBytes(Stream ns, int size)
         {
             byte[] bytes = new byte[size];
             int readBytes = 0;
@@ -218,6 +225,97 @@ namespace Amatsukaze.Server
                     server.RequestState(),
                     server.RequestFreeSpace(),
                     server.RequestServiceSetting());
+        }
+    }
+
+    // スタンドアロンでサーバ・クライアントをエミュレーションするためのアダプタ
+    public class ClientAdapter : IUserClient
+    {
+        private IUserClient client;
+
+        private static object Copy(Type type, object obj)
+        {
+            return RPCTypes.Deserialize(type, RPCTypes.Serialize(type, obj));
+        }
+
+        public ClientAdapter(IUserClient client)
+        {
+            this.client = client;
+        }
+
+        public void Finish()
+        {
+            client.Finish();
+        }
+
+        public Task OnConsole(ConsoleData str)
+        {
+            return client.OnConsole((ConsoleData)Copy(typeof(ConsoleData), str));
+        }
+
+        public Task OnConsoleUpdate(ConsoleUpdate str)
+        {
+            return client.OnConsoleUpdate((ConsoleUpdate)Copy(typeof(ConsoleUpdate), str));
+        }
+
+        public Task OnFreeSpace(DiskFreeSpace space)
+        {
+            return client.OnFreeSpace((DiskFreeSpace)Copy(typeof(DiskFreeSpace), space));
+        }
+
+        public Task OnLlsCommandFiles(JLSCommandFiles files)
+        {
+            return client.OnLlsCommandFiles((JLSCommandFiles)Copy(typeof(JLSCommandFiles), files));
+        }
+
+        public Task OnLogData(LogData data)
+        {
+            return client.OnLogData((LogData)Copy(typeof(LogData), data));
+        }
+
+        public Task OnLogFile(string str)
+        {
+            return client.OnLogFile((string)Copy(typeof(string), str));
+        }
+
+        public Task OnLogoData(LogoData logoData)
+        {
+            return client.OnLogoData((LogoData)Copy(typeof(LogoData), logoData));
+        }
+
+        public Task OnLogUpdate(LogItem newLog)
+        {
+            return client.OnLogUpdate((LogItem)Copy(typeof(LogItem), newLog));
+        }
+
+        public Task OnOperationResult(string result)
+        {
+            return client.OnOperationResult((string)Copy(typeof(string), result));
+        }
+
+        public Task OnQueueData(QueueData data)
+        {
+            return client.OnQueueData((QueueData)Copy(typeof(QueueData), data));
+        }
+
+        public Task OnQueueUpdate(QueueUpdate update)
+        {
+            return client.OnQueueUpdate((QueueUpdate)Copy(typeof(QueueUpdate), update));
+        }
+
+        public Task OnServiceSetting(ServiceSettingUpdate service)
+        {
+            return client.OnServiceSetting((ServiceSettingUpdate)Copy(typeof(ServiceSettingUpdate), service));
+        }
+
+        public Task OnSetting(Setting setting)
+        {
+            return client.OnSetting((Setting)Copy(typeof(Setting), setting));
+        }
+
+        public Task OnState(State state)
+        {
+            return client.OnState((State)Copy(typeof(State), state));
         }
     }
 }

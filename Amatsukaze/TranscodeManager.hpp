@@ -610,7 +610,9 @@ private:
 		double srcDuration = (double)numSrcFrames * infmt.frameRateDenom / infmt.frameRateNum;
 		double clipDuration = (double)outvi.num_frames * outvi.fps_denominator / outvi.fps_numerator;
 		if (std::abs(srcDuration - clipDuration) > 0.1f) {
-			THROW(RuntimeException, "フィルタ出力映像の時間が入力と一致しません");
+			ctx.error("フィルタ入力: %dフレーム %d/%dfps", numSrcFrames, infmt.frameRateNum, infmt.frameRateDenom);
+			ctx.error("フィルタ出力: %dフレーム %d/%dfps", outvi.num_frames, outvi.fps_numerator, outvi.fps_denominator);
+			THROWF(RuntimeException, "フィルタ出力映像の時間が入力と一致しません（入力: %.3f秒 出力: %.3f秒）", srcDuration, clipDuration);
 		}
 
 		// フレーム数が変わっている場合はゾーンを引き伸ばす
@@ -799,7 +801,8 @@ private:
     switch (vi_.BitsPerComponent()) {
     case 8: return AV_PIX_FMT_YUV420P;
     case 10: return AV_PIX_FMT_YUV420P10;
-    case 12: return AV_PIX_FMT_YUV420P12;
+		case 12: return AV_PIX_FMT_YUV420P12;
+		case 14: return AV_PIX_FMT_YUV420P14;
     case 16: return AV_PIX_FMT_YUV420P16;
     default: THROW(FormatException, "サポートされていないフィルタ出力形式です");
     }
@@ -1083,19 +1086,35 @@ public:
 		}
 
 		for (int i = 0; i < numEncoders; ++i) {
+			auto fmt = reformInfo_.getFormat(i, videoFileIndex);
 			// 音声ファイルを作成
 			std::vector<std::string> audioFiles;
 			const FileAudioFrameList& fileFrameList =
 				reformInfo_.getFileAudioFrameList(i, videoFileIndex);
-			for (int a = 0; a < (int)fileFrameList.size(); ++a) {
-				const std::vector<int>& frameList = fileFrameList[a];
+			for (int asrc = 0, adst = 0; asrc < (int)fileFrameList.size(); ++asrc) {
+				const std::vector<int>& frameList = fileFrameList[asrc];
 				if (frameList.size() > 0) {
-					std::string filepath = setting_.getIntAudioFilePath(videoFileIndex, i, a);
-					File file(filepath, "wb");
-					for (int frameIndex : frameList) {
-						file.write(audioCache_[frameIndex]);
+					if (fmt.audioFormat[asrc].channels == AUDIO_2LANG) {
+						// デュアルモノは2つのAACに分離
+						SpDualMonoSplitter splitter(ctx);
+						std::string filepath0 = setting_.getIntAudioFilePath(videoFileIndex, i, adst++);
+						std::string filepath1 = setting_.getIntAudioFilePath(videoFileIndex, i, adst++);
+						splitter.open(0, filepath0);
+						splitter.open(1, filepath1);
+						for (int frameIndex : frameList) {
+							splitter.inputPacket(audioCache_[frameIndex]);
+						}
+						audioFiles.push_back(filepath0);
+						audioFiles.push_back(filepath1);
 					}
-					audioFiles.push_back(filepath);
+					else {
+						std::string filepath = setting_.getIntAudioFilePath(videoFileIndex, i, adst++);
+						File file(filepath, "wb");
+						for (int frameIndex : frameList) {
+							file.write(audioCache_[frameIndex]);
+						}
+						audioFiles.push_back(filepath);
+					}
 				}
 			}
 
@@ -1139,6 +1158,19 @@ private:
 			// これはマルチスレッドで呼ばれるの注意
 			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
 			fflush(isErr ? stderr : stdout);
+		}
+	};
+
+	class SpDualMonoSplitter : public DualMonoSplitter
+	{
+		std::unique_ptr<File> file[2];
+	public:
+		SpDualMonoSplitter(AMTContext& ctx) : DualMonoSplitter(ctx) { }
+		void open(int index, const std::string& filename) {
+			file[index] = std::unique_ptr<File>(new File(filename, "wb"));
+		}
+		virtual void OnOutFrame(int index, MemoryChunk mc) {
+			file[index]->write(mc);
 		}
 	};
 

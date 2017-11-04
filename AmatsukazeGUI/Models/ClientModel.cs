@@ -14,10 +14,23 @@ using System.Threading.Tasks.Dataflow;
 
 namespace Amatsukaze.Models
 {
-    public class DisplayQueueDirectory
+    public class DisplayQueueDirectory : NotificationObject
     {
         public string Path { get; set; }
-        public ObservableCollection<QueueItem> Items { get; set; }
+
+        #region Items変更通知プロパティ
+        private ObservableCollection<QueueItem> _Items;
+
+        public ObservableCollection<QueueItem> Items {
+            get { return _Items; }
+            set { 
+                if (_Items == value)
+                    return;
+                _Items = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         public DisplayQueueDirectory(QueueDirectory dir)
         {
@@ -969,7 +982,11 @@ namespace Amatsukaze.Models
                 .FirstOrDefault(s => s.Data.ServiceId == serviceId);
             if (service != null)
             {
-                return Server.SetServiceSetting(service.Data);
+                return Server.SetServiceSetting(new ServiceSettingUpdate() {
+                    Type = ServiceSettingUpdateType.Update,
+                    ServiceId = service.Data.ServiceId,
+                    Data = service.Data
+                });
             }
             return Task.FromResult(0);
         }
@@ -977,6 +994,25 @@ namespace Amatsukaze.Models
         public Task UpdateLogo(DisplayLogo logo)
         {
             return UpdateService(logo.Setting.ServiceId);
+        }
+
+        public Task RemoveLogo(DisplayLogo logo)
+        {
+            var service = _ServiceSettings
+                .FirstOrDefault(s => s.Data.ServiceId == logo.Setting.ServiceId);
+            if (service != null)
+            {
+                int index = service.Data.LogoSettings.IndexOf(logo.Setting);
+                if (index != -1)
+                {
+                    return Server.SetServiceSetting(new ServiceSettingUpdate() {
+                        Type = ServiceSettingUpdateType.RemoveLogo,
+                        ServiceId = logo.Setting.ServiceId,
+                        RemoveLogoIndex = index
+                    });
+                }
+            }
+            return Task.FromResult(0);
         }
 
         public Task UpdateService(DisplayService service)
@@ -1003,7 +1039,7 @@ namespace Amatsukaze.Models
         {
             if (App.Option.LaunchType == LaunchType.Standalone)
             {
-                Server = new EncodeServer(0, this);
+                Server = new EncodeServer(0, new ClientAdapter(this));
                 Server.RefreshRequest();
             }
             else
@@ -1336,17 +1372,27 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnServiceSetting(ServiceSettingElement service)
+        public Task OnServiceSetting(ServiceSettingUpdate update)
         {
             for(int i = 0; i < _ServiceSettings.Count; ++i)
             {
-                if(_ServiceSettings[i].Data.ServiceId == service.ServiceId)
+                if(_ServiceSettings[i].Data.ServiceId == update.ServiceId)
                 {
-                    _ServiceSettings[i].Data = service;
+                    if (update.Type == ServiceSettingUpdateType.Update)
+                    {
+                        _ServiceSettings[i].Data = update.Data;
+                    }
+                    else if(update.Type == ServiceSettingUpdateType.Remove)
+                    {
+                        _ServiceSettings.RemoveAt(i);
+                    }
                     return Task.FromResult(0);
                 }
             }
-            _ServiceSettings.Add(new DisplayService() { Model = this, Data = service });
+            if (update.Type == ServiceSettingUpdateType.Update)
+            {
+                _ServiceSettings.Add(new DisplayService() { Model = this, Data = update.Data });
+            }
             return Task.FromResult(0);
         }
 

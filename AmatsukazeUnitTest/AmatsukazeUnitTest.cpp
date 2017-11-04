@@ -327,6 +327,34 @@ TEST_F(TestBase, LogoFrameTest)
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
 
+TEST_F(TestBase, SplitDualMonoAAC)
+{
+	std::wstring srcDir = TestDataDir + L"\\";
+	std::wstring dstDir = TestWorkDir + L"\\";
+	std::wstring inaac = srcDir + L"dualmono.aac";
+
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_dualmono",
+		L"-i", inaac.c_str(),
+		L"-w", dstDir.c_str(),
+	};
+	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+}
+
+TEST_F(TestBase, AACDecodeTest)
+{
+	std::wstring srcDir = TestDataDir + L"\\";
+	std::wstring dstDir = TestWorkDir + L"\\";
+	std::wstring inaac = srcDir + L"a0-0-1.aac";
+
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_aacdecode",
+		L"-i", inaac.c_str(),
+		L"-w", dstDir.c_str(),
+	};
+	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+}
+
 TEST(CLI, ArgumentTest)
 {
 	const wchar_t* argv[] = {
@@ -374,7 +402,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*LogoFrameTest";
+	::testing::GTEST_FLAG(filter) = "*AACDecodeTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

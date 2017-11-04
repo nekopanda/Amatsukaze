@@ -207,6 +207,12 @@ static INLINE uint8_t faad_get1bit(bitfile *ld DEBUGDEC)
     return r;
 }
 
+static INLINE int faad_getpos(bitfile *ld)
+{
+	int bytepos = (int)(ld->tail - (uint32_t*)ld->buffer - 2) * 4;
+	return bytepos * 8 + (32 - ld->bits_left);
+}
+
 /* reversed bitreading routines */
 static INLINE uint32_t faad_showbits_rev(bitfile *ld, uint32_t bits)
 {

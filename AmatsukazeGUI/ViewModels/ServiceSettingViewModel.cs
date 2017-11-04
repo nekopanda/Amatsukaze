@@ -166,7 +166,62 @@ namespace Amatsukaze.ViewModels
             var service = SelectedServiceItem;
             if(service != null)
             {
-                Model.Server.AddNoLogo(service.Data.ServiceId);
+                Model.Server.SetServiceSetting(new ServiceSettingUpdate() {
+                    Type = ServiceSettingUpdateType.AddNoLogo,
+                    ServiceId = service.Data.ServiceId
+                });
+            }
+        }
+        #endregion
+
+        #region RemoveNoLogoCommand
+        private ViewModelCommand _RemoveNoLogoCommand;
+
+        public ViewModelCommand RemoveNoLogoCommand {
+            get {
+                if (_RemoveNoLogoCommand == null)
+                {
+                    _RemoveNoLogoCommand = new ViewModelCommand(RemoveNoLogo);
+                }
+                return _RemoveNoLogoCommand;
+            }
+        }
+
+        public void RemoveNoLogo()
+        {
+            var logo = SelectedLogoItem;
+            if (logo != null)
+            {
+                if(logo.Setting.FileName == LogoSetting.NO_LOGO)
+                {
+                    Model.RemoveLogo(logo);
+                }
+            }
+        }
+        #endregion
+
+        #region RemoveServiceSettingCommand
+        private ViewModelCommand _RemoveServiceSettingCommand;
+
+        public ViewModelCommand RemoveServiceSettingCommand {
+            get {
+                if (_RemoveServiceSettingCommand == null)
+                {
+                    _RemoveServiceSettingCommand = new ViewModelCommand(RemoveServiceSetting);
+                }
+                return _RemoveServiceSettingCommand;
+            }
+        }
+
+        public void RemoveServiceSetting()
+        {
+            var service = SelectedServiceItem;
+            if (service != null)
+            {
+                Model.Server.SetServiceSetting(new ServiceSettingUpdate() {
+                    Type = ServiceSettingUpdateType.Remove,
+                    ServiceId = service.Data.ServiceId
+                });
             }
         }
         #endregion
