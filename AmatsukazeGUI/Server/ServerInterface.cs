@@ -49,7 +49,8 @@ namespace Amatsukaze.Server
         Task OnFreeSpace(DiskFreeSpace space);
 
         Task OnServiceSetting(ServiceSettingUpdate update);
-        Task OnLlsCommandFiles(JLSCommandFiles files);
+        Task OnJlsCommandFiles(JLSCommandFiles files);
+        Task OnAvsScriptFiles(AvsScriptFiles files);
         Task OnLogoData(LogoData logoData);
 
         Task OnOperationResult(string result);
@@ -85,6 +86,7 @@ namespace Amatsukaze.Server
         OnFreeSpace,
         OnServiceSetting,
         OnLlsCommandFiles,
+        OnAvsScriptFiles,
         OnLogoData,
         OnOperationResult,
     }
@@ -125,6 +127,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
             { RPCMethodId.OnServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
+            { RPCMethodId.OnAvsScriptFiles, typeof(AvsScriptFiles) },
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnOperationResult, typeof(string) }
         };
@@ -148,14 +151,24 @@ namespace Amatsukaze.Server
             var ms = new MemoryStream();
             var serializer = new DataContractSerializer(type);
             serializer.WriteObject(ms, obj);
+            var objbytes = ms.ToArray();
             // 画像だけ特別処理
             if (obj is LogoData)
             {
+                var ms2 = new MemoryStream();
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(((LogoData)obj).Image));
-                encoder.Save(ms);
+                encoder.Save(ms2);
+                var databytes = ms2.ToArray();
+                return Combine(
+                    BitConverter.GetBytes((int)objbytes.Length),
+                    objbytes,
+                    BitConverter.GetBytes((int)databytes.Length),
+                    databytes);
             }
-            return ms.ToArray();
+            return Combine(
+                BitConverter.GetBytes((int)objbytes.Length),
+                objbytes);
         }
 
         public static byte[] Serialize(RPCMethodId id, object obj)
@@ -177,13 +190,16 @@ namespace Amatsukaze.Server
 
         public static object Deserialize(Type type, byte[] data)
         {
+            var objsize = BitConverter.ToInt32(data, 0);
             var s = new DataContractSerializer(type);
-            var ms = new MemoryStream(data);
+            var ms = new MemoryStream(data, 4, objsize);
             var arg = s.ReadObject(ms);
             // 画像だけ特別処理
             if (arg is LogoData)
             {
-                ((LogoData)arg).Image = BitmapFrame.Create(ms);
+                var datasize = BitConverter.ToInt32(data, 4 + objsize);
+                var ms2 = new MemoryStream(data, 4 + objsize + 4, datasize);
+                ((LogoData)arg).Image = BitmapFrame.Create(ms2);
             }
             return arg;
         }
@@ -263,9 +279,9 @@ namespace Amatsukaze.Server
             return client.OnFreeSpace((DiskFreeSpace)Copy(typeof(DiskFreeSpace), space));
         }
 
-        public Task OnLlsCommandFiles(JLSCommandFiles files)
+        public Task OnJlsCommandFiles(JLSCommandFiles files)
         {
-            return client.OnLlsCommandFiles((JLSCommandFiles)Copy(typeof(JLSCommandFiles), files));
+            return client.OnJlsCommandFiles((JLSCommandFiles)Copy(typeof(JLSCommandFiles), files));
         }
 
         public Task OnLogData(LogData data)
@@ -316,6 +332,11 @@ namespace Amatsukaze.Server
         public Task OnState(State state)
         {
             return client.OnState((State)Copy(typeof(State), state));
+        }
+
+        public Task OnAvsScriptFiles(AvsScriptFiles files)
+        {
+            return client.OnAvsScriptFiles((AvsScriptFiles)Copy(typeof(AvsScriptFiles), files));
         }
     }
 }

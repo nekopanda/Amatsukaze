@@ -190,8 +190,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
   bool twoPass = bool();
 	bool pulldown = bool();
 	int serviceId = -1;
-	DECODER_TYPE mpeg2decoder = DECODER_DEFAULT;
-	DECODER_TYPE h264decoder = DECODER_DEFAULT;
+	DecoderSetting decoderSetting;
 	std::vector<std::string> logoPath;
 	bool errorOnNoLogo = false;
 	std::tstring amt32bitPath;
@@ -286,15 +285,15 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
 		else if (key == _T("--mpeg2decoder")) {
 			std::tstring arg = getParam(argc, argv, i++);
-			mpeg2decoder = decoderFromString(arg);
-			if (mpeg2decoder == (DECODER_TYPE)-1) {
+			decoderSetting.mpeg2 = decoderFromString(arg);
+			if (decoderSetting.mpeg2 == (DECODER_TYPE)-1) {
 				PRINTF("--mpeg2decoder‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %" PRITSTR "\n", arg.c_str());
 			}
 		}
 		else if (key == _T("--h264decoder")) {
 			std::tstring arg = getParam(argc, argv, i++);
-			h264decoder = decoderFromString(arg);
-			if (h264decoder == (DECODER_TYPE)-1) {
+			decoderSetting.h264 = decoderFromString(arg);
+			if (decoderSetting.h264 == (DECODER_TYPE)-1) {
 				PRINTF("--h264decoder‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %" PRITSTR "\n", arg.c_str());
 			}
 		}
@@ -379,8 +378,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		bitrate,
 		bitrateCM,
 		serviceId,
-		mpeg2decoder,
-		h264decoder,
+		decoderSetting,
 		logoPath,
 		errorOnNoLogo,
 		to_string(amt32bitPath),
@@ -438,10 +436,12 @@ static void amatsukaze_av_log_callback(
 static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& setting) {
 	try {
 		std::string mode = setting.getMode();
-    if(mode == "ts")
-      transcodeMain(ctx, setting);
+		if (mode == "ts")
+			transcodeMain(ctx, setting);
 		else if (mode == "g")
-      transcodeSimpleMain(ctx, setting);
+			transcodeSimpleMain(ctx, setting);
+		else if (mode == "enctask")
+			encodeTaskMain(ctx, setting);
 
 		else if (mode == "test_print_crc")
 			test::PrintCRCTable(ctx, setting);

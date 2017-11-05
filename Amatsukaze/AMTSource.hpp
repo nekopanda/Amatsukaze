@@ -37,6 +37,7 @@ class AMTSource : public IClip, AMTObject
 {
 	const std::vector<FilterSourceFrame>& frames;
 	const std::vector<FilterAudioFrame>& audioFrames;
+	DecoderSetting decoderSetting;
 	int audioSamplesPerFrame;
 
   InputContext inputCtx;
@@ -76,12 +77,47 @@ class AMTSource : public IClip, AMTObject
   // まだデコードしてない場合はnullptr
   std::unique_ptr<Frame> prevFrame;
 
+	AVCodec* getHWAccelCodec(AVCodecID vcodecId)
+	{
+		switch (vcodecId) {
+		case AV_CODEC_ID_MPEG2VIDEO:
+			switch (decoderSetting.mpeg2) {
+			case DECODER_QSV:
+				return avcodec_find_decoder_by_name("mpeg2_qsv");
+			case DECODER_CUVID:
+				return avcodec_find_decoder_by_name("mpeg2_cuvid");
+			}
+			break;
+		case AV_CODEC_ID_H264:
+			switch (decoderSetting.h264) {
+			case DECODER_QSV:
+				return avcodec_find_decoder_by_name("h264_qsv");
+			case DECODER_CUVID:
+				return avcodec_find_decoder_by_name("h264_cuvid");
+			}
+			break;
+		case AV_CODEC_ID_HEVC:
+			switch (decoderSetting.hevc) {
+			case DECODER_QSV:
+				return avcodec_find_decoder_by_name("hevc_qsv");
+			case DECODER_CUVID:
+				return avcodec_find_decoder_by_name("hevc_cuvid");
+			}
+			break;
+		}
+		return avcodec_find_decoder(vcodecId);
+	}
+
   void MakeCodecContext() {
     AVCodecID vcodecId = videoStream->codecpar->codec_id;
-    AVCodec *pCodec = avcodec_find_decoder(vcodecId);
-    if (pCodec == NULL) {
-      THROW(FormatException, "Could not find decoder ...");
-    }
+		AVCodec *pCodec = getHWAccelCodec(vcodecId);
+		if (pCodec == NULL) {
+			ctx.warn("指定されたデコーダが使用できないためデフォルトデコーダを使います");
+			pCodec = avcodec_find_decoder(vcodecId);
+		}
+		if (pCodec == NULL) {
+			THROW(FormatException, "Could not find decoder ...");
+		}
     codecCtx.Set(pCodec);
     if (avcodec_parameters_to_context(codecCtx(), videoStream->codecpar) != 0) {
       THROW(FormatException, "avcodec_parameters_to_context failed");
@@ -370,6 +406,7 @@ public:
 		const VideoFormat& vfmt, const AudioFormat& afmt,
 		const std::vector<FilterSourceFrame>& frames,
 		const std::vector<FilterAudioFrame>& audioFrames,
+		const DecoderSetting& decoderSetting,
     IScriptEnvironment* env)
     : AMTObject(ctx)
     , frames(frames)
@@ -525,7 +562,8 @@ void SaveAMTSource(
 	const std::string& audiopath,
 	const VideoFormat& vfmt, const AudioFormat& afmt,
 	const std::vector<FilterSourceFrame>& frames,
-	const std::vector<FilterAudioFrame>& audioFrames)
+	const std::vector<FilterAudioFrame>& audioFrames,
+	const DecoderSetting& decoderSetting)
 {
 	File file(savepath, "wb");
 	file.writeArray(std::vector<char>(srcpath.begin(), srcpath.end()));
@@ -534,6 +572,7 @@ void SaveAMTSource(
 	file.writeValue(afmt);
 	file.writeArray(frames);
 	file.writeArray(audioFrames);
+	file.writeValue(decoderSetting);
 }
 
 PClip LoadAMTSource(const std::string& loadpath, IScriptEnvironment* env)
@@ -548,8 +587,9 @@ PClip LoadAMTSource(const std::string& loadpath, IScriptEnvironment* env)
 	auto data = std::unique_ptr<AMTSourceData>(new AMTSourceData());
 	data->frames = file.readArray<FilterSourceFrame>();
 	data->audioFrames = file.readArray<FilterAudioFrame>();
+	DecoderSetting decoderSetting = file.readValue<DecoderSetting>();
 	AMTSource* src = new AMTSource(*g_ctx_for_plugin_filter,
-		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, env);
+		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, decoderSetting, env);
 	src->TransferStreamInfo(std::move(data));
 	return src;
 }

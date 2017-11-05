@@ -1,128 +1,194 @@
-﻿<UserControl x:Class="Amatsukaze.Views.SettingPanel"
+﻿<UserControl
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
              d:DesignHeight="900" d:DesignWidth="400"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition />
-            </Grid.RowDefinitions>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="エンコーダ" VerticalAlignment="Top" Margin="0,7,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,34,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="追加オプション" VerticalAlignment="Top" Margin="0,86,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,146,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="AmatsukazeCLIパス" VerticalAlignment="Top" Margin="0,174,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="Amatsukaze32bitDLLパス" VerticalAlignment="Top" Margin="0,202,0,0" />
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="x264パス" VerticalAlignment="Top" Margin="0,230,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="x265パス" VerticalAlignment="Top" Margin="0,258,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="QSVEncCパス" VerticalAlignment="Top" Margin="0,286,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="NVEncCパス" VerticalAlignment="Top" Margin="0,313,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="Muxerパス" VerticalAlignment="Top" Margin="0,341,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="TimelineEditorパス" VerticalAlignment="Top" Margin="0,368,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="ChapterExeパス" VerticalAlignment="Top" Margin="0,395,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="JoinLogoScpパス" VerticalAlignment="Top" Margin="0,422,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="↑デフォルトコマンドファイル" VerticalAlignment="Top" Margin="0,449,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="AVSフィルタパス" VerticalAlignment="Top" Margin="0,476,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="AVSポストフィルタパス" VerticalAlignment="Top" Margin="0,503,0,0"/>
-            <TextBlock HorizontalAlignment="Right" TextWrapping="Wrap" Text="常時表示ディスク" VerticalAlignment="Top" Margin="0,530,0,0"/>
-
-            <ComboBox Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding EncoderList}" SelectedIndex="{Binding Model.EncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-            <Slider Grid.Column="1" Margin="10.333,32,34,0" VerticalAlignment="Top" SmallChange="1" Maximum="8" Minimum="1" Value="{Binding Model.NumParallel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。"/>
-            <TextBlock Grid.Column="1" Margin="0,32,10,0" TextWrapping="Wrap" Text="{Binding Model.NumParallel}" VerticalAlignment="Top" HorizontalAlignment="Right" Width="7"/>
-            <TextBox Grid.Column="1" Height="85" Margin="10.667,55,10,0" TextWrapping="Wrap" Text="{Binding Model.EncoderOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" ToolTip="入力ファイルの解像度、アスペクト比、インタレースフラグ、&#10;フレームレート、カラーマトリクス等は自動で追加されるので不要"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,145,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,173,10,0" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,201,10,0" Text="{Binding Model.Amt32bitPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,229,10,0" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,257,10,0" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,285,10,0" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,312,10,0" Text="{Binding Model.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,339,10,0" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,367,10,0" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,394,10,0" Text="{Binding Model.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,421,10,0" Text="{Binding Model.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,448,10,0" Text="{Binding Model.DefaultJLSCommand, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="DefaultJls_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,475,10,0" Text="{Binding Model.FilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,502,10,0" Text="{Binding Model.PostFilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-            <TextBox Grid.Column="1" Height="23" Margin="10.667,529,10,0" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" ToolTip=";（セミコロン）で区切ることで複数設定することができます"/>
-
-
-            <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="0,7,0,0"/>
-            <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="0,34,0,0"/>
-
-            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding Mpeg2DecoderList}" SelectedIndex="{Binding Model.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,31,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-            <TextBlock Grid.Row="2" HorizontalAlignment="Left" Text="エンコード設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
-
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
-            <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="100,5,0,0" VerticalAlignment="Top" Width="50" Height="23" Grid.RowSpan="2" Text="{Binding Model.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"/>
-
-            <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="9.667,30.667,0,109" IsChecked="{Binding Model.TwoPass, Mode=TwoWay}" Grid.RowSpan="2"/>
-
-            <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="フィルタ出力を一時ファイルに保存" Margin="79.667,30.667,0,109" IsChecked="{Binding Model.EnableFilterTmp, Mode=TwoWay}" Grid.RowSpan="2"/>
-            
-            <CheckBox Name="abc"  Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="9.667,54.667,0,109" IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}" ToolTip="入力ファイルの映像ビットレートからビットレートを計算します。&#10;同時に最大ビットレートが、計算されたビットレートの2倍に設定されます。" Grid.RowSpan="2"/>
-
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="a" Margin="5,78,0,0" />
-            <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="15,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="b" Margin="70,78,0,0" />
-            <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="80,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
-            <TextBlock Grid.Row="2" Grid.Column="1" Text="h264" Margin="135,78,0,0" />
-            <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="23" Margin="165,75,0,0" IsEnabled="{Binding IsChecked, ElementName=abc}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
-
-            <Grid Grid.Row="2" Grid.Column="1" Margin="0,105,0,0" Width="240" HorizontalAlignment="Left">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <Grid.Resources>
+                    <Style TargetType="FrameworkElement">
+                        <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+                    </Style>
+                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
+                    <Style TargetType="Slider" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
+                    <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
+                    <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
+                </Grid.Resources>
+                
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition/>
-                    <RowDefinition/>
-                    <RowDefinition/>
-                    <RowDefinition/>
-                    <RowDefinition/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="ビットレートサンプル" HorizontalAlignment="Center" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="入力映像" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="MPEG2の場合" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="H264の場合" HorizontalAlignment="Center" />
+                <TextBlock HorizontalAlignment="Right" Text="エンコーダ" VerticalAlignment="Top" Margin="0,7,0,0"/>
+                <TextBlock HorizontalAlignment="Right" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,34,0,0"/>
+                <TextBlock HorizontalAlignment="Right" Text="追加オプション" VerticalAlignment="Top" Margin="0,86,0,0"/>
+                <TextBlock HorizontalAlignment="Right" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,146,0,0"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="18Mbps" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="12Mbps" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="7Mbps" HorizontalAlignment="Center" />
+                <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,168,0,0" TextAlignment="Right">JoinLogoScp<LineBreak/>デフォルトコマンドファイル</TextBlock>
+                <TextBlock HorizontalAlignment="Right" Text="メインフィルタ" VerticalAlignment="Top" Margin="0,202,0,0"/>
+                <TextBlock HorizontalAlignment="Right" Text="ポストフィルタ" VerticalAlignment="Top" Margin="0,230,0,0"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Bitrate18MPEG2}" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Bitrate12MPEG2}" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Bitrate7MPEG2}" HorizontalAlignment="Center" />
+                <ComboBox Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" ItemsSource="{Binding EncoderList}" SelectedIndex="{Binding Model.EncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <Slider Grid.Column="1" Margin="10.333,32,34,0" VerticalAlignment="Top" SmallChange="1" Maximum="8" Minimum="1" Value="{Binding Model.NumParallel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。"/>
+                <TextBlock Grid.Column="1" Margin="0,32,10,0" TextWrapping="Wrap" Text="{Binding Model.NumParallel}" VerticalAlignment="Top" HorizontalAlignment="Right" Width="7"/>
+                <TextBox Grid.Column="1" Height="85" Margin="10.667,55,10,0" TextWrapping="Wrap" Text="{Binding Model.EncoderOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
+                     ToolTip="入力ファイルの解像度、アスペクト比、インタレースフラグ、&#xA;フレームレート、カラーマトリクス等は自動で追加されるので不要です。"/>
+                <TextBox Grid.Column="1" Height="23" Margin="10.667,145,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" 
+                     ToolTip="重要です。なるべくSSDなどの高速なストレージを使ってください。&#xA;たまにゴミが残るので終了しても残っているファイルがあったら削除してください。"/>
 
-                <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Bitrate18H264}" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding Bitrate12H264}" HorizontalAlignment="Center" />
-                <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Bitrate7H264}" HorizontalAlignment="Center" />
+                <ComboBox Grid.Column="1" Height="23" Margin="10.667,173,10,0" 
+                      ItemsSource="{Binding Model.JlsCommandFiles}"
+                      Text="{Binding Model.DefaultJLSCommand, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" 
+                          ToolTip="CM判定に使います。&#xA;コマンドファイルはチャンネルごとに設定できますが、設定がない場合はこれを使います。"/>
+                <ComboBox Grid.Column="1" Height="23" Margin="10.667,201,10,0"
+                      ItemsSource="{Binding Model.MainScriptFiles}"
+                      Text="{Binding Model.FilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
+                          ToolTip="メインとなるフィルタを設定します。&#xA;出力が8bitYUV420の場合のみ一時ファイルに保存できます。" />
+                <ComboBox Grid.Column="1" Height="23" Margin="10.667,229,10,0"
+                      ItemsSource="{Binding Model.PostScriptFiles}"
+                      Text="{Binding Model.PostFilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
+                          ToolTip="メインフィルタの後に掛けるフィルタを設定します。&#xA;高ビット処理をこちらでやることを想定しています。" />
+
+                <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="54,6,0,0"/>
+                <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="65,34,0,0"/>
+
+                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" 
+                      ItemsSource="{Binding Mpeg2DecoderList}" SelectedIndex="{Binding Model.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="デフォルト(CPU)が一番速いと思います。&#xA;QSVにするとCPU負荷が減るのでトータルでは速くなるかもしれません。"/>
+                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,31,0,0" VerticalAlignment="Top" Width="120"
+                      ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="QSVの方が速いです。"/>
+
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,12.667,2.333,0"/>
+                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,5.667,0,0"
+                          IsChecked="{Binding Model.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
+                
+                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="フィルタ出力を一時ファイルに保存" Margin="10,25.667,0,0"
+                      IsChecked="{Binding Model.EnableFilterTmp, Mode=TwoWay}" Height="16" VerticalAlignment="Top"
+                      ToolTip="メインフィルタの出力を可逆圧縮して一時フォルダに保存してエンコード時利用します。&#xA;フィルタ処理に時間がかかる場合に有効です。&#xA;メインフィルタの出力が8bitYUV420の場合のみ対応しています。"
+                      IsEnabled="{Binding Model.TwoPass}"/>
+
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="一時ファイル最大データ量" VerticalAlignment="Top" Margin="0,46.667,1.333,0"/>
+                <Slider Grid.Row="2" Grid.Column="1" Margin="10.667,46.667,49.667,4" VerticalAlignment="Top" SmallChange="1" Maximum="{Binding Model.TmpDiskSpaceGB}" Minimum="50" 
+                    Value="{Binding Model.MaxTmpGB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="フィルタ出力一時ファイルの最大専有データ量です。&#xA;150GB～400GBくらいが推奨値です。"
+                        IsEnabled="{Binding Model.TwoPass}"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,46.667,-0.333,0" Text="{Binding Model.MaxTmpGB, StringFormat={}{0}GB}"
+                       VerticalAlignment="Top" HorizontalAlignment="Right" Width="45"/>
+
+                <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
+                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Margin="100,5,0,0" VerticalAlignment="Top" Width="50" Height="23" Grid.RowSpan="2"
+                     Text="{Binding Model.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="エンコーダがx264,x265のときのみ有効です。&#xA;zonesオプションによりCM区間のビットレートを指定倍率に設定します。&#xA;CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。"/>
+
+                <CheckBox x:Name="autoBitrateCheck" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="9.667,33,0,0"
+                          IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}" Height="19" VerticalAlignment="Top">
+                    <CheckBox.ToolTip>
+                        <TextBlock>入力ファイルの映像ビットレートからビットレートを計算します。
+                            <LineBreak/>映像ビットレートkbps = h264*(a*s+b)
+                            <LineBreak/>sは入力映像ビットレート、a,b,h264は設定された値、ただしh264はソースがMPEG2の場合は1
+                            <LineBreak/>同時に最大ビットレートが、計算されたビットレートの2倍に設定されます。
+                        </TextBlock>
+                    </CheckBox.ToolTip>
+                </CheckBox>
+
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="a" Margin="4.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
+                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="14.667,53,0,0"
+                         IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="b" Margin="69.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
+                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="79.667,53,0,0"
+                         IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="h264" Margin="134.667,57,0,0" HorizontalAlignment="Left" Width="30" Height="19" VerticalAlignment="Top" />
+                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="164.667,53,0,0" 
+                         IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
+
+                <Grid Grid.Row="3" Grid.Column="1" Margin="0,85,0,0" Width="240" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="ビットレートサンプル" HorizontalAlignment="Center" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="入力映像" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="MPEG2の場合" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="H264の場合" HorizontalAlignment="Center" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="18Mbps" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="12Mbps" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="7Mbps" HorizontalAlignment="Center" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Bitrate18MPEG2}" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Bitrate12MPEG2}" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Bitrate7MPEG2}" HorizontalAlignment="Center" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Bitrate18H264}" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding Bitrate12H264}" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Bitrate7H264}" HorizontalAlignment="Center" />
+                </Grid>
+
+                <StackPanel Grid.Row="5" Grid.Column="0">
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="Amatsukaze32bitDLLパス" />
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x265パス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="QSVEncCパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NVEncCパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="Muxerパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="TimelineEditorパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="ChapterExeパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
+                </StackPanel>
+                <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
+                     ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.Amt32bitPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                </StackPanel>
+
+
             </Grid>
+        </ScrollViewer>
 
-            <TextBlock Grid.Row="3" Grid.ColumnSpan="2" HorizontalAlignment="Left" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,7,0,0">
-            <Run Text="{Binding Model.SettingWarningText}" Foreground="Red" />
-            <Run Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"/>
-            </TextBlock>
-
-            <Button Content="適用" Grid.Column="1" Margin="0,5,9,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="60" Command="{Binding SendSettingCommand}"/>
-
-        </Grid>
-    </ScrollViewer>
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,0.333,74,0"><Run Text="{Binding Model.SettingWarningText}" Foreground="Red" /><Run Text=" "/><Run Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"/></TextBlock>
+        <Button Content="適用" Grid.Row="1" Margin="0,5.333,9,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="60" Command="{Binding SendSettingCommand}" Height="27"/>
+    </Grid>
 </UserControl>

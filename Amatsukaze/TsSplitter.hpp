@@ -521,7 +521,7 @@ protected:
 	}
 
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {
-		ASSERT(audioIdx < audioParsers.size());
+		ASSERT(audioIdx < (int)audioParsers.size());
 		audioParsers[audioIdx]->onTsPacket(clock, packet);
 	}
 };

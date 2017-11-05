@@ -110,6 +110,12 @@ namespace Amatsukaze.Server
         public string DefaultJLSCommand { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
+
+        public bool EncodeSchedulingEnabled {
+            get {
+                return TwoPass && EnableFilterTmp;
+            }
+        }
     }
 
     [DataContract]
@@ -446,6 +452,16 @@ namespace Amatsukaze.Server
     {
         [DataMember]
         public List<string> Files { get; set; }
+    }
+
+    [DataContract]
+    public class AvsScriptFiles
+    {
+        [DataMember]
+        public List<string> Main { get; set; }
+        
+        [DataMember]
+        public List<string> Post { get; set; }
     }
 
     [DataContract]

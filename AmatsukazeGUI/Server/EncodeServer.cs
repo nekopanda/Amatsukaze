@@ -300,7 +300,7 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnServiceSetting, service);
         }
 
-        public Task OnLlsCommandFiles(JLSCommandFiles files)
+        public Task OnJlsCommandFiles(JLSCommandFiles files)
         {
             return Send(RPCMethodId.OnLlsCommandFiles, files);
         }
@@ -308,6 +308,11 @@ namespace Amatsukaze.Server
         public Task OnLogoData(LogoData logoData)
         {
             return Send(RPCMethodId.OnLogoData, logoData);
+        }
+
+        public Task OnAvsScriptFiles(AvsScriptFiles files)
+        {
+            return Send(RPCMethodId.OnAvsScriptFiles, files);
         }
         #endregion
     }
@@ -367,10 +372,10 @@ namespace Amatsukaze.Server
         enum PipeCommand
         {
             FinishAnalyze = 1,
-            StartFilter,
-            FinishFilter,
-            FinishEncode,
-            Error
+            StartFilter = 2,
+            FinishFilter = 3,
+            FinishEncode = 4,
+            Error = 5
         }
 
         private class TranscodeTask
@@ -411,6 +416,7 @@ namespace Amatsukaze.Server
             public TranscodeTask parent;
             public int index;
             public int numFrames;
+            public int bytesPerFrame;
             public string infoFile;
             public string tmpFile;
             public BufferBlock<bool> filterFinish;
@@ -446,14 +452,28 @@ namespace Amatsukaze.Server
                         {
                             if (frag.encodeProccess != null)
                             {
-                                frag.encodeProccess.Kill();
+                                try
+                                {
+                                    frag.encodeProccess.Kill();
+                                }
+                                catch(InvalidOperationException)
+                                {
+                                    // プロセスが既に終了していた場合
+                                }
                             }
                         }
                     }
                     // 本体をKill
                     if (current.process != null)
                     {
-                        current.process.Kill();
+                        try
+                        {
+                            current.process.Kill();
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // プロセスが既に終了していた場合
+                        }
                     }
                 }
             }
@@ -504,24 +524,20 @@ namespace Amatsukaze.Server
             private void MakeFragments(TranscodeTask task, string jsonstring)
             {
                 var json = DynamicJson.Parse(jsonstring);
-                task.fragments = new FragmentTask[(int)json.numparts];
-                var infofiles = new List<string>();
-                var tmpfiles = new List<string>();
-                var frames = new List<int>();
+                var list = new List<FragmentTask>();
                 foreach (var obj in json.files)
                 {
-                    infofiles.Add(obj.infopath);
-                    tmpfiles.Add(obj.tmppath);
-                    frames.Add(obj.numframe);
+                    int index = list.Count;
+                    list.Add(new FragmentTask() {
+                        index = index,
+                        parent = task,
+                        numFrames = (int)obj.numframe,
+                        bytesPerFrame = (int)obj.bytesperframe,
+                        infoFile = obj.infopath,
+                        tmpFile = obj.tmppath
+                    });
                 }
-                for (int i = 0; i < task.fragments.Length; ++i)
-                {
-                    task.fragments[i].index = i;
-                    task.fragments[i].parent = task;
-                    task.fragments[i].numFrames = frames[i];
-                    task.fragments[i].infoFile = infofiles[i];
-                    task.fragments[i].tmpFile = tmpfiles[i];
-                }
+                task.fragments = list.ToArray();
             }
 
             private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish)
@@ -600,7 +616,7 @@ namespace Amatsukaze.Server
 
             private async Task HostThread(EncodeServer server, TranscodeTask transcode, PipeStream readPipe, PipeStream writePipe)
             {
-                if (!server.appData.setting.EnableFilterTmp)
+                if (!server.appData.setting.EncodeSchedulingEnabled)
                 {
                     return;
                 }
@@ -616,17 +632,25 @@ namespace Amatsukaze.Server
                         {
                             case PipeCommand.FinishAnalyze:
                                 MakeFragments(transcode, await ReadString(readPipe));
-                                server.filterQueue.Post(transcode);
+                                server.filterQ.Post(transcode);
                                 break;
                             case PipeCommand.FinishFilter:
-                                server.encoderQueue.Post(transcode.fragments[numFilterCompelte++]);
+                                {
+                                    // フィルタ終了通知
+                                    var fragment = transcode.fragments[numFilterCompelte++];
+                                    fragment.filterFinish.Post(true);
+                                    fragment.filterFinish = null; // 通知が終わったら即nullにする
+
+                                    server.encoderQ.Post(fragment);
+                                }
                                 break;
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    if (transcode.numFinishedEncoders >= transcode.fragments.Length)
+                    if (transcode.fragments != null &&
+                        transcode.numFinishedEncoders >= transcode.fragments.Length)
                     {
                         // もう終了した
                         return;
@@ -638,12 +662,21 @@ namespace Amatsukaze.Server
                     // エンコード中のタスクは強制終了
                     KillProcess();
 
-                    // 一時ファイルを消す
-                    foreach (var fragment in transcode.fragments)
+                    if(transcode.fragments != null)
                     {
-                        if (File.Exists(fragment.tmpFile))
+                        foreach (var fragment in transcode.fragments)
                         {
-                            File.Delete(fragment.tmpFile);
+                            // エラー終了を通知
+                            if (fragment.filterFinish != null)
+                            {
+                                fragment.filterFinish.Post(false);
+                                fragment.filterFinish = null;
+                            }
+                            // 一時ファイルを消す
+                            if (File.Exists(fragment.tmpFile))
+                            {
+                                File.Delete(fragment.tmpFile);
+                            }
                         }
                     }
 
@@ -705,7 +738,7 @@ namespace Amatsukaze.Server
 
                 AnonymousPipeServerStream readPipe = null, writePipe = null;
                 string outHandle = null, inHandle = null;
-                if (server.appData.setting.EnableFilterTmp)
+                if (server.appData.setting.EncodeSchedulingEnabled)
                 {
                     readPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
                     writePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
@@ -755,7 +788,7 @@ namespace Amatsukaze.Server
                     {
                         try
                         {
-                            if (server.appData.setting.EnableFilterTmp == false)
+                            if (server.appData.setting.EncodeSchedulingEnabled == false)
                             {
                                 // アフィニティを設定
                                 IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
@@ -989,15 +1022,25 @@ namespace Amatsukaze.Server
                     CreateNoWindow = true
                 };
 
+                Util.AddLog(id, "分割エンコード開始: " + (task.index + 1));
+                Util.AddLog(id, "Args: " + exename + " " + args);
+
                 try
                 {
                     using (var p = Process.Start(psi))
                     {
-                        // アフィニティを設定
-                        IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(cpuIndex));
-                        Util.AddLog(task.parent.thread.id, "AffinityMask: " + affinityMask.ToInt64());
-                        p.ProcessorAffinity = affinityMask;
-                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                        try
+                        {
+                            // アフィニティを設定
+                            IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(cpuIndex));
+                            Util.AddLog(task.parent.thread.id, "AffinityMask: " + affinityMask.ToInt64());
+                            p.ProcessorAffinity = affinityMask;
+                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // 既にプロセスが終了していると例外が出るが無視する
+                        }
 
                         task.encodeProccess = p;
 
@@ -1036,8 +1079,8 @@ namespace Amatsukaze.Server
         private AppData appData;
 
         private List<TranscodeThread> taskList = new List<TranscodeThread>();
-        private BufferBlock<TranscodeTask> filterQueue;
-        private BufferBlock<FragmentTask> encoderQueue;
+        private BufferBlock<TranscodeTask> filterQ;
+        private BufferBlock<FragmentTask> encoderQ;
 
         private long occupiedStorage;
         private BufferBlock<int> storageQ = new BufferBlock<int>();
@@ -1052,6 +1095,7 @@ namespace Amatsukaze.Server
         private AffinityCreator affinityCreator = new AffinityCreator();
 
         private JLSCommandFiles jlsFiles = new JLSCommandFiles() { Files = new List<string>() };
+        private AvsScriptFiles avsFiles = new AvsScriptFiles() { Main = new List<string>(), Post = new List<string>() };
 
         // キューに追加されるTSを解析するスレッド
         private Task queueThread;
@@ -1061,6 +1105,11 @@ namespace Amatsukaze.Server
         private Task watchFileThread;
         private BufferBlock<int> watchFileQ = new BufferBlock<int>();
         private bool serviceListUpdated;
+
+        // 設定を保存するスレッド
+        private Task saveSettingThread;
+        private BufferBlock<int> saveSettingQ = new BufferBlock<int>();
+        private bool settingUpdated;
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -1109,9 +1158,10 @@ namespace Amatsukaze.Server
                 RaisePropertyChanged("ClientManager");
             }
             ReadLog();
-            encodeThread = EncodeThread();
+            encodeThread = TranscodeMainThread();
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
+            saveSettingThread = SaveSettingThread();
         }
 
         #region IDisposable Support
@@ -1137,6 +1187,13 @@ namespace Amatsukaze.Server
                     startEncodeQ.Complete();
                     queueQ.Complete();
                     watchFileQ.Complete();
+                    saveSettingQ.Complete();
+
+                    if(settingUpdated)
+                    {
+                        settingUpdated = false;
+                        SaveAppData();
+                    }
                 }
 
                 // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
@@ -1201,6 +1258,11 @@ namespace Amatsukaze.Server
         private string GetJLDirectoryPath()
         {
             return Path.GetFullPath("JL");
+        }
+
+        private string GetAvsDirectoryPath()
+        {
+            return Path.GetFullPath("avs");
         }
         #endregion
 
@@ -1421,10 +1483,6 @@ namespace Amatsukaze.Server
             {
                 throw new ArgumentException("JoinLogoScpPathパスが指定されていません");
             }
-            if (string.IsNullOrEmpty(appData.setting.FilterPath))
-            {
-                throw new ArgumentException("FilterPathパスが指定されていません");
-            }
 
             double bitrateCM = appData.setting.BitrateCM;
             if (bitrateCM == 0)
@@ -1459,8 +1517,6 @@ namespace Amatsukaze.Server
                 .Append(appData.setting.ChapterExePath)
                 .Append("\" --jls \"")
                 .Append(appData.setting.JoinLogoScpPath)
-                .Append("\" -f \"")
-                .Append(appData.setting.FilterPath)
                 .Append("\" -s \"")
                 .Append(serviceId)
 
@@ -1486,10 +1542,17 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
+            if (string.IsNullOrEmpty(appData.setting.FilterPath) == false)
+            {
+                sb.Append(" -f \"")
+                    .Append(GetAvsDirectoryPath() + "\\" + appData.setting.FilterPath)
+                    .Append("\"");
+            }
+
             if (string.IsNullOrEmpty(appData.setting.PostFilterPath) == false)
             {
                 sb.Append(" -pf \"")
-                    .Append(appData.setting.PostFilterPath)
+                    .Append(GetAvsDirectoryPath() + "\\" + appData.setting.PostFilterPath)
                     .Append("\"");
             }
 
@@ -1525,8 +1588,8 @@ namespace Amatsukaze.Server
             }
             if (inHandle != null)
             {
-                sb.Append(" --in-pipe ").Append(inHandle);
-                sb.Append(" --out-pipe ").Append(outHandle);
+                sb.Append(" --inpipe ").Append(inHandle);
+                sb.Append(" --outpipe ").Append(outHandle);
             }
             if (logofiles != null)
             {
@@ -1542,10 +1605,17 @@ namespace Amatsukaze.Server
         private string MakeEncodeTaskArgs(FragmentTask fragment)
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("--mode enctask ");
-            sb.Append("--info \"").Append(fragment.infoFile)
+            sb.Append("--mode enctask ")
+                .Append("-a \"").Append(fragment.infoFile)
                 .Append("\" -i \"").Append(fragment.tmpFile)
                 .Append("\"");
+
+            if (string.IsNullOrEmpty(appData.setting.PostFilterPath) == false)
+            {
+                sb.Append(" -pf \"")
+                    .Append(GetAvsDirectoryPath() + "\\" + appData.setting.PostFilterPath)
+                    .Append("\"");
+            }
 
             return sb.ToString();
         }
@@ -1565,7 +1635,7 @@ namespace Amatsukaze.Server
             return client.OnOperationResult(str);
         }
 
-        private async Task StartEncode()
+        private async Task StartTranscode()
         {
             NowEncoding = true;
 
@@ -1596,13 +1666,13 @@ namespace Amatsukaze.Server
                     int numParallelAnalyze = appData.setting.NumParallel;
                     int numParallelEncode = appData.setting.NumParallel;
 
-                    if (appData.setting.EnableFilterTmp)
+                    if (appData.setting.EncodeSchedulingEnabled)
                     {
                         numParallelAnalyze += 2;
 
                         // キュー作成
-                        filterQueue = new BufferBlock<TranscodeTask>();
-                        encoderQueue = new BufferBlock<FragmentTask>();
+                        filterQ = new BufferBlock<TranscodeTask>();
+                        encoderQ = new BufferBlock<FragmentTask>();
                     }
 
                     // 足りない場合は追加
@@ -1635,7 +1705,7 @@ namespace Amatsukaze.Server
                     }
 
                     var threads = new List<Task>();
-                    if (appData.setting.EnableFilterTmp)
+                    if (appData.setting.EncodeSchedulingEnabled)
                     {
                         for(int i = 0; i < NumFilterThreads; ++i)
                         {
@@ -1659,10 +1729,10 @@ namespace Amatsukaze.Server
 
                     await Task.WhenAll(tasks);
 
-                    if (appData.setting.EnableFilterTmp)
+                    if (appData.setting.EncodeSchedulingEnabled)
                     {
-                        filterQueue.Complete();
-                        encoderQueue.Complete();
+                        filterQ.Complete();
+                        encoderQ.Complete();
                         await Task.WhenAll(threads);
                     }
 
@@ -1705,7 +1775,7 @@ namespace Amatsukaze.Server
             await Task.WhenAll(waitList.ToArray());
         }
 
-        private async Task EncodeThread()
+        private async Task TranscodeMainThread()
         {
             try
             {
@@ -1715,7 +1785,7 @@ namespace Amatsukaze.Server
 
                     if (nowEncoding == false && encodePaused == false)
                     {
-                        await StartEncode();
+                        await StartTranscode();
                     }
                 }
             }
@@ -1731,22 +1801,41 @@ namespace Amatsukaze.Server
 
             try
             {
-                while (await filterQueue.OutputAvailableAsync())
+                while (await filterQ.OutputAvailableAsync())
                 {
-                    TranscodeTask task = await filterQueue.ReceiveAsync();
+                    TranscodeTask task = await filterQ.ReceiveAsync();
 
                     foreach (var fragment in task.fragments)
                     {
-                        // TODO: フィルタ出力推定値を計算
-                        long estimatedTmpBytes = 100000;
+                        // フィルタ出力推定値を計算
+                        long estimatedTmpBytes = fragment.bytesPerFrame * fragment.numFrames;
 
                         // テンポラリ容量を見る
-                        int occupied = (int)((occupiedStorage + estimatedTmpBytes) / (1024 * 1024 * 1024));
+                        int occupied = (int)((occupiedStorage + estimatedTmpBytes) / (1024 * 1024 * 1024L));
                         if (occupied > appData.setting.MaxTmpGB)
                         {
                             // 容量を超えるのでダメ
                             await storageQ.ReceiveAsync();
                             continue;
+                        }
+
+                        if(occupiedStorage > 0)
+                        {
+                            // ディスクの空き容量も見る
+                            ulong available = 0;
+                            ulong total = 0;
+                            ulong free = 0;
+                            Util.GetDiskFreeSpaceEx(appData.setting.WorkPath, out available, out total, out free);
+
+                            // 最低限残しておくサイズ = 30GB
+                            const long workSpace = 30L * 1024 * 1024 * 1024;
+
+                            if ((long)free < estimatedTmpBytes + workSpace)
+                            {
+                                // 容量を超えるのでダメ
+                                await storageQ.ReceiveAsync();
+                                continue;
+                            }
                         }
 
                         // 推定値を足してフィルタ処理開始
@@ -1758,7 +1847,7 @@ namespace Amatsukaze.Server
                             await task.startFilter();
 
                             // フィルタ終了を待つ
-                            bool success = await fragment.filterFinish.ReceiveAsync();
+                            bool success = await finishQ.ReceiveAsync();
                             if (success == false)
                             {
                                 // 失敗した
@@ -1799,9 +1888,9 @@ namespace Amatsukaze.Server
         {
             try
             {
-                while (await encoderQueue.OutputAvailableAsync())
+                while (await encoderQ.OutputAvailableAsync())
                 {
-                    FragmentTask task = await encoderQueue.ReceiveAsync();
+                    FragmentTask task = await encoderQ.ReceiveAsync();
 
                     int exitCode = await task.parent.thread.ExecEncoder(this, task, cpuIndex);
 
@@ -2027,6 +2116,7 @@ namespace Amatsukaze.Server
                 var logoTime = new Dictionary<string,DateTime>();
 
                 var jlsDirTime = DateTime.MinValue;
+                var avsDirTime = DateTime.MinValue;
 
                 // 初期化
                 foreach (var service in appData.services.ServiceMap.Values)
@@ -2170,6 +2260,7 @@ namespace Amatsukaze.Server
                             startEncodeQ.Post(0);
                         }
                     }
+
                     string jlspath = GetJLDirectoryPath();
                     if (Directory.Exists(jlspath))
                     {
@@ -2180,11 +2271,60 @@ namespace Amatsukaze.Server
 
                             jlsFiles.Files = Directory.GetFiles(jlspath)
                                 .Select(s => Path.GetFileName(s)).ToList();
-                            await client.OnLlsCommandFiles(jlsFiles);
+                            await client.OnJlsCommandFiles(jlsFiles);
+                        }
+                    }
+
+                    string avspath = GetAvsDirectoryPath();
+                    if (Directory.Exists(avspath))
+                    {
+                        var lastModified = Directory.GetLastWriteTime(avspath);
+                        if (avsDirTime != lastModified)
+                        {
+                            avsDirTime = lastModified;
+
+                            var files = Directory.GetFiles(avspath)
+                                .Where(f => f.EndsWith(".avs", StringComparison.OrdinalIgnoreCase))
+                                .Select(f => Path.GetFileName(f));
+
+                            avsFiles.Main = files
+                                .Where(f => f.StartsWith("メイン_")).ToList();
+
+                            avsFiles.Post = files
+                                .Where(f => f.StartsWith("ポスト_")).ToList();
+
+                            await client.OnAvsScriptFiles(avsFiles);
                         }
                     }
 
                     if (await Task.WhenAny(completion, Task.Delay(2000)) == completion)
+                    {
+                        // 終了
+                        return;
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                await client.OnOperationResult("WatchFileThreadがエラー終了しました: " + exception.Message);
+            }
+        }
+
+        private async Task SaveSettingThread()
+        {
+            try
+            {
+                var completion = saveSettingQ.OutputAvailableAsync();
+
+                while (true)
+                {
+                    if(settingUpdated)
+                    {
+                        SaveAppData();
+                        settingUpdated = false;
+                    }
+
+                    if (await Task.WhenAny(completion, Task.Delay(5000)) == completion)
                     {
                         // 終了
                         return;
@@ -2236,6 +2376,13 @@ namespace Amatsukaze.Server
                     diskMap.Add(diskPath, MakeDiskItem(diskPath));
                 }
             }
+            {
+                var diskPath = Path.GetPathRoot(appData.setting.WorkPath);
+                if (diskMap.ContainsKey(diskPath) == false)
+                {
+                    diskMap.Add(diskPath, MakeDiskItem(diskPath));
+                }
+            }
         }
 
         private static LogoSetting MakeNoLogoSetting(int serviceId)
@@ -2254,9 +2401,10 @@ namespace Amatsukaze.Server
         public Task SetSetting(Setting setting)
         {
             appData.setting = setting;
-            SaveAppData();
+            settingUpdated = true;
             return Task.WhenAll(
                 RequestSetting(),
+                RequestFreeSpace(),
                 AddEncodeLog("設定を更新しました"));
         }
 
@@ -2381,6 +2529,7 @@ namespace Amatsukaze.Server
                     update.Type = ServiceSettingUpdateType.Update;
                     update.Data = service;
                 }
+                settingUpdated = true;
             }
             await client.OnServiceSetting(update);
         }

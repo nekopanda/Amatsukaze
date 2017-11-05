@@ -405,6 +405,18 @@ enum DECODER_TYPE {
 	DECODER_CUVID,
 };
 
+struct DecoderSetting {
+	DECODER_TYPE mpeg2;
+	DECODER_TYPE h264;
+	DECODER_TYPE hevc;
+
+	DecoderSetting()
+		: mpeg2(DECODER_DEFAULT)
+		, h264(DECODER_DEFAULT)
+		, hevc(DECODER_DEFAULT)
+	{ }
+};
+
 enum VIDEO_STREAM_FORMAT {
   VS_UNKNOWN,
 	VS_MPEG2,

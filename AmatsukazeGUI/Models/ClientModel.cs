@@ -11,6 +11,7 @@ using Livet;
 using Amatsukaze.Server;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks.Dataflow;
+using System.Windows.Data;
 
 namespace Amatsukaze.Models
 {
@@ -240,7 +241,7 @@ namespace Amatsukaze.Models
 
         public override void OnAddLine(string text)
         {
-            if (TextLines.Count > 400)
+            if (TextLines.Count > 800)
             {
                 TextLines.RemoveAt(0);
             }
@@ -397,6 +398,34 @@ namespace Amatsukaze.Models
                 if (_JlsCommandFiles == value)
                     return;
                 _JlsCommandFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MainScriptFiles変更通知プロパティ
+        private List<string> _MainScriptFiles;
+
+        public List<string> MainScriptFiles {
+            get { return _MainScriptFiles; }
+            set { 
+                if (_MainScriptFiles == value)
+                    return;
+                _MainScriptFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PostScriptFiles変更通知プロパティ
+        private List<string> _PostScriptFiles;
+
+        public List<string> PostScriptFiles {
+            get { return _PostScriptFiles; }
+            set { 
+                if (_PostScriptFiles == value)
+                    return;
+                _PostScriptFiles = value;
                 RaisePropertyChanged();
             }
         }
@@ -648,11 +677,12 @@ namespace Amatsukaze.Models
 
         #region FilterPath変更通知プロパティ
         public string FilterPath {
-            get { return setting.FilterPath; }
+            get { return string.IsNullOrEmpty(setting.FilterPath) ? "フィルタなし" : setting.FilterPath; }
             set {
-                if (setting.FilterPath == value)
+                string val = (value == "フィルタなし") ? "" : value;
+                if (setting.FilterPath == val)
                     return;
-                setting.FilterPath = value;
+                setting.FilterPath = val;
                 RaisePropertyChanged();
             }
         }
@@ -660,11 +690,12 @@ namespace Amatsukaze.Models
 
         #region PostFilterPath変更通知プロパティ
         public string PostFilterPath {
-            get { return setting.PostFilterPath; }
+            get { return string.IsNullOrEmpty(setting.PostFilterPath) ? "フィルタなし" : setting.PostFilterPath; }
             set {
-                if (setting.PostFilterPath == value)
+                string val = (value == "フィルタなし") ? "" : value;
+                if (setting.PostFilterPath == val)
                     return;
-                setting.PostFilterPath = value;
+                setting.PostFilterPath = val;
                 RaisePropertyChanged();
             }
         }
@@ -828,13 +859,27 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region Pulldown変更通知プロパティ
+        #region MaxTmpGB変更通知プロパティ
         public int MaxTmpGB {
             get { return setting.MaxTmpGB; }
             set {
                 if (setting.MaxTmpGB == value)
                     return;
                 setting.MaxTmpGB = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region TmpDiskSpaceGB変更通知プロパティ
+        private int _TmpDiskSpaceGB = 500;
+
+        public int TmpDiskSpaceGB {
+            get { return _TmpDiskSpaceGB; }
+            set { 
+                if (_TmpDiskSpaceGB == value)
+                    return;
+                _TmpDiskSpaceGB = value;
                 RaisePropertyChanged();
             }
         }
@@ -1369,6 +1414,14 @@ namespace Amatsukaze.Models
         public Task OnFreeSpace(DiskFreeSpace space)
         {
             DiskFreeSpace = space.Disks;
+
+            // 一時フォルダの容量があれば更新
+            var diskItem = space.Disks.Find(item => WorkPath.StartsWith(item.Path));
+            if(diskItem != null)
+            {
+                TmpDiskSpaceGB = (int)(diskItem.Capacity / (1024*1024*1024L));
+            }
+
             return Task.FromResult(0);
         }
 
@@ -1396,7 +1449,7 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnLlsCommandFiles(JLSCommandFiles files)
+        public Task OnJlsCommandFiles(JLSCommandFiles files)
         {
             JlsCommandFiles = files.Files.ToArray();
             return Task.FromResult(0);
@@ -1415,6 +1468,13 @@ namespace Amatsukaze.Models
                     logo.Data = logoData;
                 }
             }
+            return Task.FromResult(0);
+        }
+
+        public Task OnAvsScriptFiles(AvsScriptFiles files)
+        {
+            MainScriptFiles = new string[] { "フィルタなし" }.Concat(files.Main).ToList();
+            PostScriptFiles = new string[] { "フィルタなし" }.Concat(files.Post).ToList();
             return Task.FromResult(0);
         }
     }

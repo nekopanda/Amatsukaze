@@ -181,8 +181,7 @@ public:
 		, fieldMode_()
 	{ }
 
-	void readAll(const std::string& src,
-		DECODER_TYPE mpeg2decoder, DECODER_TYPE h264decoder, DECODER_TYPE hevcdecoder)
+	void readAll(const std::string& src, const DecoderSetting& decoderSetting)
 	{
 		InputContext inputCtx(src);
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
@@ -194,7 +193,7 @@ public:
 			THROW(FormatException, "Could not find video stream ...");
 		}
 		AVCodecID vcodecId = videoStream->codecpar->codec_id;
-		AVCodec *pCodec = getHWAccelCodec(vcodecId, mpeg2decoder, h264decoder, hevcdecoder);
+		AVCodec *pCodec = getHWAccelCodec(vcodecId, decoderSetting);
 		if (pCodec == NULL) {
 			ctx.warn("指定されたデコーダが使用できないためデフォルトデコーダを使います");
 			pCodec = avcodec_find_decoder(vcodecId);
@@ -253,12 +252,11 @@ private:
   bool fieldMode_;
   std::unique_ptr<av::Frame> prevFrame_;
 
-	AVCodec* getHWAccelCodec(AVCodecID vcodecId,
-		DECODER_TYPE mpeg2decoder, DECODER_TYPE h264decoder, DECODER_TYPE hevcdecoder)
+	AVCodec* getHWAccelCodec(AVCodecID vcodecId, const DecoderSetting& decoderSetting)
 	{
 		switch (vcodecId) {
 		case AV_CODEC_ID_MPEG2VIDEO:
-			switch (mpeg2decoder) {
+			switch (decoderSetting.mpeg2) {
 			case DECODER_QSV:
 				return avcodec_find_decoder_by_name("mpeg2_qsv");
 			case DECODER_CUVID:
@@ -266,7 +264,7 @@ private:
 			}
 			break;
 		case AV_CODEC_ID_H264:
-			switch (h264decoder) {
+			switch (decoderSetting.h264) {
 			case DECODER_QSV:
 				return avcodec_find_decoder_by_name("h264_qsv");
 			case DECODER_CUVID:
@@ -274,7 +272,7 @@ private:
 			}
 			break;
 		case AV_CODEC_ID_HEVC:
-			switch (hevcdecoder) {
+			switch (decoderSetting.hevc) {
 			case DECODER_QSV:
 				return avcodec_find_decoder_by_name("hevc_qsv");
 			case DECODER_CUVID:
@@ -790,7 +788,7 @@ public:
 			encoders_[i].start(encoder_args[i], formats[i], false, bufsize);
 		}
 
-		reader.readAll(srcpath, DECODER_DEFAULT, DECODER_DEFAULT, DECODER_DEFAULT);
+		reader.readAll(srcpath, DecoderSetting());
 
 		for (int i = 0; i < numEncoders_; ++i) {
 			encoders_[i].finish();

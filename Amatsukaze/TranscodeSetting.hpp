@@ -220,6 +220,10 @@ public:
 	TempDirectory(AMTContext& ctx, const std::string& tmpdir)
 		: AMTObject(ctx)
 	{
+		if (tmpdir.size() == 0) {
+			// 指定がなければ作らない
+			return;
+		}
 		for (int code = (int)time(NULL) & 0xFFFFFF; code > 0; ++code) {
 			auto path = genPath(tmpdir, code);
 			if (_mkdir(path.c_str()) == 0) {
@@ -235,6 +239,9 @@ public:
 		}
 	}
 	~TempDirectory() {
+		if (path_.size() == 0) {
+			return;
+		}
 		// 一時ファイルを削除
 		ctx.clearTmpFiles();
 		// ディレクトリ削除
@@ -244,6 +251,9 @@ public:
 	}
 
 	std::string path() const {
+		if (path_.size() == 0) {
+			THROW(RuntimeException, "一時フォルダの指定がありません");
+		}
 		return path_;
 	}
 
@@ -282,8 +292,7 @@ public:
 		BitrateSetting bitrate,
 		double bitrateCM,
 		int serviceId,
-		DECODER_TYPE mpeg2decoder,
-		DECODER_TYPE h264decoder,
+		DecoderSetting decoderSetting,
 		std::vector<std::string> logoPath,
 		bool errorOnNoLogo,
 		std::string amt32bitPath,
@@ -313,8 +322,7 @@ public:
 		, bitrate(bitrate)
 		, bitrateCM(bitrateCM)
 		, serviceId(serviceId)
-		, mpeg2decoder(mpeg2decoder)
-		, h264decoder(h264decoder)
+		, decoderSetting(decoderSetting)
 		, logoPath(logoPath)
 		, errorOnNoLogo(errorOnNoLogo)
 		, amt32bitPath(amt32bitPath)
@@ -398,12 +406,8 @@ public:
 		return serviceId;
 	}
 
-	DECODER_TYPE getMpeg2Decoder() const {
-		return mpeg2decoder;
-	}
-
-	DECODER_TYPE getH264Decoder() const {
-		return h264decoder;
+	DecoderSetting getDecoderSetting() const {
+		return decoderSetting;
 	}
 
 	const std::vector<std::string>& getLogoPath() const {
@@ -428,6 +432,10 @@ public:
 
 	std::string getJoinLogoScpCmdPath() const {
 		return joinLogoScpCmdPath;
+	}
+
+	bool isFilterTmpFile() const {
+		return (inPipe != INVALID_HANDLE_VALUE);
 	}
 
 	HANDLE getInPipe() const {
@@ -489,34 +497,10 @@ public:
 		return ss.str();
 	}
 
-	std::string getEncTimecodeFilePath(int vindex, int index) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/tc" << vindex << "-" << index << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
-	}
-
-	std::string getEncPulldownFilePath(int vindex, int index) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/pd" << vindex << "-" << index << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
-	}
-
 	std::string getIntAudioFilePath(int vindex, int index, int aindex) const
 	{
 		std::ostringstream ss;
 		ss << tmpDir.path() << "/a" << vindex << "-" << index << "-" << aindex << ".aac";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
-	}
-
-	std::string getVfrTmpFilePath(int index) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/t" << index << ".mp4";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
@@ -593,6 +577,22 @@ public:
 		return ss.str();
 	}
 
+	std::string getEncodeTaskInfoPath(int vindex, int index) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/enctask" << vindex << "-" << index << ".dat";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
+	std::string getFilterTmpFilePath(int vindex, int index) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/filtetmp" << vindex << "-" << index << ".utv";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
 	std::string getOutFilePath(int index) const
 	{
 		std::ostringstream ss;
@@ -633,9 +633,6 @@ public:
 				ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
 				ss << " --vbv-bufsize " << (int)(targetBitrate * 2);
 			}
-		}
-		if (pulldown) {
-			ss << " --pdfile-in \"" << getEncPulldownFilePath(vindex, index) << "\"";
 		}
 		if (pass >= 0) {
 			ss << " --pass " << pass;
@@ -683,8 +680,8 @@ public:
 		else {
 			ctx.info("ServiceId: 指定なし");
 		}
-		ctx.info("mpeg2decoder: %s", decoderToString(mpeg2decoder));
-		ctx.info("h264decoder: %s", decoderToString(h264decoder));
+		ctx.info("mpeg2decoder: %s", decoderToString(decoderSetting.mpeg2));
+		ctx.info("h264decoder: %s", decoderToString(decoderSetting.h264));
 	}
 
 private:
@@ -712,8 +709,7 @@ private:
 	BitrateSetting bitrate;
 	double bitrateCM;
 	int serviceId;
-	DECODER_TYPE mpeg2decoder;
-	DECODER_TYPE h264decoder;
+	DecoderSetting decoderSetting;
 	// CM解析用設定
 	std::vector<std::string> logoPath;
 	bool errorOnNoLogo;

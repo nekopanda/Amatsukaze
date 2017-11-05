@@ -466,8 +466,8 @@ public:
 				BitReader reader(frame);
 				reader.skip(start_bits);
 				int bitpos = start_bits;
-				for (; bitpos + 8 <= end_bits; bitpos += 8) {
-					writer.write<8>(reader.read<8>());
+				for (; bitpos + 32 <= end_bits; bitpos += 32) {
+					writer.write<32>(reader.read<32>());
 				}
 				int remain = end_bits - bitpos;
 				if (remain > 0) {

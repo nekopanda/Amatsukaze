@@ -175,7 +175,7 @@ namespace Amatsukaze.Server
                     userClient.OnServiceSetting((ServiceSettingUpdate)arg);
                     break;
                 case RPCMethodId.OnLlsCommandFiles:
-                    userClient.OnLlsCommandFiles((JLSCommandFiles)arg);
+                    userClient.OnJlsCommandFiles((JLSCommandFiles)arg);
                     break;
                 case RPCMethodId.OnLogoData:
                     userClient.OnLogoData((LogoData)arg);
