@@ -911,6 +911,30 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ClearWorkDirOnStart変更通知プロパティ
+        public bool ClearWorkDirOnStart {
+            get { return setting.ClearWorkDirOnStart; }
+            set {
+                if (setting.ClearWorkDirOnStart == value)
+                    return;
+                setting.ClearWorkDirOnStart = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SystemAviSynthPlugin変更通知プロパティ
+        public bool SystemAviSynthPlugin {
+            get { return setting.SystemAviSynthPlugin; }
+            set {
+                if (setting.SystemAviSynthPlugin == value)
+                    return;
+                setting.SystemAviSynthPlugin = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region Mpeg2DecoderInt変更通知プロパティ
         public int Mpeg2DecoderInt {
             get { return (int)setting.Mpeg2Decoder; }
@@ -1286,6 +1310,9 @@ namespace Amatsukaze.Models
             EnableFilterTmp = setting.EnableFilterTmp;
             MaxTmpGB = setting.MaxTmpGB;
             DefaultJLSCommand = setting.DefaultJLSCommand;
+            DisableChapter = setting.DisableChapter;
+            ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
+            SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
 
             Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
             H264DecoderInt = (int)setting.H264Deocder;

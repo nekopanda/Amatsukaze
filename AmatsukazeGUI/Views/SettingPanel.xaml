@@ -124,7 +124,7 @@
                 <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="164.667,53,0,0" 
                          IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
 
-                <Grid Grid.Row="3" Grid.Column="1" Margin="0,85,0,0" Width="240" HorizontalAlignment="Left">
+                <Grid Grid.Row="3" Grid.Column="1" Margin="0,85,0,10" Width="240" HorizontalAlignment="Left">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
                         <ColumnDefinition/>
@@ -157,7 +157,7 @@
                 </Grid>
 
                 <StackPanel Grid.Row="5" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,6" Text="その他の設定"/>
+                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,29" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="Amatsukaze32bitDLLパス" />
@@ -171,7 +171,9 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
                 </StackPanel>
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
-                    <CheckBox Height="18" Margin="0,5"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" IsChecked="{Binding Model.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="30" Margin="0,0"  Content="システムにインストールされている&#xA;AviSynthプラグインを有効にする" IsChecked="{Binding Model.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
                      ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>

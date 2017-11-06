@@ -457,7 +457,7 @@ namespace Amatsukaze.Server
                                 {
                                     frag.encodeProccess.Kill();
                                 }
-                                catch(InvalidOperationException)
+                                catch (InvalidOperationException)
                                 {
                                     // プロセスが既に終了していた場合
                                 }
@@ -555,13 +555,16 @@ namespace Amatsukaze.Server
                     };
                 }
                 var outpath = new List<string>();
-                var logofiles = new List<string>();
                 foreach (var file in json.outfiles)
                 {
                     outpath.Add(file.path);
-                    if(string.IsNullOrEmpty(file.logofile) == false)
+                }
+                var logofiles = new List<string>();
+                foreach (var logo in json.logofiles)
+                {
+                    if (string.IsNullOrEmpty(logo) == false)
                     {
-                        logofiles.Add(Path.GetFileName(file.logofile));
+                        logofiles.Add(Path.GetFileName(logo));
                     }
                 }
                 int incident = (int)json.incident;
@@ -667,7 +670,7 @@ namespace Amatsukaze.Server
                     // エンコード中のタスクは強制終了
                     KillProcess();
 
-                    if(transcode.fragments != null)
+                    if (transcode.fragments != null)
                     {
                         foreach (var fragment in transcode.fragments)
                         {
@@ -703,7 +706,7 @@ namespace Amatsukaze.Server
 
                 bool errorOnNologo = false;
                 string[] logopaths = null;
-                if(server.appData.setting.DisableChapter == false)
+                if (server.appData.setting.DisableChapter == false)
                 {
                     var logofiles = serviceSetting.LogoSettings
                         .Where(s => s.CanUse(src.TsTime))
@@ -803,7 +806,10 @@ namespace Amatsukaze.Server
                             IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
                             Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
                             p.ProcessorAffinity = affinityMask;
-                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
+
+                            // スケジューリングが有効な場合はエンコーダより優先度を高く設定する
+                            if (!server.appData.setting.EncodeSchedulingEnabled)
+                                p.PriorityClass = ProcessPriorityClass.BelowNormal;
                         }
                         catch (InvalidOperationException)
                         {
@@ -1185,7 +1191,7 @@ namespace Amatsukaze.Server
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
 
                     // 終了時にプロセスが残らないようにする
-                    if(workers != null)
+                    if (workers != null)
                     {
                         foreach (var worker in workers)
                         {
@@ -1201,7 +1207,7 @@ namespace Amatsukaze.Server
                     watchFileQ.Complete();
                     saveSettingQ.Complete();
 
-                    if(settingUpdated)
+                    if (settingUpdated)
                     {
                         settingUpdated = false;
                         SaveAppData();
@@ -1472,6 +1478,11 @@ namespace Amatsukaze.Server
             }
         }
 
+        private double CalcMaxTmpGBForCLI()
+        {
+            return (double)appData.setting.MaxTmpGB / (appData.setting.NumParallel * 2 + 1) * 2;
+        }
+
         private string MakeAmatsukazeArgs(bool isGeneric,
             string src, string dst, string json, string taskjson, string inHandle, string outHandle,
             int serviceId, string[] logofiles, bool errorOnNoLogo, string jlscommand)
@@ -1496,7 +1507,7 @@ namespace Amatsukaze.Server
             {
                 throw new ArgumentException("Amt32bitPathパスが指定されていません");
             }
-            if(!appData.setting.DisableChapter)
+            if (!appData.setting.DisableChapter)
             {
                 if (string.IsNullOrEmpty(appData.setting.ChapterExePath))
                 {
@@ -1564,7 +1575,7 @@ namespace Amatsukaze.Server
                 sb.Append(" --chapter");
             }
 
-                if (string.IsNullOrEmpty(jlscommand) == false)
+            if (string.IsNullOrEmpty(jlscommand) == false)
             {
                 sb.Append(" --jls-cmd \"")
                     .Append(GetJLDirectoryPath() + "\\" + jlscommand)
@@ -1619,6 +1630,7 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --inpipe ").Append(inHandle);
                 sb.Append(" --outpipe ").Append(outHandle);
+                sb.Append(" --maxtmpgb ").AppendFormat("{0:F2}", CalcMaxTmpGBForCLI());
             }
             if (logofiles != null)
             {
@@ -1626,6 +1638,10 @@ namespace Amatsukaze.Server
                 {
                     sb.Append(" --logo \"").Append(GetLogoFilePath(logo)).Append("\"");
                 }
+            }
+            if (appData.setting.SystemAviSynthPlugin)
+            {
+                sb.Append(" --systemavsplugin");
             }
 
             return sb.ToString();
@@ -1664,6 +1680,30 @@ namespace Amatsukaze.Server
             return client.OnOperationResult(str);
         }
 
+        private void CleanTmpDir()
+        {
+            foreach (var dir in Directory
+                .GetDirectories(appData.setting.WorkPath)
+                .Where(s => Path.GetFileName(s).StartsWith("amt")))
+            {
+                try
+                {
+                    Directory.Delete(dir, true);
+                }
+                catch (Exception) { } // 例外は無視
+            }
+            foreach (var file in Directory
+                .GetFiles(appData.setting.WorkPath)
+                .Where(s => Path.GetFileName(s).StartsWith("amt")))
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception) { } // 例外は無視
+            }
+        }
+
         private async Task StartTranscode()
         {
             NowEncoding = true;
@@ -1676,6 +1716,11 @@ namespace Amatsukaze.Server
 
             try
             {
+                if (appData.setting.ClearWorkDirOnStart)
+                {
+                    CleanTmpDir();
+                }
+
                 while (queue.Count > 0)
                 {
                     var dir = queue.FirstOrDefault(d => d.Items.Any(item => item.State == QueueState.Queue));
@@ -1761,16 +1806,16 @@ namespace Amatsukaze.Server
 
                     await Task.WhenAll(tasks);
 
+                    for (int i = 0; i < NumParallel; ++i)
+                    {
+                        File.Delete(workers[i].tmpBase);
+                    }
+
                     if (appData.setting.EncodeSchedulingEnabled)
                     {
                         filterQ.Complete();
                         encoderQ.Complete();
                         await Task.WhenAll(threads);
-                    }
-
-                    for (int i = 0; i < NumParallel; ++i)
-                    {
-                        File.Delete(workers[i].tmpBase);
                     }
 
                     if (encodePaused)
@@ -1840,34 +1885,41 @@ namespace Amatsukaze.Server
                     foreach (var fragment in task.fragments)
                     {
                         // フィルタ出力推定値を計算
-                        long estimatedTmpBytes = fragment.bytesPerFrame * fragment.numFrames;
+                        long estimatedTmpBytes = (long)fragment.bytesPerFrame * fragment.numFrames;
 
-                        // テンポラリ容量を見る
-                        int occupied = (int)((occupiedStorage + estimatedTmpBytes) / (1024 * 1024 * 1024L));
-                        if (occupied > appData.setting.MaxTmpGB)
+                        while (true)
                         {
-                            // 容量を超えるのでダメ
-                            await storageQ.ReceiveAsync();
-                            continue;
-                        }
-
-                        if(occupiedStorage > 0)
-                        {
-                            // ディスクの空き容量も見る
-                            ulong available = 0;
-                            ulong total = 0;
-                            ulong free = 0;
-                            Util.GetDiskFreeSpaceEx(appData.setting.WorkPath, out available, out total, out free);
-
-                            // 最低限残しておくサイズ = 30GB
-                            const long workSpace = 30L * 1024 * 1024 * 1024;
-
-                            if ((long)free < estimatedTmpBytes + workSpace)
+                            // テンポラリ容量を見る
+                            int occupied = (int)((occupiedStorage + estimatedTmpBytes) / (1024 * 1024 * 1024L));
+                            if (occupied > appData.setting.MaxTmpGB)
                             {
                                 // 容量を超えるのでダメ
                                 await storageQ.ReceiveAsync();
                                 continue;
                             }
+
+                            if (occupiedStorage > 0)
+                            {
+                                // ディスクの空き容量も見る
+                                ulong available = 0;
+                                ulong total = 0;
+                                ulong free = 0;
+                                Util.GetDiskFreeSpaceEx(appData.setting.WorkPath, out available, out total, out free);
+
+                                // 最低限残しておくサイズ = 30GB
+                                const long workSpace = 30L * 1024 * 1024 * 1024;
+
+                                if ((long)free < estimatedTmpBytes + workSpace)
+                                {
+                                    // 容量を超えるのでダメ
+                                    await storageQ.ReceiveAsync();
+                                    continue;
+                                }
+                            }
+
+                            Util.AddLog("フィルタ処理開始: " + occupied + "GB < " + appData.setting.MaxTmpGB + "GB");
+
+                            break;
                         }
 
                         // 推定値を足してフィルタ処理開始

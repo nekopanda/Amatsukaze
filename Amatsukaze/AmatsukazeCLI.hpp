@@ -200,8 +200,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring joinLogoScpCmdPath;
 	HANDLE inPipe = INVALID_HANDLE_VALUE;
 	HANDLE outPipe = INVALID_HANDLE_VALUE;
-	double maxTmpGB;
+	double maxTmpGB = 0;
 	bool dumpStreamInfo = bool();
+	bool systemAvsPlugin = bool();
 
 	for (int i = 1; i < argc; ++i) {
 		std::tstring key = argv[i];
@@ -329,6 +330,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		else if (key == _T("--dump")) {
 			dumpStreamInfo = true;
 		}
+		else if (key == _T("--systemavsplugin")) {
+			systemAvsPlugin = true;
+		}
 		else if (key.size() == 0) {
 			continue;
 		}
@@ -362,6 +366,15 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
 	}
 
+	if (inPipe != INVALID_HANDLE_VALUE && maxTmpGB == 0) {
+		THROW(ArgumentException, "フィルタ一時ファイルを使う場合は最大一時ファイルサイズ(--maxtmpgb)を指定してください");
+	}
+
+	if (modeStr == _T("enctask")) {
+		// 必要ない
+		workDir = _T("");
+	}
+
 	return std::unique_ptr<TranscoderSetting>(new TranscoderSetting(
 		ctx,
 		to_string(workDir),
@@ -393,7 +406,8 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		inPipe,
 		outPipe,
 		maxTmpGB,
-		dumpStreamInfo));
+		dumpStreamInfo,
+		systemAvsPlugin));
 }
 
 static CRITICAL_SECTION g_log_crisec;

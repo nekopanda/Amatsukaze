@@ -140,9 +140,11 @@ static std::string makeEncoderArgs(
 	// 入力形式
 	switch (encoder) {
 	case ENCODER_X264:
+		ss << " --stitchable";
 		ss << " --demuxer y4m -";
 		break;
 	case ENCODER_X265:
+		ss << " --no-opt-qp-pps --no-opt-ref-list-length-pps";
 		ss << " --y4m --input -";
 		break;
 	case ENCODER_QSVENC:
@@ -302,7 +304,8 @@ public:
 		HANDLE inPipe,
 		HANDLE outPipe,
 		double maxTmpGB,
-		bool dumpStreamInfo)
+		bool dumpStreamInfo,
+		bool systemAvsPlugin)
 		: AMTObject(ctx)
 		, tmpDir(ctx, workDir)
 		, mode(mode)
@@ -334,6 +337,7 @@ public:
 		, outPipe(outPipe)
 		, maxTmpGB(maxTmpGB)
 		, dumpStreamInfo(dumpStreamInfo)
+		, systemAvsPlugin(systemAvsPlugin)
 	{
 		//
 	}
@@ -456,6 +460,10 @@ public:
 		return dumpStreamInfo;
 	}
 
+	bool isSystemAvsPlugin() const {
+		return systemAvsPlugin;
+	}
+
 	std::string getAudioFilePath() const
 	{
 		std::ostringstream ss;
@@ -500,7 +508,7 @@ public:
 
 	std::string getEncVideoFilePath(int vindex, int index) const
 	{
-		return getEncVideoFilePath(vindex, index);
+		return getEncVideoFilePath(vindex, index, -1);
 	}
 
 	std::string getEncStatsFilePath(int vindex, int index, int findex) const
@@ -684,7 +692,7 @@ public:
 		//ctx.info("MuxerPath: %s", muxerPath.c_str());
 		//ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
 		ctx.info("autoBitrate: %s", autoBitrate ? "yes" : "no");
-		ctx.info("Bitrate: %f:%f:%f", bitrate.a, bitrate.b, bitrate.h264);
+		ctx.info("Bitrate: %g:%g:%g", bitrate.a, bitrate.b, bitrate.h264);
 		ctx.info("2-Pass: %s", twoPass ? "yes" : "no");
     ctx.info("チャプター解析: %s", chapter ? "yes" : "no");
     if (chapter) {
@@ -695,7 +703,7 @@ public:
     }
 		ctx.info("フィルタ中間ファイル: %s", isFilterTmpFile() ? "yes" : "no");
 		if (isFilterTmpFile()) {
-			ctx.info("→サイズ: %.1fGB", maxTmpGB);
+			ctx.info("→最大サイズ: %.1fGB", maxTmpGB);
 		}
 		//ctx.info("amt32bitPath: %s", amt32bitPath.c_str());
 		//ctx.info("chapterExePath: %s", chapterExePath.c_str());
@@ -751,6 +759,7 @@ private:
 	double maxTmpGB;
 	// デバッグ用設定
 	bool dumpStreamInfo;
+	bool systemAvsPlugin;
 
 	const char* decoderToString(DECODER_TYPE decoder) const {
 		switch (decoder) {

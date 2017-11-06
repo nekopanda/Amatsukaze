@@ -820,6 +820,7 @@ static void CopyYV12(uint8_t* dst,
 	}
 }
 
+// プロセスに設定されているコア数を取得
 int GetProcessorCount()
 {
   DWORD_PTR procMask, sysMask;
@@ -831,6 +832,21 @@ int GetProcessorCount()
     return cnt;
   }
   return 8; // 失敗したら適当な値にしておく
+}
+
+void ConcatFiles(const std::vector<std::string>& srcpaths, const std::string& dstpath)
+{
+	enum { BUF_SIZE = 16 * 1024 * 1024 };
+	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[BUF_SIZE]);
+	File dstfile(dstpath, "wb");
+	for (int i = 0; i < (int)srcpaths.size(); ++i) {
+		File srcfile(srcpaths[i], "rb");
+		while (true) {
+			size_t readBytes = srcfile.read(MemoryChunk(buf.get(), BUF_SIZE));
+			dstfile.write(MemoryChunk(buf.get(), readBytes));
+			if (readBytes != BUF_SIZE) break;
+		}
+	}
 }
 
 // C API for P/Invoke

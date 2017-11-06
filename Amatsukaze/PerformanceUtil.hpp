@@ -75,7 +75,7 @@ class FpsPrinter : AMTObject
 			}
 			ctx.progress("%d/%d %.2ffps", sum.count, total, sumcount / sumtime);
 
-			if (times.size() > navg) {
+			if ((int)times.size() > navg) {
 				times.pop_front();
 			}
 		}
@@ -98,7 +98,7 @@ public:
 	void update(int count) {
 		current.count += count;
 		current.span += (float)sw.getAndReset();
-		if (current.span >= 1) {
+		if (current.span >= 0.5f) {
 			updateProgress(false);
 		}
 	}

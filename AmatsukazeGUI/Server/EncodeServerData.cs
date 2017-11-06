@@ -110,6 +110,10 @@ namespace Amatsukaze.Server
         public string DefaultJLSCommand { get; set; }
         [DataMember]
         public bool DisableChapter { get; set; }
+        [DataMember]
+        public bool ClearWorkDirOnStart { get; set; }
+        [DataMember]
+        public bool SystemAviSynthPlugin { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -141,7 +145,7 @@ namespace Amatsukaze.Server
         public bool CanUse(DateTime tstime)
         {
             return Exists && Enabled &&
-                From <= tstime && tstime <= To;
+                (tstime == DateTime.MinValue || (From <= tstime && tstime <= To));
         }
 
         public ExtensionDataObject ExtensionData { get; set; }

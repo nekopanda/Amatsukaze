@@ -112,7 +112,7 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         public string[] Mpeg2DecoderList {
-            get { return new string[] { "デフォルト" }; }
+            get { return new string[] { "デフォルト", "QSV" }; }
         }
         public string[] H264DecoderList {
             get { return new string[] { "デフォルト", "QSV" }; }

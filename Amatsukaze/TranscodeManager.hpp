@@ -787,7 +787,7 @@ public:
 		if (codec_->EncodeBegin(UTVF_YV12, vi_.width, vi_.height, CBGROSSWIDTH_WINDOWS)) {
 			THROW(RuntimeException, "failed to EncodeBegin (UtVideo)");
 		}
-		file_->writeHeader(vi_.width, vi_.height, vi_.num_frames, extra);
+		file_->writeHeader(vi_.width, vi_.height, num_frames, extra);
 
 		FpsPrinter fpsPrinter(ctx, 4);
 		fpsPrinter.start(num_frames);
@@ -1255,15 +1255,41 @@ public:
 			}
 
 			// Mux
+			ctx.info("[Mux開始] %d/%d", outIndex + 1, reformInfo_.getNumOutFiles());
+
+			auto& info = outfiles[outIndex];
+
 			auto& outFileMapping = reformInfo_.getOutFileMapping();
-			std::string encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
 			std::string outFilePath = setting_.getOutFilePath(outFileMapping[outIndex]);
-			std::string chapterFile = setting_.getTmpChapterPath(videoFileIndex, i);
+
+			std::string encVideoFile;
+			if (info.numFragments == 0) {
+				// 分割なし
+				encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
+			}
+			else if (info.numFragments == 1) {
+				// 分割ありだがファイルは１つ
+				encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i, 0);
+			}
+			else {
+				// 分割されているので連結する
+				encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
+				std::vector<std::string> encfiles;
+				for (int f = 0; f < info.numFragments; ++f) {
+					encfiles.push_back(setting_.getEncVideoFilePath(videoFileIndex, i, f));
+				}
+				ConcatFiles(encfiles, encVideoFile);
+			}
+			
+			std::string chapterFile;
+			if (setting_.isChapterEnabled()) {
+				chapterFile = setting_.getTmpChapterPath(videoFileIndex, i);
+			}
+
 			std::string args = makeMuxerArgs(
 				setting_.getMuxerPath(), encVideoFile,
-				outfiles[outIndex].vf,
-				audioFiles, outFilePath, chapterFile);
-			ctx.info("[Mux開始] %d/%d", outIndex + 1, reformInfo_.getNumOutFiles());
+				info.vf, audioFiles, outFilePath, chapterFile);
+
 			ctx.info(args.c_str());
 
 			{
@@ -1532,7 +1558,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 					const auto& info = outfiles[outIndex];
 
 					for (int f = 0; f < info.numFragments; ++f, ++currentFragments) {
-						ctx.info("時間調整中...");
+						ctx.progress("順番待ち...");
 						comm->waitStartFilter();
 						ctx.info("[フィルタ処理開始] %d/%d", currentFragments + 1, numTotalFragments);
 
@@ -1541,11 +1567,23 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 						std::string infopath = setting.getEncodeTaskInfoPath(videoFileIndex, encoderIndex, f);
 						std::string tmppath = setting.getFilterTmpFilePath(videoFileIndex, encoderIndex, f);
 
+						// このフラグメント用Zones作成
+						std::vector<EncoderZone> fragmentZones;
+						for (int i = 0; i < (int)encoderZones.size(); ++i) {
+							auto& zone = encoderZones[i];
+							EncoderZone fzone;
+							fzone.startFrame = std::max(0, zone.startFrame - start);
+							fzone.endFrame = std::min(numFrames, zone.endFrame - start);
+							if (fzone.startFrame < fzone.endFrame) {
+								fragmentZones.push_back(fzone);
+							}
+						}
+
 						std::vector<std::string> encoderArgs;
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
-								outfmt, encoderZones, videoFileIndex, encoderIndex, f, pass[i]));
+								outfmt, fragmentZones, videoFileIndex, encoderIndex, f, pass[i]));
 						}
 						SaveEncodeTaskInfo(infopath, encoderArgs, outfmt);
 						{
@@ -1561,7 +1599,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 					OutVideoFileInfo info;
 					info.vf = filterSource.getFormat();
-					info.numFragments = 1;
+					info.numFragments = 0;
 					info.framesPerFragment = 0;
 					outfiles.push_back(info);
 
@@ -1604,16 +1642,19 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 		ss << "{ \"srcpath\": \"" << toJsonString(setting.getSrcFilePath()) << "\"";
 		ss << ", \"outfiles\": [";
 		for (int i = 0; i < reformInfo.getNumOutFiles(); ++i) {
-			if (i > 0) {
-				ss << ", ";
-			}
+			if (i > 0) ss << ", ";
       auto info = bitrateInfo[i];
       ss << "{ \"path\": \"" << toJsonString(setting.getOutFilePath(i)) <<
         "\", \"srcbitrate\": " << (int)info.srcBitrate <<
-        ", \"outbitrate\": " << (int)info.targetBitrate <<
-        ", \"logofile\": \"" << toJsonString(cmanalyze[i]->getLogoPath()) << "\" }";
+        ", \"outbitrate\": " << (int)info.targetBitrate << " }";
 		}
     ss << "]";
+		ss << ", \"logofiles\": [";
+		for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
+			if (i > 0) ss << ", ";
+			ss << "\"" << toJsonString(cmanalyze[i]->getLogoPath()) << "\"";
+		}
+		ss << "]";
 		ss << ", \"srcfilesize\": " << srcFileSize;
 		ss << ", \"intvideofilesize\": " << totalIntVideoSize;
 		ss << ", \"outfilesize\": " << totalOutSize;
