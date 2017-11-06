@@ -897,6 +897,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DisableChapter変更通知プロパティ
+        public bool DisableChapter
+        {
+            get { return setting.DisableChapter; }
+            set
+            {
+                if (setting.DisableChapter == value)
+                    return;
+                setting.DisableChapter = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region Mpeg2DecoderInt変更通知プロパティ
         public int Mpeg2DecoderInt {
             get { return (int)setting.Mpeg2Decoder; }

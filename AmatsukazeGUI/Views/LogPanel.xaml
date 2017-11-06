@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              mc:Ignorable="d" 
-             d:DesignHeight="300" d:DesignWidth="300"
+             d:DesignHeight="500" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:LogViewModel}}">
     <Grid>
         <Grid.RowDefinitions>
@@ -19,16 +19,16 @@
                     <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}"/>
                     <GridViewColumn Header="メッセージ" DisplayMemberBinding="{Binding DisplayReason}"/>
                     <GridViewColumn Header="出力ファイル数" DisplayMemberBinding="{Binding DisplayOutNum}"/>
-                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident, Mode=OneWay}"/>
+                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident}"/>
                     <GridViewColumn Header="フォルダ" DisplayMemberBinding="{Binding DisplaySrcDirectory}"/>
                     <GridViewColumn Header="ファイル名" DisplayMemberBinding="{Binding DisplaySrcFileName}"/>
-                    <GridViewColumn Header="開始" DisplayMemberBinding="{Binding DisplayEncodeStart}"/>
-                    <GridViewColumn Header="終了" DisplayMemberBinding="{Binding DisplayEncodeFinish}"/>
+                    <GridViewColumn Header="CM・チャプター解析" DisplayMemberBinding="{Binding DisplayChapter}"/>
+                    <GridViewColumn Header="ロゴファイル" DisplayMemberBinding="{Binding DisplayLogo}"/>
+                    <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}"/>
                     <GridViewColumn Header="エンコード時間" DisplayMemberBinding="{Binding DisplayEncodeDuration}"/>
                     <GridViewColumn Header="入力ファイル時間" DisplayMemberBinding="{Binding DisplaySrcDurationo}"/>
-                    <GridViewColumn Header="入力サイズ[MB]" DisplayMemberBinding="{Binding DisplaySrcFileSize}"/>
                     <GridViewColumn Header="出力サイズ[%]" DisplayMemberBinding="{Binding DisplayCompressionRate}"/>
-                    <GridViewColumn Header="ビットレート(Mbit/s)" DisplayMemberBinding="{Binding DisplayOutBitrate}"/>
+                    <GridViewColumn Header="ビットレート(Mbps)" DisplayMemberBinding="{Binding DisplayOutBitrate}"/>
                 </GridView>
             </ListView.View>
             <ListView.ContextMenu>
@@ -75,10 +75,10 @@
                 <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntFileSize}" VerticalAlignment="Top" Margin="0,192,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="中間サイズ[%]" VerticalAlignment="Top" Margin="0,208,0,0"/>
                 <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntVideoRate}" VerticalAlignment="Top" Margin="0,208,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="プルダウン" VerticalAlignment="Top" Margin="0,224,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="-" VerticalAlignment="Top" Margin="0,224,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="タイムコード" VerticalAlignment="Top" Margin="0,240,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="-" VerticalAlignment="Top" Margin="0,240,0,0" Grid.Column="1"/>
+                <TextBlock HorizontalAlignment="Left" Text="チャプター・CM解析" VerticalAlignment="Top" Margin="0,224,0,0"/>
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}" VerticalAlignment="Top" Margin="0,224,0,0" Grid.Column="1"/>
+                <TextBlock HorizontalAlignment="Left" Text="ロゴファイル" VerticalAlignment="Top" Margin="0,240,0,0"/>
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayLogo}" VerticalAlignment="Top" Margin="0,240,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="出力ファイル数" VerticalAlignment="Top" Margin="0,256,0,0"/>
                 <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutNum}" VerticalAlignment="Top" Margin="0,256,0,0" Grid.Column="1"/>
                 <TextBlock HorizontalAlignment="Left" Text="インシデント数" VerticalAlignment="Top" Margin="0,272,0,0"/>

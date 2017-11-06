@@ -44,7 +44,7 @@ class Tree
       cur = it.cur;
       return *this;
     }
-    ~itr() noexcept { }
+    ~itr() { }
 
     reference operator*() const {
       return *cur;

@@ -115,6 +115,9 @@ namespace Amatsukaze.Models
         private static extern bool TsInfo_ReadFile(IntPtr ptr, string filepath);
 
         [DllImport("Amatsukaze.dll")]
+        private static extern bool TsInfo_HasServiceInfo(IntPtr ptr);
+
+        [DllImport("Amatsukaze.dll")]
         private static extern void TsInfo_GetDay(IntPtr ptr, out int y, out int m, out int d);
 
         [DllImport("Amatsukaze.dll")]
@@ -185,12 +188,12 @@ namespace Amatsukaze.Models
             return TsInfo_ReadFile(Ptr, filepath);
         }
 
-        public DateTime GetTime()
+        public bool HasServiceInfo
         {
-            int year, month, day, hour, minute, second;
-            TsInfo_GetDay(Ptr, out year, out month, out day);
-            TsInfo_GetTime(Ptr, out hour, out minute, out second);
-            return new DateTime(year, month, day, hour, minute, second);
+            get
+            {
+                return TsInfo_HasServiceInfo(Ptr);
+            }
         }
 
         public Program[] GetProgramList()
@@ -204,6 +207,16 @@ namespace Amatsukaze.Models
                 }).ToArray();
         }
 
+        // ServiceInfoがある場合のみ
+        public DateTime GetTime()
+        {
+            int year, month, day, hour, minute, second;
+            TsInfo_GetDay(Ptr, out year, out month, out day);
+            TsInfo_GetTime(Ptr, out hour, out minute, out second);
+            return new DateTime(year, month, day, hour, minute, second);
+        }
+
+        // ServiceInfoがある場合のみ
         public Service[] GetServiceList()
         {
             return Enumerable.Range(0, TsInfo_GetNumService(Ptr))

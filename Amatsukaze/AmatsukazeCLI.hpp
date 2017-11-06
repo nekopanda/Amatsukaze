@@ -75,9 +75,10 @@ static void printHelp(const tchar* bin) {
 		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
 		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
-		"                      使用可能デコーダ: default,QSV,CUVID"
+		"                      使用可能デコーダ: default,QSV,CUVID\n"
 		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"
-		"                      使用可能デコーダ: default,QSV,CUVID"
+		"                      使用可能デコーダ: default,QSV,CUVID\n"
+    "  --chapter           チャプター・CM解析を行う\n"
 		"  --error-on-no-logo  ロゴが見つからない場合はエラーとする\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
 		"  --32bitlib <パス>   32bitのAmatsukaze.dllへのパス\n"
@@ -188,7 +189,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
   BitrateSetting bitrate = BitrateSetting();
 	double bitrateCM = 1.0;
   bool twoPass = bool();
-	bool pulldown = bool();
+	bool chapter = bool();
 	int serviceId = -1;
 	DecoderSetting decoderSetting;
 	std::vector<std::string> logoPath;
@@ -199,6 +200,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring joinLogoScpCmdPath;
 	HANDLE inPipe = INVALID_HANDLE_VALUE;
 	HANDLE outPipe = INVALID_HANDLE_VALUE;
+	double maxTmpGB;
 	bool dumpStreamInfo = bool();
 
 	for (int i = 1; i < argc; ++i) {
@@ -254,8 +256,8 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
     else if (key == _T("--2pass")) {
       twoPass = true;
     }
-		else if (key == _T("--pulldown")) {
-			pulldown = true;
+		else if (key == _T("--chapter")) {
+      chapter = true;
 		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
 			muxerPath = getParam(argc, argv, i++);
@@ -321,6 +323,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		else if (key == _T("--outpipe")) {
 			outPipe = (HANDLE)std::stoll(getParam(argc, argv, i++));
 		}
+		else if (key == _T("--maxtmpgb")) {
+			maxTmpGB = std::stod(getParam(argc, argv, i++));
+		}
 		else if (key == _T("--dump")) {
 			dumpStreamInfo = true;
 		}
@@ -374,7 +379,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		to_string(timelineditorPath),
 		twoPass,
 		autoBitrate,
-		pulldown,
+    chapter,
 		bitrate,
 		bitrateCM,
 		serviceId,
@@ -387,6 +392,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		to_string(joinLogoScpCmdPath),
 		inPipe,
 		outPipe,
+		maxTmpGB,
 		dumpStreamInfo));
 }
 

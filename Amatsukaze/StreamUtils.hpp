@@ -300,11 +300,11 @@ std::string GetModulePath() {
 	return buf;
 }
 
-enum TS_SPLITTER_LOG_LEVEL {
-	TS_SPLITTER_DEBUG,
-	TS_SPLITTER_INFO,
-	TS_SPLITTER_WARN,
-	TS_SPLITTER_ERROR
+enum AMT_LOG_LEVEL {
+	AMT_LOG_DEBUG,
+	AMT_LOG_INFO,
+	AMT_LOG_WARN,
+	AMT_LOG_ERROR
 };
 
 class AMTContext {
@@ -322,22 +322,27 @@ public:
 	void debug(const char *fmt, ...) const {
 		if (!debugEnabled) return;
 		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, TS_SPLITTER_DEBUG);
+		print(fmt, arg, AMT_LOG_DEBUG);
 		va_end(arg);
 	}
 	void info(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, TS_SPLITTER_INFO);
+		print(fmt, arg, AMT_LOG_INFO);
 		va_end(arg);
 	}
 	void warn(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, TS_SPLITTER_WARN);
+		print(fmt, arg, AMT_LOG_WARN);
 		va_end(arg);
 	}
 	void error(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, TS_SPLITTER_ERROR);
+		print(fmt, arg, AMT_LOG_ERROR);
+		va_end(arg);
+	}
+	void progress(const char *fmt, ...) const {
+		va_list arg; va_start(arg, fmt);
+		printProgress(fmt, arg);
 		va_end(arg);
 	}
 
@@ -385,11 +390,17 @@ private:
 	std::map<std::string, int> counter;
 	std::string errMessage;
 
-	void print(const char* fmt, va_list arg, TS_SPLITTER_LOG_LEVEL level) const {
+	void print(const char* fmt, va_list arg, AMT_LOG_LEVEL level) const {
     static const char* log_levels[] = { "debug", "info", "warn", "error" };
 		char buf[1024];
 		vsnprintf_s(buf, sizeof(buf), fmt, arg);
     PRINTF("AMT [%s] %s\n", log_levels[level], buf);
+	}
+
+	void printProgress(const char* fmt, va_list arg) const {
+		char buf[1024];
+		vsnprintf_s(buf, sizeof(buf), fmt, arg);
+		PRINTF("AMT %s\r", buf);
 	}
 };
 
@@ -807,6 +818,19 @@ static void CopyYV12(uint8_t* dst,
 		memcpy(dstp, &srcV[y * pitchUV], widthUV);
 		dstp += widthUV;
 	}
+}
+
+int GetProcessorCount()
+{
+  DWORD_PTR procMask, sysMask;
+  if (GetProcessAffinityMask(GetCurrentProcess(), &procMask, &sysMask)) {
+    int cnt = 0;
+    for (int i = 0; i < 64; ++i) {
+      if (procMask & (DWORD_PTR(1) << i)) cnt++;
+    }
+    return cnt;
+  }
+  return 8; // Ž¸”s‚µ‚½‚ç“K“–‚È’l‚É‚µ‚Ä‚¨‚­
 }
 
 // C API for P/Invoke

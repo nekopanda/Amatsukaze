@@ -285,16 +285,8 @@ public:
 		return outFormat_[formatId];
   }
 
-	void setOutVideoFormat(const std::vector<VideoFormat>& outfmts) {
-		if (outfmts.size() != outFormat_.size()) {
-			THROW(InvalidOperationException, "# of formats does not match!!");
-		}
-		fileOutFormat_ = outfmts;
-	}
-
-	const VideoFormat& getOutVideoFormat(int encoderIndex, int videoFileIndex) const {
-		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
-		return fileOutFormat_[formatId];
+	int getOutFileIndex(int encoderIndex, int videoFileIndex) const {
+		return outFormatStartIndex_[videoFileIndex] + encoderIndex;
 	}
 
   // 映像データサイズ（バイト）、時間（タイムスタンプ）のペア
@@ -320,9 +312,8 @@ public:
 		return audioFileOffsets_;
 	}
 
-	int getOutFileIndex(int encoderIndex, int videoFileIndex) const {
-		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
-		return outFileIndex_[formatId];
+	const std::vector<int>& getOutFileMapping() const {
+		return outFileIndex_;
 	}
 
 	bool isVFR() const {
@@ -437,7 +428,6 @@ private:
   // 出力ファイルごとの入力映像データサイズ、時間
   std::vector<int64_t> fileSrcSize_;
   std::vector<double> fileSrcDuration_;
-	std::vector<VideoFormat> fileOutFormat_;
 
 	// 2nd phase 出力
 	//std::vector<bool> encodedFrames_;

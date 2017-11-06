@@ -288,7 +288,7 @@ public:
 		std::string timelineditorPath,
 		bool twoPass,
 		bool autoBitrate,
-		bool pulldown,
+		bool chapter,
 		BitrateSetting bitrate,
 		double bitrateCM,
 		int serviceId,
@@ -301,6 +301,7 @@ public:
 		std::string joinLogoScpCmdPath,
 		HANDLE inPipe,
 		HANDLE outPipe,
+		double maxTmpGB,
 		bool dumpStreamInfo)
 		: AMTObject(ctx)
 		, tmpDir(ctx, workDir)
@@ -318,7 +319,7 @@ public:
 		, timelineditorPath(timelineditorPath)
 		, twoPass(twoPass)
 		, autoBitrate(autoBitrate)
-		, pulldown(pulldown)
+		, chapter(chapter)
 		, bitrate(bitrate)
 		, bitrateCM(bitrateCM)
 		, serviceId(serviceId)
@@ -331,6 +332,7 @@ public:
 		, joinLogoScpCmdPath(joinLogoScpCmdPath)
 		, inPipe(inPipe)
 		, outPipe(outPipe)
+		, maxTmpGB(maxTmpGB)
 		, dumpStreamInfo(dumpStreamInfo)
 	{
 		//
@@ -390,8 +392,8 @@ public:
 		return autoBitrate;
 	}
 
-	bool isPulldownEnabled() const {
-		return pulldown;
+	bool isChapterEnabled() const {
+		return chapter;
 	}
 
 	BitrateSetting getBitrate() const {
@@ -446,6 +448,10 @@ public:
 		return outPipe;
 	}
 
+	double getMaxTmpGB() const {
+		return maxTmpGB;
+	}
+
 	bool isDumpStreamInfo() const {
 		return dumpStreamInfo;
 	}
@@ -479,18 +485,33 @@ public:
 		return outVideoPath + "-streaminfo.dat";
 	}
 
-	std::string getEncVideoFilePath(int vindex, int index) const
+	std::string getEncVideoFilePath(int vindex, int index, int findex) const
 	{
 		std::ostringstream ss;
-		ss << tmpDir.path() << "/v" << vindex << "-" << index << ".raw";
+		if (findex == -1) {
+			ss << tmpDir.path() << "/v" << vindex << "-" << index << ".raw";
+		}
+		else {
+			ss << tmpDir.path() << "/v" << vindex << "-" << index << "-" << findex << ".raw";
+		}
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
-	std::string getEncStatsFilePath(int vindex, int index) const
+	std::string getEncVideoFilePath(int vindex, int index) const
+	{
+		return getEncVideoFilePath(vindex, index);
+	}
+
+	std::string getEncStatsFilePath(int vindex, int index, int findex) const
 	{
 		std::ostringstream ss;
-		ss << tmpDir.path() << "/s" << vindex << "-" << index << ".log";
+		if (findex == -1) {
+			ss << tmpDir.path() << "/s" << vindex << "-" << index << ".log";
+		}
+		else {
+			ss << tmpDir.path() << "/s" << vindex << "-" << index << "-" << findex <<  ".log";
+		}
 		ctx.registerTmpFile(ss.str());
 		// x264は.mbtreeも生成するので
 		ctx.registerTmpFile(ss.str() + ".mbtree");
@@ -577,18 +598,18 @@ public:
 		return ss.str();
 	}
 
-	std::string getEncodeTaskInfoPath(int vindex, int index) const
+	std::string getEncodeTaskInfoPath(int vindex, int index, int findex) const
 	{
 		std::ostringstream ss;
-		ss << tmpDir.path() << "/enctask" << vindex << "-" << index << ".dat";
+		ss << tmpDir.path() << "/enctask" << vindex << "-" << index << "-" << findex << ".dat";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
-	std::string getFilterTmpFilePath(int vindex, int index) const
+	std::string getFilterTmpFilePath(int vindex, int index, int findex) const
 	{
 		std::ostringstream ss;
-		ss << tmpDir.path() << "/filtetmp" << vindex << "-" << index << ".utv";
+		ss << tmpDir.path() << "/filtetmp" << vindex << "-" << index << "-" << findex << ".utv";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
@@ -614,7 +635,7 @@ public:
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
-		int pass, const std::vector<EncoderZone>& zones, int vindex, int index) const
+		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, int findex) const
 	{
 		std::ostringstream ss;
 		ss << encoderOptions;
@@ -636,7 +657,7 @@ public:
 		}
 		if (pass >= 0) {
 			ss << " --pass " << pass;
-			ss << " --stats \"" << getEncStatsFilePath(vindex, index) << "\"";
+			ss << " --stats \"" << getEncStatsFilePath(vindex, index, findex) << "\"";
 		}
 		if (zones.size() && bitrateCM != 1.0 && encoder != ENCODER_QSVENC && encoder != ENCODER_NVENC) {
 			ss << " --zones ";
@@ -656,32 +677,39 @@ public:
 		ctx.info("Input: %s", srcFilePath.c_str());
 		ctx.info("Output: %s", outVideoPath.c_str());
 		ctx.info("WorkDir: %s", tmpDir.path().c_str());
-		ctx.info("OutJson: %s", outInfoJsonPath.c_str());
+		//ctx.info("OutJson: %s", outInfoJsonPath.c_str());
 		ctx.info("Encoder: %s", encoderToString(encoder));
 		ctx.info("EncoderPath: %s", encoderPath.c_str());
 		ctx.info("EncoderOptions: %s", encoderOptions.c_str());
-		ctx.info("MuxerPath: %s", muxerPath.c_str());
-		ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
+		//ctx.info("MuxerPath: %s", muxerPath.c_str());
+		//ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
 		ctx.info("autoBitrate: %s", autoBitrate ? "yes" : "no");
 		ctx.info("Bitrate: %f:%f:%f", bitrate.a, bitrate.b, bitrate.h264);
-		ctx.info("twoPass: %s", twoPass ? "yes" : "no");
-		ctx.info("errorOnNoLogo: %s", errorOnNoLogo ? "yes" : "no");
-		ctx.info("フィルタ中間ファイル: %s", (inPipe != INVALID_HANDLE_VALUE) ? "yes" : "no");
-		for (int i = 0; i < (int)logoPath.size(); ++i) {
-			ctx.info("logo%d: %s", (i + 1), logoPath[i].c_str());
+		ctx.info("2-Pass: %s", twoPass ? "yes" : "no");
+    ctx.info("チャプター解析: %s", chapter ? "yes" : "no");
+    if (chapter) {
+      ctx.info("ロゴ必須: %s", errorOnNoLogo ? "yes" : "no");
+      for (int i = 0; i < (int)logoPath.size(); ++i) {
+        ctx.info("logo%d: %s", (i + 1), logoPath[i].c_str());
+      }
+    }
+		ctx.info("フィルタ中間ファイル: %s", isFilterTmpFile() ? "yes" : "no");
+		if (isFilterTmpFile()) {
+			ctx.info("→サイズ: %.1fGB", maxTmpGB);
 		}
-		ctx.info("amt32bitPath: %s", amt32bitPath.c_str());
-		ctx.info("chapterExePath: %s", chapterExePath.c_str());
-		ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
-		ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
+		//ctx.info("amt32bitPath: %s", amt32bitPath.c_str());
+		//ctx.info("chapterExePath: %s", chapterExePath.c_str());
+		//ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
+		//ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
 		if (serviceId > 0) {
 			ctx.info("ServiceId: %d", serviceId);
 		}
 		else {
 			ctx.info("ServiceId: 指定なし");
 		}
-		ctx.info("mpeg2decoder: %s", decoderToString(decoderSetting.mpeg2));
-		ctx.info("h264decoder: %s", decoderToString(decoderSetting.h264));
+		ctx.info("デコーダ: MPEG2:%s H264:%s",
+			decoderToString(decoderSetting.mpeg2),
+			decoderToString(decoderSetting.h264));
 	}
 
 private:
@@ -705,7 +733,7 @@ private:
 	std::string timelineditorPath;
 	bool twoPass;
 	bool autoBitrate;
-	bool pulldown; // 新バージョンではサポートしない
+	bool chapter;
 	BitrateSetting bitrate;
 	double bitrateCM;
 	int serviceId;
@@ -720,6 +748,7 @@ private:
 	// フィルタ処理分離用
 	HANDLE inPipe;
 	HANDLE outPipe;
+	double maxTmpGB;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 

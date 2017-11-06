@@ -281,15 +281,21 @@ namespace Amatsukaze.Models
                 // TsInfoでサービス名を取得する
                 var info = new TsInfo(context);
                 info.ReadFile(filepath);
-                var list = info.GetServiceList();
 
                 // 名前を修正して保存し直す
                 using(var logo = new LogoFile(context, tmppath))
                 {
-                    int serviceId = logo.ServiceId;
-                    string serviceName = list.First(s => s.ServiceId == serviceId).ServiceName;
-                    string date = info.GetTime().ToString("yyyy-MM-dd");
-                    logo.Name = serviceName + "(" + date + ")";
+                    if (info.HasServiceInfo)
+                    {
+                        int serviceId = logo.ServiceId;
+                        string serviceName = info.GetServiceList().First(s => s.ServiceId == serviceId).ServiceName;
+                        string date = info.GetTime().ToString("yyyy-MM-dd");
+                        logo.Name = serviceName + "(" + date + ")";
+                    }
+                    else
+                    {
+                        logo.Name = "情報なし";
+                    }
 
                     logopath = workpath + "\\logo" + pid + ".lgd";
                     logo.Save(logopath);

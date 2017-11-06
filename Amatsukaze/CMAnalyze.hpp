@@ -72,6 +72,12 @@ public:
 		readTrimAVS(videoFileIndex, numFrames);
 	}
 
+  CMAnalyze(AMTContext& ctx,
+    const TranscoderSetting& setting)
+    : AMTObject(ctx)
+    , setting_(setting)
+  { }
+
 	const std::string& getLogoPath() const {
 		return logopath;
 	}

@@ -108,6 +108,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public string DefaultJLSCommand { get; set; }
+        [DataMember]
+        public bool DisableChapter { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -332,6 +334,10 @@ namespace Amatsukaze.Server
         public string Reason { get; set; }
         [DataMember]
         public string MachineName { get; set; }
+        [DataMember]
+        public List<string> LogoFiles { get; set; }
+        [DataMember]
+        public bool Chapter { get; set; }
 
         [DataMember]
         public int Incident { get; set; }
@@ -350,8 +356,10 @@ namespace Amatsukaze.Server
         public string DisplayEncodeDuration { get { return EncodeDuration.ToGUIString(); } }
         public string DisplaySrcDurationo { get { return (SrcVideoDuration != null) ? SrcVideoDuration.ToGUIString() : null; } }
         public string DisplayOutDuration { get { return (OutVideoDuration != null) ? OutVideoDuration.ToGUIString() : null; } }
-        public string DisplayVideoNotIncluded {
-            get {
+        public string DisplayVideoNotIncluded
+        {
+            get
+            {
                 if (SrcVideoDuration == null) return null;
                 var s = SrcVideoDuration.TotalMilliseconds;
                 var o = OutVideoDuration.TotalMilliseconds;
@@ -370,27 +378,35 @@ namespace Amatsukaze.Server
         public string DisplayReason { get { return Reason; } }
         public string DisplayAudioMaxDiff { get { return (AudioDiff != null) ? AudioDiff.MaxDiff.ToString("F2") : null; } }
         public string DisplayAudioMaxDiffPos { get { return (AudioDiff != null) ? AudioDiff.MaxDiffPos.ToString("F2") : null; } }
-        public string DisplayEncodeSpeed {
-            get {
+        public string DisplayEncodeSpeed
+        {
+            get
+            {
                 return (SrcVideoDuration != null)
 ? (SrcVideoDuration.TotalSeconds / EncodeDuration.TotalSeconds).ToString("F2")
 : null;
             }
         }
-        public string DisplaySrcBitrate {
-            get {
+        public string DisplaySrcBitrate
+        {
+            get
+            {
                 return (SrcVideoDuration != null)
 ? ((double)SrcFileSize / (SrcVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
 : null;
             }
         }
-        public string DisplayOutBitrate {
-            get {
+        public string DisplayOutBitrate
+        {
+            get
+            {
                 return (SrcVideoDuration != null)
 ? ((double)OutFileSize / (OutVideoDuration.TotalSeconds * 128.0 * 1024)).ToString("F3")
 : null;
             }
         }
+        public string DisplayLogo { get { return (LogoFiles != null && LogoFiles.Count > 0) ? LogoFiles[0] : "なし"; } }
+        public string DisplayChapter { get { return Chapter ? "○" : "☓"; } }
     }
 
     [DataContract]
