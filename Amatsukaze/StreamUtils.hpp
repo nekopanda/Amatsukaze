@@ -14,8 +14,6 @@
 
 #include "CoreUtils.hpp"
 
-extern HMODULE g_DllHandle;
-
 enum {
 	TS_SYNC_BYTE = 0x47,
 
@@ -293,12 +291,6 @@ private:
 		}
 	}
 };
-
-std::string GetModulePath() {
-	char buf[MAX_PATH];
-	GetModuleFileName(g_DllHandle, buf, MAX_PATH);
-	return buf;
-}
 
 enum AMT_LOG_LEVEL {
 	AMT_LOG_DEBUG,
@@ -818,20 +810,6 @@ static void CopyYV12(uint8_t* dst,
 		memcpy(dstp, &srcV[y * pitchUV], widthUV);
 		dstp += widthUV;
 	}
-}
-
-// プロセスに設定されているコア数を取得
-int GetProcessorCount()
-{
-  DWORD_PTR procMask, sysMask;
-  if (GetProcessAffinityMask(GetCurrentProcess(), &procMask, &sysMask)) {
-    int cnt = 0;
-    for (int i = 0; i < 64; ++i) {
-      if (procMask & (DWORD_PTR(1) << i)) cnt++;
-    }
-    return cnt;
-  }
-  return 8; // 失敗したら適当な値にしておく
 }
 
 void ConcatFiles(const std::vector<std::string>& srcpaths, const std::string& dstpath)

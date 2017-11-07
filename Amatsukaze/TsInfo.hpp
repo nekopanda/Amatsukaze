@@ -27,6 +27,7 @@ public:
 		, patOK(false)
 		, serviceOK(false)
 		, timeOK(false)
+    , numPrograms(0)
 	{
 		handlerTable.addConstant(0x0000, newPsiHandler()); // PAT
 		handlerTable.addConstant(0x0011, newPsiHandler()); // SDT/BAT
@@ -383,8 +384,8 @@ private:
 // C API for P/Invoke
 extern "C" __declspec(dllexport) void* TsInfo_Create(AMTContext* ctx) { return new TsInfo(*ctx); }
 extern "C" __declspec(dllexport) void TsInfo_Delete(TsInfo* ptr) { delete ptr; }
-extern "C" __declspec(dllexport) bool TsInfo_ReadFile(TsInfo* ptr, const char* filepath) { return ptr->ReadFileFromC(filepath); }
-extern "C" __declspec(dllexport) bool TsInfo_HasServiceInfo(TsInfo* ptr) { return ptr->HasServiceInfo(); }
+extern "C" __declspec(dllexport) int TsInfo_ReadFile(TsInfo* ptr, const char* filepath) { return ptr->ReadFileFromC(filepath); }
+extern "C" __declspec(dllexport) int TsInfo_HasServiceInfo(TsInfo* ptr) { return ptr->HasServiceInfo(); }
 extern "C" __declspec(dllexport) void TsInfo_GetDay(TsInfo* ptr, int* y, int* m, int* d) { ptr->GetDay(y, m, d); }
 extern "C" __declspec(dllexport) void TsInfo_GetTime(TsInfo* ptr, int* h, int* m, int* s) { return ptr->GetTime(h, m, s); }
 extern "C" __declspec(dllexport) int TsInfo_GetNumProgram(TsInfo* ptr) { return ptr->GetNumProgram(); }

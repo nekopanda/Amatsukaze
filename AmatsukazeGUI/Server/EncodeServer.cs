@@ -1315,13 +1315,19 @@ namespace Amatsukaze.Server
                 appData = new AppData() {
                     setting = new Setting() {
                         EncoderType = EncoderType.x264,
-                        AmatsukazePath = Path.Combine(basePath, "Amatsukaze.exe"),
+                        AmatsukazePath = Path.Combine(basePath, "AmatsukazeCLI.exe"),
+                        Amt32bitPath = Path.Combine(basePath, "x86\\Amatsukaze.dll"),
                         X264Path = GetExePath(basePath, "x264"),
                         X265Path = GetExePath(basePath, "x265"),
                         MuxerPath = Path.Combine(basePath, "muxer.exe"),
                         TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
+                        ChapterExePath = GetExePath(basePath + "\\x86", "chapter_exe"),
+                        JoinLogoScpPath = GetExePath(basePath + "\\x86", "join_logo_scp"),
+                        DefaultJLSCommand = "JL_標準.txt",
                         NumParallel = 1,
-                        Bitrate = new BitrateSetting()
+                        Bitrate = new BitrateSetting(),
+                        BitrateCM = 0.5,
+                        MaxTmpGB = 50
                     },
                     services = new ServiceSetting() {
                         ServiceMap = new Dictionary<int, ServiceSettingElement>()
@@ -2472,7 +2478,7 @@ namespace Amatsukaze.Server
                     diskMap.Add(diskPath, MakeDiskItem(diskPath));
                 }
             }
-            {
+            if(string.IsNullOrEmpty(appData.setting.WorkPath) == false) {
                 var diskPath = Path.GetPathRoot(appData.setting.WorkPath);
                 if (diskMap.ContainsKey(diskPath) == false)
                 {

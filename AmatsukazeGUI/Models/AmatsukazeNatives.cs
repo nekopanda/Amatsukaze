@@ -112,10 +112,10 @@ namespace Amatsukaze.Models
         private static extern void TsInfo_Delete(IntPtr ptr);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool TsInfo_ReadFile(IntPtr ptr, string filepath);
+        private static extern int TsInfo_ReadFile(IntPtr ptr, string filepath);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool TsInfo_HasServiceInfo(IntPtr ptr);
+        private static extern int TsInfo_HasServiceInfo(IntPtr ptr);
 
         [DllImport("Amatsukaze.dll")]
         private static extern void TsInfo_GetDay(IntPtr ptr, out int y, out int m, out int d);
@@ -185,14 +185,14 @@ namespace Amatsukaze.Models
 
         public bool ReadFile(string filepath)
         {
-            return TsInfo_ReadFile(Ptr, filepath);
+            return TsInfo_ReadFile(Ptr, filepath) != 0;
         }
 
         public bool HasServiceInfo
         {
             get
             {
-                return TsInfo_HasServiceInfo(Ptr);
+                return TsInfo_HasServiceInfo(Ptr) != 0;
             }
         }
 
@@ -241,7 +241,7 @@ namespace Amatsukaze.Models
         private static extern void MediaFile_Delete(IntPtr ptr);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool MediaFile_DecodeFrame(IntPtr ptr, float pos, ref int width, ref int height);
+        private static extern int MediaFile_DecodeFrame(IntPtr ptr, float pos, ref int width, ref int height);
 
         [DllImport("Amatsukaze.dll")]
         private static unsafe extern void MediaFile_GetFrame(IntPtr ptr, byte* rgb, int width, int height);
@@ -289,7 +289,7 @@ namespace Amatsukaze.Models
         public BitmapSource GetFrame(float pos)
         {
             int width = 0, height = 0;
-            if(MediaFile_DecodeFrame(Ptr, pos, ref width, ref height))
+            if(MediaFile_DecodeFrame(Ptr, pos, ref width, ref height) != 0)
             {
                 if(width != 0 && height != 0)
                 {
@@ -358,10 +358,10 @@ namespace Amatsukaze.Models
         private static unsafe extern void LogoFile_GetImage(IntPtr ptr, byte* buf, int stride, byte bg);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool LogoFile_Save(IntPtr ptr, string filename);
+        private static extern int LogoFile_Save(IntPtr ptr, string filename);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern bool ScanLogo(IntPtr ctx, string srcpath, string workfile, string dstpath,
+        private static extern int ScanLogo(IntPtr ctx, string srcpath, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb);
         #endregion
 
@@ -450,7 +450,7 @@ namespace Amatsukaze.Models
 
         public void Save(string filepath)
         {
-            if(LogoFile_Save(Ptr, filepath) == false)
+            if(LogoFile_Save(Ptr, filepath) == 0)
             {
                 throw new IOException(Ctx.GetError());
             }
@@ -459,7 +459,7 @@ namespace Amatsukaze.Models
         public static void ScanLogo(AMTContext ctx, string srcpath, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb)
         {
-            if(!ScanLogo(ctx.Ptr, srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb))
+            if(ScanLogo(ctx.Ptr, srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb) == 0)
             {
                 throw new IOException(ctx.GetError());
             }

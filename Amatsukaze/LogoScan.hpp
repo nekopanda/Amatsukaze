@@ -954,7 +954,7 @@ public:
 };
 
 // C API for P/Invoke
-extern "C" __declspec(dllexport) bool ScanLogo(AMTContext* ctx,
+extern "C" __declspec(dllexport) int ScanLogo(AMTContext* ctx,
 	const char* srcpath, const char* workfile, const char* dstpath,
 	int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 	LOGO_ANALYZE_CB cb)

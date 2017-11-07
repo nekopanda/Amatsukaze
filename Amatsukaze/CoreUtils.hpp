@@ -19,16 +19,19 @@ struct Exception {
 
 #define DEFINE_EXCEPTION(name) \
 	struct name : public Exception { \
-		name() { buf[0] = 0; } \
+		name() { pbuf = nullptr; } \
+    ~name() { if(pbuf) delete [] pbuf; } \
 		name(const char* fmt, ...) { \
 			va_list arg; va_start(arg, fmt); \
-			vsnprintf_s(buf, sizeof(buf), fmt, arg); \
+			size_t length = _vscprintf(fmt, arg); \
+      pbuf = new char[length + 1]; \
+      vsnprintf_s(pbuf, length, _TRUNCATE, fmt, arg); \
 			va_end(arg); \
 		} \
-		virtual const char* message() const { return buf; } \
+		virtual const char* message() const { return pbuf; } \
 	  virtual void raise() const { throw *this;	} \
 	private: \
-		char buf[300]; \
+    char* pbuf; \
 	};
 
 DEFINE_EXCEPTION(EOFException)
@@ -38,6 +41,7 @@ DEFINE_EXCEPTION(ArgumentException)
 DEFINE_EXCEPTION(IOException)
 DEFINE_EXCEPTION(RuntimeException)
 DEFINE_EXCEPTION(NoLogoException)
+DEFINE_EXCEPTION(AviSynthException)
 
 #undef DEFINE_EXCEPTION
 

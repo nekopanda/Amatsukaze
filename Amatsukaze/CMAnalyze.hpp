@@ -25,52 +25,52 @@ static void PrintFileAll(const std::string& path)
 class CMAnalyze : public AMTObject
 {
 public:
-	CMAnalyze(AMTContext& ctx,
-		const TranscoderSetting& setting,
-		int videoFileIndex, int numFrames)
-		: AMTObject(ctx)
-		, setting_(setting)
-	{
-		Stopwatch sw;
-		std::string avspath = makeAVSFile(videoFileIndex);
+  CMAnalyze(AMTContext& ctx,
+    const TranscoderSetting& setting,
+    int videoFileIndex, int numFrames)
+    : AMTObject(ctx)
+    , setting_(setting)
+  {
+    Stopwatch sw;
+    std::string avspath = makeAVSFile(videoFileIndex);
 
-		// ロゴ解析
-		if (setting_.getLogoPath().size() > 0) {
-			ctx.info("[ロゴ解析]");
-			sw.start();
-			logoFrame(videoFileIndex, avspath);
-			ctx.info("完了: %.2f秒", sw.getAndReset());
+    // ロゴ解析
+    if (setting_.getLogoPath().size() > 0) {
+      ctx.info("[ロゴ解析]");
+      sw.start();
+      logoFrame(videoFileIndex, avspath);
+      ctx.info("完了: %.2f秒", sw.getAndReset());
 
-			if (logopath.size() > 0) {
-				ctx.info("[ロゴ解析結果]");
-				ctx.info("マッチしたロゴ: %s", logopath.c_str());
-				PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
-			}
-		}
+      if (logopath.size() > 0) {
+        ctx.info("[ロゴ解析結果]");
+        ctx.info("マッチしたロゴ: %s", logopath.c_str());
+        PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
+      }
+    }
 
-		// チャプター解析
-		ctx.info("[無音・シーンチェンジ解析]");
-		sw.start();
-		chapterExe(videoFileIndex, avspath);
-		ctx.info("完了: %.2f秒", sw.getAndReset());
+    // チャプター解析
+    ctx.info("[無音・シーンチェンジ解析]");
+    sw.start();
+    chapterExe(videoFileIndex, avspath);
+    ctx.info("完了: %.2f秒", sw.getAndReset());
 
-		ctx.info("[無音・シーンチェンジ解析結果]");
-		PrintFileAll(setting_.getTmpChapterExeOutPath(videoFileIndex));
+    ctx.info("[無音・シーンチェンジ解析結果]");
+    PrintFileAll(setting_.getTmpChapterExeOutPath(videoFileIndex));
 
-		// CM推定
-		ctx.info("[CM解析]");
-		sw.start();
-		joinLogoScp(videoFileIndex);
-		ctx.info("完了: %.2f秒", sw.getAndReset());
+    // CM推定
+    ctx.info("[CM解析]");
+    sw.start();
+    joinLogoScp(videoFileIndex);
+    ctx.info("完了: %.2f秒", sw.getAndReset());
 
-		ctx.info("[CM解析結果 - TrimAVS]");
-		PrintFileAll(setting_.getTmpTrimAVSPath(videoFileIndex));
-		ctx.info("[CM解析結果 - 詳細]");
-		PrintFileAll(setting_.getTmpJlsPath(videoFileIndex));
+    ctx.info("[CM解析結果 - TrimAVS]");
+    PrintFileAll(setting_.getTmpTrimAVSPath(videoFileIndex));
+    ctx.info("[CM解析結果 - 詳細]");
+    PrintFileAll(setting_.getTmpJlsPath(videoFileIndex));
 
-		// AVSファイルからCM区間を読む
-		readTrimAVS(videoFileIndex, numFrames);
-	}
+    // AVSファイルからCM区間を読む
+    readTrimAVS(videoFileIndex, numFrames);
+  }
 
   CMAnalyze(AMTContext& ctx,
     const TranscoderSetting& setting)
@@ -78,81 +78,86 @@ public:
     , setting_(setting)
   { }
 
-	const std::string& getLogoPath() const {
-		return logopath;
-	}
+  const std::string& getLogoPath() const {
+    return logopath;
+  }
 
-	const std::vector<EncoderZone>& getZones() const {
-		return cmzones;
-	}
+  const std::vector<EncoderZone>& getZones() const {
+    return cmzones;
+  }
 
 private:
-	class MySubProcess : public EventBaseSubProcess {
-	public:
-		MySubProcess(const std::string& args, File* out = nullptr, File* err = nullptr)
-			: EventBaseSubProcess(args)
-			, out(out)
-			, err(err)
-		{ }
-	protected:
-		File* out;
-		File* err;
-		virtual void onOut(bool isErr, MemoryChunk mc) {
-			// これはマルチスレッドで呼ばれるの注意
-			File* dst = isErr ? err : out;
-			if (dst != nullptr) {
-				dst->write(mc);
-			}
-			else {
-				fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
-				fflush(isErr ? stderr : stdout);
-			}
-		}
-	};
+  class MySubProcess : public EventBaseSubProcess {
+  public:
+    MySubProcess(const std::string& args, File* out = nullptr, File* err = nullptr)
+      : EventBaseSubProcess(args)
+      , out(out)
+      , err(err)
+    { }
+  protected:
+    File* out;
+    File* err;
+    virtual void onOut(bool isErr, MemoryChunk mc) {
+      // これはマルチスレッドで呼ばれるの注意
+      File* dst = isErr ? err : out;
+      if (dst != nullptr) {
+        dst->write(mc);
+      }
+      else {
+        fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+        fflush(isErr ? stderr : stdout);
+      }
+    }
+  };
 
-	const TranscoderSetting& setting_;
+  const TranscoderSetting& setting_;
 
-	std::string logopath;
-	std::vector<EncoderZone> cmzones;
+  std::string logopath;
+  std::vector<EncoderZone> cmzones;
 
-	std::string makeAVSFile(int videoFileIndex)
-	{
-		std::string avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
-		std::ofstream out(avspath);
-		out << "LoadPlugin(\"" << setting_.get32bitPath() << "\")" << std::endl;
-		out << "AMTSource(\"" << setting_.getTmpAMTSourcePath(videoFileIndex) << "\")" << std::endl;
-		out << "Prefetch(1)" << std::endl;
-		return avspath;
-	}
+  std::string makeAVSFile(int videoFileIndex)
+  {
+    std::string avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
+    std::ofstream out(avspath);
+    out << "LoadPlugin(\"" << setting_.get32bitPath() << "\")" << std::endl;
+    out << "AMTSource(\"" << setting_.getTmpAMTSourcePath(videoFileIndex) << "\")" << std::endl;
+    out << "Prefetch(1)" << std::endl;
+    return avspath;
+  }
 
-	void logoFrame(int videoFileIndex, const std::string& avspath)
-	{
-		ScriptEnvironmentPointer env = make_unique_ptr(CreateScriptEnvironment2());
+  void logoFrame(int videoFileIndex, const std::string& avspath)
+  {
+    ScriptEnvironmentPointer env = make_unique_ptr(CreateScriptEnvironment2());
 
-		AVSValue result;
-		env->LoadPlugin(GetModulePath().c_str(), true, &result);
-		PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
+    try {
+      AVSValue result;
+      env->LoadPlugin(GetModulePath().c_str(), true, &result);
+      PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
 
-		auto vi = clip->GetVideoInfo();
-		int duration = vi.num_frames * vi.fps_denominator / vi.fps_numerator;
+      auto vi = clip->GetVideoInfo();
+      int duration = vi.num_frames * vi.fps_denominator / vi.fps_numerator;
 
-		logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
-		logof.scanFrames(clip, env.get());
-		logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
+      logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
+      logof.scanFrames(clip, env.get());
+      logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
 
-		if (logof.getLogoRatio() < 0.5f) {
-			// 3分以下のファイルはロゴが見つからなくても無視する
-			if (duration <= 180) {
-				ctx.info("マッチするロゴはありませんでしたが、動画の長さが%d秒(180秒以下)なので無視します", duration);
-			}
-			else if (setting_.getErrorOnNoLogo()) {
-				THROW(NoLogoException, "マッチするロゴが見つかりませんでした");
-			}
-		}
-		else {
-			logopath = setting_.getLogoPath()[logof.getBestLogo()];
-		}
-	}
+      if (logof.getLogoRatio() < 0.5f) {
+        // 3分以下のファイルはロゴが見つからなくても無視する
+        if (duration <= 180) {
+          ctx.info("マッチするロゴはありませんでしたが、動画の長さが%d秒(180秒以下)なので無視します", duration);
+        }
+        else if (setting_.getErrorOnNoLogo()) {
+          THROW(NoLogoException, "マッチするロゴが見つかりませんでした");
+        }
+      }
+      else {
+        logopath = setting_.getLogoPath()[logof.getBestLogo()];
+      }
+    }
+    catch (const AvisynthError& avserror) {
+      THROWF(AviSynthException, "%s", avserror.msg);
+    }
+  }
 
 	std::string MakeChapterExeArgs(int videoFileIndex, const std::string& avspath)
 	{

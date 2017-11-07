@@ -39,6 +39,7 @@ class AMTSource : public IClip, AMTObject
 	const std::vector<FilterAudioFrame>& audioFrames;
 	DecoderSetting decoderSetting;
 	int audioSamplesPerFrame;
+	bool interlaced;
 
   InputContext inputCtx;
   CodecContext codecCtx;
@@ -133,6 +134,8 @@ class AMTSource : public IClip, AMTObject
     vi.height = vfmt.height;
     vi.SetFPS(vfmt.frameRateNum, vfmt.frameRateDenom);
     vi.num_frames = int(frames.size());
+
+    interlaced = !vfmt.progressive;
 
     // ビット深度は取得してないのでフレームをデコードして取得する
     //vi.pixel_type = VideoInfo::CS_YV12;
@@ -545,8 +548,12 @@ public:
   }
 
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
-  bool __stdcall GetParity(int n) { return 1; }
-	int __stdcall SetCacheHints(int cachehints, int frame_range)
+
+  bool __stdcall GetParity(int n) {
+    return interlaced;
+  }
+	
+  int __stdcall SetCacheHints(int cachehints, int frame_range)
 	{
 		// 直接インスタンス化される場合、MTGuardが入らないのでMT_NICE_FILTER以外ダメ
 		if (cachehints == CACHE_GET_MTMODE) return MT_NICE_FILTER;

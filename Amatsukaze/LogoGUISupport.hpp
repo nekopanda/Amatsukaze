@@ -160,7 +160,7 @@ extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const c
 	return nullptr;
 }
 extern "C" __declspec(dllexport) void MediaFile_Delete(av::GUIMediaFile* ptr) { delete ptr; }
-extern "C" __declspec(dllexport) bool MediaFile_DecodeFrame(
+extern "C" __declspec(dllexport) int MediaFile_DecodeFrame(
 	av::GUIMediaFile* ptr, float pos, int* pwidth, int* pheight) { return ptr->decodeFrame(pos, pwidth, pheight); }
 extern "C" __declspec(dllexport) void MediaFile_GetFrame(
 	av::GUIMediaFile* ptr, uint8_t* rgb, int width, int height) { ptr->getFrame(rgb, width, height); }
@@ -261,4 +261,4 @@ extern "C" __declspec(dllexport) void LogoFile_SetServiceId(logo::GUILogoFile* p
 extern "C" __declspec(dllexport) const char* LogoFile_GetName(logo::GUILogoFile* ptr) { return ptr->getName(); }
 extern "C" __declspec(dllexport) void LogoFile_SetName(logo::GUILogoFile* ptr, const char* name) { ptr->setName(name); }
 extern "C" __declspec(dllexport) void LogoFile_GetImage(logo::GUILogoFile* ptr, uint8_t* rgb, int stride, uint8_t bg) { ptr->getImage(rgb, stride, bg); }
-extern "C" __declspec(dllexport) bool LogoFile_Save(logo::GUILogoFile* ptr, const char* filename) { return ptr->save(filename); }
+extern "C" __declspec(dllexport) int LogoFile_Save(logo::GUILogoFile* ptr, const char* filename) { return ptr->save(filename); }

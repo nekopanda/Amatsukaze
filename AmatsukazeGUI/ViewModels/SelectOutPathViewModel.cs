@@ -62,9 +62,11 @@ namespace Amatsukaze.ViewModels
          */
         public AddQueueDirectory Item { get; set; }
 
+        private string DefaultPath;
+
         public void Initialize()
         {
-            OutPath = Path.Combine(Item.DirPath, "encoded");
+            OutPath = DefaultPath = Path.Combine(Item.DirPath, "encoded");
         }
 
         public bool Succeeded { get; private set; }
@@ -84,7 +86,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Ok()
         {
-            if (string.IsNullOrEmpty(OutPath) == false)
+            if (DefaultPath != OutPath && string.IsNullOrEmpty(OutPath) == false)
             {
                 if (System.IO.Directory.Exists(OutPath) == false)
                 {

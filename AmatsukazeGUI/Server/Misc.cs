@@ -242,7 +242,8 @@ namespace Amatsukaze.Server
 
         public static string CreateTmpFile(string baseDir)
         {
-            for(int code = Environment.TickCount & 0xFFFFFF; code >= 0; ++code)
+            for(int code = Environment.TickCount & 0xFFFFFF, 
+                end = code + 0x1000; code != end; ++code)
             {
                 string path = baseDir + "\\amt" + code;
                 try
