@@ -122,6 +122,14 @@ namespace Amatsukaze.Server
                 return TwoPass && EnableFilterTmp;
             }
         }
+
+        public string ActualWorkPath
+        {
+            get
+            {
+                return string.IsNullOrEmpty(WorkPath) ? "./" : WorkPath;
+            }
+        }
     }
 
     [DataContract]

@@ -860,8 +860,11 @@ namespace Amatsukaze.Server
                         readPipe.Close();
                         writePipe.Close();
                     }
-                    current.logWriter = null;
-                    current = null;
+                    if(current != null)
+                    {
+                        current.logWriter = null;
+                        current = null;
+                    }
                 }
 
                 DateTime finish = DateTime.Now;
@@ -1493,37 +1496,7 @@ namespace Amatsukaze.Server
             string src, string dst, string json, string taskjson, string inHandle, string outHandle,
             int serviceId, string[] logofiles, bool errorOnNoLogo, string jlscommand)
         {
-            string workPath = string.IsNullOrEmpty(appData.setting.WorkPath)
-                ? "./" : appData.setting.WorkPath;
             string encoderPath = GetEncoderPath();
-
-            if (string.IsNullOrEmpty(encoderPath))
-            {
-                throw new ArgumentException("エンコーダパスが指定されていません");
-            }
-            if (string.IsNullOrEmpty(appData.setting.MuxerPath))
-            {
-                throw new ArgumentException("Muxerパスが指定されていません");
-            }
-            if (string.IsNullOrEmpty(appData.setting.TimelineEditorPath))
-            {
-                throw new ArgumentException("Timelineeditorパスが指定されていません");
-            }
-            if (string.IsNullOrEmpty(appData.setting.Amt32bitPath))
-            {
-                throw new ArgumentException("Amt32bitPathパスが指定されていません");
-            }
-            if (!appData.setting.DisableChapter)
-            {
-                if (string.IsNullOrEmpty(appData.setting.ChapterExePath))
-                {
-                    throw new ArgumentException("ChapterExePathパスが指定されていません");
-                }
-                if (string.IsNullOrEmpty(appData.setting.JoinLogoScpPath))
-                {
-                    throw new ArgumentException("JoinLogoScpPathパスが指定されていません");
-                }
-            }
 
             double bitrateCM = appData.setting.BitrateCM;
             if (bitrateCM == 0)
@@ -1710,6 +1683,81 @@ namespace Amatsukaze.Server
             }
         }
 
+        private void CheckSetting()
+        {
+            string workPath = appData.setting.ActualWorkPath;
+            if (!File.Exists(appData.setting.AmatsukazePath))
+            {
+                throw new InvalidOperationException(
+                    "AmtasukazeCLIパスが無効です: " + appData.setting.AmatsukazePath);
+            }
+            if (!Directory.Exists(workPath))
+            {
+                throw new InvalidOperationException(
+                    "一時フォルダパスが無効です: " + workPath);
+            }
+
+            string encoderPath = GetEncoderPath();
+            if (string.IsNullOrEmpty(encoderPath))
+            {
+                throw new ArgumentException("エンコーダパスが指定されていません");
+            }
+            if (!File.Exists(encoderPath))
+            {
+                throw new InvalidOperationException(
+                    "エンコーダパスが無効です: " + encoderPath);
+            }
+
+            if (string.IsNullOrEmpty(appData.setting.MuxerPath))
+            {
+                throw new ArgumentException("Muxerパスが指定されていません");
+            }
+            if (!File.Exists(appData.setting.MuxerPath))
+            {
+                throw new InvalidOperationException(
+                    "Muxerパスが無効です: " + appData.setting.MuxerPath);
+            }
+            if (string.IsNullOrEmpty(appData.setting.TimelineEditorPath))
+            {
+                throw new ArgumentException("Timelineeditorパスが指定されていません");
+            }
+            if (!File.Exists(appData.setting.TimelineEditorPath))
+            {
+                throw new InvalidOperationException(
+                    "Timelineeditorパスが無効です: " + appData.setting.TimelineEditorPath);
+            }
+            if (string.IsNullOrEmpty(appData.setting.Amt32bitPath))
+            {
+                throw new ArgumentException("Amt32bitPathパスが指定されていません");
+            }
+            if (!File.Exists(appData.setting.Amt32bitPath))
+            {
+                throw new InvalidOperationException(
+                    "Amtasukaze32bitDLLパスが無効です: " + appData.setting.Amt32bitPath);
+            }
+            if (!appData.setting.DisableChapter)
+            {
+                if (string.IsNullOrEmpty(appData.setting.ChapterExePath))
+                {
+                    throw new ArgumentException("ChapterExeパスが指定されていません");
+                }
+                if (!File.Exists(appData.setting.ChapterExePath))
+                {
+                    throw new InvalidOperationException(
+                        "ChapterExeパスが無効です: " + appData.setting.ChapterExePath);
+                }
+                if (string.IsNullOrEmpty(appData.setting.JoinLogoScpPath))
+                {
+                    throw new ArgumentException("JoinLogoScpパスが指定されていません");
+                }
+                if (!File.Exists(appData.setting.JoinLogoScpPath))
+                {
+                    throw new InvalidOperationException(
+                        "JoinLogoScpパスが無効です: " + appData.setting.JoinLogoScpPath);
+                }
+            }
+        }
+
         private async Task StartTranscode()
         {
             NowEncoding = true;
@@ -1722,6 +1770,8 @@ namespace Amatsukaze.Server
 
             try
             {
+                CheckSetting();
+
                 if (appData.setting.ClearWorkDirOnStart)
                 {
                     CleanTmpDir();
