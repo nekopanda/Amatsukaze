@@ -1770,13 +1770,6 @@ namespace Amatsukaze.Server
 
             try
             {
-                CheckSetting();
-
-                if (appData.setting.ClearWorkDirOnStart)
-                {
-                    CleanTmpDir();
-                }
-
                 while (queue.Count > 0)
                 {
                     var dir = queue.FirstOrDefault(d => d.Items.Any(item => item.State == QueueState.Queue));
@@ -1791,6 +1784,13 @@ namespace Amatsukaze.Server
                         appData.setting.NumParallel > 64)
                     {
                         appData.setting.NumParallel = 1;
+                    }
+
+                    CheckSetting();
+
+                    if (appData.setting.ClearWorkDirOnStart)
+                    {
+                        CleanTmpDir();
                     }
 
                     int NumParallel = appData.setting.NumParallel;
@@ -2592,7 +2592,9 @@ namespace Amatsukaze.Server
 
         public Task RequestSetting()
         {
-            return client.OnSetting(appData.setting);
+            return Task.WhenAll(
+                client.OnSetting(appData.setting),
+                client.OnAvsScriptFiles(avsFiles));
         }
 
         public Task RequestQueue()
@@ -2696,6 +2698,7 @@ namespace Amatsukaze.Server
                     Data = service
                 });
             }
+            await client.OnJlsCommandFiles(jlsFiles);
         }
 
         private AMTContext amtcontext = new AMTContext();

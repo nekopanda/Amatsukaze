@@ -177,6 +177,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnLlsCommandFiles:
                     userClient.OnJlsCommandFiles((JLSCommandFiles)arg);
                     break;
+                case RPCMethodId.OnAvsScriptFiles:
+                    userClient.OnAvsScriptFiles((AvsScriptFiles)arg);
+                    break;
                 case RPCMethodId.OnLogoData:
                     userClient.OnLogoData((LogoData)arg);
                     break;

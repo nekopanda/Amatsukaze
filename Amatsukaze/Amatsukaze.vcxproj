@@ -96,7 +96,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>utv_core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -109,7 +109,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>utv_core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -126,7 +126,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>utv_core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
@@ -144,7 +144,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>utv_core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -164,6 +164,7 @@
     <ClInclude Include="List.hpp" />
     <ClInclude Include="LogoGUISupport.hpp" />
     <ClInclude Include="LogoScan.hpp" />
+    <ClInclude Include="OSUtil.hpp" />
     <ClInclude Include="PacketCache.hpp" />
     <ClInclude Include="PerformanceUtil.hpp" />
     <ClInclude Include="ProcessThread.hpp" />
