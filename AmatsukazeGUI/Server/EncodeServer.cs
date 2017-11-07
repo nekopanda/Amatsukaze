@@ -1319,13 +1319,12 @@ namespace Amatsukaze.Server
                     setting = new Setting() {
                         EncoderType = EncoderType.x264,
                         AmatsukazePath = Path.Combine(basePath, "AmatsukazeCLI.exe"),
-                        Amt32bitPath = Path.Combine(basePath, "x86\\Amatsukaze.dll"),
                         X264Path = GetExePath(basePath, "x264"),
                         X265Path = GetExePath(basePath, "x265"),
                         MuxerPath = Path.Combine(basePath, "muxer.exe"),
                         TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
-                        ChapterExePath = GetExePath(basePath + "\\x86", "chapter_exe"),
-                        JoinLogoScpPath = GetExePath(basePath + "\\x86", "join_logo_scp"),
+                        ChapterExePath = GetExePath(basePath, "chapter_exe"),
+                        JoinLogoScpPath = GetExePath(basePath, "join_logo_scp"),
                         DefaultJLSCommand = "JL_標準.txt",
                         NumParallel = 1,
                         Bitrate = new BitrateSetting(),
@@ -1525,8 +1524,6 @@ namespace Amatsukaze.Server
                 .Append(appData.setting.TimelineEditorPath)
                 .Append("\" -j \"")
                 .Append(json)
-                .Append("\" --32bitlib \"")
-                .Append(appData.setting.Amt32bitPath)
                 .Append("\" --chapter-exe \"")
                 .Append(appData.setting.ChapterExePath)
                 .Append("\" --jls \"")
@@ -1725,15 +1722,6 @@ namespace Amatsukaze.Server
             {
                 throw new InvalidOperationException(
                     "Timelineeditorパスが無効です: " + appData.setting.TimelineEditorPath);
-            }
-            if (string.IsNullOrEmpty(appData.setting.Amt32bitPath))
-            {
-                throw new ArgumentException("Amt32bitPathパスが指定されていません");
-            }
-            if (!File.Exists(appData.setting.Amt32bitPath))
-            {
-                throw new InvalidOperationException(
-                    "Amtasukaze32bitDLLパスが無効です: " + appData.setting.Amt32bitPath);
             }
             if (!appData.setting.DisableChapter)
             {

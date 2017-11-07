@@ -119,7 +119,7 @@ private:
   {
     std::string avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
     std::ofstream out(avspath);
-    out << "LoadPlugin(\"" << setting_.get32bitPath() << "\")" << std::endl;
+    out << "LoadPlugin(\"" << GetModulePath().c_str() << "\")" << std::endl;
     out << "AMTSource(\"" << setting_.getTmpAMTSourcePath(videoFileIndex) << "\")" << std::endl;
     out << "Prefetch(1)" << std::endl;
     return avspath;

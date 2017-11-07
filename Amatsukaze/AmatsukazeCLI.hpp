@@ -81,7 +81,6 @@ static void printHelp(const tchar* bin) {
     "  --chapter           チャプター・CM解析を行う\n"
 		"  --error-on-no-logo  ロゴが見つからない場合はエラーとする\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
-		"  --32bitlib <パス>   32bitのAmatsukaze.dllへのパス\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
@@ -194,7 +193,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	DecoderSetting decoderSetting;
 	std::vector<std::string> logoPath;
 	bool errorOnNoLogo = false;
-	std::tstring amt32bitPath;
 	std::tstring chapterExePath;
 	std::tstring joinLogoScpPath;
 	std::tstring joinLogoScpCmdPath;
@@ -306,9 +304,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		else if (key == _T("--logo")) {
 			logoPath.push_back(to_string(getParam(argc, argv, i++)));
 		}
-		else if (key == _T("--32bitlib")) {
-			amt32bitPath = getParam(argc, argv, i++);
-		}
 		else if (key == _T("--chapter-exe")) {
 			chapterExePath = getParam(argc, argv, i++);
 		}
@@ -399,7 +394,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		decoderSetting,
 		logoPath,
 		errorOnNoLogo,
-		to_string(amt32bitPath),
 		to_string(chapterExePath),
 		to_string(joinLogoScpPath),
 		to_string(joinLogoScpCmdPath),

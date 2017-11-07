@@ -74,8 +74,6 @@ namespace Amatsukaze.Server
         public string TimelineEditorPath { get; set; }
 
         [DataMember]
-        public string Amt32bitPath { get; set; }
-        [DataMember]
         public string ChapterExePath { get; set; }
         [DataMember]
         public string JoinLogoScpPath { get; set; }

@@ -639,18 +639,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region Amt32bitPath変更通知プロパティ
-        public string Amt32bitPath {
-            get { return setting.Amt32bitPath; }
-            set {
-                if (setting.Amt32bitPath == value)
-                    return;
-                setting.Amt32bitPath = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region ChapterExePath変更通知プロパティ
         public string ChapterExePath {
             get { return setting.ChapterExePath; }
@@ -1292,7 +1280,6 @@ namespace Amatsukaze.Models
             EncoderTypeInt = (int)setting.EncoderType;
             MuxerPath = setting.MuxerPath;
             TimelineEditorPath = setting.TimelineEditorPath;
-            Amt32bitPath = setting.Amt32bitPath;
 
             ChapterExePath = setting.ChapterExePath;
             JoinLogoScpPath = setting.JoinLogoScpPath;

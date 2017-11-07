@@ -297,7 +297,6 @@ public:
 		DecoderSetting decoderSetting,
 		std::vector<std::string> logoPath,
 		bool errorOnNoLogo,
-		std::string amt32bitPath,
 		std::string chapterExePath,
 		std::string joinLogoScpPath,
 		std::string joinLogoScpCmdPath,
@@ -329,7 +328,6 @@ public:
 		, decoderSetting(decoderSetting)
 		, logoPath(logoPath)
 		, errorOnNoLogo(errorOnNoLogo)
-		, amt32bitPath(amt32bitPath)
 		, chapterExePath(chapterExePath)
 		, joinLogoScpPath(joinLogoScpPath)
 		, joinLogoScpCmdPath(joinLogoScpCmdPath)
@@ -422,10 +420,6 @@ public:
 
 	bool getErrorOnNoLogo() const {
 		return errorOnNoLogo;
-	}
-
-	std::string get32bitPath() const {
-		return amt32bitPath;
 	}
 
 	std::string getChapterExePath() const {
@@ -705,7 +699,6 @@ public:
 		if (isFilterTmpFile()) {
 			ctx.info("→最大サイズ: %.1fGB", maxTmpGB);
 		}
-		//ctx.info("amt32bitPath: %s", amt32bitPath.c_str());
 		//ctx.info("chapterExePath: %s", chapterExePath.c_str());
 		//ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
 		//ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
@@ -749,7 +742,6 @@ private:
 	// CM解析用設定
 	std::vector<std::string> logoPath;
 	bool errorOnNoLogo;
-	std::string amt32bitPath;
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;

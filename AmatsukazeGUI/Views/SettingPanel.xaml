@@ -160,7 +160,6 @@
                     <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,29" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
-                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="Amatsukaze32bitDLLパス" />
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x265パス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="QSVEncCパス"/>
@@ -177,7 +176,6 @@
                     <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
                      ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.Amt32bitPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
