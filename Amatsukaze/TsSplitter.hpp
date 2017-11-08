@@ -29,7 +29,7 @@ public:
 		, PesParser()
 		, videoStreamFormat(VS_MPEG2)
 		, videoFormat()
-		, mpeg2parser()
+		, mpeg2parser(ctx)
 		, h264parser(ctx)
 		, parser(&mpeg2parser)
 	{ }

@@ -517,6 +517,8 @@ public:
 		ctx.registerTmpFile(ss.str());
 		// x264‚Í.mbtree‚à¶¬‚·‚é‚Ì‚Å
 		ctx.registerTmpFile(ss.str() + ".mbtree");
+		// x265‚Í.cutree‚à¶¬‚·‚é‚Ì‚Å
+		ctx.registerTmpFile(ss.str() + ".cutree");
 		return ss.str();
 	}
 

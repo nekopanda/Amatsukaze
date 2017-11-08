@@ -258,5 +258,10 @@ namespace Amatsukaze.Server
         {
             return Send(RPCMethodId.RequestLogoData, fileName);
         }
+
+        public Task RetryItem(string itemPath)
+        {
+            return Send(RPCMethodId.RetryItem, itemPath);
+        }
     }
 }

@@ -9,6 +9,8 @@
 
 #include "common.h"
 
+#include <string>
+
 struct Exception {
   virtual ~Exception() { }
   virtual const char* message() const {
@@ -19,19 +21,18 @@ struct Exception {
 
 #define DEFINE_EXCEPTION(name) \
 	struct name : public Exception { \
-		name() { pbuf = nullptr; } \
-    ~name() { if(pbuf) delete [] pbuf; } \
 		name(const char* fmt, ...) { \
 			va_list arg; va_start(arg, fmt); \
 			size_t length = _vscprintf(fmt, arg); \
-      pbuf = new char[length + 1]; \
-      vsnprintf_s(pbuf, length, _TRUNCATE, fmt, arg); \
+			char* buf = new char[length + 1]; \
+			vsnprintf_s(buf, length + 1, _TRUNCATE, fmt, arg); \
+			mes = buf; delete[] buf; \
 			va_end(arg); \
 		} \
-		virtual const char* message() const { return pbuf; } \
+		virtual const char* message() const { return mes.c_str(); } \
 	  virtual void raise() const { throw *this;	} \
 	private: \
-    char* pbuf; \
+    std::string mes; \
 	};
 
 DEFINE_EXCEPTION(EOFException)
@@ -54,7 +55,7 @@ DEFINE_EXCEPTION(AviSynthException)
 static void throw_exception_(const Exception& exc)
 {
 	PRINTF("%s\n", exc.message());
-	MessageBox(NULL, exc.message(), "Amatsukaze Error", MB_OK);
+	//MessageBox(NULL, exc.message(), "Amatsukaze Error", MB_OK);
 	exc.raise();
 }
 

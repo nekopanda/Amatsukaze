@@ -308,8 +308,12 @@ struct MPEG2PictureHeader {
 	int numReadBytes;
 };
 
-class MPEG2VideoParser : public IVideoParser {
+class MPEG2VideoParser : public IVideoParser, public AMTObject {
 public:
+	MPEG2VideoParser(AMTContext& ctx)
+		: AMTObject(ctx)
+	{ }
+
 	virtual void reset() {
 		hasSequenceHeader = false;
 	}
@@ -404,17 +408,23 @@ public:
 					else {
 						// 2枚目はチェック可能だけど面倒なので見ない
 						if (picHeader.picture_structure == 3) {
-							THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+							ctx.incrementCounter("incident");
+							ctx.error("フィールド配置が変則的すぎて対応できません");
+							return false;
 						}
 						switch (picType) {
 						case PIC_TFF:
 							if (picHeader.picture_structure != 2) {
-								THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+								ctx.incrementCounter("incident");
+								ctx.error("フィールド配置が変則的すぎて対応できません");
+								return false;
 							}
 							break;
 						case PIC_BFF:
 							if (picHeader.picture_structure != 1) {
-								THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+								ctx.incrementCounter("incident");
+								ctx.error("フィールド配置が変則的すぎて対応できません");
+								return false;
 							}
 							break;
 						}
@@ -423,7 +433,9 @@ public:
 				}
 
 				if (receivedField > 2) {
-					THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+					ctx.incrementCounter("incident");
+					ctx.error("フィールド配置が変則的すぎて対応できません");
+					return false;
 				}
 
 				if (receivedField == 2) {

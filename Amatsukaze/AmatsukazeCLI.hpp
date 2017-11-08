@@ -219,6 +219,10 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
     }
 		else if (key == _T("-w") || key == _T("--work")) {
 			workDir = pathNormalize(getParam(argc, argv, i++));
+			if (workDir.size() == 0) {
+				THROW(RuntimeException, "... uha");
+				workDir = _T("./");
+			}
 		}
 		else if (key == _T("-et") || key == _T("--encoder-type")) {
 			std::tstring arg = getParam(argc, argv, i++);

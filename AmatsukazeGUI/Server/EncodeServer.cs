@@ -193,6 +193,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.RemoveQueue:
                     server.RemoveQueue((string)arg);
                     break;
+                case RPCMethodId.RetryItem:
+                    server.RetryItem((string)arg);
+                    break;
                 case RPCMethodId.PauseEncode:
                     server.PauseEncode((bool)arg);
                     break;
@@ -1659,7 +1662,7 @@ namespace Amatsukaze.Server
         private void CleanTmpDir()
         {
             foreach (var dir in Directory
-                .GetDirectories(appData.setting.WorkPath)
+                .GetDirectories(appData.setting.ActualWorkPath)
                 .Where(s => Path.GetFileName(s).StartsWith("amt")))
             {
                 try
@@ -1669,7 +1672,7 @@ namespace Amatsukaze.Server
                 catch (Exception) { } // 例外は無視
             }
             foreach (var file in Directory
-                .GetFiles(appData.setting.WorkPath)
+                .GetFiles(appData.setting.ActualWorkPath)
                 .Where(s => Path.GetFileName(s).StartsWith("amt")))
             {
                 try
@@ -2095,13 +2098,37 @@ namespace Amatsukaze.Server
                         DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded")
                     };
 
-                    // TSファイル情報を読む
                     List<Task> waitItems = new List<Task>();
+
+                    // とりあえず追加する
                     foreach (var filepath in items)
                     {
+                        var item = new QueueItem() {
+                            Path = filepath,
+                            ServiceId = -1,
+                            JlsCommand = appData.setting.DefaultJLSCommand,
+                            State = QueueState.LogoPending
+                        };
+                        UpdateQueueItem(item);
+                        target.Items.Add(item);
+                    }
+                    queue.Add(target);
+                    waitItems.Add(client.OnQueueUpdate(new QueueUpdate() {
+                        Type = UpdateType.Add,
+                        Directory = target
+                    }));
+
+                    var map = appData.services.ServiceMap;
+
+                    // TSファイル情報を読む
+                    foreach (var item in target.Items)
+                    {
                         var info = new TsInfo(amtcontext);
-                        if (info.ReadFile(filepath))
+                        if (await Task.Run(() => info.ReadFile(item.Path)) == false)
                         {
+                            waitItems.Add(client.OnOperationResult("TS情報取得に失敗: " + amtcontext.GetError()));
+                        }
+                        else { 
                             var list = info.GetProgramList();
                             if (list.Length > 0 && list[0].HasVideo)
                             {
@@ -2117,62 +2144,55 @@ namespace Amatsukaze.Server
                                     tsTime = info.GetTime();
                                 }
 
-                                target.Items.Add(new QueueItem() {
-                                    Path = filepath,
-                                    ServiceId = list[0].ServiceId,
-                                    ImageWidth = list[0].Width,
-                                    ImageHeight = list[0].Height,
-                                    TsTime = tsTime,
-                                    JlsCommand = appData.setting.DefaultJLSCommand,
-                                    ServiceName = serviceName,
-                                    State = QueueState.LogoPending
-                                });
-                                Debug.Print("解析完了: " + filepath);
+                                item.ServiceId = list[0].ServiceId;
+                                item.ImageWidth = list[0].Width;
+                                item.ImageHeight = list[0].Height;
+                                item.TsTime = tsTime;
+                                item.ServiceName = serviceName;
+
+                                Debug.Print("解析完了: " + item.Path);
+
+                                // ロゴファイルを探す
+                                if (map.ContainsKey(item.ServiceId) == false)
+                                {
+                                    // 新しいサービスを登録
+                                    var newElement = new ServiceSettingElement() {
+                                        ServiceId = item.ServiceId,
+                                        ServiceName = item.ServiceName,
+                                        LogoSettings = new List<LogoSetting>()
+                                    };
+                                    map.Add(item.ServiceId, newElement);
+                                    serviceListUpdated = true;
+                                    waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate() {
+                                        Type = ServiceSettingUpdateType.Update,
+                                        ServiceId = newElement.ServiceId,
+                                        Data = newElement
+                                    }));
+                                }
+
+                                UpdateQueueItem(item);
+                                waitItems.Add(NotifyQueueItemUpdate(item, target));
+
                                 continue;
                             }
                         }
-                        waitItems.Add(client.OnOperationResult("TS情報解析失敗: " + filepath));
-                    }
-
-                    // ロゴファイルを探す
-                    var map = appData.services.ServiceMap;
-                    foreach (var item in target.Items)
-                    {
-                        if (map.ContainsKey(item.ServiceId) == false)
-                        {
-                            // 新しいサービスを登録
-                            var newElement = new ServiceSettingElement() {
-                                ServiceId = item.ServiceId,
-                                ServiceName = item.ServiceName,
-                                LogoSettings = new List<LogoSetting>()
-                            };
-                            map.Add(item.ServiceId, newElement);
-                            serviceListUpdated = true;
-                            waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate() {
-                                Type = ServiceSettingUpdateType.Update,
-                                ServiceId = newElement.ServiceId,
-                                Data = newElement
-                            }));
-                        }
-
-                        UpdateQueueItem(item);
+                        item.FailReason = "TS情報取得に失敗";
+                        item.State = QueueState.Failed;
                     }
 
                     if (target.Items.Count == 0)
                     {
-                        await client.OnOperationResult(
-                            "エンコード対象ファイルが見つかりません。パス:" + dir.DirPath);
+                        waitItems.Add(client.OnOperationResult(
+                            "エンコード対象ファイルが見つかりません。パス:" + dir.DirPath));
+
+                        await Task.WhenAll(waitItems.ToArray());
+
                         continue;
                     }
 
-                    queue.Add(target);
-                    waitItems.Add(client.OnQueueUpdate(new QueueUpdate() {
-                        Type = UpdateType.Add,
-                        Directory = target
-                    }));
-                    waitItems.Add(RequestFreeSpace());
-
                     startEncodeQ.Post(0);
+
+                    waitItems.Add(RequestFreeSpace());
 
                     await Task.WhenAll(waitItems.ToArray());
                 }
@@ -2187,7 +2207,12 @@ namespace Amatsukaze.Server
         {
             var map = appData.services.ServiceMap;
             var prevState = item.State;
-            if (map.ContainsKey(item.ServiceId) == false)
+            if(item.ServiceId == -1)
+            {
+                item.FailReason = "TS情報取得中";
+                item.State = QueueState.LogoPending;
+            }
+            else if (map.ContainsKey(item.ServiceId) == false)
             {
                 item.FailReason = "このTSに対する設定がありません";
                 item.State = QueueState.LogoPending;
@@ -2713,6 +2738,29 @@ namespace Amatsukaze.Server
                 return client.OnOperationResult(
                     "ロゴファイルを開けません。パス:" + logopath + "メッセージ: " + exception.Message);
             }
+        }
+
+        public Task RetryItem(string itemPath)
+        {
+            foreach(var dir in queue)
+            {
+                var item = dir.Items.FirstOrDefault(s => s.Path == itemPath);
+                if (item != null && item.State == QueueState.Failed)
+                {
+                    var failedPath = Path.GetDirectoryName(item.Path) + "\\failed\\" + Path.GetFileName(item.Path);
+                    if (File.Exists(failedPath))
+                    {
+                        File.Move(failedPath, item.Path);
+                        item.State = QueueState.Queue;
+                        if (UpdateQueueItem(item))
+                        {
+                            startEncodeQ.Post(0);
+                            return NotifyQueueItemUpdate(item, dir);
+                        }
+                    }
+                }
+            }
+            return Task.FromResult(0);
         }
     }
 }

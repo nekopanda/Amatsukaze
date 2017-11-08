@@ -16,6 +16,7 @@ namespace Amatsukaze.Server
         Task SetSetting(Setting setting);
         Task AddQueue(AddQueueDirectory dir);
         Task RemoveQueue(string dirPath);
+        Task RetryItem(string itemPath);
         Task PauseEncode(bool pause);
 
         Task SetServiceSetting(ServiceSettingUpdate update);
@@ -62,6 +63,7 @@ namespace Amatsukaze.Server
         SetSetting = 100,
         AddQueue,
         RemoveQueue,
+        RetryItem,
         PauseEncode,
         SetServiceSetting,
         RequestSetting,
@@ -103,6 +105,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.SetSetting, typeof(Setting) },
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.RemoveQueue, typeof(string) },
+            { RPCMethodId.RetryItem, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.RequestSetting, null },

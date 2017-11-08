@@ -759,7 +759,9 @@ public:
 					}
 
 					if (receivedField > 2) {
-						THROW(FormatException, "フィールド配置が変則的すぎて対応できません");
+						ctx.incrementCounter("incident");
+						ctx.warn("フィールド配置が変則的すぎて対応できません");
+						break;
 					}
 
 					if (receivedField == 2) {

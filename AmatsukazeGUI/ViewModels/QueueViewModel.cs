@@ -308,6 +308,30 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region RetryCommand
+        private ViewModelCommand _RetryCommand;
+
+        public ViewModelCommand RetryCommand {
+            get {
+                if (_RetryCommand == null)
+                {
+                    _RetryCommand = new ViewModelCommand(Retry);
+                }
+                return _RetryCommand;
+            }
+        }
+
+        public void Retry()
+        {
+            var file = SetectedQueueFile;
+            if (file == null)
+            {
+                return;
+            }
+            Model.Server.RetryItem(file.Path);
+        }
+        #endregion
+
         #region OpenFileInExplorerCommand
         private ViewModelCommand _OpenFileInExplorerCommand;
 

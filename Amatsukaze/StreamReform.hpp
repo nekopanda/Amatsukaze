@@ -472,6 +472,10 @@ private:
 			}
 		}
 
+		if (isVFR_) {
+			THROW(FormatException, "このバージョンはVFRに対応していません");
+		}
+
 		// ラップアラウンドしないPTSを生成
 		makeModifiedPTS(modifiedPTS_, videoFrameList_);
 		makeModifiedPTS(modifiedAudioPTS_, audioFrameList_);

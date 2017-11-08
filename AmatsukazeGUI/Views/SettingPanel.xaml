@@ -80,22 +80,22 @@
                       ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="QSVの方が速いです。"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,12.667,2.333,0"/>
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,5.667,1,0"/>
                 <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,5.667,0,0"
                           IsChecked="{Binding Model.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
                 
                 <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="フィルタ出力を一時ファイルに保存" Margin="10,25.667,0,0"
                       IsChecked="{Binding Model.EnableFilterTmp, Mode=TwoWay}" Height="16" VerticalAlignment="Top"
                       ToolTip="メインフィルタの出力を可逆圧縮して一時フォルダに保存してエンコード時利用します。&#xA;フィルタ処理に時間がかかる場合に有効です。&#xA;メインフィルタの出力が8bitYUV420の場合のみ対応しています。"
-                      IsEnabled="{Binding Model.TwoPass}"/>
+                      IsEnabled="{Binding Model.TwoPass}" Visibility="Collapsed"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="一時ファイル最大データ量" VerticalAlignment="Top" Margin="0,46.667,1.333,0"/>
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="一時ファイル最大データ量" VerticalAlignment="Top" Margin="0,46.667,1.333,0" Visibility="Collapsed"/>
                 <Slider Grid.Row="2" Grid.Column="1" Margin="10.667,46.667,49.667,4" VerticalAlignment="Top" SmallChange="1" Maximum="{Binding Model.TmpDiskSpaceGB}" Minimum="50" 
                     Value="{Binding Model.MaxTmpGB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     ToolTip="フィルタ出力一時ファイルの最大専有データ量です。&#xA;150GB～400GBくらいが推奨値です。"
-                        IsEnabled="{Binding Model.TwoPass}"/>
+                        IsEnabled="{Binding Model.TwoPass}" Visibility="Collapsed"/>
                 <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,46.667,-0.333,0" Text="{Binding Model.MaxTmpGB, StringFormat={}{0}GB}"
-                       VerticalAlignment="Top" HorizontalAlignment="Right" Width="45"/>
+                       VerticalAlignment="Top" HorizontalAlignment="Right" Width="45" Visibility="Collapsed"/>
 
                 <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
                 <TextBlock Grid.Row="3" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
