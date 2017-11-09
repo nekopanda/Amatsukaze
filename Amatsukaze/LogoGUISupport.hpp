@@ -93,10 +93,10 @@ class GUIMediaFile : public AMTObject
 
   AVStream* GetTargetStream(int serviceid)
   {
-    for (int i = 0; i < inputCtx()->nb_programs; ++i) {
+    for (int i = 0; i < (int)inputCtx()->nb_programs; ++i) {
       if (inputCtx()->programs[i]->program_num == serviceid) {
         auto prog = inputCtx()->programs[i];
-        for (int s = 0; s < prog->nb_stream_indexes; ++s) {
+        for (int s = 0; s < (int)prog->nb_stream_indexes; ++s) {
           auto stream = inputCtx()->streams[prog->stream_index[s]];
           if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             return stream;
@@ -104,6 +104,7 @@ class GUIMediaFile : public AMTObject
         }
       }
     }
+		return nullptr;
   }
 
 public:

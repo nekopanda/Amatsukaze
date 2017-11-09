@@ -15,7 +15,7 @@ namespace Amatsukaze.Server
         // 操作系
         Task SetSetting(Setting setting);
         Task AddQueue(AddQueueDirectory dir);
-        Task RemoveQueue(string dirPath);
+        Task RemoveQueue(int id);
         Task RetryItem(string itemPath);
         Task PauseEncode(bool pause);
 
@@ -104,7 +104,7 @@ namespace Amatsukaze.Server
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
             { RPCMethodId.SetSetting, typeof(Setting) },
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
-            { RPCMethodId.RemoveQueue, typeof(string) },
+            { RPCMethodId.RemoveQueue, typeof(int) },
             { RPCMethodId.RetryItem, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },

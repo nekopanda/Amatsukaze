@@ -100,8 +100,6 @@ namespace Amatsukaze.Server
         [DataMember]
         public int NumParallel { get; set; }
         [DataMember]
-        public bool EnableFilterTmp { get; set; }
-        [DataMember]
         public int MaxTmpGB { get; set; }
 
         [DataMember]
@@ -114,12 +112,6 @@ namespace Amatsukaze.Server
         public bool SystemAviSynthPlugin { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
-
-        public bool EncodeSchedulingEnabled {
-            get {
-                return TwoPass && EnableFilterTmp;
-            }
-        }
 
         public string ActualWorkPath
         {
@@ -209,7 +201,7 @@ namespace Amatsukaze.Server
 
     public enum QueueState
     {
-        Queue, Encoding, Complete, Failed, LogoPending
+        Queue, Encoding, Complete, Failed, LogoPending, Canceled
     }
 
     [DataContract]
@@ -235,6 +227,8 @@ namespace Amatsukaze.Server
         public string FailReason { get; set; }
         [DataMember]
         public string JlsCommand { get; set; }
+        [DataMember]
+        public string DstName { get; set; }
 
         public bool IsComplete { get { return State == QueueState.Complete; } }
         public bool IsEncoding { get { return State == QueueState.Encoding; } }
@@ -256,19 +250,39 @@ namespace Amatsukaze.Server
                 return "不明";
             }
         }
+
+        public bool IsActive {
+            get {
+                return State == QueueState.Encoding ||
+                    State == QueueState.LogoPending ||
+                    State == QueueState.Queue;
+            }
+        }
+
+        public bool IsOneSeg {
+            get {
+                return ImageWidth <= 320 || ImageHeight <= 260;
+            }
+        }
     }
 
     [DataContract]
     public class QueueDirectory
     {
         [DataMember]
+        public int Id { get; set; }
+        [DataMember]
         public string Path { get; set; }
         [DataMember]
         public List<QueueItem> Items { get; set; }
         [DataMember]
         public string DstPath;
-        [DataMember]
-        public int CurrentHead { get; set; }
+
+        // サーバで使う
+        public Dictionary<string, byte[]> HashList;
+        public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(Path, "encoded"); } }
+        public string Succeeded { get { return System.IO.Path.Combine(Path, "succeeded"); } }
+        public string Failed { get { return System.IO.Path.Combine(Path, "failed"); } }
     }
 
     [DataContract]
@@ -291,7 +305,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public QueueDirectory Directory { get; set; }
         [DataMember]
-        public string DirPath { get; set; }
+        public int DirId { get; set; }
         [DataMember]
         public QueueItem Item { get; set; }
     }

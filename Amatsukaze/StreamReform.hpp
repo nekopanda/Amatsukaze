@@ -994,8 +994,6 @@ private:
 				double endPts = frames[i].pts + timePerFrame;
 				file.time += timePerFrame;
 
-				ASSERT(format.audioFormat.size() == file.audioFrameList->size());
-				ASSERT(format.audioFormat.size() == file.audioState.size());
 				// file.time‚Ü‚Å‰¹º‚ği‚ß‚é
 				auto& audioState = file.audioState[0];
 				if (audioState.time < file.time) {

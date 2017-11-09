@@ -17,6 +17,8 @@ namespace Amatsukaze.Models
 {
     public class DisplayQueueDirectory : NotificationObject
     {
+        public int Id;
+
         #region Path変更通知プロパティ
         private string _Path;
 
@@ -49,6 +51,7 @@ namespace Amatsukaze.Models
         
         public DisplayQueueDirectory(QueueDirectory dir)
         {
+            Id = dir.Id;
             Path = dir.Path;
             Items = new ObservableCollection<QueueItem>(dir.Items);
         }
@@ -844,18 +847,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region EnableFilterTmp変更通知プロパティ
-        public bool EnableFilterTmp {
-            get { return setting.EnableFilterTmp; }
-            set {
-                if (setting.EnableFilterTmp == value)
-                    return;
-                setting.EnableFilterTmp = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region MaxTmpGB変更通知プロパティ
         public int MaxTmpGB {
             get { return setting.MaxTmpGB; }
@@ -1303,7 +1294,6 @@ namespace Amatsukaze.Models
             BitrateH264 = setting.Bitrate.H264;
             BitrateCM = setting.BitrateCM;
             TwoPass = setting.TwoPass;
-            EnableFilterTmp = setting.EnableFilterTmp;
             MaxTmpGB = setting.MaxTmpGB;
             DefaultJLSCommand = setting.DefaultJLSCommand;
             DisableChapter = setting.DisableChapter;
@@ -1388,7 +1378,7 @@ namespace Amatsukaze.Models
                 }
                 else
                 {
-                    var dir = QueueItems.FirstOrDefault(d => d.Path == update.DirPath);
+                    var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
                     if(dir != null)
                     {
                         if (update.Type == UpdateType.Remove)
@@ -1405,17 +1395,16 @@ namespace Amatsukaze.Models
             else
             {
                 // ファイルに対する操作
-                var dir = QueueItems.FirstOrDefault(d => d.Path == update.DirPath);
+                var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
                 if (dir != null)
                 {
                     if (update.Type == UpdateType.Add)
                     {
                         dir.Items.Add(update.Item);
-                        //
                     }
                     else
                     {
-                        var file = dir.Items.FirstOrDefault(f => f.Path == update.Item.Path);
+                        var file = dir.Items.FirstOrDefault(f => f.DstName == update.Item.DstName);
                         if (file != null)
                         {
                             if (update.Type == UpdateType.Remove)

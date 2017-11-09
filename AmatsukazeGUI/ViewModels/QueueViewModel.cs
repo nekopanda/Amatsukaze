@@ -194,7 +194,7 @@ namespace Amatsukaze.ViewModels
             var item = SetectedQueueItem;
             if (item != null)
             {
-                Model.Server.RemoveQueue(item.Path);
+                Model.Server.RemoveQueue(item.Id);
             }
         }
         #endregion

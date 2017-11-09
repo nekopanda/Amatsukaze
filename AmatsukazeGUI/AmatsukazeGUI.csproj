@@ -95,6 +95,7 @@
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Models\AmatsukazeNatives.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
+    <Compile Include="Server\Scheduler.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />

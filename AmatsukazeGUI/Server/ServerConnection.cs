@@ -199,9 +199,9 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.PauseEncode, pause);
         }
 
-        public Task RemoveQueue(string dirPath)
+        public Task RemoveQueue(int id)
         {
-            return Send(RPCMethodId.RemoveQueue, dirPath);
+            return Send(RPCMethodId.RemoveQueue, id);
         }
 
         public Task RequestSetting()
