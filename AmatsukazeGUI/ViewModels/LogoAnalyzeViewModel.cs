@@ -267,11 +267,11 @@ namespace Amatsukaze.ViewModels
                     tmpTs = App.Option.WorkPath + "\\slimts-" + pid + ".ts";
                     currentTask = Model.MakeSlimFile(App.Option.FilePath, tmpTs);
                     await currentTask;
-                    Model.Load(tmpTs);
+                    Model.Load(tmpTs, App.Option.ServiceId);
                 }
                 else
                 {
-                    Model.Load(App.Option.FilePath);
+                    Model.Load(App.Option.FilePath, App.Option.ServiceId);
                 }
             }
             catch (IOException exception)

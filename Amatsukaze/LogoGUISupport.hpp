@@ -91,8 +91,23 @@ class GUIMediaFile : public AMTObject
 		return ok;
 	}
 
+  AVStream* GetTargetStream(int serviceid)
+  {
+    for (int i = 0; i < inputCtx()->nb_programs; ++i) {
+      if (inputCtx()->programs[i]->program_num == serviceid) {
+        auto prog = inputCtx()->programs[i];
+        for (int s = 0; s < prog->nb_stream_indexes; ++s) {
+          auto stream = inputCtx()->streams[prog->stream_index[s]];
+          if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            return stream;
+          }
+        }
+      }
+    }
+  }
+
 public:
-	GUIMediaFile(AMTContext& ctx, const char* filepath)
+	GUIMediaFile(AMTContext& ctx, const char* filepath, int serviceid)
 		: AMTObject(ctx)
 		, inputCtx(filepath)
 		, width(-1)
@@ -103,10 +118,11 @@ public:
 			File file(filepath, "rb");
 			fileSize = file.size();
 		}
+    MessageBox(NULL, "debug", "hoge", MB_OK);
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
 			THROW(FormatException, "avformat_find_stream_info failed");
 		}
-		videoStream = GetVideoStream(inputCtx());
+		videoStream = GetTargetStream(serviceid);
 		if (videoStream == NULL) {
 			THROW(FormatException, "Could not find video stream ...");
 		}
@@ -150,9 +166,9 @@ public:
 
 } // namespace av
 
-extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const char* filepath) {
+extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const char* filepath, int serviceid) {
 	try {
-		return new av::GUIMediaFile(*ctx, filepath);
+		return new av::GUIMediaFile(*ctx, filepath, serviceid);
 	}
 	catch (const Exception& exception) {
 		ctx->setError(exception);

@@ -27,9 +27,11 @@ namespace Amatsukaze.Server
         public LaunchType LaunchType = LaunchType.Standalone;
         public int ServerPort = 32768;
 
+        // ロゴGUI用
         public string FilePath;
         public string WorkPath;
         public bool SlimTs;
+        public int ServiceId;
 
         public GUIOPtion(string[] args)
         {
@@ -77,6 +79,11 @@ namespace Amatsukaze.Server
                 else if(arg == "--slimts")
                 {
                     SlimTs = true;
+                }
+                else if (arg == "--serviceid")
+                {
+                    ServiceId = int.Parse(args[i + 1]);
+                    ++i;
                 }
             }
         }

@@ -17,7 +17,21 @@ namespace Amatsukaze.Models
 {
     public class DisplayQueueDirectory : NotificationObject
     {
-        public string Path { get; set; }
+        #region Path変更通知プロパティ
+        private string _Path;
+
+        public string Path
+        {
+            get { return _Path; }
+            set
+            {
+                if (_Path == value)
+                    return;
+                _Path = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         #region Items変更通知プロパティ
         private ObservableCollection<QueueItem> _Items;
@@ -32,16 +46,11 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-
+        
         public DisplayQueueDirectory(QueueDirectory dir)
         {
             Path = dir.Path;
             Items = new ObservableCollection<QueueItem>(dir.Items);
-        }
-
-        public override string ToString()
-        {
-            return Path + " (" + Items.Count + ")";
         }
     }
 
@@ -1402,6 +1411,7 @@ namespace Amatsukaze.Models
                     if (update.Type == UpdateType.Add)
                     {
                         dir.Items.Add(update.Item);
+                        //
                     }
                     else
                     {

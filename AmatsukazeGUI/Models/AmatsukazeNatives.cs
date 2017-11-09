@@ -236,7 +236,7 @@ namespace Amatsukaze.Models
 
         #region Natives
         [DllImport("Amatsukaze.dll")]
-        private static extern IntPtr MediaFile_Create(IntPtr ctx, string filepath);
+        private static extern IntPtr MediaFile_Create(IntPtr ctx, string filepath, int serviceid);
 
         [DllImport("Amatsukaze.dll")]
         private static extern void MediaFile_Delete(IntPtr ptr);
@@ -248,10 +248,10 @@ namespace Amatsukaze.Models
         private static unsafe extern void MediaFile_GetFrame(IntPtr ptr, byte* rgb, int width, int height);
         #endregion
 
-        public MediaFile(AMTContext ctx, string filepath)
+        public MediaFile(AMTContext ctx, string filepath, int serviceid)
         {
             Ctx = ctx;
-            Ptr = MediaFile_Create(Ctx.Ptr, filepath);
+            Ptr = MediaFile_Create(Ctx.Ptr, filepath, serviceid);
             if (Ptr == IntPtr.Zero)
             {
                 throw new IOException(Ctx.GetError());

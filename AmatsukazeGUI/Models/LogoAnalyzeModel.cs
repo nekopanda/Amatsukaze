@@ -233,11 +233,11 @@ namespace Amatsukaze.Models
             }
         }
 
-        public void Load(string filepath)
+        public void Load(string filepath, int serviceid)
         {
             if (mediafile != null) return;
 
-            mediafile = new MediaFile(context, filepath);
+            mediafile = new MediaFile(context, filepath, serviceid);
             UpdateImage();
         }
 

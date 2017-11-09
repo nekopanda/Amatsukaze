@@ -105,7 +105,7 @@ private:
 		virtual void onVideoFormatChanged(VideoFormat fmt) {
 			// “¯‚¶PID‚ÌƒvƒƒOƒ‰ƒ€‚Í‘S‚Äã‘‚«
 			for (int i = 0; i < (int)this_.programList.size(); ++i) {
-				if (this_.programList[i].videoPid = item->videoPid) {
+				if (this_.programList[i].videoPid == item->videoPid) {
 					this_.programList[i].videoFormat = fmt;
 					this_.programList[i].programOK = true;
 				}
@@ -212,12 +212,12 @@ private:
 					if (type != VS_UNKNOWN) {
 						item->hasVideo = true;
 						item->videoPid = elem.elementary_PID();
-						if (programList[i].videoHandler == nullptr) {
-							programList[i].videoHandler =
+						if (item->videoHandler == nullptr) {
+              item->videoHandler =
 								std::unique_ptr<SpVideoFrameParser>(new SpVideoFrameParser(ctx, *this, item));
 						}
-						programList[i].videoHandler->setStreamFormat(type);
-						handlerTable.add(elem.elementary_PID(), programList[i].videoHandler.get());
+            item->videoHandler->setStreamFormat(type);
+						handlerTable.add(elem.elementary_PID(), item->videoHandler.get());
 						break;
 					}
 				}

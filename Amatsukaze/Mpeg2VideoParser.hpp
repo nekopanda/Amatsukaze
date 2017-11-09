@@ -312,6 +312,10 @@ class MPEG2VideoParser : public IVideoParser, public AMTObject {
 public:
 	MPEG2VideoParser(AMTContext& ctx)
 		: AMTObject(ctx)
+    , hasSequenceHeader()
+    , sequenceHeader()
+    , pictureHeader()
+    , format()
 	{ }
 
 	virtual void reset() {

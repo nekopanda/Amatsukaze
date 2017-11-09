@@ -129,7 +129,7 @@ namespace Amatsukaze.ViewModels
                 return;
             }
             var apppath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var args = "-l logo --file \"" + file.Path + "\" --work \"" + workpath + "\"";
+            var args = "-l logo --file \"" + file.Path + "\" --work \"" + workpath + "\" --serviceid " + file.ServiceId;
             if(slimts)
             {
                 args += " --slimts";
