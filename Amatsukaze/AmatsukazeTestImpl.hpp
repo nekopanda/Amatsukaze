@@ -218,7 +218,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 
 static int WaveWriteHeader(AMTContext& ctx, const TranscoderSetting& setting)
 {
-	std::string dstfile = setting.getOutFilePath(0);
+	std::string dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
 
 	FILE* fp = fopen(dstfile.c_str(), "wb");
 	if (fp == nullptr) {
@@ -271,7 +271,7 @@ static int FileStreamInfo(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 	reformInfo.prepareEncode();
-	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
+	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
 	return 0;
 }
 
@@ -346,7 +346,7 @@ static int LosslessFileTest(AMTContext& ctx, const TranscoderSetting& setting)
 
 	{
 		int numframes = 100;
-		LosslessVideoFile file(ctx, setting.getOutFilePath(0), "wb");
+		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), "wb");
 		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
 
 		VideoInfo vi = clip->GetVideoInfo();
@@ -379,7 +379,7 @@ static int LosslessFileTest(AMTContext& ctx, const TranscoderSetting& setting)
 	}
 
 	{
-		LosslessVideoFile file(ctx, setting.getOutFilePath(0), "rb");
+		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), "rb");
 		file.readHeader();
 
 		int width = file.getWidth();
@@ -448,8 +448,8 @@ public:
 static int SplitDualMonoAAC(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	std::vector<std::string> outpaths;
-	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 0));
-	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 1));
+	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 0, CMTYPE_BOTH));
+	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 1, CMTYPE_BOTH));
 	TestSplitDualMono splitter(ctx, outpaths);
 
 	File src(setting.getSrcFilePath(), "rb");

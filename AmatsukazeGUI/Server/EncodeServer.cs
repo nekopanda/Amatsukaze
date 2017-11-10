@@ -779,6 +779,7 @@ namespace Amatsukaze.Server
                         else
                         {
                             src.State = QueueState.Failed;
+                            src.FailReason = logItem.Reason;
                             result = false;
                         }
 
@@ -786,15 +787,15 @@ namespace Amatsukaze.Server
                         if (sameItems.Any(s => s.IsActive) == false)
                         {
                             // もうこのファイルでアクティブなアイテムはない
-                            if (sameItems.All(s => s.State == QueueState.Complete))
-                            {
-                                // 全て成功
-                                File.Move(src.Path, dir.Succeeded + "\\" + Path.GetFileName(src.Path));
-                            }
-                            else
+                            if (sameItems.Any(s => s.State == QueueState.Failed))
                             {
                                 // 失敗がある
                                 File.Move(src.Path, dir.Failed + "\\" + Path.GetFileName(src.Path));
+                            }
+                            else
+                            {
+                                // 全て成功
+                                File.Move(src.Path, dir.Succeeded + "\\" + Path.GetFileName(src.Path));
                             }
                         }
 
@@ -1090,7 +1091,7 @@ namespace Amatsukaze.Server
                         NumParallel = 1,
                         Bitrate = new BitrateSetting(),
                         BitrateCM = 0.5,
-                        MaxTmpGB = 50
+                        OutputMask = 1,
                     },
                     services = new ServiceSetting() {
                         ServiceMap = new Dictionary<int, ServiceSettingElement>()
@@ -1238,11 +1239,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private double CalcMaxTmpGBForCLI()
-        {
-            return (double)appData.setting.MaxTmpGB / (appData.setting.NumParallel * 2 + 1) * 2;
-        }
-
         private string MakeAmatsukazeArgs(bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles, bool errorOnNoLogo, string jlscommand)
@@ -1253,6 +1249,12 @@ namespace Amatsukaze.Server
             if (bitrateCM == 0)
             {
                 bitrateCM = 1;
+            }
+
+            int outputMask = appData.setting.OutputMask;
+            if(outputMask == 0)
+            {
+                outputMask = 1;
             }
 
             StringBuilder sb = new StringBuilder();
@@ -1280,10 +1282,10 @@ namespace Amatsukaze.Server
                 .Append(appData.setting.ChapterExePath)
                 .Append("\" --jls \"")
                 .Append(appData.setting.JoinLogoScpPath)
-                .Append("\" -s \"")
+                .Append("\" -s ")
                 .Append(serviceId)
-
-                .Append("\"");
+                .Append(" --cmoutmask ")
+                .Append(outputMask);
 
             string option = GetEncoderOption();
             if (string.IsNullOrEmpty(option) == false)
@@ -1479,7 +1481,7 @@ namespace Amatsukaze.Server
             // 完了したディレクトリは消す
             foreach (var dir in queue.ToArray())
             {
-                if (dir.Items.All(s => s.State == QueueState.Complete || s.State == QueueState.Failed))
+                if (dir.Items.All(s => !s.IsActive))
                 {
                     queue.Remove(dir);
 
@@ -1575,11 +1577,15 @@ namespace Amatsukaze.Server
                     foreach (var filepath in items)
                     {
                         var info = new TsInfo(amtcontext);
+                        var fileitems = new List<QueueItem>();
+                        var failReason = "";
                         if (await Task.Run(() => info.ReadFile(filepath)) == false)
                         {
-                            waitItems.Add(client.OnOperationResult("TS情報取得に失敗: " + amtcontext.GetError()));
+                            failReason = "TS情報取得に失敗: " + amtcontext.GetError();
                         }
-                        else { 
+                        else
+                        {
+                            failReason = "TSファイルに映像が見つかりませんでした";
                             var list = info.GetProgramList();
                             var videopids = new List<int>();
                             int numFiles = 0;
@@ -1625,7 +1631,7 @@ namespace Amatsukaze.Server
 
                                     if (item.IsOneSeg)
                                     {
-                                        item.State = QueueState.Failed;
+                                        item.State = QueueState.PreFailed;
                                         item.FailReason = "映像が小さすぎます(" + prog.Width + "," + prog.Height + ")";
                                     }
                                     else
@@ -1651,15 +1657,38 @@ namespace Amatsukaze.Server
                                         ++numFiles;
                                     }
 
-                                    target.Items.Add(item);
+                                    fileitems.Add(item);
 
-                                    waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
-                                    {
-                                        Type = UpdateType.Add,
-                                        Item = item,
-                                        DirId = target.Id
-                                    }));
                                 }
+                            }
+                        }
+
+                        if(fileitems.Count == 0)
+                        {
+                            var item = new QueueItem()
+                            {
+                                Path = filepath,
+                                DstName = "",
+                                ServiceId = -1,
+                                ImageWidth = -1,
+                                ImageHeight = -1,
+                                TsTime = DateTime.MinValue,
+                                ServiceName = "不明",
+                                State = QueueState.PreFailed,
+                                FailReason = failReason
+                            };
+                        }
+                        else
+                        {
+                            target.Items.AddRange(fileitems);
+                            foreach (var item in fileitems)
+                            {
+                                waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+                                {
+                                    Type = UpdateType.Add,
+                                    Item = item,
+                                    DirId = target.Id
+                                }));
                             }
                         }
                     }

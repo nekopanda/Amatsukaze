@@ -265,7 +265,7 @@ namespace Amatsukaze.ViewModels
                 {
                     int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
                     tmpTs = App.Option.WorkPath + "\\slimts-" + pid + ".ts";
-                    currentTask = Model.MakeSlimFile(App.Option.FilePath, tmpTs);
+                    currentTask = Model.MakeSlimFile(App.Option.FilePath, tmpTs, App.Option.ServiceId);
                     await currentTask;
                     Model.Load(tmpTs, App.Option.ServiceId);
                 }

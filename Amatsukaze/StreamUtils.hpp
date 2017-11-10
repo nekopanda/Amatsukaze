@@ -420,6 +420,13 @@ struct DecoderSetting {
 	{ }
 };
 
+enum CMType {
+  CMTYPE_BOTH = 0,
+  CMTYPE_NONCM = 1,
+  CMTYPE_CM = 2,
+  CMTYPE_MAX
+};
+
 enum VIDEO_STREAM_FORMAT {
   VS_UNKNOWN,
 	VS_MPEG2,

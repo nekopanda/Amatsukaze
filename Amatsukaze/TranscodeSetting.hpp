@@ -270,6 +270,15 @@ private:
 	}
 };
 
+static const char* GetCMSuffix(CMType cmtype) {
+  switch (cmtype) {
+  case CMTYPE_CM: return "-cm";
+  case CMTYPE_NONCM: return "-main";
+  case CMTYPE_BOTH: return "";
+  }
+  return "";
+}
+
 class TranscoderSetting : public AMTObject
 {
 public:
@@ -300,9 +309,7 @@ public:
 		std::string chapterExePath,
 		std::string joinLogoScpPath,
 		std::string joinLogoScpCmdPath,
-		HANDLE inPipe,
-		HANDLE outPipe,
-		double maxTmpGB,
+    int cmoutmask,
 		bool dumpStreamInfo,
 		bool systemAvsPlugin)
 		: AMTObject(ctx)
@@ -331,19 +338,11 @@ public:
 		, chapterExePath(chapterExePath)
 		, joinLogoScpPath(joinLogoScpPath)
 		, joinLogoScpCmdPath(joinLogoScpCmdPath)
-		, inPipe(inPipe)
-		, outPipe(outPipe)
-		, maxTmpGB(maxTmpGB)
+    , cmoutmask(cmoutmask)
 		, dumpStreamInfo(dumpStreamInfo)
 		, systemAvsPlugin(systemAvsPlugin)
 	{
 		//
-	}
-
-	~TranscoderSetting()
-	{
-		if (inPipe != INVALID_HANDLE_VALUE) CloseHandle(inPipe);
-		if (outPipe != INVALID_HANDLE_VALUE) CloseHandle(outPipe);
 	}
 
 	std::string getMode() const {
@@ -434,21 +433,9 @@ public:
 		return joinLogoScpCmdPath;
 	}
 
-	bool isFilterTmpFile() const {
-		return (inPipe != INVALID_HANDLE_VALUE);
-	}
-
-	HANDLE getInPipe() const {
-		return inPipe;
-	}
-
-	HANDLE getOutPipe() const {
-		return outPipe;
-	}
-
-	double getMaxTmpGB() const {
-		return maxTmpGB;
-	}
+  int getCMOutMask() const {
+    return cmoutmask;
+  }
 
 	bool isDumpStreamInfo() const {
 		return dumpStreamInfo;
@@ -487,33 +474,18 @@ public:
 		return outVideoPath + "-streaminfo.dat";
 	}
 
-	std::string getEncVideoFilePath(int vindex, int index, int findex) const
+	std::string getEncVideoFilePath(int vindex, int index, CMType cmtype) const
 	{
 		std::ostringstream ss;
-		if (findex == -1) {
-			ss << tmpDir.path() << "/v" << vindex << "-" << index << ".raw";
-		}
-		else {
-			ss << tmpDir.path() << "/v" << vindex << "-" << index << "-" << findex << ".raw";
-		}
+		ss << tmpDir.path() << "/v" << vindex << "-" << index << GetCMSuffix(cmtype) << ".raw";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
-	std::string getEncVideoFilePath(int vindex, int index) const
-	{
-		return getEncVideoFilePath(vindex, index, -1);
-	}
-
-	std::string getEncStatsFilePath(int vindex, int index, int findex) const
+	std::string getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
 		std::ostringstream ss;
-		if (findex == -1) {
-			ss << tmpDir.path() << "/s" << vindex << "-" << index << ".log";
-		}
-		else {
-			ss << tmpDir.path() << "/s" << vindex << "-" << index << "-" << findex <<  ".log";
-		}
+		ss << tmpDir.path() << "/s" << vindex << "-" << index << GetCMSuffix(cmtype) << ".log";
 		ctx.registerTmpFile(ss.str());
 		// x264は.mbtreeも生成するので
 		ctx.registerTmpFile(ss.str() + ".mbtree");
@@ -522,10 +494,10 @@ public:
 		return ss.str();
 	}
 
-	std::string getIntAudioFilePath(int vindex, int index, int aindex) const
+	std::string getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const
 	{
 		std::ostringstream ss;
-		ss << tmpDir.path() << "/a" << vindex << "-" << index << "-" << aindex << ".aac";
+		ss << tmpDir.path() << "/a" << vindex << "-" << index << "-" << aindex << GetCMSuffix(cmtype) << ".aac";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
@@ -594,38 +566,22 @@ public:
 		return ss.str();
 	}
 
-	std::string getTmpChapterPath(int vindex, int index) const
+	std::string getTmpChapterPath(int vindex, int index, CMType cmtype) const
 	{
 		std::ostringstream ss;
-		ss << tmpDir.path() << "/chapter" << vindex << "-" << index << ".txt";
+		ss << tmpDir.path() << "/chapter" << vindex << "-" << index << GetCMSuffix(cmtype) << ".txt";
 		ctx.registerTmpFile(ss.str());
 		return ss.str();
 	}
 
-	std::string getEncodeTaskInfoPath(int vindex, int index, int findex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/enctask" << vindex << "-" << index << "-" << findex << ".dat";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
-	}
-
-	std::string getFilterTmpFilePath(int vindex, int index, int findex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/filtetmp" << vindex << "-" << index << "-" << findex << ".utv";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
-	}
-
-	std::string getOutFilePath(int index) const
+	std::string getOutFilePath(int index, CMType cmtype) const
 	{
 		std::ostringstream ss;
 		ss << outVideoPath;
 		if (index != 0) {
 			ss << "-" << index;
 		}
-		ss << ".mp4";
+    ss << GetCMSuffix(cmtype) << ".mp4";
 		return ss.str();
 	}
 
@@ -639,12 +595,15 @@ public:
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
-		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, int findex) const
+		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, CMType cmtype) const
 	{
 		std::ostringstream ss;
 		ss << encoderOptions;
 		if (autoBitrate) {
 			double targetBitrate = bitrate.getTargetBitrate(srcFormat, srcBitrate);
+      if (cmtype == CMTYPE_CM) {
+        targetBitrate *= bitrateCM;
+      }
 			if (encoder == ENCODER_QSVENC) {
 				ss << " --la " << (int)targetBitrate;
 				ss << " --maxbitrate " << (int)(targetBitrate * 2);
@@ -661,7 +620,7 @@ public:
 		}
 		if (pass >= 0) {
 			ss << " --pass " << pass;
-			ss << " --stats \"" << getEncStatsFilePath(vindex, index, findex) << "\"";
+			ss << " --stats \"" << getEncStatsFilePath(vindex, index, cmtype) << "\"";
 		}
 		if (zones.size() && bitrateCM != 1.0 && encoder != ENCODER_QSVENC && encoder != ENCODER_NVENC) {
 			ss << " --zones ";
@@ -697,10 +656,6 @@ public:
         ctx.info("logo%d: %s", (i + 1), logoPath[i].c_str());
       }
     }
-		ctx.info("フィルタ中間ファイル: %s", isFilterTmpFile() ? "yes" : "no");
-		if (isFilterTmpFile()) {
-			ctx.info("→最大サイズ: %.1fGB", maxTmpGB);
-		}
 		//ctx.info("chapterExePath: %s", chapterExePath.c_str());
 		//ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
 		//ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
@@ -747,10 +702,7 @@ private:
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
-	// フィルタ処理分離用
-	HANDLE inPipe;
-	HANDLE outPipe;
-	double maxTmpGB;
+  int cmoutmask;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;

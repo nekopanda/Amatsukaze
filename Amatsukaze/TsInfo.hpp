@@ -35,6 +35,10 @@ public:
 	}
 
 	void inputTsPacket(int64_t clock, TsPacket packet) {
+    if (packet.transport_scrambling_control()) {
+      // スクランブルパケットは対応していないので捨てる
+      return;
+    }
 		TsPacketHandler* handler = handlerTable.get(packet.PID());
 		if (handler != NULL) {
 			handler->onTsPacket(clock, packet);

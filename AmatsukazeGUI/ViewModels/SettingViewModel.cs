@@ -111,12 +111,37 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        public string[] Mpeg2DecoderList {
+        public string[] Mpeg2DecoderList
+        {
             get { return new string[] { "デフォルト", "QSV" }; }
         }
-        public string[] H264DecoderList {
+        public string[] H264DecoderList
+        {
             get { return new string[] { "デフォルト", "QSV" }; }
         }
+        public string[] OutputOptionList
+        {
+            get { return new string[] { "通常", "CMをカット", "本編とCMを分離" }; }
+        }
+        private int[] OutputMasklist = new int[] { 1, 2, 6 };
+
+        #region OutputOptionIndex変更通知プロパティ
+        private int _OutputOptionIndex;
+
+        public int OutputOptionIndex
+        {
+            get
+            { return _OutputOptionIndex; }
+            set
+            {
+                if (_OutputOptionIndex == value)
+                    return;
+                _OutputOptionIndex = value;
+                Model.OutputMask = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         private void UpdateBitrate(object sender, PropertyChangedEventArgs args)
         {

@@ -91,6 +91,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool TwoPass { get; set; }
         [DataMember]
+        public int OutputMask { get; set; }
+        [DataMember]
         public bool AutoBuffer { get; set; }
         [DataMember]
         public BitrateSetting Bitrate { get; set; }
@@ -99,8 +101,6 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public int NumParallel { get; set; }
-        [DataMember]
-        public int MaxTmpGB { get; set; }
 
         [DataMember]
         public string DefaultJLSCommand { get; set; }
@@ -201,7 +201,13 @@ namespace Amatsukaze.Server
 
     public enum QueueState
     {
-        Queue, Encoding, Complete, Failed, LogoPending, Canceled
+        Queue,          // キュー状態
+        Encoding,       // エンコード中
+        Complete,       // 完了
+        Failed,         // 失敗
+        PreFailed,      // エンコード始める前に失敗
+        LogoPending,    // ペンディング
+        Canceled        // キャンセルされた
     }
 
     [DataContract]
@@ -232,7 +238,7 @@ namespace Amatsukaze.Server
 
         public bool IsComplete { get { return State == QueueState.Complete; } }
         public bool IsEncoding { get { return State == QueueState.Encoding; } }
-        public bool IsError { get { return State == QueueState.Failed; } }
+        public bool IsError { get { return State == QueueState.Failed || State == QueueState.PreFailed; } }
         public bool IsPending { get { return State == QueueState.LogoPending; } }
         public string TsTimeString { get { return TsTime.ToString("yyyy年MM月dd日"); } }
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
@@ -244,6 +250,7 @@ namespace Amatsukaze.Server
                     case QueueState.Queue: return "待ち";
                     case QueueState.Encoding: return "エンコード中";
                     case QueueState.Failed: return "失敗";
+                    case QueueState.PreFailed: return "失敗";
                     case QueueState.LogoPending: return "ペンディング";
                     case QueueState.Complete: return "完了";
                 }

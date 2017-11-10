@@ -256,10 +256,10 @@ public:
 			readJls(setting.getTmpJlsPath(videoFileIndex)));
 	}
 
-	void exec(int videoFileIndex, int encoderIndex)
+	void exec(int videoFileIndex, int encoderIndex, CMType cmtype)
 	{
-		auto filechapters = makeFileChapter(videoFileIndex, encoderIndex);
-		writeChapter(filechapters, videoFileIndex, encoderIndex);
+		auto filechapters = makeFileChapter(videoFileIndex, encoderIndex, cmtype);
+		writeChapter(filechapters, videoFileIndex, encoderIndex, cmtype);
 	}
 
 private:
@@ -389,7 +389,7 @@ private:
 		}
 	}
 
-	std::vector<JlsElement> makeFileChapter(int videoFileIndex, int encoderIndex)
+	std::vector<JlsElement> makeFileChapter(int videoFileIndex, int encoderIndex, CMType cmtype)
 	{
 		// 分割後のフレーム番号を取得
 		auto& srcFrames = reformInfo.getFilterSourceFrames(videoFileIndex);
@@ -397,7 +397,9 @@ private:
 		for (int i = 0; i < (int)srcFrames.size(); ++i) {
 			int frameEncoderIndex = reformInfo.getEncoderIndex(srcFrames[i].frameIndex);
 			if (encoderIndex == frameEncoderIndex) {
-				outFrames.push_back(i);
+        if (cmtype == CMTYPE_BOTH || cmtype == srcFrames[i].cmType) {
+          outFrames.push_back(i);
+        }
 			}
 		}
 
@@ -440,12 +442,12 @@ private:
 		return fileChapters;
 	}
 
-	void writeChapter(const std::vector<JlsElement>& chapters, int videoFileIndex, int encoderIndex)
+	void writeChapter(const std::vector<JlsElement>& chapters, int videoFileIndex, int encoderIndex, CMType cmtype)
 	{
 		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
 		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
 
-		std::ofstream file(setting.getTmpChapterPath(videoFileIndex, encoderIndex));
+		std::ofstream file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype));
 
 		ctx.info("ファイル: %d-%d", videoFileIndex, encoderIndex);
 

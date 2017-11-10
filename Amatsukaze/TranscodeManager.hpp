@@ -420,7 +420,7 @@ public:
     const StreamReformInfo& reformInfo,
     const std::vector<EncoderZone>& zones,
     const std::string& logopath,
-    int fileId, int encoderId, bool post)
+    int fileId, int encoderId, CMType cmtype)
     : AMTObject(ctx)
     , setting_(setting)
     , env_(make_unique_ptr(CreateScriptEnvironment2()))
@@ -432,66 +432,27 @@ public:
       env_->LoadPlugin(GetModulePath().c_str(), true, &avsv);
 
       std::vector<int> outFrames;
-      PClip mainClip = makeMainFilterSource(fileId, encoderId, outFrames, reformInfo, logopath);
+      filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
 
       std::string mainpath = setting.getFilterScriptPath();
       if (mainpath.size()) {
-        env_->SetVar("AMT_SOURCE", mainClip);
-        mainClip = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
+        env_->SetVar("AMT_SOURCE", filter_);
+        filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
       }
-
-      // post指定がfalseの場合でも、エンコーダオプション生成用にpostもインスタンス化して見る
+      
       std::string postpath = setting.getPostFilterScriptPath();
-      PClip postClip;
       if (postpath.size()) {
-        env_->SetVar("AMT_SOURCE", mainClip);
-        postClip = env_->Invoke("Import", postpath.c_str(), 0).AsClip();
-      }
-      else {
-        postClip = mainClip;
+        env_->SetVar("AMT_SOURCE", filter_);
+        filter_ = env_->Invoke("Import", postpath.c_str(), 0).AsClip();
       }
 
-      MakeZones(postClip, fileId, encoderId, outFrames, zones, reformInfo);
-
-      filter_ = post ? postClip : mainClip;
+      MakeZones(filter_, fileId, encoderId, outFrames, zones, reformInfo);
 
       MakeOutFormat(reformInfo.getFormat(encoderId, fileId).videoFormat);
     }
     catch (const AvisynthError& avserror) {
       // AvisynthErrorはScriptEnvironmentに依存しているので
       // AviSyntExceptioに変換する
-      THROWF(AviSynthException, "%s", avserror.msg);
-    }
-  }
-
-	// Post のみ
-  AMTFilterSource(AMTContext&ctx,
-    const TranscoderSetting& setting,
-    const std::string& intfile,
-    const VideoFormat& infmt)
-    : AMTObject(ctx)
-    , setting_(setting)
-    , env_(make_unique_ptr(CreateScriptEnvironment2()))
-  {
-    try {
-      env_->Invoke("Eval", AVSValue(makePreamble().c_str()));
-
-      PClip clip = makePostFilterSource(intfile, infmt);
-      std::string postpath = setting.getPostFilterScriptPath();
-      PClip postClip;
-      if (postpath.size()) {
-        env_->SetVar("AMT_SOURCE", clip);
-        postClip = env_->Invoke("Import", postpath.c_str(), 0).AsClip();
-      }
-      else {
-        postClip = clip;
-      }
-
-      filter_ = postClip;
-
-      MakeOutFormat(infmt);
-    }
-    catch (const AvisynthError& avserror) {
       THROWF(AviSynthException, "%s", avserror.msg);
     }
   }
@@ -543,7 +504,7 @@ private:
 	}
 
 	PClip makeMainFilterSource(
-		int fileId, int encoderId,
+		int fileId, int encoderId, CMType cmtype,
 		std::vector<int>& outFrames,
 		const StreamReformInfo& reformInfo,
 		const std::string& logopath)
@@ -568,20 +529,22 @@ private:
 			clip = env_->Invoke("AMTEraseLogo2", AVSValue(args_e, 3)).AsClip();
 		}
 
-		return trimInput(clip, fileId, encoderId, outFrames, reformInfo);
+		return trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);
 	}
 
-	PClip trimInput(PClip clip, int fileId, int encoderId,
+	PClip trimInput(PClip clip, int fileId, int encoderId, CMType cmtype,
 		std::vector<int>& outFrames,
 		const StreamReformInfo& reformInfo)
 	{
-		// このencoderIndex用の出力フレームリスト作成
+		// このencoderIndex+cmtype用の出力フレームリスト作成
 		auto& srcFrames = reformInfo.getFilterSourceFrames(fileId);
 		outFrames.clear();
 		for (int i = 0; i < (int)srcFrames.size(); ++i) {
 			int frameEncoderIndex = reformInfo.getEncoderIndex(srcFrames[i].frameIndex);
 			if (encoderId == frameEncoderIndex) {
-				outFrames.push_back(i);
+        if (cmtype == CMTYPE_BOTH || cmtype == srcFrames[i].cmType) {
+          outFrames.push_back(i);
+        }
 			}
 		}
 		int numSrcFrames = (int)outFrames.size();
@@ -716,7 +679,7 @@ public:
 	std::string GenEncoderOptions(
 		VideoFormat outfmt,
 		std::vector<EncoderZone> zones,
-		int videoFileIndex, int encoderIndex, int fragmentIndex, int pass)
+		int videoFileIndex, int encoderIndex, CMType cmtype, int pass)
 	{
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
 		double srcBitrate = getSourceBitrate(videoFileIndex);
@@ -725,9 +688,9 @@ public:
 			setting_.getEncoderPath(),
 			setting_.getOptions(
 				srcFormat, srcBitrate, false, pass, zones,
-				videoFileIndex, encoderIndex, fragmentIndex),
+				videoFileIndex, encoderIndex, cmtype),
 			outfmt,
-			setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, fragmentIndex));
+			setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype));
 	}
 
 	double getSourceBitrate(int fileId)
@@ -1117,7 +1080,7 @@ private:
 			for (int i = 0; i < (int)fmt->nb_streams; ++i) {
 				if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
 					audioFiles_.emplace_back(new AudioFileWriter(
-						fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_), 8 * 1024));
+						fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_, CMTYPE_BOTH), 8 * 1024));
 					audioMap_[i] = audioCount_++;
 				}
 			}
@@ -1174,9 +1137,9 @@ private:
       setting_.getEncoder(),
       setting_.getEncoderPath(),
       setting_.getOptions(
-				fmt.format, srcBitrate, false, pass_, std::vector<EncoderZone>(), 0, 0, -1),
+				fmt.format, srcBitrate, false, pass_, std::vector<EncoderZone>(), 0, 0, CMTYPE_BOTH),
       fmt,
-      setting_.getEncVideoFilePath(0, 0, -1));
+      setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
 
     ctx.info("[エンコーダ開始]");
     ctx.info(args.c_str());
@@ -1241,93 +1204,95 @@ public:
 			return;
 		}
 
+    int cmoutmask = setting_.getCMOutMask();
+    int mainout = cmoutmask ^ (cmoutmask & (cmoutmask - 1));
+
 		for (int i = 0; i < numEncoders; ++i) {
 			auto fmt = reformInfo_.getFormat(i, videoFileIndex);
 			int outIndex = reformInfo_.getOutFileIndex(i, videoFileIndex);
 
-			// 音声ファイルを作成
-			ctx.info("[音声ファイル作成] %d/%d", outIndex + 1, reformInfo_.getNumOutFiles());
-			std::vector<std::string> audioFiles;
-			const FileAudioFrameList& fileFrameList =
-				reformInfo_.getFileAudioFrameList(i, videoFileIndex);
-			for (int asrc = 0, adst = 0; asrc < (int)fileFrameList.size(); ++asrc) {
-				const std::vector<int>& frameList = fileFrameList[asrc];
-				if (frameList.size() > 0) {
-					if (fmt.audioFormat[asrc].channels == AUDIO_2LANG) {
-						// デュアルモノは2つのAACに分離
-						ctx.info("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", i, asrc);
-						SpDualMonoSplitter splitter(ctx);
-						std::string filepath0 = setting_.getIntAudioFilePath(videoFileIndex, i, adst++);
-						std::string filepath1 = setting_.getIntAudioFilePath(videoFileIndex, i, adst++);
-						splitter.open(0, filepath0);
-						splitter.open(1, filepath1);
-						for (int frameIndex : frameList) {
-							splitter.inputPacket(audioCache_[frameIndex]);
-						}
-						audioFiles.push_back(filepath0);
-						audioFiles.push_back(filepath1);
-					}
-					else {
-						std::string filepath = setting_.getIntAudioFilePath(videoFileIndex, i, adst++);
-						File file(filepath, "wb");
-						for (int frameIndex : frameList) {
-							file.write(audioCache_[frameIndex]);
-						}
-						audioFiles.push_back(filepath);
-					}
-				}
-			}
+      for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
+        CMType cmtype = (CMType)cmtypei;
+        int cmoutbit = 1 << cmtypei;
+        
+        if (!(cmoutmask & cmoutbit))
+          continue;
+        
+        // 出力フレーム数がゼロならスキップ
+        if (reformInfo_.getFileAudioFrameList(i, videoFileIndex, cmtype).size() == 0)
+          continue;
+        
+        bool ismain = (mainout == cmoutbit);
 
-			// Mux
-			ctx.info("[Mux開始] %d/%d", outIndex + 1, reformInfo_.getNumOutFiles());
+        // 音声ファイルを作成
+        ctx.info("[音声ファイル作成] %d/%d", outIndex + 1, reformInfo_.getNumOutFiles());
+        std::vector<std::string> audioFiles;
+        const FileAudioFrameList& fileFrameList =
+          reformInfo_.getFileAudioFrameList(i, videoFileIndex, cmtype);
+        for (int asrc = 0, adst = 0; asrc < (int)fileFrameList.size(); ++asrc) {
+          const std::vector<int>& frameList = fileFrameList[asrc];
+          if (frameList.size() > 0) {
+            if (fmt.audioFormat[asrc].channels == AUDIO_2LANG) {
+              // デュアルモノは2つのAACに分離
+              ctx.info("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", i, asrc);
+              SpDualMonoSplitter splitter(ctx);
+              std::string filepath0 = setting_.getIntAudioFilePath(videoFileIndex, i, adst++, cmtype);
+              std::string filepath1 = setting_.getIntAudioFilePath(videoFileIndex, i, adst++, cmtype);
+              splitter.open(0, filepath0);
+              splitter.open(1, filepath1);
+              for (int frameIndex : frameList) {
+                splitter.inputPacket(audioCache_[frameIndex]);
+              }
+              audioFiles.push_back(filepath0);
+              audioFiles.push_back(filepath1);
+            }
+            else {
+              std::string filepath = setting_.getIntAudioFilePath(videoFileIndex, i, adst++, cmtype);
+              File file(filepath, "wb");
+              for (int frameIndex : frameList) {
+                file.write(audioCache_[frameIndex]);
+              }
+              audioFiles.push_back(filepath);
+            }
+          }
+        }
 
-			auto& info = outfiles[outIndex];
+        // Mux
+        ctx.info("[Mux開始] %d/%d", outIndex + 1, reformInfo_.getNumOutFiles());
 
-			auto& outFileMapping = reformInfo_.getOutFileMapping();
-			std::string outFilePath = setting_.getOutFilePath(outFileMapping[outIndex]);
+        auto& info = outfiles[outIndex];
 
-			std::string encVideoFile;
-			if (info.numFragments == 0) {
-				// 分割なし
-				encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
-			}
-			else if (info.numFragments == 1) {
-				// 分割ありだがファイルは１つ
-				encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i, 0);
-			}
-			else {
-				// 分割されているので連結する
-				encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i);
-				std::vector<std::string> encfiles;
-				for (int f = 0; f < info.numFragments; ++f) {
-					encfiles.push_back(setting_.getEncVideoFilePath(videoFileIndex, i, f));
-				}
-				ConcatFiles(encfiles, encVideoFile);
-			}
-			
-			std::string chapterFile;
-			if (setting_.isChapterEnabled()) {
-				chapterFile = setting_.getTmpChapterPath(videoFileIndex, i);
-			}
+        auto& outFileMapping = reformInfo_.getOutFileMapping();
+        std::string outFilePath = setting_.getOutFilePath(
+          outFileMapping[outIndex], ismain ? CMTYPE_BOTH : cmtype);
 
-			std::string args = makeMuxerArgs(
-				setting_.getMuxerPath(), encVideoFile,
-				info.vf, audioFiles, outFilePath, chapterFile);
+        std::string encVideoFile;
+        encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, i, cmtype);
 
-			ctx.info(args.c_str());
+        std::string chapterFile;
+        if (setting_.isChapterEnabled()) {
+          chapterFile = setting_.getTmpChapterPath(videoFileIndex, i, cmtype);
+        }
 
-			{
-				MySubProcess muxer(args);
-				int ret = muxer.join();
-				if (ret != 0) {
-					THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
-				}
-			}
+        std::string args = makeMuxerArgs(
+          setting_.getMuxerPath(), encVideoFile,
+          info.vf, audioFiles, outFilePath, chapterFile);
 
-			{ // 出力サイズ取得
-				File outfile(outFilePath, "rb");
-				totalOutSize_ += outfile.size();
-			}
+        ctx.info(args.c_str());
+
+        {
+          MySubProcess muxer(args);
+          int ret = muxer.join();
+          if (ret != 0) {
+            THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
+          }
+        }
+
+        if(ismain) { // 出力サイズ取得
+          File outfile(outFilePath, "rb");
+          totalOutSize_ += outfile.size();
+        }
+      }
 		}
 	}
 
@@ -1381,10 +1346,10 @@ public:
 			// Mux
 		std::vector<std::string> audioFiles;
 		for (int i = 0; i < audioCount; ++i) {
-			audioFiles.push_back(setting_.getIntAudioFilePath(0, 0, i));
+			audioFiles.push_back(setting_.getIntAudioFilePath(0, 0, i, CMTYPE_BOTH));
 		}
-		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0);
-		std::string outFilePath = setting_.getOutFilePath(0);
+		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
+		std::string outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
 		std::string args = makeMuxerArgs(
 			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath, std::string());
 		ctx.info("[Mux開始]");
@@ -1399,7 +1364,7 @@ public:
 		}
 
 		{ // 出力サイズ取得
-			File outfile(setting_.getOutFilePath(0), "rb");
+			File outfile(setting_.getOutFilePath(0, CMTYPE_BOTH), "rb");
 			totalOutSize_ += outfile.size();
 		}
 	}
@@ -1436,6 +1401,8 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	}
 	StreamReformInfo reformInfo = splitter->split();
 	ctx.info("TS解析完了: %.2f秒", sw.getAndReset());
+  int64_t numTotalPackets = splitter->getNumTotalPackets();
+  int64_t numScramblePackets = splitter->getNumScramblePackets();
 	int64_t totalIntVideoSize = splitter->getTotalIntVideoSize();
 	int64_t srcFileSize = splitter->getSrcFileSize();
 	splitter = nullptr;
@@ -1443,6 +1410,15 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	if (setting.isDumpStreamInfo()) {
 		reformInfo.serialize(setting.getStreamInfoPath());
 	}
+
+  // スクランブルパケットチェック
+  double scrambleRatio = (double)numScramblePackets / (double)numTotalPackets;
+  if (scrambleRatio > 0.1) {
+    ctx.error("%.2f%%のパケットがスクランブル状態です。", scrambleRatio * 100);
+    if (scrambleRatio > 0.3) {
+      THROW(FormatException, "スクランブルパケットが多すぎます");
+    }
+  }
 
   auto audioDiffInfo = reformInfo.prepareEncode();
 	audioDiffInfo.printAudioPtsDiff(ctx);
@@ -1475,7 +1451,9 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
       MakeChapter makechapter(ctx, setting, reformInfo, videoFileIndex);
       int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
       for (int i = 0; i < numEncoders; ++i) {
-        makechapter.exec(videoFileIndex, i);
+        for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
+          makechapter.exec(videoFileIndex, i, (CMType)cmtypei);
+        }
       }
     }
     else {
@@ -1491,65 +1469,6 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	std::vector<EncodeFileInfo> bitrateInfo;
 	std::vector<OutVideoFileInfo> outfiles;
 
-	std::unique_ptr<HostProcessComm> comm;
-	int numTotalFragments = 0;
-
-	if (setting.isTwoPass() && setting.isFilterTmpFile()) {
-		comm = std::unique_ptr<HostProcessComm>(new HostProcessComm(ctx, setting.getInPipe(), setting.getOutPipe()));
-
-		// ホストに渡すjson作成
-		std::ostringstream ss;
-		ss << "{ \"files\": [";
-		int currentOutFile = 0;
-		int64_t maxTmp = (int64_t)(setting.getMaxTmpGB() * 1024 * 1024 * 1024);
-		for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
-			int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-      for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex) {
-        ctx.info("[エンコード分割準備] %d/%d", ++currentOutFile, numOutFiles);
-
-        // フレーム数を確定するためソースクリップをインスタンス化
-        const CMAnalyze* cma = cmanalyze[videoFileIndex].get();
-        AMTFilterSource filterSource(ctx, setting, reformInfo,
-          cma->getZones(), cma->getLogoPath(), videoFileIndex, encoderIndex, false);
-
-        try {
-          OutVideoFileInfo info;
-          info.vf = filterSource.getFormat();
-
-          auto vi = filterSource.getClip()->GetVideoInfo();
-          int bytesPerFrame = vi.width * vi.height * 3 / 2;
-
-          info.numFragments = (int)(((int64_t)bytesPerFrame * vi.num_frames + maxTmp - 1) / maxTmp);
-          info.framesPerFragment = (vi.num_frames + info.numFragments - 1) / info.numFragments;
-
-          ctx.info("分割数: %d (%dフレーム=%dGBで分割)",
-            info.numFragments, info.framesPerFragment,
-            (int64_t)info.framesPerFragment * bytesPerFrame / (1024 * 1024 * 1024));
-
-          for (int f = 0; f < info.numFragments; ++f, ++numTotalFragments) {
-            int numFrames = std::min(vi.num_frames - f * info.framesPerFragment, info.framesPerFragment);
-            std::string infopath = setting.getEncodeTaskInfoPath(videoFileIndex, encoderIndex, f);
-            std::string tmppath = setting.getFilterTmpFilePath(videoFileIndex, encoderIndex, f);
-
-            if (numTotalFragments) ss << ", ";
-            ss << " { \"bytesperframe\": " << bytesPerFrame <<
-              ", \"numframe\": " << numFrames <<
-              ", \"tmppath\": \"" << toJsonString(tmppath) <<
-              "\", \"infopath\": \"" << toJsonString(infopath) << "\" }";
-          }
-
-          outfiles.push_back(info);
-        }
-        catch (const AvisynthError& avserror) {
-          THROWF(AviSynthException, "%s", avserror.msg);
-        }
-      }
-		}
-		ss << "] }";
-		std::string json = ss.str();
-		comm->postAnalyzeFinished(json);
-	}
-
 	sw.start();
 	for (int videoFileIndex = 0, currentOutFile = 0, currentFragments = 0;
 		videoFileIndex < numVideoFiles; ++videoFileIndex) {
@@ -1558,73 +1477,42 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 			ctx.warn("numEncoders == 0 ...");
 		}
 		else {
+      const CMAnalyze* cma = cmanalyze[videoFileIndex].get();
+      int cmoutmask = setting.getCMOutMask();
+
       for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentOutFile) {
+        for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
+          CMType cmtype = (CMType)cmtypei;
 
-        const CMAnalyze* cma = cmanalyze[videoFileIndex].get();
-        AMTFilterSource filterSource(ctx, setting, reformInfo,
-          cma->getZones(), cma->getLogoPath(), videoFileIndex, encoderIndex,
-          comm ? false : true);
+          // 出力が無効化されていたらスキップ
+          if (!(cmoutmask & (1 << cmtypei)))
+            continue;
 
-        try {
-          PClip filterClip = filterSource.getClip();
-          IScriptEnvironment2* env = filterSource.getEnv();
-          auto& encoderZones = filterSource.getZones();
-          auto& outfmt = filterSource.getFormat();
-          auto& outvi = filterClip->GetVideoInfo();
+          // 出力フレーム数がゼロならスキップ
+          if (reformInfo.getFileAudioFrameList(encoderIndex, videoFileIndex, cmtype).size() == 0)
+            continue;
 
-          bitrateInfo.push_back(argGen->printBitrate(ctx, videoFileIndex));
+          AMTFilterSource filterSource(ctx, setting, reformInfo,
+            cma->getZones(), cma->getLogoPath(), videoFileIndex, encoderIndex, cmtype);
 
-          std::vector<int> pass;
-          if (setting.isTwoPass()) {
-            pass.push_back(1);
-            pass.push_back(2);
-          }
-          else {
-            pass.push_back(-1);
-          }
+          try {
+            PClip filterClip = filterSource.getClip();
+            IScriptEnvironment2* env = filterSource.getEnv();
+            auto& encoderZones = filterSource.getZones();
+            auto& outfmt = filterSource.getFormat();
+            auto& outvi = filterClip->GetVideoInfo();
 
-          if (comm) {
-            // フィルタ中間出力
-            int outIndex = reformInfo.getOutFileIndex(encoderIndex, videoFileIndex);
-            const auto& info = outfiles[outIndex];
+            bitrateInfo.push_back(argGen->printBitrate(ctx, videoFileIndex));
 
-            for (int f = 0; f < info.numFragments; ++f, ++currentFragments) {
-              ctx.progress("順番待ち...");
-              comm->waitStartFilter();
-              ctx.info("[フィルタ処理開始] %d/%d", currentFragments + 1, numTotalFragments);
-
-              int start = f * info.framesPerFragment;
-              int numFrames = std::min(outvi.num_frames - start, info.framesPerFragment);
-              std::string infopath = setting.getEncodeTaskInfoPath(videoFileIndex, encoderIndex, f);
-              std::string tmppath = setting.getFilterTmpFilePath(videoFileIndex, encoderIndex, f);
-
-              // このフラグメント用Zones作成
-              std::vector<EncoderZone> fragmentZones;
-              for (int i = 0; i < (int)encoderZones.size(); ++i) {
-                auto& zone = encoderZones[i];
-                EncoderZone fzone;
-                fzone.startFrame = std::max(0, zone.startFrame - start);
-                fzone.endFrame = std::min(numFrames, zone.endFrame - start);
-                if (fzone.startFrame < fzone.endFrame) {
-                  fragmentZones.push_back(fzone);
-                }
-              }
-
-              std::vector<std::string> encoderArgs;
-              for (int i = 0; i < (int)pass.size(); ++i) {
-                encoderArgs.push_back(
-                  argGen->GenEncoderOptions(
-                    outfmt, fragmentZones, videoFileIndex, encoderIndex, f, pass[i]));
-              }
-              SaveEncodeTaskInfo(infopath, encoderArgs, outfmt);
-              {
-                AMTFilterOutTmp encoder(ctx, setting);
-                encoder.filter(filterClip, outfmt, start, numFrames, tmppath, env);
-              }
-              comm->postFilterFinished();
+            std::vector<int> pass;
+            if (setting.isTwoPass()) {
+              pass.push_back(1);
+              pass.push_back(2);
             }
-          }
-          else {
+            else {
+              pass.push_back(-1);
+            }
+
             // 直接エンコード
             ctx.info("[エンコード開始] %d/%d", currentOutFile + 1, numOutFiles);
 
@@ -1638,21 +1526,17 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
             for (int i = 0; i < (int)pass.size(); ++i) {
               encoderArgs.push_back(
                 argGen->GenEncoderOptions(
-                  outfmt, encoderZones, videoFileIndex, encoderIndex, -1, pass[i]));
+                  outfmt, encoderZones, videoFileIndex, encoderIndex, cmtype, pass[i]));
             }
             AMTFilterVideoEncoder encoder(ctx);
             encoder.encode(filterClip, outfmt, encoderArgs, env);
           }
-        }
-        catch (const AvisynthError& avserror) {
-          THROWF(AviSynthException, "%s", avserror.msg);
+          catch (const AvisynthError& avserror) {
+            THROWF(AviSynthException, "%s", avserror.msg);
+          }
         }
       }
 		}
-	}
-	if (comm) {
-		// エンコード終了待ち
-		comm->waitFinish();
 	}
 	ctx.info("エンコード完了: %.2f秒", sw.getAndReset());
 
@@ -1669,7 +1553,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
   muxer = nullptr;
 
 	// 出力結果を表示
-	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index); });
+	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
 
 	// 出力結果JSON出力
 	if (setting.getOutInfoJsonPath().size() > 0) {
@@ -1679,7 +1563,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 		for (int i = 0; i < reformInfo.getNumOutFiles(); ++i) {
 			if (i > 0) ss << ", ";
       auto info = bitrateInfo[i];
-      ss << "{ \"path\": \"" << toJsonString(setting.getOutFilePath(i)) <<
+      ss << "{ \"path\": \"" << toJsonString(setting.getOutFilePath(i, CMTYPE_BOTH)) <<
         "\", \"srcbitrate\": " << (int)info.srcBitrate <<
         ", \"outbitrate\": " << (int)info.targetBitrate << " }";
 		}
@@ -1713,22 +1597,6 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	}
 }
 
-static void encodeTaskMain(AMTContext& ctx, const TranscoderSetting& setting)
-{
-  auto info = LoadEncodeTaskInfo(setting.getModeArgs());
-  AMTFilterSource filterSource(ctx, setting, setting.getSrcFilePath(), info->infmt);
-  try {
-    PClip filterClip = filterSource.getClip();
-    IScriptEnvironment2* env = filterSource.getEnv();
-    auto& outfmt = filterSource.getFormat();
-    AMTFilterVideoEncoder encoder(ctx);
-    encoder.encode(filterClip, outfmt, info->encoderArgs, env);
-  }
-  catch (const AvisynthError& avserror) {
-    THROWF(AviSynthException, "%s", avserror.msg);
-  }
-}
-
 static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	if (ends_with(setting.getSrcFilePath(), ".ts")) {
@@ -1753,7 +1621,7 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 		std::ostringstream ss;
 		ss << "{ \"srcpath\": \"" << toJsonString(setting.getSrcFilePath()) << "\", ";
 		ss << "\"outpath\": ";
-		ss << "\"" << toJsonString(setting.getOutFilePath(0)) << "\"";
+		ss << "\"" << toJsonString(setting.getOutFilePath(0, CMTYPE_BOTH)) << "\"";
 		ss << ", ";
 		ss << "\"srcfilesize\": " << srcFileSize << ", ";
 		ss << "\"outfilesize\": " << totalOutSize;

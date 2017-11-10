@@ -207,7 +207,7 @@ namespace Amatsukaze.Models
             return CancelScanning == false;
         }
 
-        public async Task MakeSlimFile(string srcpath, string dstpath)
+        public async Task MakeSlimFile(string srcpath, string dstpath, int serviceid)
         {
             using (var info = new TsInfo(context))
             {
@@ -224,7 +224,8 @@ namespace Amatsukaze.Models
                     }
                     else
                     {
-                        using (var filter = new TsSlimFilter(context, progList[0].VideoPid))
+                        int videoPid = progList.FirstOrDefault(p => p.ServiceId == serviceid).VideoPid;
+                        using (var filter = new TsSlimFilter(context, videoPid))
                         {
                             await Task.Run(() => filter.Exec(srcpath, dstpath, MakeSlimCallback));
                         }

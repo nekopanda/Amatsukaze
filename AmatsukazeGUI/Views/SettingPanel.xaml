@@ -25,7 +25,7 @@
                     <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
                     <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
                 </Grid.Resources>
-                
+
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition />
@@ -80,8 +80,13 @@
                       ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="QSVの方が速いです。"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,5.667,1,0"/>
-                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,5.667,0,0"
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力" VerticalAlignment="Top" Margin="0,8,1,0"/>
+                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5.667,0,0" VerticalAlignment="Top" Width="130"
+                      ItemsSource="{Binding OutputOptionList}" SelectedIndex="{Binding OutputOptionIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="CMカットの精度は100%ではありません"/>
+
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,34.667,1,0"/>
+                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,36,0,6"
                           IsChecked="{Binding Model.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
 
                 <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>

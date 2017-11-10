@@ -196,9 +196,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring chapterExePath;
 	std::tstring joinLogoScpPath;
 	std::tstring joinLogoScpCmdPath;
-	HANDLE inPipe = INVALID_HANDLE_VALUE;
-	HANDLE outPipe = INVALID_HANDLE_VALUE;
-	double maxTmpGB = 0;
+  int cmoutmask = 1;
 	bool dumpStreamInfo = bool();
 	bool systemAvsPlugin = bool();
 
@@ -317,14 +315,8 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		else if (key == _T("--jls-cmd")) {
 			joinLogoScpCmdPath = getParam(argc, argv, i++);
 		}
-		else if (key == _T("--inpipe")) {
-			inPipe = (HANDLE)std::stoll(getParam(argc, argv, i++));
-		}
-		else if (key == _T("--outpipe")) {
-			outPipe = (HANDLE)std::stoll(getParam(argc, argv, i++));
-		}
-		else if (key == _T("--maxtmpgb")) {
-			maxTmpGB = std::stod(getParam(argc, argv, i++));
+		else if (key == _T("--cmoutmask")) {
+      cmoutmask = std::stol(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--dump")) {
 			dumpStreamInfo = true;
@@ -365,10 +357,6 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
 	}
 
-	if (inPipe != INVALID_HANDLE_VALUE && maxTmpGB == 0) {
-		THROW(ArgumentException, "フィルタ一時ファイルを使う場合は最大一時ファイルサイズ(--maxtmpgb)を指定してください");
-	}
-
 	if (modeStr == _T("enctask")) {
 		// 必要ない
 		workDir = _T("");
@@ -401,9 +389,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		to_string(chapterExePath),
 		to_string(joinLogoScpPath),
 		to_string(joinLogoScpCmdPath),
-		inPipe,
-		outPipe,
-		maxTmpGB,
+    cmoutmask,
 		dumpStreamInfo,
 		systemAvsPlugin));
 }
@@ -458,8 +444,6 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 			transcodeMain(ctx, setting);
 		else if (mode == "g")
 			transcodeSimpleMain(ctx, setting);
-		else if (mode == "enctask")
-			encodeTaskMain(ctx, setting);
 
 		else if (mode == "test_print_crc")
 			test::PrintCRCTable(ctx, setting);

@@ -790,6 +790,22 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region OutputMask変更通知プロパティ
+        public int OutputMask
+        {
+            get
+            { return setting.OutputMask; }
+            set
+            {
+                if (setting.OutputMask == value)
+                    return;
+                setting.OutputMask = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region BitrateA変更通知プロパティ
         public double BitrateA
         {
@@ -846,19 +862,7 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-
-        #region MaxTmpGB変更通知プロパティ
-        public int MaxTmpGB {
-            get { return setting.MaxTmpGB; }
-            set {
-                if (setting.MaxTmpGB == value)
-                    return;
-                setting.MaxTmpGB = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
+        
         #region TmpDiskSpaceGB変更通知プロパティ
         private int _TmpDiskSpaceGB = 500;
 
@@ -1294,7 +1298,7 @@ namespace Amatsukaze.Models
             BitrateH264 = setting.Bitrate.H264;
             BitrateCM = setting.BitrateCM;
             TwoPass = setting.TwoPass;
-            MaxTmpGB = setting.MaxTmpGB;
+            OutputMask = setting.OutputMask;
             DefaultJLSCommand = setting.DefaultJLSCommand;
             DisableChapter = setting.DisableChapter;
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
