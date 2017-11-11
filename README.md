@@ -236,7 +236,7 @@ AviUtlのエッジレベル調整フィルタを移植して、少し改造し�
 - [Ut Video Codec Suite](http://umezawa.dyndns.info/wordpress/)
 - [AviSynthPlus CUDA](https://github.com/nekopanda/AviSynthPlus)
 - [join_logo_scp ver 2.1](https://www.axfc.net/u/3458102.zip)
-- [chapter_exe 改造版](https://github.com/nekopanda/chapter_exe)
+- [chapter_exe 改造版](https://github.com/nekopanda/chapter_exe)（VFWに依存しないでAvisynthスクリプトを読めるように改造しています）
 - [Livet](http://ugaya40.hateblo.jp/entry/Livet)
 - VC14ランタイム
 
