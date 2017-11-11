@@ -232,7 +232,7 @@ AviUtlのエッジレベル調整フィルタを移植して、少し改造し�
 - [FAAD2](http://www.audiocoding.com/faad2.html)
 - [L-SMASH](https://github.com/l-smash/l-smash)
 - [x264](https://www.videolan.org/developers/x264.html)
-- [x265](http://x265.org/)
+- [x265](https://bitbucket.org/Nekopanda/x265)（本家版はzonesを多く指定すると落ちるバグがあるので改造しています）
 - [Ut Video Codec Suite](http://umezawa.dyndns.info/wordpress/)
 - [AviSynthPlus CUDA](https://github.com/nekopanda/AviSynthPlus)
 - [join_logo_scp ver 2.1](https://www.axfc.net/u/3458102.zip)
