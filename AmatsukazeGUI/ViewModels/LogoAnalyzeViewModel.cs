@@ -194,7 +194,8 @@ namespace Amatsukaze.ViewModels
             try
             {
                 var srcpath = App.Option.SlimTs ? tmpTs : App.Option.FilePath;
-                currentTask = Model.Analyze(srcpath, App.Option.WorkPath, RectPosition, RectSize, Threshold, MaxFrames);
+                currentTask = Model.Analyze(srcpath, App.Option.ServiceId,
+                    App.Option.WorkPath, RectPosition, RectSize, Threshold, MaxFrames);
                 await currentTask;
 
                 var vm = new LogoImageViewModel();

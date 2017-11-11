@@ -145,6 +145,7 @@ struct FilterSourceFrame {
   bool halfDelay;
   int frameIndex; // 内部用
   double pts; // 内部用
+	double frameDuration; // 内部用
   int64_t framePTS;
   int64_t fileOffset;
   int keyFrame;
@@ -184,16 +185,13 @@ public:
 		, outTotalDuration_()
 	{ }
 
-  // 最初に呼び出す
+  // 1.
   AudioDiffInfo prepare() {
     reformMain();
     return genWaveAudioStream();
   }
 
-  AudioDiffInfo genAudioWithoutCM() {
-    return genAudioStream();
-  }
-
+	// 2.
   void applyCMZones(int videoFileIndex, const std::vector<EncoderZone>& cmzones) {
     auto& frames = filterFrameList_[videoFileIndex];
     for (auto zone : cmzones) {
@@ -203,15 +201,17 @@ public:
     }
   }
 
-  AudioDiffInfo genAudioWithCM() {
+	// 3.
+  AudioDiffInfo genAudio() {
+		calcSizeAndTime();
     return genAudioStream();
   }
 
-	AudioDiffInfo prepareEncode() {
-		reformMain();
-		genAudioStream();
-		return genWaveAudioStream();
-	}
+	//AudioDiffInfo prepareEncode() {
+	//	reformMain();
+	//	genAudioStream();
+	//	return genWaveAudioStream();
+	//}
 
 	int getNumVideoFile() const {
 		return numVideoFile_;
@@ -282,9 +282,9 @@ public:
   }
 
 	// 各ファイルの再生時間
-	double getFileDuration(int encoderIndex, int videoFileIndex) const {
+	double getFileDuration(int encoderIndex, int videoFileIndex, CMType cmtype) const {
 		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
-		return fileDuration_[formatId];
+		return fileDuration_[formatId][cmtype];
 	}
 
 	const std::vector<int64_t>& getAudioFileOffsets() const {
@@ -368,18 +368,18 @@ private:
 
 	// 入力解析の出力
 	int numVideoFile_;
-	std::vector<FileVideoFrameInfo> videoFrameList_;
+	std::vector<FileVideoFrameInfo> videoFrameList_; // [DTS順] 
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<StreamEvent> streamEventList_;
 
 	// 計算データ
 	bool isVFR_;
 	bool hasRFF_;
-	std::vector<double> modifiedPTS_; // ラップアラウンドしないPTS
+	std::vector<double> modifiedPTS_; // [DTS順] ラップアラウンドしないPTS
 	std::vector<double> modifiedAudioPTS_; // ラップアラウンドしないPTS
 	std::vector<double> audioFrameDuration_; // 各音声フレームの時間
-	std::vector<int> ordredVideoFrame_;
-	std::vector<double> dataPTS_; // 映像フレームのストリーム上での位置とPTSの関連付け
+	std::vector<int> ordredVideoFrame_; // [PTS順] -> [DTS順] 変換
+	std::vector<double> dataPTS_; // [DTS順] 映像フレームのストリーム上での位置とPTSの関連付け
 	std::vector<double> streamEventPTS_;
 
 	std::vector<std::vector<int>> indexAudioFrameList_; // 音声インデックスごとのフレームリスト
@@ -390,7 +390,7 @@ private:
   std::vector<int> outFormatStartIndex_;
 
   // 中間映像ファイルごと
-	std::vector<std::vector<FilterSourceFrame>> filterFrameList_;
+	std::vector<std::vector<FilterSourceFrame>> filterFrameList_; // [PTS順]
 	std::vector<std::vector<FilterAudioFrame>> filterAudioFrameList_;
   //std::vector<std::vector<FileterOutFrame>> filterOutFrameList_;
 
@@ -400,15 +400,16 @@ private:
   // 出力ファイルごとの入力映像データサイズ、時間
   std::vector<int64_t> fileSrcSize_;
   std::vector<double> fileSrcDuration_;
+	std::vector<std::array<double, CMTYPE_MAX>> fileDuration_; // 各ファイルの再生時間
 
 	// 2nd phase 出力
 	//std::vector<bool> encodedFrames_;
 
 	// 音声構築用
-	std::vector<std::array<std::unique_ptr<FileAudioFrameList>, 4>> reformedAudioFrameList_;
-	std::vector<double> fileDuration_;
+	std::vector<std::array<std::unique_ptr<FileAudioFrameList>, CMTYPE_MAX>> reformedAudioFrameList_;
+
 	std::vector<int64_t> audioFileOffsets_; // 音声ファイルキャッシュ用
-	std::vector<int> outFileIndex_;
+	std::vector<int> outFileIndex_; // 出力番号マッピング
 
   double srcTotalDuration_;
   double outTotalDuration_;
@@ -592,22 +593,6 @@ private:
       frameFormatId_[i] = fmtid;
     }
 
-    // ビットレート計算
-    fileSrcSize_ = std::vector<int64_t>(outFormat_.size(), 0);
-    fileSrcDuration_ = std::vector<double>(outFormat_.size(), 0);
-    for (int i = 0; i < (int)videoFrameList_.size(); ++i) {
-      int ordered = ordredVideoFrame_[i];
-      int formatId = frameFormatId_[ordered];
-      int next = (i + 1 < (int)videoFrameList_.size())
-        ? ordredVideoFrame_[i + 1]
-        : -1;
-      double duration = getFrameDuration(ordered, next);
-
-      const auto& frame = videoFrameList_[ordered];
-      fileSrcSize_[formatId] += frame.codedDataSize;
-      fileSrcDuration_[formatId] += duration;
-    }
-
     // フィルタ用入力フレームリスト生成
     filterFrameList_ = std::vector<std::vector<FilterSourceFrame>>(numVideoFile_);
     for (int fileId = 0; fileId < (int)numVideoFile_; ++fileId) {
@@ -622,6 +607,7 @@ private:
         int formatId = frameFormatId_[ordered];
         if (outFormat_[formatId].videoFileId == fileId) {
 
+					int64_t mPTS = modifiedPTS_[ordered];
           FileVideoFrameInfo& srcframe = videoFrameList_[ordered];
           if (srcframe.isGopStart) {
             keyFrame = int(list.size());
@@ -633,8 +619,9 @@ private:
           FilterSourceFrame frame;
           frame.halfDelay = false;
           frame.frameIndex = i;
-          frame.pts = (double)srcframe.PTS;
-          frame.framePTS = srcframe.PTS;
+          frame.pts = (double)mPTS;
+					frame.frameDuration = timePerFrame; // TODO: VFR対応
+          frame.framePTS = mPTS;
           frame.fileOffset = srcframe.fileOffset;
           frame.keyFrame = keyFrame;
           frame.cmType = CMTYPE_NONCM; // 最初は全部NonCMにしておく
@@ -674,6 +661,81 @@ private:
         }
       }
     }
+
+		// indexAudioFrameList_を作成
+		int numMaxAudio = 1;
+		for (int i = 0; i < (int)outFormat_.size(); ++i) {
+			numMaxAudio = std::max(numMaxAudio, (int)outFormat_[i].audioFormat.size());
+		}
+		indexAudioFrameList_.resize(numMaxAudio);
+		for (int i = 0; i < (int)audioFrameList_.size(); ++i) {
+			indexAudioFrameList_[audioFrameList_[i].audioIdx].push_back(i);
+		}
+
+		// audioFileOffsets_を生成
+		audioFileOffsets_.resize(audioFrameList_.size() + 1);
+		for (int i = 0; i < (int)audioFrameList_.size(); ++i) {
+			audioFileOffsets_[i] = audioFrameList_[i].fileOffset;
+		}
+		const auto& lastFrame = audioFrameList_.back();
+		audioFileOffsets_.back() = lastFrame.fileOffset + lastFrame.codedDataSize;
+	}
+
+	void calcSizeAndTime()
+	{
+		// 各ファイルの入力ファイル時間とサイズを計算
+		// ソースフレームから
+		fileSrcSize_ = std::vector<int64_t>(outFormat_.size(), 0);
+		fileSrcDuration_ = std::vector<double>(outFormat_.size(), 0);
+		for (int i = 0; i < (int)videoFrameList_.size(); ++i) {
+			int ordered = ordredVideoFrame_[i];
+			int formatId = frameFormatId_[ordered];
+			int next = (i + 1 < (int)videoFrameList_.size())
+				? ordredVideoFrame_[i + 1]
+				: -1;
+			double duration = getSourceFrameDuration(ordered, next);
+
+			const auto& frame = videoFrameList_[ordered];
+			fileSrcSize_[formatId] += frame.codedDataSize;
+			fileSrcDuration_[formatId] += duration;
+		}
+
+		// 各ファイルの出力ファイル時間を計算
+		// CM判定はフィルタ入力フレームに適用されているのでフィルタ入力フレームから
+		fileDuration_ = std::vector<std::array<double, CMTYPE_MAX>>(outFormat_.size(), std::array<double, CMTYPE_MAX>());
+		for (int fileId = 0; fileId < (int)numVideoFile_; ++fileId) {
+			std::vector<FilterSourceFrame>& list = filterFrameList_[fileId];
+			for (int i = 0; i < (int)list.size(); ++i) {
+				int formatId = frameFormatId_[list[i].frameIndex];
+				double duration = list[i].frameDuration;
+				fileDuration_[formatId][CMTYPE_BOTH] += duration;
+				fileDuration_[formatId][list[i].cmType] += duration;
+			}
+		}
+
+		// 統計
+		double sumDuration = 0;
+		double maxDuration = 0;
+		int maxId = 0;
+		for (int i = 0; i < (int)outFormat_.size(); ++i) {
+			double time = fileDuration_[i][CMTYPE_BOTH];
+			sumDuration += time;
+			if (maxDuration < time) {
+				maxDuration = time;
+				maxId = i;
+			}
+		}
+		srcTotalDuration_ = dataPTS_.back() - dataPTS_.front();
+		outTotalDuration_ = sumDuration;
+
+		// 出力ファイル番号生成
+		outFileIndex_.resize(outFormat_.size());
+		outFileIndex_[maxId] = 0;
+		for (int i = 0, cnt = 1; i < (int)outFormat_.size(); ++i) {
+			if (i != maxId) {
+				outFileIndex_[i] = cnt++;
+			}
+		}
 	}
 
 	template<typename I>
@@ -748,74 +810,6 @@ private:
 		std::unique_ptr<FileAudioFrameList> audioFrameList;
 	};
 
-  void genAudioStream(std::function<void(std::vector<std::array<OutFileState, 4>>&)> fillFiles) {
-
-    // indexAudioFrameList_を作成
-    int numMaxAudio = 1;
-    for (int i = 0; i < (int)outFormat_.size(); ++i) {
-      numMaxAudio = std::max(numMaxAudio, (int)outFormat_[i].audioFormat.size());
-    }
-    indexAudioFrameList_.resize(numMaxAudio);
-    for (int i = 0; i < (int)audioFrameList_.size(); ++i) {
-      indexAudioFrameList_[audioFrameList_[i].audioIdx].push_back(i);
-    }
-
-    std::vector<std::array<OutFileState, 4>> outFiles(outFormat_.size());
-
-		// outFiles初期化
-		for (int i = 0; i < (int)outFormat_.size(); ++i) {
-      for (int c = 0; c < 4; ++c) {
-        auto& file = outFiles[i][c];
-        int numAudio = (int)outFormat_[i].audioFormat.size();
-        file.formatId = i;
-        file.time = 0;
-        file.audioState.resize(numAudio);
-        file.audioFrameList =
-          std::unique_ptr<FileAudioFrameList>(new FileAudioFrameList(numAudio));
-      }
-		}
-
-    fillFiles(outFiles);
-
-    // 出力データ生成
-    reformedAudioFrameList_.resize(outFormat_.size());
-    fileDuration_.resize(outFormat_.size());
-    double sumDuration = 0;
-    double maxDuration = 0;
-    int maxId = 0;
-    for (int i = 0; i < (int)outFormat_.size(); ++i) {
-      for (int c = 0; c < 4; ++c) {
-        double time = outFiles[i][c].time;
-        reformedAudioFrameList_[i][c] = std::move(outFiles[i][c].audioFrameList);
-        fileDuration_[i] = time;
-        sumDuration += time;
-        if (maxDuration < time) {
-          maxDuration = time;
-          maxId = i;
-        }
-      }
-    }
-    srcTotalDuration_ = dataPTS_.back() - dataPTS_.front();
-    outTotalDuration_ = sumDuration;
-
-    // audioFileOffsets_を生成
-    audioFileOffsets_.resize(audioFrameList_.size() + 1);
-    for (int i = 0; i < (int)audioFrameList_.size(); ++i) {
-      audioFileOffsets_[i] = audioFrameList_[i].fileOffset;
-    }
-    const auto& lastFrame = audioFrameList_.back();
-    audioFileOffsets_.back() = lastFrame.fileOffset + lastFrame.codedDataSize;
-
-    // 出力ファイル番号生成
-    outFileIndex_.resize(outFormat_.size());
-    outFileIndex_[maxId] = 0;
-    for (int i = 0, cnt = 1; i < (int)outFormat_.size(); ++i) {
-      if (i != maxId) {
-        outFileIndex_[i] = cnt++;
-      }
-    }
-  }
-
   AudioDiffInfo initAudioDiffInfo() {
     AudioDiffInfo adiff = AudioDiffInfo();
     adiff.totalSrcFrames = (int)audioFrameList_.size();
@@ -826,26 +820,47 @@ private:
   // フィルタ入力から音声構築
   AudioDiffInfo genAudioStream()
   {
-    AudioDiffInfo adiff1 = initAudioDiffInfo(), adiff2 = initAudioDiffInfo();
+		AudioDiffInfo adiff = initAudioDiffInfo();
 
-    genAudioStream([&](std::vector<std::array<OutFileState, 4>>& outFiles)
-    {
-      // 全映像フレームを追加
-      ctx.info("[音声構築]");
-      for (int fileId = 0; fileId < numVideoFile_; ++fileId) {
-        auto& frames = filterFrameList_[fileId];
-				auto& format = outFormat_[outFormatStartIndex_[fileId]].videoFormat;
-				double timePerFrame = format.frameRateDenom * MPEG_CLOCK_HZ / (double)format.frameRateNum;
-        for (int i = 0; i < (int)frames.size(); ++i) {
-					int ordered = ordredVideoFrame_[frames[i].frameIndex];
-					int formatId = frameFormatId_[ordered];
-          addVideoFrame(outFiles[formatId][frames[i].cmType], formatId, frames[i].pts, timePerFrame, adiff1);
-          addVideoFrame(outFiles[formatId][CMTYPE_BOTH], formatId, frames[i].pts, timePerFrame, adiff2);
-        }
+		std::vector<std::array<OutFileState, CMTYPE_MAX>> outFiles(outFormat_.size());
+
+		// outFiles初期化
+		for (int i = 0; i < (int)outFormat_.size(); ++i) {
+			for (int c = 0; c < CMTYPE_MAX; ++c) {
+				auto& file = outFiles[i][c];
+				int numAudio = (int)outFormat_[i].audioFormat.size();
+				file.formatId = i;
+				file.time = 0;
+				file.audioState.resize(numAudio);
+				file.audioFrameList =
+					std::unique_ptr<FileAudioFrameList>(new FileAudioFrameList(numAudio));
+			}
+		}
+
+    // 全映像フレームを追加
+    ctx.info("[音声構築]");
+    for (int fileId = 0; fileId < numVideoFile_; ++fileId) {
+      auto& frames = filterFrameList_[fileId];
+			auto& format = outFormat_[outFormatStartIndex_[fileId]].videoFormat;
+			double timePerFrame = format.frameRateDenom * MPEG_CLOCK_HZ / (double)format.frameRateNum;
+      for (int i = 0; i < (int)frames.size(); ++i) {
+				int ordered = ordredVideoFrame_[frames[i].frameIndex];
+				int formatId = frameFormatId_[ordered];
+        addVideoFrame(outFiles[formatId][frames[i].cmType], formatId, frames[i].pts, timePerFrame, nullptr);
+        addVideoFrame(outFiles[formatId][CMTYPE_BOTH], formatId, frames[i].pts, timePerFrame, &adiff);
       }
-    });
+    }
 
-    return adiff1;
+		// 出力データ生成
+		reformedAudioFrameList_.resize(outFormat_.size());
+		for (int i = 0; i < (int)outFormat_.size(); ++i) {
+			for (int c = 0; c < CMTYPE_MAX; ++c) {
+				double time = outFiles[i][c].time;
+				reformedAudioFrameList_[i][c] = std::move(outFiles[i][c].audioFrameList);
+			}
+		}
+
+    return adiff;
   }
 
   AudioDiffInfo genWaveAudioStream()
@@ -877,7 +892,7 @@ private:
 					double audioDuration = file.time - audioState.time;
 					double audioPts = endPts - audioDuration;
 					// ステレオに変換されているはずなので、音声フォーマットは問わない
-					fillAudioFrames(file, 0, nullptr, audioPts, audioDuration, adiff);
+					fillAudioFrames(file, 0, nullptr, audioPts, audioDuration, &adiff);
 				}
 			}
 
@@ -895,6 +910,9 @@ private:
     return adiff;
 	}
 
+	// フレームの表示時間
+	// RFF: true=ソースフレームの表示時間 false=フィルタ入力フレーム（RFF処理済み）の表示時間
+	template <bool RFF>
   double getFrameDuration(int index, int nextIndex)
   {
     const auto& videoFrame = videoFrameList_[index];
@@ -912,35 +930,50 @@ private:
       }
     }
     else { // CFR
-      
-      switch (videoFrame.pic) {
-      case PIC_FRAME:
-      case PIC_TFF:
+			if (RFF) {
+				switch (videoFrame.pic) {
+				case PIC_FRAME:
+				case PIC_TFF:
+					duration = frameDiff;
+					break;
+				case PIC_TFF_RFF:
+					duration = frameDiff * 1.5;
+					break;
+				case PIC_FRAME_DOUBLING:
+					duration = frameDiff * 2;
+					hasRFF_ = true;
+					break;
+				case PIC_FRAME_TRIPLING:
+					duration = frameDiff * 3;
+					hasRFF_ = true;
+					break;
+				case PIC_BFF:
+					duration = frameDiff;
+					break;
+				case PIC_BFF_RFF:
+					duration = frameDiff * 1.5;
+					hasRFF_ = true;
+					break;
+				}
+			}
+			else {
 				duration = frameDiff;
-				break;
-      case PIC_TFF_RFF:
-				duration = frameDiff * 1.5;
-        break;
-      case PIC_FRAME_DOUBLING:
-				duration = frameDiff * 2;
-				hasRFF_ = true;
-        break;
-      case PIC_FRAME_TRIPLING:
-				duration = frameDiff * 3;
-				hasRFF_ = true;
-        break;
-      case PIC_BFF:
-				duration = frameDiff;
-        break;
-      case PIC_BFF_RFF:
-				duration = frameDiff * 1.5;
-				hasRFF_ = true;
-        break;
-      }
+			}
     }
 
     return duration;
   }
+
+	// ソースフレームの表示時間
+	double getSourceFrameDuration(int index, int nextIndex) {
+		return getFrameDuration<true>(index, nextIndex);
+	}
+
+	// フィルタ入力フレーム（RFF処理済み）の表示時間
+	double getFilterSourceFrameDuration(int index, int nextIndex) {
+		return getFrameDuration<false>(index, nextIndex);
+	}
+
   /*
 	// ファイルに映像フレームを１枚追加
 	// nextIndexはソース動画においてPTSで次のフレームの番号
@@ -953,7 +986,7 @@ private:
     addVideoFrame(file, formatId, pts, duration);
 	}
   */
-  void addVideoFrame(OutFileState& file, int formatId, double pts, double duration, AudioDiffInfo& adiff) {
+  void addVideoFrame(OutFileState& file, int formatId, double pts, double duration, AudioDiffInfo* adiff) {
     const auto& format = outFormat_[formatId];
     double endPts = pts + duration;
     file.time += duration;
@@ -977,7 +1010,7 @@ private:
 		OutFileState& file, int index, // 対象ファイルと音声インデックス
 		const AudioFormat* format, // 音声フォーマット
     double pts, double duration, // 開始修正PTSと90kHzでのタイムスパン
-    AudioDiffInfo& adiff)
+    AudioDiffInfo* adiff)
 	{
 		auto& state = file.audioState[index];
 		auto& outFrameList = file.audioFrameList->at(index);
@@ -999,8 +1032,10 @@ private:
 			// 見つけたところに位置をセットして入れてみる
 			if (state.lostPts != pts) {
 				state.lostPts = pts;
-				ctx.debug("%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
-					elapsedTime(pts), file.formatId, index);
+				if (adiff) {
+					ctx.debug("%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
+						elapsedTime(pts), file.formatId, index);
+				}
 			}
 			state.lastFrame = (int)(it - frameList.begin() - 1);
 			fillAudioFramesInOrder(file, index, format, pts, duration, adiff);
@@ -1018,7 +1053,7 @@ private:
 		OutFileState& file, int index, // 対象ファイルと音声インデックス
 		const AudioFormat* format, // 音声フォーマット
     double& pts, double& duration, // 開始修正PTSと90kHzでのタイムスパン
-    AudioDiffInfo& adiff)
+    AudioDiffInfo* adiff)
 	{
 		auto& state = file.audioState[index];
 		auto& outFrameList = file.audioFrameList->at(index);
@@ -1055,32 +1090,37 @@ private:
 			// フレームの4分の3以上の空きができる場合は埋める
 			int nframes = (int)std::max(1.0, ((modPTS - pts) + (frameDuration / 4)) / frameDuration);
 
-			if (nframes > 1) {
-				ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
-					elapsedTime(modPTS), file.formatId, index, nframes - 1);
-			}
-			if (nskipped > 0) {
-				if (state.lastFrame == -1) {
-					ctx.debug("音声%d-%dは%dフレーム目から開始",
-						file.formatId, index, nskipped);
+			if (adiff) {
+				if (nframes > 1) {
+					ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
+						elapsedTime(modPTS), file.formatId, index, nframes - 1);
 				}
-				else {
-					ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
-						elapsedTime(modPTS), file.formatId, index, nskipped);
+				if (nskipped > 0) {
+					if (state.lastFrame == -1) {
+						ctx.debug("音声%d-%dは%dフレーム目から開始",
+							file.formatId, index, nskipped);
+					}
+					else {
+						ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
+							elapsedTime(modPTS), file.formatId, index, nskipped);
+					}
+					nskipped = 0;
 				}
-				nskipped = 0;
+
+				++adiff->totalUniquAudioFrames;
 			}
 
-			++adiff.totalUniquAudioFrames;
 			for (int t = 0; t < nframes; ++t) {
 				// 統計情報
-        double diff = std::abs(modPTS - pts);
-				if (adiff.maxPtsDiff < diff) {
-          adiff.maxPtsDiff = diff;
-          adiff.maxPtsDiffPos = pts;
+				if (adiff) {
+					double diff = std::abs(modPTS - pts);
+					if (adiff->maxPtsDiff < diff) {
+						adiff->maxPtsDiff = diff;
+						adiff->maxPtsDiffPos = pts;
+					}
+					adiff->sumPtsDiff += diff;
+					++adiff->totalAudioFrames;
 				}
-        adiff.sumPtsDiff += diff;
-				++adiff.totalAudioFrames;
 
 				// フレームを出力
 				outFrameList.push_back(frameIndex);

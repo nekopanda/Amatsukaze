@@ -91,22 +91,6 @@ class GUIMediaFile : public AMTObject
 		return ok;
 	}
 
-  AVStream* GetTargetStream(int serviceid)
-  {
-    for (int i = 0; i < (int)inputCtx()->nb_programs; ++i) {
-      if (inputCtx()->programs[i]->program_num == serviceid) {
-        auto prog = inputCtx()->programs[i];
-        for (int s = 0; s < (int)prog->nb_stream_indexes; ++s) {
-          auto stream = inputCtx()->streams[prog->stream_index[s]];
-          if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            return stream;
-          }
-        }
-      }
-    }
-		return nullptr;
-  }
-
 public:
 	GUIMediaFile(AMTContext& ctx, const char* filepath, int serviceid)
 		: AMTObject(ctx)
@@ -119,11 +103,10 @@ public:
 			File file(filepath, "rb");
 			fileSize = file.size();
 		}
-    MessageBox(NULL, "debug", "hoge", MB_OK);
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
 			THROW(FormatException, "avformat_find_stream_info failed");
 		}
-		videoStream = GetTargetStream(serviceid);
+		videoStream = av::GetVideoStream(inputCtx(), serviceid);
 		if (videoStream == NULL) {
 			THROW(FormatException, "Could not find video stream ...");
 		}

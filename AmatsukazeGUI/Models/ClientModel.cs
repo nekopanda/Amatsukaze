@@ -927,6 +927,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DisableHashCheck変更通知プロパティ
+        public bool DisableHashCheck {
+            get { return setting.DisableHashCheck; }
+            set {
+                if (setting.DisableHashCheck == value)
+                    return;
+                setting.DisableHashCheck = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region Mpeg2DecoderInt変更通知プロパティ
         public int Mpeg2DecoderInt {
             get { return (int)setting.Mpeg2Decoder; }
@@ -1303,6 +1315,7 @@ namespace Amatsukaze.Models
             DisableChapter = setting.DisableChapter;
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
+            DisableHashCheck = setting.DisableHashCheck;
 
             Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
             H264DecoderInt = (int)setting.H264Deocder;

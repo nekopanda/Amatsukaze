@@ -45,7 +45,7 @@ static std::string to_string(std::string str) {
 
 static void printCopyright() {
 	PRINTF(
-		"Amatsukaze - Automated MPEG2-TS Transcode Utility\n"
+		"Amatsukaze - Automated MPEG2-TS Transcode\n"
 		"Built on %s %s\n"
 		"Copyright (c) 2017 Nekopanda\n", __DATE__, __TIME__);
 }

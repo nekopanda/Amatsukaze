@@ -128,8 +128,19 @@ namespace Amatsukaze.ViewModels
                 MessageBox.Show("一時ファイルフォルダがアクセスできる場所に設定されていないため起動できません");
                 return;
             }
+            string filepath = file.Path;
+            if(File.Exists(filepath) == false)
+            {
+                // failedに入っているかもしれないのでそっちも見る
+                filepath = Path.GetDirectoryName(file.Path) + "\\failed\\" + Path.GetFileName(file.Path);
+                if(File.Exists(filepath) == false)
+                {
+                    MessageBox.Show("ファイルが見つかりません");
+                    return;
+                }
+            }
             var apppath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var args = "-l logo --file \"" + file.Path + "\" --work \"" + workpath + "\" --serviceid " + file.ServiceId;
+            var args = "-l logo --file \"" + filepath + "\" --work \"" + workpath + "\" --serviceid " + file.ServiceId;
             if(slimts)
             {
                 args += " --slimts";

@@ -35,7 +35,23 @@ AVStream* GetVideoStream(AVFormatContext* pCtx)
 			return pCtx->streams[i];
 		}
 	}
-	return NULL;
+	return nullptr;
+}
+
+AVStream* GetVideoStream(AVFormatContext* ctx, int serviceid)
+{
+	for (int i = 0; i < (int)ctx->nb_programs; ++i) {
+		if (ctx->programs[i]->program_num == serviceid) {
+			auto prog = ctx->programs[i];
+			for (int s = 0; s < (int)prog->nb_stream_indexes; ++s) {
+				auto stream = ctx->streams[prog->stream_index[s]];
+				if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+					return stream;
+				}
+			}
+		}
+	}
+	return nullptr;
 }
 
 class Frame {

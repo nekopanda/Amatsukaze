@@ -69,6 +69,7 @@ namespace Amatsukaze.ViewModels
             listener.Add(() => Model.BitrateA, UpdateBitrate);
             listener.Add(() => Model.BitrateB, UpdateBitrate);
             listener.Add(() => Model.BitrateH264, UpdateBitrate);
+            listener.Add(() => Model.OutputMask, UpdateOutputOption);
         }
 
         #region SendSettingCommand
@@ -121,9 +122,9 @@ namespace Amatsukaze.ViewModels
         }
         public string[] OutputOptionList
         {
-            get { return new string[] { "通常", "CMをカット", "本編とCMを分離" }; }
+            get { return new string[] { "通常", "CMをカット", "本編とCMを分離", "CMのみ" }; }
         }
-        private int[] OutputMasklist = new int[] { 1, 2, 6 };
+        private List<int> OutputMasklist = new List<int> { 1, 2, 6, 4 };
 
         #region OutputOptionIndex変更通知プロパティ
         private int _OutputOptionIndex;
@@ -137,11 +138,21 @@ namespace Amatsukaze.ViewModels
                 if (_OutputOptionIndex == value)
                     return;
                 _OutputOptionIndex = value;
-                Model.OutputMask = value;
+
+                if(value >= 0 && value < OutputMasklist.Count)
+                {
+                    Model.OutputMask = OutputMasklist[value];
+                }
+
                 RaisePropertyChanged();
             }
         }
         #endregion
+
+        private void UpdateOutputOption(object sender, PropertyChangedEventArgs args)
+        {
+            OutputOptionIndex = OutputMasklist.IndexOf(Model.OutputMask);
+        }
 
         private void UpdateBitrate(object sender, PropertyChangedEventArgs args)
         {

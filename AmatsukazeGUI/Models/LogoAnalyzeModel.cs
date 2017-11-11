@@ -263,7 +263,7 @@ namespace Amatsukaze.Models
         }
 
         // 失敗するとIOExceptionが飛ぶ
-        public async Task Analyze(string filepath, string workpath, Point pt, Size sz, int thy, int maxFrames)
+        public async Task Analyze(string filepath, int serviceid, string workpath, Point pt, Size sz, int thy, int maxFrames)
         {
             int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
             string workfile = workpath + "\\logotmp" + pid + ".dat";
@@ -283,7 +283,7 @@ namespace Amatsukaze.Models
             try
             {
                 await Task.Run(() => LogoFile.ScanLogo(
-                    context, filepath, workfile, tmppath, imgx, imgy, w, h, thy, maxFrames, LogoScanCallback));
+                    context, filepath, serviceid, workfile, tmppath, imgx, imgy, w, h, thy, maxFrames, LogoScanCallback));
 
                 // TsInfoでサービス名を取得する
                 var info = new TsInfo(context);

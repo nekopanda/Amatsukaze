@@ -362,7 +362,7 @@ namespace Amatsukaze.Models
         private static extern int LogoFile_Save(IntPtr ptr, string filename);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern int ScanLogo(IntPtr ctx, string srcpath, string workfile, string dstpath,
+        private static extern int ScanLogo(IntPtr ctx, string srcpath, int serviceid, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb);
         #endregion
 
@@ -457,10 +457,10 @@ namespace Amatsukaze.Models
             }
         }
 
-        public static void ScanLogo(AMTContext ctx, string srcpath, string workfile, string dstpath,
+        public static void ScanLogo(AMTContext ctx, string srcpath, int serviceid, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb)
         {
-            if(ScanLogo(ctx.Ptr, srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb) == 0)
+            if(ScanLogo(ctx.Ptr, srcpath, serviceid, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb) == 0)
             {
                 throw new IOException(ctx.GetError());
             }

@@ -287,7 +287,7 @@ class AMTSource : public IClip, AMTObject
 
     if (it == frames.begin() && it->framePTS != pts) {
       // ¬‚³‚·‚¬‚½ê‡‚Í1Žü•ª’Ç‰Á‚µ‚ÄŒ©‚é
-      pts += ((int64_t(1) << 33) - 1);
+      pts += (int64_t(1) << 33);
       it = std::lower_bound(frames.begin(), frames.end(), pts, [](const FilterSourceFrame& e, int64_t pts) {
         return e.framePTS < pts;
       });

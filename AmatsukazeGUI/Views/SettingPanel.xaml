@@ -6,7 +6,7 @@
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
-             d:DesignHeight="900" d:DesignWidth="400"
+             d:DesignHeight="900" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
     <Grid>
         <Grid.RowDefinitions>
@@ -53,7 +53,7 @@
                     ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。"/>
                 <TextBlock Grid.Column="1" Margin="0,32,10,0" TextWrapping="Wrap" Text="{Binding Model.NumParallel}" VerticalAlignment="Top" HorizontalAlignment="Right" Width="7"/>
                 <TextBox Grid.Column="1" Height="85" Margin="10.667,55,10,0" TextWrapping="Wrap" Text="{Binding Model.EncoderOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
-                     ToolTip="入力ファイルの解像度、アスペクト比、インタレースフラグ、&#xA;フレームレート、カラーマトリクス等は自動で追加されるので不要です。"/>
+                     ToolTip="入力ファイルの解像度、アスペクト比、インタレースフラグ、&#xA;フレームレート、カラーマトリクス等は（自動ビットレートONの場合はビットレート設定も）&#xA;自動で追加されるので不要です。"/>
                 <TextBox Grid.Column="1" Height="23" Margin="10.667,145,10,0" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" 
                      ToolTip="重要です。なるべくSSDなどの高速なストレージを使ってください。&#xA;たまにゴミが残るので終了しても残っているファイルがあったら削除してください。"/>
 
@@ -64,11 +64,11 @@
                 <ComboBox Grid.Column="1" Height="23" Margin="10.667,201,10,0"
                       ItemsSource="{Binding Model.MainScriptFiles}"
                       Text="{Binding Model.FilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
-                          ToolTip="メインとなるフィルタを設定します。&#xA;出力が8bitYUV420の場合のみ一時ファイルに保存できます。" />
+                          ToolTip="メインとなるフィルタを設定します。" />
                 <ComboBox Grid.Column="1" Height="23" Margin="10.667,229,10,0"
                       ItemsSource="{Binding Model.PostScriptFiles}"
                       Text="{Binding Model.PostFilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
-                          ToolTip="メインフィルタの後に掛けるフィルタを設定します。&#xA;高ビット処理をこちらでやることを想定しています。" />
+                          ToolTip="メインフィルタの後に掛けるフィルタを設定します。" />
 
                 <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="54,6,0,0"/>
                 <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="65,34,0,0"/>
@@ -149,7 +149,7 @@
                 </Grid>
 
                 <StackPanel Grid.Row="5" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,29" Text="その他の設定"/>
+                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,36" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
@@ -164,7 +164,8 @@
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
                     <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" IsChecked="{Binding Model.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <CheckBox Height="30" Margin="0,0"  Content="システムにインストールされている&#xA;AviSynthプラグインを有効にする" IsChecked="{Binding Model.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" IsChecked="{Binding Model.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする" IsChecked="{Binding Model.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
                      ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>

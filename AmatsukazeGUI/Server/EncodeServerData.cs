@@ -110,6 +110,8 @@ namespace Amatsukaze.Server
         public bool ClearWorkDirOnStart { get; set; }
         [DataMember]
         public bool SystemAviSynthPlugin { get; set; }
+        [DataMember]
+        public bool DisableHashCheck { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -367,8 +369,17 @@ namespace Amatsukaze.Server
         public string MachineName { get; set; }
         [DataMember]
         public List<string> LogoFiles { get; set; }
+
         [DataMember]
         public bool Chapter { get; set; }
+        [DataMember]
+        public int OutputMask { get; set; }
+        [DataMember]
+        public string ServiceName { get; set; }
+        [DataMember]
+        public int ServiceId { get; set; }
+        [DataMember]
+        public DateTime TsTime { get; set; }
 
         [DataMember]
         public int Incident { get; set; }
@@ -380,6 +391,8 @@ namespace Amatsukaze.Server
         public string DisplayResult { get { return Success ? ((Incident > 0) ? "△" : "〇") : "×"; } }
         public string DisplaySrcDirectory { get { return Path.GetDirectoryName(SrcPath); } }
         public string DisplaySrcFileName { get { return Path.GetFileName(SrcPath); } }
+        public string DisplayOutDirectory { get { return (OutPath != null && OutPath.Count > 0) ? Path.GetDirectoryName(OutPath[0]) : "-"; } }
+        public IEnumerable<string> DisplayOutFile { get { return (OutPath == null) ? null : OutPath.Select(s => Path.GetFileName(s)); } }
         public string DisplayOutNum { get { return (OutPath == null) ? "-" : OutPath.Count.ToString(); } }
         public string DisplayNumIncident { get { return Incident.ToString(); } }
         public string DisplayEncodeStart { get { return EncodeStartDate.ToGUIString(); } }
@@ -438,6 +451,23 @@ namespace Amatsukaze.Server
         }
         public string DisplayLogo { get { return (LogoFiles != null && LogoFiles.Count > 0) ? LogoFiles[0] : "なし"; } }
         public string DisplayChapter { get { return Chapter ? "○" : "☓"; } }
+        public string DisplayOutputMask {
+            get {
+                switch(OutputMask)
+                {
+                    case 1: return "通常";
+                    case 2: return "CMをカット";
+                    case 3: return "通常+CMカット";
+                    case 4: return "CMのみ";
+                    case 5: return "通常+CM";
+                    case 6: return "本編とCMを分離";
+                    case 7: return "通常+本編+CM";
+                }
+                return "通常";
+            }
+        }
+        public string DisplayService { get { return ServiceName + "(" + ServiceId + ")"; } }
+        public string DisplayTsTime { get { return (TsTime == DateTime.MinValue) ? "不明" : TsTime.ToString("yyyy年M月d日"); } }
     }
 
     [DataContract]

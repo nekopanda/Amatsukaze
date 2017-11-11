@@ -392,7 +392,6 @@ namespace Amatsukaze.Server
             public EncodeServer server;
             public ConsoleText logText;
             public ConsoleText consoleText;
-            public string tmpBase;
 
             public TranscodeTask current { get; private set; }
 
@@ -428,6 +427,25 @@ namespace Amatsukaze.Server
                 };
             }
 
+            private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer, int offset, int length)
+            {
+                if (transcode.logWriter != null)
+                {
+                    transcode.logWriter.Write(buffer, offset, length);
+                }
+                logText.AddBytes(buffer, offset, length);
+                consoleText.AddBytes(buffer, offset, length);
+
+                byte[] newbuf = new byte[length];
+                Array.Copy(buffer, newbuf, length);
+                return server.client.OnConsoleUpdate(new ConsoleUpdate() { index = id, data = newbuf });
+            }
+
+            private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer)
+            {
+                return WriteTextBytes(server, transcode, buffer, 0, buffer.Length);
+            }
+
             private async Task RedirectOut(EncodeServer server, TranscodeTask transcode, Stream stream)
             {
                 try
@@ -441,16 +459,7 @@ namespace Amatsukaze.Server
                             // 終了
                             return;
                         }
-                        if (transcode.logWriter != null)
-                        {
-                            transcode.logWriter.Write(buffer, 0, readBytes);
-                        }
-                        logText.AddBytes(buffer, 0, readBytes);
-                        consoleText.AddBytes(buffer, 0, readBytes);
-
-                        byte[] newbuf = new byte[readBytes];
-                        Array.Copy(buffer, newbuf, readBytes);
-                        await server.client.OnConsoleUpdate(new ConsoleUpdate() { index = id, data = newbuf });
+                        await WriteTextBytes(server, transcode, buffer, 0, readBytes);
                     }
                 }
                 catch (Exception e)
@@ -459,7 +468,7 @@ namespace Amatsukaze.Server
                 }
             }
 
-            private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish)
+            private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish, QueueItem src, int outputMask)
             {
                 var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
                 if (isGeneric)
@@ -512,6 +521,10 @@ namespace Amatsukaze.Server
                         MaxDiffPos = json.audiodiff.maxdiffpos
                     },
                     Chapter = json.cmanalyze,
+                    OutputMask = outputMask,
+                    ServiceName = src.ServiceName,
+                    ServiceId = src.ServiceId,
+                    TsTime = src.TsTime,
                     LogoFiles = logofiles,
                     Incident = incident
                 };
@@ -551,184 +564,202 @@ namespace Amatsukaze.Server
                 string srcpath = src.Path;
                 string localsrc = null;
                 string localdst = dstpath;
-
-                // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
-                if (hashList != null)
-                {
-                    localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
-                    string name = Path.GetFileName(srcpath);
-                    if (hashList.ContainsKey(name) == false)
-                    {
-                        return FailLogItem(src.Path, "入力ファイルのハッシュがありません", now, now);
-                    }
-
-                    byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
-                    var refhash = hashList[name];
-                    if (hash.SequenceEqual(refhash) == false)
-                    {
-                        File.Delete(localsrc);
-                        return FailLogItem(src.Path, "コピーしたファイルのハッシュが一致しません", now, now);
-                    }
-
-                    srcpath = localsrc;
-                    localdst = tmpBase + "-out.mp4";
-                }
-
-                string json = Path.Combine(
-                    Path.GetDirectoryName(localdst),
-                    Path.GetFileNameWithoutExtension(localdst)) + "-enc.json";
-                string logpath = Path.Combine(
-                    Path.GetDirectoryName(dstpath),
-                    Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
-                string jlscmd = serviceSetting.DisableCMCheck ?
-                    null :
-                    (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
-                    server.appData.setting.DefaultJLSCommand :
-                    serviceSetting.JLSCommand);
-
-                string args = server.MakeAmatsukazeArgs(isMp4, srcpath, localdst, json,
-                    src.ServiceId, logopaths, errorOnNologo, jlscmd);
-                string exename = server.appData.setting.AmatsukazePath;
-
-                Util.AddLog(id, "エンコード開始: " + src.Path);
-                Util.AddLog(id, "Args: " + exename + " " + args);
-
-                DateTime start = DateTime.Now;
-
-                var psi = new ProcessStartInfo(exename, args) {
-                    UseShellExecute = false,
-                    WorkingDirectory = Directory.GetCurrentDirectory(),
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardInput = false,
-                    CreateNoWindow = true
-                };
-
-                int exitCode = -1;
-                logText.Clear();
+                string tmpBase = null;
 
                 try
                 {
-                    using (var p = Process.Start(psi))
+                    // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
+                    if (hashList != null)
                     {
-                        try
+                        tmpBase = Util.CreateTmpFile(server.appData.setting.WorkPath);
+                        localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
+                        string name = Path.GetFileName(srcpath);
+                        if (hashList.ContainsKey(name) == false)
                         {
-                            // アフィニティを設定
-                            IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
-                            Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
-                            p.ProcessorAffinity = affinityMask;
-                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            // 既にプロセスが終了していると例外が出るが無視する
+                            return FailLogItem(src.Path, "入力ファイルのハッシュがありません", now, now);
                         }
 
-                        current = new TranscodeTask() {
-                            thread = this,
-                            src = src,
-                            process = p,
-                        };
-
-                        using (current.logWriter = File.Create(logpath))
+                        byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
+                        var refhash = hashList[name];
+                        if (hash.SequenceEqual(refhash) == false)
                         {
-                            await Task.WhenAll(
-                                RedirectOut(server, current, p.StandardOutput.BaseStream),
-                                RedirectOut(server, current, p.StandardError.BaseStream),
-                                Task.Run(() => p.WaitForExit()));
+                            File.Delete(localsrc);
+                            return FailLogItem(src.Path, "コピーしたファイルのハッシュが一致しません", now, now);
                         }
 
-                        exitCode = p.ExitCode;
+                        srcpath = localsrc;
+                        localdst = tmpBase + "-out.mp4";
                     }
-                }
-                catch (Win32Exception w32e)
-                {
-                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
-                    throw w32e;
-                }
-                catch (IOException ioe)
-                {
-                    Util.AddLog(id, "ログファイル生成に失敗");
-                    throw ioe;
+
+                    string json = Path.Combine(
+                        Path.GetDirectoryName(localdst),
+                        Path.GetFileNameWithoutExtension(localdst)) + "-enc.json";
+                    string logpath = Path.Combine(
+                        Path.GetDirectoryName(dstpath),
+                        Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
+                    string jlscmd = serviceSetting.DisableCMCheck ?
+                        null :
+                        (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
+                        server.appData.setting.DefaultJLSCommand :
+                        serviceSetting.JLSCommand);
+
+                    string args = server.MakeAmatsukazeArgs(isMp4, srcpath, localdst, json,
+                        src.ServiceId, logopaths, errorOnNologo, jlscmd);
+                    string exename = server.appData.setting.AmatsukazePath;
+
+                    int outputMask = server.appData.setting.OutputMask;
+
+                    Util.AddLog(id, "エンコード開始: " + src.Path);
+                    Util.AddLog(id, "Args: " + exename + " " + args);
+
+                    DateTime start = DateTime.Now;
+
+                    var psi = new ProcessStartInfo(exename, args) {
+                        UseShellExecute = false,
+                        WorkingDirectory = Directory.GetCurrentDirectory(),
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardInput = false,
+                        CreateNoWindow = true
+                    };
+
+                    int exitCode = -1;
+                    logText.Clear();
+
+                    try
+                    {
+                        using (var p = Process.Start(psi))
+                        {
+                            try
+                            {
+                                // アフィニティを設定
+                                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
+                                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
+                                p.ProcessorAffinity = affinityMask;
+                                p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                // 既にプロセスが終了していると例外が出るが無視する
+                            }
+
+                            current = new TranscodeTask() {
+                                thread = this,
+                                src = src,
+                                process = p,
+                            };
+
+                            using (current.logWriter = File.Create(logpath))
+                            {
+                                // 起動コマンドをログ出力
+                                await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
+
+                                await Task.WhenAll(
+                                    RedirectOut(server, current, p.StandardOutput.BaseStream),
+                                    RedirectOut(server, current, p.StandardError.BaseStream),
+                                    Task.Run(() => p.WaitForExit()));
+                            }
+
+                            exitCode = p.ExitCode;
+                        }
+                    }
+                    catch (Win32Exception w32e)
+                    {
+                        Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
+                        throw w32e;
+                    }
+                    catch (IOException ioe)
+                    {
+                        Util.AddLog(id, "ログファイル生成に失敗");
+                        throw ioe;
+                    }
+                    finally
+                    {
+                        if (current != null)
+                        {
+                            current.logWriter = null;
+                            current = null;
+                        }
+                    }
+
+                    DateTime finish = DateTime.Now;
+
+                    if (hashList != null)
+                    {
+                        File.Delete(localsrc);
+                    }
+
+                    if (exitCode == 0)
+                    {
+                        // 成功ならログを整形したテキストに置き換える
+                        using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
+                        {
+                            foreach (var str in logText.TextLines)
+                            {
+                                fs.WriteLine(str);
+                            }
+                        }
+                    }
+
+                    // ログファイルを専用フォルダにコピー
+                    if (File.Exists(logpath))
+                    {
+                        string logbase = server.GetLogFileBase(start);
+                        Directory.CreateDirectory(Path.GetDirectoryName(logbase));
+                        string dstlog = logbase + ".txt";
+                        File.Copy(logpath, dstlog);
+
+                        if (File.Exists(json))
+                        {
+                            string dstjson = logbase + ".json";
+                            File.Move(json, dstjson);
+                            json = dstjson;
+                        }
+                    }
+
+                    if (exitCode == 0)
+                    {
+                        // 成功
+                        var log = LogFromJson(isMp4, json, start, finish, src, outputMask);
+
+                        // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
+                        if (hashList != null)
+                        {
+                            log.SrcPath = src.Path;
+                            string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
+                            for (int i = 0; i < log.OutPath.Count; ++i)
+                            {
+                                string outext = Path.GetExtension(log.OutPath[i]);
+                                string outpath = outbase + ((i == 0) ? outext : ("-" + i + outext));
+                                var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
+                                string name = Path.GetFileName(outpath);
+                                HashUtil.AppendHash(Path.Combine(encoded, "_mp4.hash"), name, hash);
+                                File.Delete(log.OutPath[i]);
+                                log.OutPath[i] = outpath;
+                            }
+                        }
+
+                        return log;
+                    }
+                    else if (exitCode == 100)
+                    {
+                        // マッチするロゴがなかった
+                        return FailLogItem(src.Path, "マッチするロゴがありませんでした", start, finish);
+                    }
+                    else
+                    {
+                        // 失敗
+                        return FailLogItem(src.Path,
+                            "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
+                    }
+
                 }
                 finally
                 {
-                    if(current != null)
+                    if (tmpBase != null)
                     {
-                        current.logWriter = null;
-                        current = null;
+                        File.Delete(tmpBase);
                     }
-                }
-
-                DateTime finish = DateTime.Now;
-
-                if (hashList != null)
-                {
-                    File.Delete(localsrc);
-                }
-
-                if (exitCode == 0)
-                {
-                    // 成功ならログを整形したテキストに置き換える
-                    using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
-                    {
-                        foreach (var str in logText.TextLines)
-                        {
-                            fs.WriteLine(str);
-                        }
-                    }
-                }
-
-                // ログファイルを専用フォルダにコピー
-                if (File.Exists(logpath))
-                {
-                    string logbase = server.GetLogFileBase(start);
-                    Directory.CreateDirectory(Path.GetDirectoryName(logbase));
-                    string dstlog = logbase + ".txt";
-                    File.Copy(logpath, dstlog);
-
-                    if (File.Exists(json))
-                    {
-                        string dstjson = logbase + ".json";
-                        File.Move(json, dstjson);
-                        json = dstjson;
-                    }
-                }
-
-                if (exitCode == 0)
-                {
-                    // 成功
-                    var log = LogFromJson(isMp4, json, start, finish);
-
-                    // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
-                    if (hashList != null)
-                    {
-                        log.SrcPath = src.Path;
-                        string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
-                        for (int i = 0; i < log.OutPath.Count; ++i)
-                        {
-                            string outext = Path.GetExtension(log.OutPath[i]);
-                            string outpath = outbase + ((i == 0) ? outext : ("-" + i + outext));
-                            var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
-                            string name = Path.GetFileName(outpath);
-                            HashUtil.AppendHash(Path.Combine(encoded, "_mp4.hash"), name, hash);
-                            File.Delete(log.OutPath[i]);
-                            log.OutPath[i] = outpath;
-                        }
-                    }
-
-                    return log;
-                }
-                else if (exitCode == 100)
-                {
-                    // マッチするロゴがなかった
-                    return FailLogItem(src.Path, "マッチするロゴがありませんでした", start, finish);
-                }
-                else
-                {
-                    // 失敗
-                    return FailLogItem(src.Path,
-                        "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
                 }
             }
 
@@ -918,19 +949,10 @@ namespace Amatsukaze.Server
                     {
                         CleanTmpDir();
                     }
-                    foreach(var w in scheduler.Workers.Cast<TranscodeWorker>())
-                    {
-                        w.tmpBase = Util.CreateTmpFile(appData.setting.WorkPath);
-                    }
                     NowEncoding = true;
                     return RequestState();
                 },
                 OnFinish = ()=> {
-                    foreach (var w in scheduler.Workers.Cast<TranscodeWorker>())
-                    {
-                        File.Delete(w.tmpBase);
-                        w.tmpBase = null;
-                    }
                     NowEncoding = false;
                     return RequestState();
                 },
@@ -1545,13 +1567,13 @@ namespace Amatsukaze.Server
                         DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded")
                     };
 
-                    if (target.Path.StartsWith("\\\\"))
+                    if (appData.setting.DisableHashCheck == false && target.Path.StartsWith("\\\\"))
                     {
                         var hashpath = target.Path + ".hash";
                         if (File.Exists(hashpath) == false)
                         {
                             await client.OnOperationResult("ハッシュファイルがありません: " + hashpath + "\r\n" +
-                                "ネットワーク経由の場合はBatchHashCheckerによるハッシュファイル生成が必須です。");
+                                "必要ない場合はハッシュチェックを無効化して再度追加してください");
                             continue;
                         }
                         try
@@ -1665,7 +1687,7 @@ namespace Amatsukaze.Server
 
                         if(fileitems.Count == 0)
                         {
-                            var item = new QueueItem()
+                            fileitems.Add(new QueueItem()
                             {
                                 Path = filepath,
                                 DstName = "",
@@ -1676,20 +1698,18 @@ namespace Amatsukaze.Server
                                 ServiceName = "不明",
                                 State = QueueState.PreFailed,
                                 FailReason = failReason
-                            };
+                            });
                         }
-                        else
+
+                        target.Items.AddRange(fileitems);
+                        foreach (var item in fileitems)
                         {
-                            target.Items.AddRange(fileitems);
-                            foreach (var item in fileitems)
+                            waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
                             {
-                                waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
-                                {
-                                    Type = UpdateType.Add,
-                                    Item = item,
-                                    DirId = target.Id
-                                }));
-                            }
+                                Type = UpdateType.Add,
+                                Item = item,
+                                DirId = target.Id
+                            }));
                         }
                     }
 

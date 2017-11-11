@@ -449,7 +449,7 @@ public:
 
 	int64_t currentPos;
 
-	void readAll(const std::string& src)
+	void readAll(const std::string& src, int serviceid)
 	{
 		using namespace av;
 
@@ -457,7 +457,7 @@ public:
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
 			THROW(FormatException, "avformat_find_stream_info failed");
 		}
-		AVStream *videoStream = GetVideoStream(inputCtx());
+		AVStream *videoStream = av::GetVideoStream(inputCtx(), serviceid);
 		if (videoStream == NULL) {
 			THROW(FormatException, "Could not find video stream ...");
 		}
@@ -661,6 +661,8 @@ typedef bool(*LOGO_ANALYZE_CB)(float progress, int nread, int total, int ngather
 class LogoAnalyzer : AMTObject
 {
 	std::string srcpath;
+	int serviceid;
+
 	std::string workfile;
 	std::string dstpath;
 	LOGO_ANALYZE_CB cb;
@@ -699,11 +701,11 @@ class LogoAnalyzer : AMTObject
 			, memScanData(new uint8_t[scanDataSize])
 			, memCoded(new uint8_t[codedSize])
 		{ }
-		void readAll(const std::string& src)
+		void readAll(const std::string& src, int serviceid)
 		{
 			{ File file(src, "rb"); filesize = file.size(); }
 
-			SimpleVideoReader::readAll(src);
+			SimpleVideoReader::readAll(src, serviceid);
 
 			codec->EncodeEnd();
 
@@ -782,7 +784,7 @@ class LogoAnalyzer : AMTObject
   void MakeInitialLogo()
   {
 		InitialLogoCreator creator(this);
-		creator.readAll(srcpath);
+		creator.readAll(srcpath, serviceid);
   }
 
   void ReMakeLogo()
@@ -899,20 +901,13 @@ class LogoAnalyzer : AMTObject
 		}
   }
 
-	int GetServiceId() {
-		TsInfo tsinfo(ctx);
-		tsinfo.ReadFile(srcpath.c_str());
-		int progId, hasVideo, videoPid;
-		tsinfo.GetProgramInfo(0, &progId, &hasVideo, &videoPid);
-		return progId;
-	}
-
 public:
-  LogoAnalyzer(AMTContext& ctx, const char* srcpath, const char* workfile, const char* dstpath,
+  LogoAnalyzer(AMTContext& ctx, const char* srcpath, int serviceid, const char* workfile, const char* dstpath,
 			int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 			LOGO_ANALYZE_CB cb)
     : AMTObject(ctx)
 		, srcpath(srcpath)
+		, serviceid(serviceid)
 		, workfile(workfile)
 		, dstpath(dstpath)
 		, scanx(imgx)
@@ -928,9 +923,6 @@ public:
 
   void ScanLogo()
   {
-		// サービスID取得
-		int serviceId = GetServiceId();
-
 		// 有効フレームデータと初期ロゴの取得
 		progressbase = 0;
     MakeInitialLogo();
@@ -948,20 +940,20 @@ public:
 		}
 
 		LogoHeader header(scanw, scanh, logUVx, logUVy, imgw, imgh, scanx, scany, "No Name");
-		header.serviceId = serviceId;
+		header.serviceId = serviceid;
 		logodata->Save(dstpath, &header);
   }
 };
 
 // C API for P/Invoke
 extern "C" __declspec(dllexport) int ScanLogo(AMTContext* ctx,
-	const char* srcpath, const char* workfile, const char* dstpath,
+	const char* srcpath, int serviceid, const char* workfile, const char* dstpath,
 	int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 	LOGO_ANALYZE_CB cb)
 {
 	try {
 		LogoAnalyzer analyzer(*ctx,
-			srcpath, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb);
+			srcpath, serviceid, workfile, dstpath, imgx, imgy, w, h, thy, numMaxFrames, cb);
 		analyzer.ScanLogo();
 		return true;
 	}

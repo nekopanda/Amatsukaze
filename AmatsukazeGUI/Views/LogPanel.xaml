@@ -40,70 +40,110 @@
         <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
         <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <Grid DataContext="{Binding SelectedLogItem}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="100"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="120"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock HorizontalAlignment="Left" Text="結果" VerticalAlignment="Top"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayResult}" VerticalAlignment="Top" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="フォルダ" VerticalAlignment="Top" Margin="0,16,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDirectory}" VerticalAlignment="Top" Margin="0,16,0,0" Grid.Column="1" Grid.ColumnSpan="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="ファイル名" VerticalAlignment="Top" Margin="0,32,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileName}" VerticalAlignment="Top" Margin="0,32,0,0" Grid.Column="1" Grid.ColumnSpan="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="メッセージ" VerticalAlignment="Top" Margin="0,48,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayReason}" VerticalAlignment="Top" Margin="0,48,0,0" Grid.Column="1" Grid.ColumnSpan="3"/>
+                
+                <StackPanel>
+                    <TextBlock HorizontalAlignment="Left" Text="結果"/>
+                    <TextBlock HorizontalAlignment="Left" Text="メッセージ"/>
+                    <TextBlock HorizontalAlignment="Left" Text="フォルダ"/>
+                    <TextBlock HorizontalAlignment="Left" Text="ファイル名"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Grid.ColumnSpan="3">
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayResult}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayReason}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDirectory}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileName}"/>
+                </StackPanel>
 
-                <TextBlock HorizontalAlignment="Left" Text="開始" VerticalAlignment="Top" Margin="0,64,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeStart}" VerticalAlignment="Top" Margin="0,64,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="終了" VerticalAlignment="Top" Margin="0,80,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeFinish}" VerticalAlignment="Top" Margin="0,80,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="エンコード時間" VerticalAlignment="Top" Margin="0,96,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeDuration}" VerticalAlignment="Top" Margin="0,96,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="エンコード倍速" VerticalAlignment="Top" Margin="0,112,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeSpeed}" VerticalAlignment="Top" Margin="0,112,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="入力ファイル時間" VerticalAlignment="Top" Margin="0,128,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDurationo}" VerticalAlignment="Top" Margin="0,128,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="出力ファイル時間" VerticalAlignment="Top" Margin="0,144,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDuration}" VerticalAlignment="Top" Margin="0,144,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="入力サイズ[MB]" VerticalAlignment="Top" Margin="0,160,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileSize}" VerticalAlignment="Top" Margin="0,160,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="出力サイズ[MB]" VerticalAlignment="Top" Margin="0,176,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutFileSize}" VerticalAlignment="Top" Margin="0,176,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="中間サイズ[MB]" VerticalAlignment="Top" Margin="0,192,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntFileSize}" VerticalAlignment="Top" Margin="0,192,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="中間サイズ[%]" VerticalAlignment="Top" Margin="0,208,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntVideoRate}" VerticalAlignment="Top" Margin="0,208,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="チャプター・CM解析" VerticalAlignment="Top" Margin="0,224,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}" VerticalAlignment="Top" Margin="0,224,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="ロゴファイル" VerticalAlignment="Top" Margin="0,240,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayLogo}" VerticalAlignment="Top" Margin="0,240,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="出力ファイル数" VerticalAlignment="Top" Margin="0,256,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutNum}" VerticalAlignment="Top" Margin="0,256,0,0" Grid.Column="1"/>
-                <TextBlock HorizontalAlignment="Left" Text="インシデント数" VerticalAlignment="Top" Margin="0,272,0,0"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayNumIncident}" VerticalAlignment="Top" Margin="0,272,0,0" Grid.Column="1"/>
+                <StackPanel Grid.Row="1">
+                    <TextBlock HorizontalAlignment="Left" Text="録画日"/>
+                    <TextBlock HorizontalAlignment="Left" Text="チャンネル"/>
+                    <TextBlock HorizontalAlignment="Left" Text="チャプター・CM解析"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力"/>
+                    <TextBlock HorizontalAlignment="Left" Text="ロゴファイル"/>
+                    <TextBlock HorizontalAlignment="Left" Text="開始"/>
+                    <TextBlock HorizontalAlignment="Left" Text="終了"/>
+                    <TextBlock HorizontalAlignment="Left" Text="入力ファイル時間"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力ファイル時間"/>
+                    <TextBlock HorizontalAlignment="Left" Text="エンコード時間"/>
+                    <TextBlock HorizontalAlignment="Left" Text="エンコード倍速"/>
+                    <TextBlock HorizontalAlignment="Left" Text="ホスト名"/>
+                    <TextBlock HorizontalAlignment="Left" Text="インシデント数"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力ファイル数"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1">
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTsTime}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutputMask}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayLogo}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeStart}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeFinish}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDurationo}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDuration}" />
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeDuration}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeSpeed}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding MachineName}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayNumIncident}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutNum}"/>
+                </StackPanel>
 
-                <TextBlock HorizontalAlignment="Left" Text="入力ビットレート[Mbps]" VerticalAlignment="Top" Margin="0,64,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcBitrate}" VerticalAlignment="Top" Margin="0,64,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="出力ビットレート[Mbps]" VerticalAlignment="Top" Margin="0,80,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutBitrate}" VerticalAlignment="Top" Margin="0,80,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="出力サイズ[%]" VerticalAlignment="Top" Margin="0,96,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayCompressionRate}" VerticalAlignment="Top" Margin="0,96,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="未出力音声割合[%]" VerticalAlignment="Top" Margin="0,112,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioNotIncluded}" VerticalAlignment="Top" Margin="0,112,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="入力音声フレーム" VerticalAlignment="Top" Margin="0,128,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcAudioFrames}" VerticalAlignment="Top" Margin="0,128,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="出力音声フレーム" VerticalAlignment="Top" Margin="0,144,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutAudioFrames}" VerticalAlignment="Top" Margin="0,144,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="平均音ズレ[ms]" VerticalAlignment="Top" Margin="0,160,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAvgAudioDiff}" VerticalAlignment="Top" Margin="0,160,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="最大音ズレ[ms]" VerticalAlignment="Top" Margin="0,176,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioMaxDiff}" VerticalAlignment="Top" Margin="0,176,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="最大音ズレ位置[ms]" VerticalAlignment="Top" Margin="0,192,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioMaxDiffPos}" VerticalAlignment="Top" Margin="0,192,0,0" Grid.Column="3"/>
-                <TextBlock HorizontalAlignment="Left" Text="ホスト名" VerticalAlignment="Top" Margin="0,208,0,0" Grid.Column="2"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding MachineName}" VerticalAlignment="Top" Margin="0,208,0,0" Grid.Column="3"/>
+                <StackPanel Grid.Row="1" Grid.Column="2">
+                    <TextBlock HorizontalAlignment="Left" Text="入力サイズ[MB]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力サイズ[MB]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="中間サイズ[MB]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="中間サイズ[%]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="入力ビットレート[Mbps]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力ビットレート[Mbps]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力サイズ[%]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="入力音声フレーム"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力音声フレーム"/>
+                    <TextBlock HorizontalAlignment="Left" Text="平均音ズレ[ms]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="最大音ズレ[ms]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="最大音ズレ位置[ms]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="未出力音声割合[%]"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="3">
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileSize}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutFileSize}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntFileSize}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntVideoRate}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcBitrate}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutBitrate}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayCompressionRate}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcAudioFrames}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutAudioFrames}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAvgAudioDiff}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioMaxDiff}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioMaxDiffPos}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioNotIncluded}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.ColumnSpan="3">
+                    <TextBlock HorizontalAlignment="Left" Text="出力フォルダ"/>
+                    <TextBlock HorizontalAlignment="Left" Text="出力ファイル"/>
+                </StackPanel>
+                <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3">
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDirectory}"/>
+                    <ItemsControl ItemsSource="{Binding DisplayOutFile}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock HorizontalAlignment="Left" Text="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
             </Grid>
         </ScrollViewer>
     </Grid>

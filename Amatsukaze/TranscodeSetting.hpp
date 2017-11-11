@@ -205,6 +205,20 @@ static std::string makeTimelineEditorArgs(
 	return ss.str();
 }
 
+static const char* cmOutMaskToString(int outmask) {
+	switch (outmask)
+	{
+	case 1: return "通常";
+	case 2: return "CMをカット";
+	case 3: return "通常+CMカット";
+	case 4: return "CMのみ";
+	case 5: return "通常+CM";
+	case 6: return "本編とCMを分離";
+	case 7: return "通常+本編+CM";
+	}
+	return "不明";
+}
+
 inline bool ends_with(std::string const & value, std::string const & ending)
 {
 	if (ending.size() > value.size()) return false;
@@ -342,7 +356,11 @@ public:
 		, dumpStreamInfo(dumpStreamInfo)
 		, systemAvsPlugin(systemAvsPlugin)
 	{
-		//
+		for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
+			if (cmoutmask & (1 << cmtypei)) {
+				cmtypes.push_back((CMType)cmtypei);
+			}
+		}
 	}
 
 	std::string getMode() const {
@@ -433,8 +451,8 @@ public:
 		return joinLogoScpCmdPath;
 	}
 
-  int getCMOutMask() const {
-    return cmoutmask;
+  const std::vector<CMType>& getCMTypes() const {
+    return cmtypes;
   }
 
 	bool isDumpStreamInfo() const {
@@ -636,29 +654,31 @@ public:
 
 	void dump() const {
 		ctx.info("[設定]");
-		ctx.info("Mode: %s", mode.c_str());
-		ctx.info("Input: %s", srcFilePath.c_str());
-		ctx.info("Output: %s", outVideoPath.c_str());
-		ctx.info("WorkDir: %s", tmpDir.path().c_str());
-		//ctx.info("OutJson: %s", outInfoJsonPath.c_str());
-		ctx.info("Encoder: %s", encoderToString(encoder));
-		ctx.info("EncoderPath: %s", encoderPath.c_str());
-		ctx.info("EncoderOptions: %s", encoderOptions.c_str());
-		//ctx.info("MuxerPath: %s", muxerPath.c_str());
-		//ctx.info("TimelineeditorPath: %s", timelineditorPath.c_str());
-		ctx.info("autoBitrate: %s", autoBitrate ? "yes" : "no");
-		ctx.info("Bitrate: %g:%g:%g", bitrate.a, bitrate.b, bitrate.h264);
-		ctx.info("2-Pass: %s", twoPass ? "yes" : "no");
-    ctx.info("チャプター解析: %s", chapter ? "yes" : "no");
+		if (mode != "ts") {
+			ctx.info("Mode: %s", mode.c_str());
+		}
+		ctx.info("入力: %s", srcFilePath.c_str());
+		ctx.info("出力: %s", outVideoPath.c_str());
+		ctx.info("一時フォルダ: %s", tmpDir.path().c_str());
+		ctx.info("エンコーダ: %s (%s)", encoderPath.c_str(), encoderToString(encoder));
+		ctx.info("エンコーダオプション: %s", encoderOptions.c_str());
+		if (autoBitrate) {
+			ctx.info("自動ビットレート: 有効 (%g:%g:%g)", bitrate.a, bitrate.b, bitrate.h264);
+		}
+		else {
+			ctx.info("自動ビットレート: 無効");
+		}
+		ctx.info("エンコード/出力: %s/%s",
+			twoPass ? "2パス" : "1パス",
+			cmOutMaskToString(cmoutmask));
+    ctx.info("チャプター解析: %s%s",
+			chapter ? "有効" : "無効",
+			(chapter && errorOnNoLogo) ? "（ロゴ必須）" : "");
     if (chapter) {
-      ctx.info("ロゴ必須: %s", errorOnNoLogo ? "yes" : "no");
       for (int i = 0; i < (int)logoPath.size(); ++i) {
         ctx.info("logo%d: %s", (i + 1), logoPath[i].c_str());
       }
     }
-		//ctx.info("chapterExePath: %s", chapterExePath.c_str());
-		//ctx.info("joinLogoScpPath: %s", joinLogoScpPath.c_str());
-		//ctx.info("joinLogoScpCmdPath: %s", joinLogoScpCmdPath.c_str());
 		if (serviceId > 0) {
 			ctx.info("ServiceId: %d", serviceId);
 		}
@@ -703,6 +723,7 @@ private:
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
   int cmoutmask;
+	std::vector<CMType> cmtypes;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;

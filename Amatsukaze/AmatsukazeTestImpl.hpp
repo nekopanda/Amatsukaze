@@ -270,7 +270,7 @@ static int ProcessTest(AMTContext& ctx, const TranscoderSetting& setting)
 static int FileStreamInfo(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
-	reformInfo.prepareEncode();
+	reformInfo.prepare();
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
 	return 0;
 }

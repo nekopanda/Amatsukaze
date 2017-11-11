@@ -45,14 +45,22 @@ public:
 		}
 	}
 
-	bool isOK(bool programOnly) const {
+	bool isProgramOK() const {
 		for (int i = 0; i < numPrograms; ++i) {
 			if (programList[i].programOK == false) return false;
 		}
-		if (programOnly) {
-			return patOK;
+		return patOK;
+	}
+
+	bool isOK() const {
+		for (int i = 0; i < numPrograms; ++i) {
+			if (programList[i].programOK == false) return false;
 		}
 		return patOK && serviceOK && timeOK;
+	}
+
+	bool hasServiceInfo() {
+		return serviceOK && timeOK;
 	}
 
 	int getNumPrograms() const {
@@ -214,16 +222,43 @@ private:
 						break;
 					}
 					if (type != VS_UNKNOWN) {
-						item->hasVideo = true;
-						item->videoPid = elem.elementary_PID();
-						if (item->videoHandler == nullptr) {
-              item->videoHandler =
-								std::unique_ptr<SpVideoFrameParser>(new SpVideoFrameParser(ctx, *this, item));
+						int videoPid = elem.elementary_PID();
+
+						// 同じvideoPidのプログラムを探す
+						ProgramItem* top = nullptr;
+						for (int i = 0; i < (int)numPrograms; ++i) {
+							if (programList[i].videoPid == videoPid &&
+								programList[i].videoHandler != nullptr) {
+								top = &programList[i];
+								break;
+							}
 						}
-            item->videoHandler->setStreamFormat(type);
-						handlerTable.add(elem.elementary_PID(), item->videoHandler.get());
+
+						item->hasVideo = true;
+						item->videoPid = videoPid;
+
+						if (top == nullptr) {
+							// 自分が最初なので取得する
+							if (item->videoHandler == nullptr) {
+								item->videoHandler =
+									std::unique_ptr<SpVideoFrameParser>(new SpVideoFrameParser(ctx, *this, item));
+							}
+							item->videoHandler->setStreamFormat(type);
+							handlerTable.add(item->videoPid, item->videoHandler.get());
+						}
+						else {
+							// 自分は先頭ではないので、先頭のフォーマットをもらう
+							if (top->programOK) {
+								item->videoFormat = top->videoFormat;
+								item->programOK = true;
+							}
+						}
 						break;
 					}
+				}
+				if (item->hasVideo == false) {
+					// このプログラムには対応する映像がない
+					item->programOK = true;
 				}
 			}
 		}
@@ -297,10 +332,10 @@ public:
 			do {
 				readBytes = srcfile.read(buffer);
 				packetParser.inputTS(MemoryChunk(buffer.data, readBytes));
-				if (parser.isOK(false)) return;
+				if (parser.isOK()) return;
 				totalRead += readBytes;
 			} while (readBytes == buffer.length && totalRead < MAX_BYTES);
-			if (parser.isOK(true)) return;
+			if (parser.isProgramOK()) return;
 			THROW(FormatException, "TSファイルに情報がありません");
 	}
 
@@ -316,7 +351,7 @@ public:
 	}
 
 	bool HasServiceInfo() {
-		return parser.isOK(false);
+		return parser.hasServiceInfo();
 	}
 
 	// ref intで受け取る
