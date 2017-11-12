@@ -226,6 +226,16 @@ AviUtlのエッジレベル調整フィルタを移植して、少し改造し�
 色がおかしくなる不具合を確認しています。10bitでフィルタ出力すれば問題ありません。
 また、QSVEncやNVEncの古いバージョンは高ビット入力に不具合があるので、注意してください。
 
+# ライセンス
+
+GPLのライブラリを組み込んでいるので、全体にGPLが適用されています。私の書いたコードはMITライセンスで提供します。
+各プロジェクトと利用可能なライセンスは以下の通り。
+- Amatsukaze: 一部GPLのコードを使っています。各ソースコードファイルにライセンスが書かれているのでそれを見てください。
+- AmatsukazeCLI: MITライセンス
+- AmatsukazeGUI: MITライセンス
+- AmatsukazeUnitTest: MITライセンス
+- FileCutter: MITライセンス
+- libfaad2: GPL
 
 # 同梱&依存ライブラリ
 - [FFmpeg](https://www.ffmpeg.org/)
