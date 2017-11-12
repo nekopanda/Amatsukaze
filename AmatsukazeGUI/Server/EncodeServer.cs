@@ -1201,23 +1201,23 @@ namespace Amatsukaze.Server
             }
         }
 
-        private string GetEncoderPath()
+        private static string GetEncoderPath(Setting setting)
         {
-            if (appData.setting.EncoderType == EncoderType.x264)
+            if (setting.EncoderType == EncoderType.x264)
             {
-                return appData.setting.X264Path;
+                return setting.X264Path;
             }
-            else if (appData.setting.EncoderType == EncoderType.x265)
+            else if (setting.EncoderType == EncoderType.x265)
             {
-                return appData.setting.X265Path;
+                return setting.X265Path;
             }
-            else if (appData.setting.EncoderType == EncoderType.QSVEnc)
+            else if (setting.EncoderType == EncoderType.QSVEnc)
             {
-                return appData.setting.QSVEncPath;
+                return setting.QSVEncPath;
             }
             else
             {
-                return appData.setting.NVEncPath;
+                return setting.NVEncPath;
             }
         }
 
@@ -1265,7 +1265,7 @@ namespace Amatsukaze.Server
             string src, string dst, string json,
             int serviceId, string[] logofiles, bool errorOnNoLogo, string jlscommand)
         {
-            string encoderPath = GetEncoderPath();
+            string encoderPath = GetEncoderPath(appData.setting);
 
             double bitrateCM = appData.setting.BitrateCM;
             if (bitrateCM == 0)
@@ -1432,13 +1432,13 @@ namespace Amatsukaze.Server
             }
         }
 
-        private void CheckSetting(Setting setting)
+        private static void CheckSetting(Setting setting)
         {
-            string workPath = appData.setting.ActualWorkPath;
-            if (!File.Exists(appData.setting.AmatsukazePath))
+            string workPath = setting.ActualWorkPath;
+            if (!File.Exists(setting.AmatsukazePath))
             {
                 throw new InvalidOperationException(
-                    "AmtasukazeCLIパスが無効です: " + appData.setting.AmatsukazePath);
+                    "AmtasukazeCLIパスが無効です: " + setting.AmatsukazePath);
             }
             if (!Directory.Exists(workPath))
             {
@@ -1446,7 +1446,7 @@ namespace Amatsukaze.Server
                     "一時フォルダパスが無効です: " + workPath);
             }
 
-            string encoderPath = GetEncoderPath();
+            string encoderPath = GetEncoderPath(setting);
             if (string.IsNullOrEmpty(encoderPath))
             {
                 throw new ArgumentException("エンコーダパスが指定されていません");
@@ -1457,43 +1457,43 @@ namespace Amatsukaze.Server
                     "エンコーダパスが無効です: " + encoderPath);
             }
 
-            if (string.IsNullOrEmpty(appData.setting.MuxerPath))
+            if (string.IsNullOrEmpty(setting.MuxerPath))
             {
                 throw new ArgumentException("Muxerパスが指定されていません");
             }
-            if (!File.Exists(appData.setting.MuxerPath))
+            if (!File.Exists(setting.MuxerPath))
             {
                 throw new InvalidOperationException(
-                    "Muxerパスが無効です: " + appData.setting.MuxerPath);
+                    "Muxerパスが無効です: " + setting.MuxerPath);
             }
-            if (string.IsNullOrEmpty(appData.setting.TimelineEditorPath))
+            if (string.IsNullOrEmpty(setting.TimelineEditorPath))
             {
                 throw new ArgumentException("Timelineeditorパスが指定されていません");
             }
-            if (!File.Exists(appData.setting.TimelineEditorPath))
+            if (!File.Exists(setting.TimelineEditorPath))
             {
                 throw new InvalidOperationException(
-                    "Timelineeditorパスが無効です: " + appData.setting.TimelineEditorPath);
+                    "Timelineeditorパスが無効です: " + setting.TimelineEditorPath);
             }
-            if (!appData.setting.DisableChapter)
+            if (!setting.DisableChapter)
             {
-                if (string.IsNullOrEmpty(appData.setting.ChapterExePath))
+                if (string.IsNullOrEmpty(setting.ChapterExePath))
                 {
                     throw new ArgumentException("ChapterExeパスが指定されていません");
                 }
-                if (!File.Exists(appData.setting.ChapterExePath))
+                if (!File.Exists(setting.ChapterExePath))
                 {
                     throw new InvalidOperationException(
-                        "ChapterExeパスが無効です: " + appData.setting.ChapterExePath);
+                        "ChapterExeパスが無効です: " + setting.ChapterExePath);
                 }
-                if (string.IsNullOrEmpty(appData.setting.JoinLogoScpPath))
+                if (string.IsNullOrEmpty(setting.JoinLogoScpPath))
                 {
                     throw new ArgumentException("JoinLogoScpパスが指定されていません");
                 }
-                if (!File.Exists(appData.setting.JoinLogoScpPath))
+                if (!File.Exists(setting.JoinLogoScpPath))
                 {
                     throw new InvalidOperationException(
-                        "JoinLogoScpパスが無効です: " + appData.setting.JoinLogoScpPath);
+                        "JoinLogoScpパスが無効です: " + setting.JoinLogoScpPath);
                 }
             }
         }
