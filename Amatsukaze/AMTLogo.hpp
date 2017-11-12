@@ -1,3 +1,14 @@
+/**
+* Amtasukaze Logo File
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*
+* ただし、ToOutLGP()の中身の処理は
+* MakKi氏の透過性ロゴ フィルタプラグインより拝借
+* https://github.com/makiuchi-d/delogo-aviutl
+*/
 #pragma once
 
 #include "CoreUtils.hpp"

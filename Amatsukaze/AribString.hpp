@@ -1,6 +1,10 @@
-﻿#pragma once
-
-// TvTestより拝借
+﻿/*
+* ARIB String
+* このソースコードは大部分がTvTestのコードです。
+* https://github.com/DBCTRADO/TVTest
+* GPLで利用しています。
+*/
+#pragma once
 
 namespace aribstring {
 

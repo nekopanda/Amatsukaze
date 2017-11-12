@@ -1,5 +1,10 @@
-// TsSplitterUnitTest.cpp : コンソール アプリケーションのエントリ ポイントを定義します。
-//
+/**
+* Amtasukaze Unit Test
+* Copyright (c) 2017 Nekopanda
+*
+* This software is released under the MIT License.
+* http://opensource.org/licenses/mit-license.php
+*/
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <string>

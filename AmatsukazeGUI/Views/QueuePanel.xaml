@@ -39,7 +39,7 @@
         
         <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
         
-        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.Items}" SelectedIndex="{Binding QueueFileSelectedIndex, Mode=TwoWay}">
+        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.Items}" SelectedIndex="{Binding QueueFileSelectedIndex, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="OverridesDefaultStyle" Value="True" />
