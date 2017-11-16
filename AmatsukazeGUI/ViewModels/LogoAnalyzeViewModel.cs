@@ -242,13 +242,27 @@ namespace Amatsukaze.ViewModels
         {
             if (string.IsNullOrWhiteSpace(App.Option.WorkPath))
             {
-                MessageBox.Show("テンポラリフォルダが有効なパスではありません");
+                MessageBox.Show("一時フォルダが有効なパスではありません");
                 return false;
             }
+
             try
             {
                 Directory.CreateDirectory(App.Option.WorkPath);
+            }
+            catch(ArgumentException exception)
+            {
+                MessageBox.Show("一時フォルダの作成に失敗: " + App.Option.WorkPath + "\r\n" + exception.Message);
+                return false;
+            }
+            catch (IOException exception)
+            {
+                MessageBox.Show("一時フォルダの作成に失敗: " + App.Option.WorkPath + "\r\n" + exception.Message);
+                return false;
+            }
 
+            try
+            {
                 if(string.IsNullOrWhiteSpace(App.Option.FilePath))
                 {
                     OpenFileDialog openFileDialog = new OpenFileDialog();
