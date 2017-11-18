@@ -165,6 +165,10 @@ struct PESPacket : public PESConstantHeader {
 		if (!PESConstantHeader::parse()) {
 			return false;
 		}
+		if (stream_id() == 0xBF) {
+			// private_stream_2は対応しない
+			return false;
+		}
 		// ヘッダ長チェック
 		int headerLength = PES_header_data_length();
 		int calculatedLength = 0;
@@ -366,10 +370,17 @@ public:
 
 class PesParser : public TsPacketHandler {
 public:
-	PesParser() : packetClock(-1) { }
+	PesParser() : packetClock(-1), contCounter(0) {}
 
 	/** @brief TSパケット(チェック済み)を入力 */
 	virtual void onTsPacket(int64_t clock, TsPacket packet) {
+
+		// パケットの連続性カウンタをチェック
+		int cc = packet.continuity_counter();
+		if (cc != contCounter) {
+			buffer.clear();
+		}
+		contCounter = (cc + 1) & 0xF;
 
 		if (packet.has_payload()) {
 			// データあり
@@ -410,6 +421,7 @@ protected:
 private:
 	AutoBuffer buffer;
 	int64_t packetClock;
+	int contCounter;
 
 	// パケットをチェックして出力
 	void checkAndOutPacket(int64_t clock, MemoryChunk data) {
@@ -467,6 +479,24 @@ private:
 	MemoryChunk payload_;
 	uint8_t* service_provider_name_;
 	uint8_t* service_name_;
+};
+
+struct StreamIdentifierDescriptor
+{
+	StreamIdentifierDescriptor(Descriptor desc) : desc(desc) { }
+
+	int component_tag() { return component_tag_; }
+
+	bool parse() {
+		MemoryChunk payload = desc.payload();
+		if (payload.length != 1) return false;
+		component_tag_ = payload.data[0];
+		return true;
+	}
+
+private:
+	Descriptor desc;
+	uint8_t component_tag_;
 };
 
 struct PsiConstantHeader : public MemoryChunk {
@@ -569,6 +599,7 @@ struct PMTElement {
 	uint8_t stream_type() { return *ptr; }
 	uint16_t elementary_PID() { return bsm(read16(&ptr[1]), 0, 13); }
 	uint16_t ES_info_length() { return bsm(read16(&ptr[3]), 0, 12); }
+	MemoryChunk descriptor() { return MemoryChunk(ptr + 5, ES_info_length()); }
 	int size() { return ES_info_length() + 5; }
 
 private:
@@ -916,11 +947,13 @@ public:
 	virtual void onPmtUpdated(int PcrPid) = 0;
 
 	// TsPacketSelectorでPID Tableが変更された時変更後の情報が送られる
-	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio) = 0;
+	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio, const PMTESInfo caption) = 0;
 
 	virtual void onVideoPacket(int64_t clock, TsPacket packet) = 0;
 
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) = 0;
+
+	virtual void onCaptionPacket(int64_t clock, TsPacket packet) = 0;
 };
 
 class TsPacketSelector : public AMTObject {
@@ -935,6 +968,7 @@ public:
 		, PsiParserPMT(ctx, *this)
 		, pmtPid(-1)
 		, videoDelegator(*this)
+		, captionDelegator(*this)
 		, startClock(-1)
 	{
 		curHandlerTable = new PidHandlerTable();
@@ -973,7 +1007,7 @@ public:
 			// 待っていた映像パケット来たのでテーブル変更
 			waitingNewVideo = false;
 			swapHandlerTable();
-			selectorHandler->onPidTableChanged(videoEs, audioEs);
+			selectorHandler->onPidTableChanged(videoEs, audioEs, captionEs);
 		}
 		TsPacketHandler* handler = curHandlerTable->get(packet.PID());
 		if (handler != NULL) {
@@ -1017,6 +1051,14 @@ private:
 			this_.onAudioPacket(clock, packet, audioIdx);
 		}
 	};
+	class CaptionDelegator : public TsPacketHandler {
+		TsPacketSelector& this_;
+	public:
+		CaptionDelegator(TsPacketSelector& this_) : this_(this_) { }
+		virtual void onTsPacket(int64_t clock, TsPacket packet) {
+			this_.onCaptionPacket(clock, packet);
+		}
+	};
 
 	AutoBuffer buffer;
 
@@ -1025,12 +1067,14 @@ private:
 	int SID_;
 	PMTESInfo videoEs;
 	std::vector<PMTESInfo> audioEs;
+	PMTESInfo captionEs;
 
 	PATDelegator PsiParserPAT;
 	PMTDelegator PsiParserPMT;
 	int pmtPid;
 	VideoDelegator videoDelegator;
 	std::vector<AudioDelegator*> audioDelegators;
+	CaptionDelegator captionDelegator;
 
 	PidHandlerTable *curHandlerTable;
 	PidHandlerTable *nextHandlerTable;
@@ -1095,9 +1139,10 @@ private:
 
 			printPMT(pmt);
 
-			// 映像、オーディオストリームを探す
+			// 映像、音声、字幕を探す
 			PMTESInfo videoEs(-1, -1);
 			std::vector<PMTESInfo> audioEs;
+			PMTESInfo captionEs(-1, -1);
 			for (int i = 0; i < pmt.numElems(); ++i) {
 				PMTElement elem = pmt.get(i);
 				uint8_t stream_type = elem.stream_type();
@@ -1107,6 +1152,22 @@ private:
 				}
 				else if (isAudio(stream_type)) {
 					audioEs.emplace_back(stream_type, elem.elementary_PID());
+				}
+				else if (isCaption(stream_type)) {
+					auto descs = ParseDescriptors(elem.descriptor());
+					for (int i = 0; i < (int)descs.size(); ++i) {
+						if (descs[i].tag() == 0x52) { // ストリーム識別記述子
+							StreamIdentifierDescriptor streamdesc(descs[i]);
+							if (streamdesc.parse()) {
+								int ct = streamdesc.component_tag();
+								if (ct == 0x30 || ct == 0x87) { // TvCaptionMod2を参考にした
+									captionEs.stype = stream_type;
+									captionEs.pid = elem.elementary_PID();
+								}
+								break;
+							}
+						}
+					}
 				}
 			}
 			if (videoEs.pid == -1) {
@@ -1131,16 +1192,20 @@ private:
 
 			this->videoEs = videoEs;
 			this->audioEs = audioEs;
+			this->captionEs = captionEs;
 
 			table->add(videoEs.pid, &videoDelegator);
 			ensureAudioDelegators(int(audioEs.size()));
 			for (int i = 0; i < int(audioEs.size()); ++i) {
 				table->add(audioEs[i].pid, audioDelegators[i]);
 			}
+			if (captionEs.pid != -1) {
+				table->add(captionEs.pid, &captionDelegator);
+			}
 
 			selectorHandler->onPmtUpdated(pmt.PCR_PID());
 			if (table == curHandlerTable) {
-				selectorHandler->onPidTableChanged(videoEs, audioEs);
+				selectorHandler->onPidTableChanged(videoEs, audioEs, captionEs);
 			}
 		}
 	}
@@ -1154,6 +1219,12 @@ private:
 	void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {
 		if (selectorHandler != NULL) {
 			selectorHandler->onAudioPacket(clock, packet, audioIdx);
+		}
+	}
+
+	void onCaptionPacket(int64_t clock, TsPacket packet) {
+		if (selectorHandler != NULL) {
+			selectorHandler->onCaptionPacket(clock, packet);
 		}
 	}
 
@@ -1185,6 +1256,10 @@ private:
 	bool isAudio(uint8_t stream_type) {
 		// AAC以外未対応
 		return (stream_type == 0x0F);
+	}
+
+	bool isCaption(uint8_t stream_type) {
+		return (stream_type == 0x06);
 	}
 
 	void printPMT(const PMT& pmt) {

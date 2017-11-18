@@ -388,7 +388,7 @@ private:
 					++nChapter;
 					prevCM = false;
 				}
-				c.comment = 'A' + nChapter;
+				c.comment = 'A' + (nChapter % 26);
 				if (showSec) {
 					c.comment += std::to_string(c.seconds) + "Sec";
 				}

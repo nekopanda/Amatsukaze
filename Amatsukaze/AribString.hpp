@@ -340,7 +340,7 @@ private:
 						SetFormat(dwDstPos);
 						break;
 
-					case 0x0C:	// CS
+					case 0x0C: //CS
 						lpszDst[dwDstPos++] = '\f';
 						break;
 					case 0x16:	dwSrcPos++;		break;	// PAPF

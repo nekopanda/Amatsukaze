@@ -137,6 +137,7 @@ static int ReadTS(AMTContext& ctx, const TranscoderSetting& setting)
 			splitter->setServiceId(setting.getServiceId());
 		}
 		StreamReformInfo reformInfo = splitter->split();
+		reformInfo.serialize(setting.getStreamInfoPath());
 	}
 	catch (const Exception& e) {
 		fprintf(stderr, "ReadTS Error: 例外がスローされました -> %s\n", e.message());
@@ -514,6 +515,20 @@ static int AACDecodeTest(AMTContext& ctx, const TranscoderSetting& setting)
 			THROW(FormatException, "デコード失敗 ...");
 		}
 		offset += header.frame_length;
+	}
+
+	return 0;
+}
+
+static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
+{
+	try {
+		StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
+		// TODO:
+	}
+	catch (const Exception& e) {
+		fprintf(stderr, "CaptionASS Error: 例外がスローされました -> %s\n", e.message());
+		return 1;
 	}
 
 	return 0;

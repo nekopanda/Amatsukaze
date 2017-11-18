@@ -177,6 +177,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 	std::tstring outInfoJsonPath;
 	std::tstring filterScriptPath;
 	std::tstring postFilterScriptPath;
+	std::tstring drcsOutPath = _T("./");
 	ENUM_ENCODER encoder = ENUM_ENCODER();
 	std::tstring encoderPath = _T("x264.exe");
   std::tstring encoderOptions = _T("");
@@ -268,6 +269,9 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
 		else if (key == _T("-j") || key == _T("--json")) {
 			outInfoJsonPath = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--drcsout")) {
+			drcsOutPath = pathNormalize(getParam(argc, argv, i++));
 		}
     else if (key == _T("-f") || key == _T("--filter")) {
       filterScriptPath = getParam(argc, argv, i++);
@@ -370,6 +374,7 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		to_string(srcFilePath),
 		to_string(outVideoPath),
 		to_string(outInfoJsonPath),
+		to_string(drcsOutPath),
     to_string(filterScriptPath),
 		to_string(postFilterScriptPath),
 		encoder,
@@ -507,6 +512,12 @@ __declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
     InitializeCriticalSection(&g_log_crisec);
     av_log_set_callback(amatsukaze_av_log_callback);
     av_register_all();
+
+		// キャプションDLL初期化
+		InitializeCPW();
+
+		// DRCSマッピングをロード
+		ctx.loadDRCSMapping();
 
     return amatsukazeTranscodeMain(ctx, *setting);
   }

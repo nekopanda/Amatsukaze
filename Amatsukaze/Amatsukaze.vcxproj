@@ -157,6 +157,7 @@
     <ClInclude Include="AMTLogo.hpp" />
     <ClInclude Include="AMTSource.hpp" />
     <ClInclude Include="AribString.hpp" />
+    <ClInclude Include="CaptionData.hpp" />
     <ClInclude Include="CMAnalyze.hpp" />
     <ClInclude Include="common.h" />
     <ClInclude Include="CoreUtils.hpp" />
@@ -204,6 +205,9 @@
   <ItemGroup>
     <ProjectReference Include="..\libfaad\libfaad2.vcxproj">
       <Project>{482da264-ee88-4575-b208-87c4cb80cd08}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\TVCaptionMod2\Caption_src\Caption.vcxproj">
+      <Project>{60bc8339-018f-4af1-a09c-edaf70a007b7}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

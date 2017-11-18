@@ -25,6 +25,7 @@
 #include "LogoScan.hpp"
 #include "CMAnalyze.hpp"
 #include "InterProcessComm.hpp"
+#include "CaptionData.hpp"
 
 class AMTSplitter : public TsSplitter {
 public:
@@ -53,7 +54,7 @@ public:
 		printInteraceCount();
 
 		return StreamReformInfo(ctx, videoFileCount_,
-			videoFrameList_, audioFrameList_, streamEventList_);
+			videoFrameList_, audioFrameList_, captionTextList_, streamEventList_);
 	}
 
 	int64_t getSrcFileSize() const {
@@ -107,6 +108,7 @@ protected:
   std::vector<FileVideoFrameInfo> videoFrameList_;
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<StreamEvent> streamEventList_;
+	std::vector<CaptionItem> captionTextList_;
 
 	void readAll() {
 		enum { BUFSIZE = 4 * 1024 * 1024 };
@@ -282,12 +284,26 @@ protected:
 		ev.frameIdx = (int)audioFrameList_.size();
 		streamEventList_.push_back(ev);
 	}
+	
+	virtual void onCaptionPesPacket(
+		int64_t clock,
+		std::vector<CaptionItem>& captions,
+		PESPacket packet)
+	{
+		for (auto& caption : captions) {
+			captionTextList_.emplace_back(std::move(caption));
+		}
+	}
+
+	virtual std::string getDRCSOutPath(const std::string& md5) {
+		return setting_.getDRCSOutPath(md5);
+	}
 
 	// TsPacketSelectorHandler仮想関数 //
 
-	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio) {
+	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio, const PMTESInfo caption) {
 		// ベースクラスの処理
-		TsSplitter::onPidTableChanged(video, audio);
+		TsSplitter::onPidTableChanged(video, audio, caption);
 
 		ASSERT(audio.size() > 0);
 		videoStreamType_ = video.stype;
@@ -1389,6 +1405,14 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
       THROW(FormatException, "スクランブルパケットが多すぎます");
     }
   }
+
+	{ // DRCSマッピングチェック
+		auto& counter = ctx.getCounter();
+		auto it = counter.find("drcsnomap");
+		if (it != counter.end() && it->second > 0) {
+			THROW(FormatException, "マッピングにない外字あり正常に字幕処理できなかったため終了します");
+		}
+	}
 
   reformInfo.prepare();
 

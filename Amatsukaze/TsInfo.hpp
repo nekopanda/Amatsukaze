@@ -281,7 +281,7 @@ private:
 				auto elem = sdt.get(i);
 				info.serviceId = elem.service_id();
 				auto descs = ParseDescriptors(elem.descriptor());
-				for (int i = 0; i < sdt.numElems(); ++i) {
+				for (int i = 0; i < (int)descs.size(); ++i) {
 					if (descs[i].tag() == 0x48) { // サービス記述子
 						ServiceDescriptor servicedesc(descs[i]);
 						if (servicedesc.parse()) {

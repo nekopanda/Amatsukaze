@@ -169,20 +169,25 @@ void TestBase::ParserTest(const std::wstring& filename, bool verify) {
 	std::wstring dstDir = TestWorkDir + L"\\";
 
 	std::wstring srcfile = srcDir + filename + L".ts";
-	std::wstring mpgfile = dstDir + filename + L".mpg";
+	std::wstring outfile = dstDir + filename + L".mp4";
 
 	if (filename.size() == 0 || !fileExists(srcfile.c_str())) {
 		fprintf(stderr, "テストファイルがないのでスキップ: %ls\n", srcfile.c_str());
 		return;
 	}
 
-	const wchar_t* args[] = { L"AmatsukazeTest.exe", L"--mode", L"test_readts", L"-i", srcfile.c_str(), L"-w", dstDir.c_str() };
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_readts", 
+		L"-i", srcfile.c_str(),
+		L"-o", outfile.c_str(),
+		L"-w", dstDir.c_str(),
+	};
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 
 	// 出力ファイルをチェック
-	if (verify) {
-		VerifyMpeg2Ps(mpgfile);
-	}
+	//if (verify) {
+	//	VerifyMpeg2Ps(mpgfile);
+	//}
 }
 
 TEST_F(TestBase, MPEG2Parser) {
@@ -407,7 +412,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*AACDecodeTest";
+	::testing::GTEST_FLAG(filter) = "*MPEG2Parser";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

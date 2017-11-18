@@ -311,6 +311,7 @@ public:
 		std::string srcFilePath,
 		std::string outVideoPath,
 		std::string outInfoJsonPath,
+		std::string drcsOutPath,
 		std::string filterScriptPath,
 		std::string postFilterScriptPath,
 		ENUM_ENCODER encoder,
@@ -340,6 +341,7 @@ public:
 		, srcFilePath(srcFilePath)
 		, outVideoPath(outVideoPath)
 		, outInfoJsonPath(outInfoJsonPath)
+		, drcsOutPath(drcsOutPath)
 		, filterScriptPath(filterScriptPath)
 		, postFilterScriptPath(postFilterScriptPath)
 		, encoder(encoder)
@@ -618,6 +620,12 @@ public:
 		return ss.str();
 	}
 
+	std::string getDRCSOutPath(const std::string& md5) const {
+		std::ostringstream ss;
+		ss << drcsOutPath << md5 << ".bmp";
+		return ss.str();
+	}
+
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, CMType cmtype) const
@@ -708,6 +716,9 @@ private:
 	std::string outVideoPath;
 	// 結果情報JSON出力パス
 	std::string outInfoJsonPath;
+	// マッピングなしDRCS画像出力ディレクトリパス
+	std::string drcsOutPath;
+	// フィルタパス
 	std::string filterScriptPath;
 	std::string postFilterScriptPath;
 	// エンコーダ設定

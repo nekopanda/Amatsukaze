@@ -21,6 +21,9 @@
 #include "AdtsParser.hpp"
 #include "Mpeg2PsWriter.hpp"
 #include "WaveWriter.h"
+#include "CaptionDef.h"
+#include "Caption.h"
+#include "CaptionData.hpp"
 
 class VideoFrameParser : public AMTObject, public PesParser {
 public:
@@ -151,6 +154,84 @@ private:
 	std::vector<AudioFrameData> frameData;
 
 	AdtsParser adtsParser;
+};
+
+// 同期型の字幕のみ対応。文字スーパーには対応しない
+class CaptionParser : public AMTObject, public PesParser {
+public:
+	CaptionParser(AMTContext&ctx)
+		: AMTObject(ctx)
+		, PesParser()
+		, fomatter(*this)
+	{ }
+
+	virtual void onPesPacket(int64_t clock, PESPacket packet)
+	{
+		int64_t PTS = packet.has_PTS() ? packet.PTS : -1;
+		//int64_t DTS = packet.has_DTS() ? packet.DTS : PTS;
+		MemoryChunk payload = packet.paylod();
+
+		captions.clear();
+
+		DWORD ret = AddPESPacketCP(payload.data, (DWORD)payload.length);
+
+		if (ret >= CP_NO_ERR_CAPTION_1 && ret <= CP_NO_ERR_CAPTION_8) {
+			int ucLangTag = ret - CP_NO_ERR_CAPTION_1;
+			// 字幕文データ
+			CAPTION_DATA_DLL* capList = nullptr;
+			DWORD capCount = 0;
+			DRCS_PATTERN_DLL* drcsList = nullptr;
+			DWORD drcsCount = 0;
+			if (GetCaptionDataCPW(ucLangTag, &capList, &capCount) != TRUE) {
+				capCount = 0;
+			}
+			else {
+				// DRCS図形データ(あれば)
+				if (GetDRCSPatternCP(ucLangTag, &drcsList, &drcsCount) != TRUE) {
+					drcsCount = 0;
+				}
+				for (DWORD i = 0; i < capCount; ++i) {
+					captions.emplace_back(
+						fomatter.ProcessCaption(PTS, ucLangTag,
+							capList + i, capCount - i, drcsList, drcsCount));
+				}
+			}
+		}
+		else if (ret == CP_CHANGE_VERSION) {
+			// 字幕管理データ
+			// 字幕のフォーマット変更は考慮しないので今のところ見る必要なし
+		}
+		else if (ret == CP_NO_ERR_TAG_INFO) {
+			//
+		}
+		else if (ret != TRUE && ret != CP_ERR_NEED_NEXT_PACKET &&
+			(ret < CP_NO_ERR_CAPTION_1 || CP_NO_ERR_CAPTION_8 < ret))
+		{
+			// エラーパケット
+		}
+
+		if (captions.size() > 0) {
+			onCaptionPesPacket(clock, captions, packet);
+		}
+	}
+
+	virtual void onCaptionPesPacket(int64_t clock, std::vector<CaptionItem>& captions, PESPacket packet) = 0;
+
+	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
+
+private:
+	class SpCaptionFormatter : public CaptionFormatter {
+		CaptionParser& this_;
+	public:
+		SpCaptionFormatter(CaptionParser& this_) 
+			: CaptionFormatter(this_.ctx), this_(this_)
+		{ }
+		virtual std::string getDRCSOutPath(const std::string& md5) {
+			return this_.getDRCSOutPath(md5);
+		}
+	};
+	std::vector<CaptionItem> captions;
+	SpCaptionFormatter fomatter;
 };
 
 // TSストリームを一定量だけ戻れるようにする
@@ -313,6 +394,7 @@ public:
 		, tsPacketParser(ctx)
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
+		, captionParser(ctx, *this)
     , numTotalPackets(0)
     , numScramblePackets(0)
 	{
@@ -434,6 +516,21 @@ protected:
 			this_.onAudioFormatChanged(audioIdx, fmt);
 		}
 	};
+	class SpCaptionParser : public CaptionParser {
+		TsSplitter& this_;
+	public:
+		SpCaptionParser(AMTContext&ctx, TsSplitter& this_)
+			: CaptionParser(ctx), this_(this_) { }
+
+	protected:
+		virtual void onCaptionPesPacket(int64_t clock, std::vector<CaptionItem>& captions, PESPacket packet) {
+			this_.onCaptionPesPacket(clock, captions, packet);
+		}
+
+		virtual std::string getDRCSOutPath(const std::string& md5) {
+			return this_.getDRCSOutPath(md5);
+		}
+	};
 
 	INITIALIZATION_PHASE initPhase;
 
@@ -445,6 +542,7 @@ protected:
 
 	SpVideoFrameParser videoParser;
 	std::vector<SpAudioFrameParser*> audioParsers;
+	SpCaptionParser captionParser;
 
 	int preferedServiceId;
 	int selectedServiceId;
@@ -466,6 +564,13 @@ protected:
 		PESPacket packet) = 0;
 
 	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) = 0;
+
+	virtual void onCaptionPesPacket(
+		int64_t clock,
+		std::vector<CaptionItem>& captions,
+		PESPacket packet) = 0;
+
+	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
 
 	// サービスを設定する場合はサービスのpids上でのインデックス
 	// なにもしない場合は負の値の返す
@@ -509,7 +614,7 @@ protected:
 	}
 
 	// TsPacketSelectorでPID Tableが変更された時変更後の情報が送られる
-	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio) {
+	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio, const PMTESInfo caption) {
 		// 映像ストリーム形式をセット
 		switch (video.stype) {
 		case 0x02: // MPEG2-VIDEO
@@ -545,6 +650,10 @@ protected:
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {
 		ASSERT(audioIdx < (int)audioParsers.size());
     if (checkScramble(packet)) audioParsers[audioIdx]->onTsPacket(clock, packet);
+	}
+
+	virtual void onCaptionPacket(int64_t clock, TsPacket packet) {
+		if (checkScramble(packet)) captionParser.onTsPacket(clock, packet);
 	}
 };
 

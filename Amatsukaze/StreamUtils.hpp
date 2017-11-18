@@ -11,8 +11,13 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <fstream>
+#include <cctype>
+#include <locale>
+#include <codecvt>
 
 #include "CoreUtils.hpp"
+#include "OSUtil.hpp"
 
 enum {
 	TS_SYNC_BYTE = 0x47,
@@ -374,6 +379,35 @@ public:
 		return errMessage;
 	}
 
+	const std::map<std::string, std::wstring>& getDRCSMapping() const {
+		return drcsMap;
+	}
+
+	void loadDRCSMapping()
+	{
+		std::string mapPath = GetModuleDirectory() + "\\drcs_map.txt";
+		if (File::exists(mapPath) == false) {
+			warn("DRCSマッピングファイルが見つかりません");
+		}
+		else {
+			// BOMありUTF-8で読み込む
+			std::wifstream input(mapPath);
+			input.imbue(std::locale(input.getloc(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::consume_header>));
+			for (std::wstring line; getline(input, line);)
+			{
+				if (line.size() >= 34) {
+					std::string key(line.begin(), line.begin() + 32);
+					std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+					bool ok = (line[32] == '=');
+					for (auto c : key) if (!isxdigit(c)) ok = false;
+					if (ok) {
+						drcsMap[key] = std::wstring(line.begin() + 33, line.end());
+					}
+				}
+			}
+		}
+	}
+
 private:
 	bool debugEnabled;
 	CRC32 crc;
@@ -381,6 +415,8 @@ private:
 	std::set<std::string> tmpFiles;
 	std::map<std::string, int> counter;
 	std::string errMessage;
+
+	std::map<std::string, std::wstring> drcsMap;
 
 	void print(const char* fmt, va_list arg, AMT_LOG_LEVEL level) const {
     static const char* log_levels[] = { "debug", "info", "warn", "error" };

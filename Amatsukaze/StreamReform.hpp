@@ -166,6 +166,11 @@ struct FilterOutVideoInfo {
   std::vector<int> fakeAudioSamples;
 };
 
+struct OutCaptionLine {
+	double start, end;
+	CaptionLine* line;
+};
+
 class StreamReformInfo : public AMTObject {
 public:
 	StreamReformInfo(
@@ -173,11 +178,13 @@ public:
 		int numVideoFile,
 		std::vector<FileVideoFrameInfo>& videoFrameList,
 		std::vector<FileAudioFrameInfo>& audioFrameList,
+		std::vector<CaptionItem>& captionList,
 		std::vector<StreamEvent>& streamEventList)
 		: AMTObject(ctx)
 		, numVideoFile_(numVideoFile)
 		, videoFrameList_(std::move(videoFrameList))
 		, audioFrameList_(std::move(audioFrameList))
+		, captionItemList_(std::move(captionList))
 		, streamEventList_(std::move(streamEventList))
 		, isVFR_(false)
 		, hasRFF_(false)
@@ -343,6 +350,7 @@ public:
     file.writeValue(numVideoFile_);
     file.writeArray(videoFrameList_);
     file.writeArray(audioFrameList_);
+		WriteCaptions(file, captionItemList_);
     file.writeArray(streamEventList_);
   }
 
@@ -354,22 +362,23 @@ public:
 		int numVideoFile = file.readValue<int>();
 		auto videoFrameList = file.readArray<FileVideoFrameInfo>();
 		auto audioFrameList = file.readArray<FileAudioFrameInfo>();
+		auto captionList = ReadCaptions(file);
 		auto streamEventList = file.readArray<StreamEvent>();
 		return StreamReformInfo(ctx,
-			numVideoFile, videoFrameList, audioFrameList, streamEventList);
+			numVideoFile, videoFrameList, audioFrameList, captionList, streamEventList);
 	}
 
 private:
 
-  struct FileterOutFrame {
-    double pts;
-    int formatId;
-  };
+	struct CaptionDuration {
+		int64_t startPTS, endPTS;
+	};
 
 	// 入力解析の出力
 	int numVideoFile_;
 	std::vector<FileVideoFrameInfo> videoFrameList_; // [DTS順] 
 	std::vector<FileAudioFrameInfo> audioFrameList_;
+	std::vector<CaptionItem> captionItemList_;
 	std::vector<StreamEvent> streamEventList_;
 
 	// 計算データ
@@ -377,10 +386,12 @@ private:
 	bool hasRFF_;
 	std::vector<double> modifiedPTS_; // [DTS順] ラップアラウンドしないPTS
 	std::vector<double> modifiedAudioPTS_; // ラップアラウンドしないPTS
+	std::vector<double> modifiedCaptionPTS_; // ラップアラウンドしないPTS
 	std::vector<double> audioFrameDuration_; // 各音声フレームの時間
 	std::vector<int> ordredVideoFrame_; // [PTS順] -> [DTS順] 変換
 	std::vector<double> dataPTS_; // [DTS順] 映像フレームのストリーム上での位置とPTSの関連付け
 	std::vector<double> streamEventPTS_;
+	std::vector<CaptionDuration> captionDuration_;
 
 	std::vector<std::vector<int>> indexAudioFrameList_; // 音声インデックスごとのフレームリスト
 
@@ -392,7 +403,6 @@ private:
   // 中間映像ファイルごと
 	std::vector<std::vector<FilterSourceFrame>> filterFrameList_; // [PTS順]
 	std::vector<std::vector<FilterAudioFrame>> filterAudioFrameList_;
-  //std::vector<std::vector<FileterOutFrame>> filterOutFrameList_;
 
 	std::vector<int> frameFormatId_; // videoFrameList_と同じサイズ
 	//std::map<int64_t, int> framePtsMap_;
@@ -449,6 +459,7 @@ private:
 		// ラップアラウンドしないPTSを生成
 		makeModifiedPTS(modifiedPTS_, videoFrameList_);
 		makeModifiedPTS(modifiedAudioPTS_, audioFrameList_);
+		makeModifiedPTS(modifiedCaptionPTS_, captionItemList_);
 
 		// audioFrameDuration_を生成
 		audioFrameDuration_.resize(audioFrameList_.size());
@@ -475,6 +486,22 @@ private:
 			curMin = std::min(curMin, modifiedPTS_[i]);
 			curMax = std::max(curMax, modifiedPTS_[i]);
 			dataPTS_[i] = curMin;
+		}
+
+		// 字幕の開始・終了を計算
+		double curEnd = dataPTS_.back();
+		for (int i = (int)captionItemList_.size() - 1; i >= 0; --i) {
+			int64_t modPTS = modifiedCaptionPTS_[i] + (captionItemList_[i].waitTime * (MPEG_CLOCK_HZ / 1000));
+			if (captionItemList_[i].line) {
+				captionDuration_[i].startPTS = modPTS;
+				captionDuration_[i].endPTS = curEnd;
+			}
+			else {
+				// クリア
+				captionDuration_[i].startPTS = captionDuration_[i].endPTS = modPTS;
+				// 終了を更新
+				curEnd = modPTS;
+			}
 		}
 
 		// ストリームイベントのPTSを計算
