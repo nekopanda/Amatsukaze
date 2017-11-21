@@ -220,11 +220,11 @@ public:
 	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
 
 private:
-	class SpCaptionFormatter : public CaptionFormatter {
+	class SpCaptionFormatter : public CaptionDLLParser {
 		CaptionParser& this_;
 	public:
 		SpCaptionFormatter(CaptionParser& this_) 
-			: CaptionFormatter(this_.ctx), this_(this_)
+			: CaptionDLLParser(this_.ctx), this_(this_)
 		{ }
 		virtual std::string getDRCSOutPath(const std::string& md5) {
 			return this_.getDRCSOutPath(md5);

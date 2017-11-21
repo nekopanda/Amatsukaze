@@ -41,6 +41,7 @@ struct CaptionFormat {
 	CLUT_DAT_DLL textColor;
 	CLUT_DAT_DLL backColor;
 	int style;
+	int sizeMode;
 
 	bool IsUnderline() const {
 		return (style & UNDERLINE) != 0;
@@ -249,7 +250,7 @@ static int StrlenWoLoSurrogate(LPCWSTR str)
 	return len;
 }
 
-class CaptionFormatter : public AMTObject
+class CaptionDLLParser : public AMTObject
 {
 	struct SHIFT_SMALL_STATE {
 		float posY;
@@ -259,7 +260,7 @@ class CaptionFormatter : public AMTObject
 		SHIFT_SMALL_STATE() : posY(-1), shiftH(0), dirH(0) {}
 	};
 public:
-	CaptionFormatter(AMTContext& ctx)
+	CaptionDLLParser(AMTContext& ctx)
 		: AMTObject(ctx)
 	{ }
 
@@ -385,6 +386,7 @@ private:
 		fmt.textColor = style.stCharColor;
 		fmt.backColor = style.stBackColor;
 		fmt.style = CaptionFormat::GetStyle(style);
+		fmt.sizeMode = style.wCharSizeMode;
 
 		line.text += text;
 	}
@@ -536,6 +538,8 @@ private:
 				srctext = nexttext;
 			}
 		}
+
+		return line;
 	}
 };
 

@@ -529,6 +529,14 @@ public:
 		return ss.str();
 	}
 
+	std::string getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const
+	{
+		std::ostringstream ss;
+		ss << tmpDir.path() << "/c" << vindex << "-" << index << "-" << langindex << GetCMSuffix(cmtype) << ".ass";
+		ctx.registerTmpFile(ss.str());
+		return ss.str();
+	}
+
 	std::string getLogoTmpFilePath() const
 	{
 		std::ostringstream ss;

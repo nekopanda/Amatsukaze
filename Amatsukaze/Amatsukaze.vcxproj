@@ -158,6 +158,7 @@
     <ClInclude Include="AMTSource.hpp" />
     <ClInclude Include="AribString.hpp" />
     <ClInclude Include="CaptionData.hpp" />
+    <ClInclude Include="CaptionFormatter.hpp" />
     <ClInclude Include="CMAnalyze.hpp" />
     <ClInclude Include="common.h" />
     <ClInclude Include="CoreUtils.hpp" />

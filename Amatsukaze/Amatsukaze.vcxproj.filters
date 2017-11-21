@@ -111,6 +111,9 @@
     <ClInclude Include="CaptionData.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="CaptionFormatter.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="AMTDebug.natvis" />

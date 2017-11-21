@@ -171,6 +171,8 @@ struct OutCaptionLine {
 	CaptionLine* line;
 };
 
+typedef std::vector<std::vector<OutCaptionLine>> OutCaptionList;
+
 class StreamReformInfo : public AMTObject {
 public:
 	StreamReformInfo(
@@ -211,6 +213,7 @@ public:
 	// 3.
   AudioDiffInfo genAudio() {
 		calcSizeAndTime();
+		genCaptionStream();
     return genAudioStream();
   }
 
@@ -277,6 +280,13 @@ public:
 	{
 		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
 		return *reformedAudioFrameList_[formatId][cmtype].get();
+	}
+
+	const OutCaptionList& getOutCaptionList(
+		int encoderIndex, int videoFileIndex, CMType cmtype) const
+	{
+		int formatId = outFormatStartIndex_[videoFileIndex] + encoderIndex;
+		return *reformedCationLinst_[formatId][cmtype].get();
 	}
 
   // TODO: VFR用タイムコード取得
@@ -371,7 +381,7 @@ public:
 private:
 
 	struct CaptionDuration {
-		int64_t startPTS, endPTS;
+		double startPTS, endPTS;
 	};
 
 	// 入力解析の出力
@@ -423,6 +433,9 @@ private:
 
   double srcTotalDuration_;
   double outTotalDuration_;
+
+	// 字幕構築用
+	std::vector<std::array<std::unique_ptr<OutCaptionList>, CMTYPE_MAX>> reformedCationLinst_;
 
 	void reformMain()
 	{
@@ -491,7 +504,7 @@ private:
 		// 字幕の開始・終了を計算
 		double curEnd = dataPTS_.back();
 		for (int i = (int)captionItemList_.size() - 1; i >= 0; --i) {
-			int64_t modPTS = modifiedCaptionPTS_[i] + (captionItemList_[i].waitTime * (MPEG_CLOCK_HZ / 1000));
+			double modPTS = modifiedCaptionPTS_[i] + (captionItemList_[i].waitTime * (MPEG_CLOCK_HZ / 1000));
 			if (captionItemList_[i].line) {
 				captionDuration_[i].startPTS = modPTS;
 				captionDuration_[i].endPTS = curEnd;
@@ -634,7 +647,7 @@ private:
         int formatId = frameFormatId_[ordered];
         if (outFormat_[formatId].videoFileId == fileId) {
 
-					int64_t mPTS = modifiedPTS_[ordered];
+					double mPTS = modifiedPTS_[ordered];
           FileVideoFrameInfo& srcframe = videoFrameList_[ordered];
           if (srcframe.isGopStart) {
             keyFrame = int(list.size());
@@ -646,9 +659,9 @@ private:
           FilterSourceFrame frame;
           frame.halfDelay = false;
           frame.frameIndex = i;
-          frame.pts = (double)mPTS;
+          frame.pts = mPTS;
 					frame.frameDuration = timePerFrame; // TODO: VFR対応
-          frame.framePTS = mPTS;
+          frame.framePTS = (int64_t)mPTS;
           frame.fileOffset = srcframe.fileOffset;
           frame.keyFrame = keyFrame;
           frame.cmType = CMTYPE_NONCM; // 最初は全部NonCMにしておく
@@ -869,12 +882,11 @@ private:
     for (int fileId = 0; fileId < numVideoFile_; ++fileId) {
       auto& frames = filterFrameList_[fileId];
 			auto& format = outFormat_[outFormatStartIndex_[fileId]].videoFormat;
-			double timePerFrame = format.frameRateDenom * MPEG_CLOCK_HZ / (double)format.frameRateNum;
       for (int i = 0; i < (int)frames.size(); ++i) {
 				int ordered = ordredVideoFrame_[frames[i].frameIndex];
 				int formatId = frameFormatId_[ordered];
-        addVideoFrame(outFiles[formatId][frames[i].cmType], formatId, frames[i].pts, timePerFrame, nullptr);
-        addVideoFrame(outFiles[formatId][CMTYPE_BOTH], formatId, frames[i].pts, timePerFrame, &adiff);
+        addVideoFrame(outFiles[formatId][frames[i].cmType], formatId, frames[i].pts, frames[i].frameDuration, nullptr);
+        addVideoFrame(outFiles[formatId][CMTYPE_BOTH], formatId, frames[i].pts, frames[i].frameDuration, &adiff);
       }
     }
 
@@ -1164,8 +1176,63 @@ private:
 		}
 	}
 
+	// ファイル全体での時間
 	double elapsedTime(double modPTS) const {
 		return (double)(modPTS - dataPTS_[0]) / MPEG_CLOCK_HZ;
+	}
+
+	void genCaptionStream()
+	{
+		ctx.info("[字幕構築]");
+		reformedCationLinst_.clear();
+		for (int fileId = 0; fileId < numVideoFile_; ++fileId) {
+			auto& frames = filterFrameList_[fileId];
+
+			// 各フレームの時刻を生成
+			std::array<std::vector<double>, CMTYPE_MAX> frameTimes;
+			std::array<double, CMTYPE_MAX> curTimes = { 0 };
+			for (int i = 0; i < (int)frames.size(); ++i) {
+				for (int c = 0; c < CMTYPE_MAX; ++c) {
+					frameTimes[c].push_back(curTimes[c]);
+				}
+				curTimes[0] += frames[i].frameDuration;
+				curTimes[frames[i].cmType] += frames[i].frameDuration;
+			}
+			// 最終フレームの終了時刻も追加
+			for (int c = 0; c < CMTYPE_MAX; ++c) {
+				frameTimes[c].push_back(curTimes[c]);
+			}
+
+			// 出力字幕を生成
+			reformedCationLinst_.emplace_back();
+			auto& listItem = reformedCationLinst_.back();
+			for (int c = 0; c < CMTYPE_MAX; ++c) {
+				listItem[c] = std::unique_ptr<OutCaptionList>(new OutCaptionList());
+			}
+			for (int i = 0; i < (int)captionItemList_.size(); ++i) {
+				if (captionItemList_[i].line) { // クリア以外
+					auto duration = captionDuration_[i];
+					auto start = std::lower_bound(frames.begin(), frames.end(), duration.startPTS,
+						[](const FilterSourceFrame& frame, double mid) { return mid < frame.pts; }) - frames.begin();
+					auto end = std::lower_bound(frames.begin(), frames.end(), duration.endPTS,
+						[](const FilterSourceFrame& frame, double mid) { return mid < frame.pts; }) - frames.end();
+					if (start < end) { // 1フレーム以上表示時間のある場合のみ
+						int langIndex = captionItemList_[i].langIndex;
+						for (int c = 0; c < CMTYPE_MAX; ++c) {
+							double startTime = frameTimes[c][start];
+							double endTime = frameTimes[c][end];
+							if (startTime < endTime) { // 表示時間のある場合のみ
+								if (langIndex >= listItem[c]->size()) { // 言語が足りない場合は広げる
+									listItem[c]->resize(langIndex);
+								}
+								OutCaptionLine outcap = { startTime, endTime, captionItemList_[i].line.get() };
+								listItem[c]->at(langIndex).push_back(outcap);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 };
 
