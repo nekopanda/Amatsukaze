@@ -142,8 +142,8 @@ public:
 		}
 
 		int prevDataSize = (int)codedBuffer.size();
-		codedBuffer.add(frame__.data, frame__.length);
-		MemoryChunk frame = codedBuffer;
+		codedBuffer.add(frame__);
+		MemoryChunk frame = codedBuffer.get();
 
 		if (frame.length < 7) {
 			// データ不正
@@ -186,7 +186,7 @@ public:
 						samples = NeAACDecDecode(hAacDec, &frameInfo, ptr, len);
 					}
 					if (frameInfo.error == 0) {
-						decodedBuffer.add((uint8_t*)samples, frameInfo.samples * 2);
+						decodedBuffer.add(MemoryChunk((uint8_t*)samples, frameInfo.samples * 2));
 
 						// ダウンミックスしているので2chになるはず
 						int numChannels = frameInfo.num_front_channels +
@@ -257,12 +257,12 @@ public:
 		}
 
 		// デコードデータのポインタを入れる
-		uint8_t* decodedData = decodedBuffer.get();
+		uint8_t* decodedData = decodedBuffer.ptr();
 		for (int i = 0; i < (int)info.size(); ++i) {
 			info[i].decodedData = (uint16_t*)decodedData;
 			decodedData += info[i].decodedDataSize;
 		}
-		ASSERT(decodedData - decodedBuffer.get() == decodedBuffer.size());
+		ASSERT(decodedData - decodedBuffer.ptr() == decodedBuffer.size());
 
 		return info.size() > 0;
 	}
@@ -481,7 +481,7 @@ public:
 					THROW(RuntimeException, "サイズが合わない");
 				}
 
-				OnOutFrame(i, buf);
+				OnOutFrame(i, buf.get());
 				buf.clear();
 			}
 		}

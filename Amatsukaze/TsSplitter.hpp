@@ -272,7 +272,7 @@ public:
 	void backAndInput() {
 		if (handler != NULL) {
 			for (int i = 0; i < (int)buffer.size(); i += TS_PACKET_LENGTH) {
-				TsPacket packet(buffer.get() + i);
+				TsPacket packet(buffer.ptr() + i);
 				if (packet.parse() && packet.check()) {
 					handler->onTsPacket(-1, packet);
 				}
@@ -286,7 +286,7 @@ public:
 				buffer.trimHead((numMaxPackets - numBefferedPackets_ + 1) * TS_PACKET_LENGTH);
 				numBefferedPackets_ = numMaxPackets - 1;
 			}
-			buffer.add(packet.data, TS_PACKET_LENGTH);
+			buffer.add(MemoryChunk(packet.data, TS_PACKET_LENGTH));
 			++numBefferedPackets_;
 		}
 		if (handler != NULL) {

@@ -86,9 +86,9 @@ static int CheckAutoBuffer(AMTContext& ctx, const TranscoderSetting& setting)
 			buf[c] = addCnt++;
 		}
 		//fprintf(stderr, "Add %d\n", addNum);
-		ab.add(buf.get(), addNum);
+		ab.add(MemoryChunk(buf.get(), addNum));
 
-		uint8_t *data = ab.get();
+		uint8_t *data = ab.ptr();
 		for (int c = 0; c < (int)ab.size(); ++c) {
 			if (data[c] != ((delCnt + c) & 0xFF)) {
 				fprintf(stderr, "[CheckAutoBuffer] Result does not match\n");
@@ -182,7 +182,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 	for (int i = 0; i < (int)readBytes; ) {
 		NeAACDecFrameInfo frameInfo;
 		void* samples = NeAACDecDecode(hAacDec, &frameInfo, buf + i, (unsigned long)readBytes - i);
-		decoded.add((uint8_t*)samples, frameInfo.samples * 2);
+		decoded.add(MemoryChunk((uint8_t*)samples, frameInfo.samples * 2));
 		i += frameInfo.bytesconsumed;
 	}
 
@@ -199,7 +199,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 		if (read32(testbuf + i) == 'data') {
 			int testLength = (int)testBytes - i - 8;
 			const uint16_t* pTest = (const uint16_t*)(testbuf + i + 8);
-			const uint16_t* pDec = (const uint16_t*)decoded.get();
+			const uint16_t* pDec = (const uint16_t*)decoded.ptr();
 			if (testLength != decoded.size()) {
 				fprintf(stderr, "Œ‹‰Ê‚ÌƒTƒCƒY‚ª‡‚¢‚Ü‚¹‚ñ\n");
 				return 1;

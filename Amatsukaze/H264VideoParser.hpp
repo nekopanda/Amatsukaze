@@ -665,7 +665,7 @@ public:
 		for (int i = 0; i < numNalUnits; ++i) {
 			NalUnit nalUnit = nalUnits[i];
 			int payloadLength = nalUnit.length;
-			uint8_t* ptr = buffer.get() + nalUnit.offset;
+			uint8_t* ptr = buffer.ptr() + nalUnit.offset;
 
 			uint8_t nal_ref_idc = bsm(ptr[0], 5, 2);
 			uint8_t nal_unit_type = bsm(ptr[0], 0, 5);
@@ -867,7 +867,7 @@ private:
 			NalUnit nal;
 			nal.offset = unitStart;
 			// rbsp_stop_one_bitを取り除く
-			uint8_t& lastByte = buffer.get()[lastNonZero - 1];
+			uint8_t& lastByte = buffer.ptr()[lastNonZero - 1];
 			if (lastByte == 0x80) {
 				// ペイロードはこのバイトにはないので1バイト削る
 				--lastNonZero;
@@ -883,7 +883,7 @@ private:
 	void storeBuffer(MemoryChunk frame) {
 		buffer.clear();
 		nalUnits.clear();
-		buffer.add(frame.data, 2);
+		buffer.add(MemoryChunk(frame.data, 2));
 		int32_t n3bytes = (frame.data[0] << 8) | frame.data[1];
 		int unitStart = 0;
 		int lastNonZero = 0;

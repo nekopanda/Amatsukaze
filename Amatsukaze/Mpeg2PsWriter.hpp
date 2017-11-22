@@ -456,7 +456,7 @@ private:
 			writer.flush();
 
 			uint32_t crc = ctx.getCRC()->calc(
-				buffer.get() + psmStart, (int)buffer.size() - psmStart, uint32_t(-1));
+				buffer.ptr() + psmStart, (int)buffer.size() - psmStart, uint32_t(-1));
 			writer.write<32>(crc);
 			writer.flush();
 
@@ -550,7 +550,7 @@ private:
 				// 先頭以外
 				writePesPacketHeader(writer, stream_id, length, 0, 0, 0);
 			}
-			buffer.add(payload.data + offset, length);
+			buffer.add(MemoryChunk(payload.data + offset, length));
 
 			offset += length;
 
@@ -584,7 +584,7 @@ private:
 	void outPack() {
 		// データを出力
 		if (handler != NULL) {
-			handler->onStreamData(buffer);
+			handler->onStreamData(buffer.get());
 		}
 		// クロックを進める
 		proceedClock((int)buffer.size());

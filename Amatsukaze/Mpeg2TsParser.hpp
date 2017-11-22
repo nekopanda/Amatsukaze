@@ -120,7 +120,7 @@ private:
 /** @brief PESパケットの先頭9バイト */
 struct PESConstantHeader : public MemoryChunk {
 
-	PESConstantHeader(uint8_t* data, int length) : MemoryChunk(data, length) { }
+	PESConstantHeader(MemoryChunk mc) : MemoryChunk(mc) { }
 
 	int32_t packet_start_code_prefix() const { return read24(data); }
 	uint8_t stream_id() const { return data[3]; }
@@ -156,7 +156,7 @@ struct PESConstantHeader : public MemoryChunk {
 
 struct PESPacket : public PESConstantHeader {
 
-	PESPacket(uint8_t* data, int length) : PESConstantHeader(data, length) { }
+	PESPacket(MemoryChunk mc) : PESConstantHeader(mc) { }
 
 	bool has_PTS() { return (PTS_DTS_flags() & 0x02) != 0; }
 	bool has_DTS() { return (PTS_DTS_flags() & 0x01) != 0; }
@@ -285,14 +285,14 @@ public:
 	/** @brief TSデータを入力 */
 	void inputTS(MemoryChunk data) {
 
-		buffer.add(data.data, data.length);
+		buffer.add(data);
 
 		if (syncOK) {
 			outPackets();
 		}
 		while (buffer.size() >= CHECK_PACKET_NUM*TS_PACKET_LENGTH) {
 			// チェックするのに十分な量がある
-			if (checkSyncByte(buffer.get(), CHECK_PACKET_NUM)) {
+			if (checkSyncByte(buffer.ptr(), CHECK_PACKET_NUM)) {
 				syncOK = true;
 				outPackets();
 			}
@@ -308,9 +308,9 @@ public:
 	void flush() {
 		while (buffer.size() >= TS_PACKET_LENGTH) {
 			// 先頭パケットの同期コードが合っていれば出力する
-			if (checkSyncByte(buffer.get(), 1))
+			if (checkSyncByte(buffer.ptr(), 1))
 			{
-				checkAndOutPacket(MemoryChunk(buffer.get(), TS_PACKET_LENGTH));
+				checkAndOutPacket(MemoryChunk(buffer.ptr(), TS_PACKET_LENGTH));
 				buffer.trimHead(TS_PACKET_LENGTH);
 			}
 			else {
@@ -346,9 +346,9 @@ private:
 	// 「先頭と次のパケットの同期バイトを見て合っていれば出力」を繰り返す
 	void outPackets() {
 		while (buffer.size() >= 2 * TS_PACKET_LENGTH &&
-			checkSyncByte(buffer.get(), 2))
+			checkSyncByte(buffer.ptr(), 2))
 		{
-			checkAndOutPacket(MemoryChunk(buffer.get(), TS_PACKET_LENGTH));
+			checkAndOutPacket(MemoryChunk(buffer.ptr(), TS_PACKET_LENGTH));
 			// onTsPacketでresetが呼ばれるかもしれないので注意
 			buffer.trimHead(TS_PACKET_LENGTH);
 		}
@@ -391,7 +391,7 @@ public:
 
 				if (buffer.size() > 0) {
 					// 前のパケットデータがある場合は出力
-					checkAndOutPacket(packetClock, buffer);
+					checkAndOutPacket(packetClock, buffer.get());
 					buffer.clear();
 				}
 
@@ -399,16 +399,16 @@ public:
 			}
 
 			MemoryChunk payload = packet.payload();
-			buffer.add(payload.data, payload.length);
+			buffer.add(payload);
 
 			// 完了チェック
-			PESConstantHeader header(buffer.get(), (int)buffer.size());
+			PESConstantHeader header(buffer.get());
 			if (header.parse()) {
 				int PES_packet_length = header.PES_packet_length();
 				int lengthIncludeHeader = PES_packet_length + 6;
 				if (PES_packet_length != 0 && (int)buffer.size() >= lengthIncludeHeader) {
 					// パケットのストア完了
-					checkAndOutPacket(packetClock, MemoryChunk(buffer.get(), lengthIncludeHeader));
+					checkAndOutPacket(packetClock, MemoryChunk(buffer.ptr(), lengthIncludeHeader));
 					buffer.trimHead(lengthIncludeHeader);
 				}
 			}
@@ -425,7 +425,7 @@ private:
 
 	// パケットをチェックして出力
 	void checkAndOutPacket(int64_t clock, MemoryChunk data) {
-		PESPacket packet(data.data, (int)data.length);
+		PESPacket packet(data);
 		// フォーマットチェック
 		if (packet.parse() && packet.check()) {
 			// OK
@@ -501,7 +501,7 @@ private:
 
 struct PsiConstantHeader : public MemoryChunk {
 
-	PsiConstantHeader(uint8_t* data, int length) : MemoryChunk(data, length) { }
+	PsiConstantHeader(MemoryChunk mc) : MemoryChunk(mc) { }
 
 	uint8_t table_id() const { return data[0]; }
 	uint8_t section_syntax_indicator() const { return bsm(data[1], 7, 1); }
@@ -520,8 +520,8 @@ struct PsiConstantHeader : public MemoryChunk {
 
 struct PsiSection : public AMTObject, public PsiConstantHeader {
 
-	PsiSection(AMTContext& ctx, uint8_t* data, int length)
-		: AMTObject(ctx), PsiConstantHeader(data, length) { }
+	PsiSection(AMTContext& ctx, MemoryChunk mc)
+		: AMTObject(ctx), PsiConstantHeader(mc) { }
 
 	uint16_t id() { return read16(&data[3]); }
 	uint8_t version_number() { return bsm(data[5], 1, 5); }
@@ -789,16 +789,16 @@ public:
 				}
 				if (startPos > 1) {
 					// 前のセクションの続きがある
-					buffer.add(&payload.data[1], startPos - 1);
+					buffer.add(MemoryChunk(&payload.data[1], startPos - 1));
 					checkAndOutSection();
 				}
 				buffer.clear();
 
-				buffer.add(&payload.data[startPos], payload.length - startPos);
+				buffer.add(MemoryChunk(&payload.data[startPos], payload.length - startPos));
 				checkAndOutSection();
 			}
 			else {
-				buffer.add(&payload.data[0], payload.length);
+				buffer.add(MemoryChunk(&payload.data[0], payload.length));
 				checkAndOutSection();
 			}
 		}
@@ -813,12 +813,12 @@ private:
 	// パケットをチェックして出力
 	void checkAndOutSection() {
 		// 完了チェック
-		PsiConstantHeader header(buffer.get(), (int)buffer.size());
+		PsiConstantHeader header(buffer.get());
 		if (header.parse()) {
 			int lengthIncludeHeader = header.section_length() + 3;
 			if ((int)buffer.size() >= lengthIncludeHeader) {
 				// パケットのストア完了
-				PsiSection section(ctx, buffer.get(), lengthIncludeHeader);
+				PsiSection section(ctx, MemoryChunk(buffer.ptr(), lengthIncludeHeader));
 				// フォーマットチェック
 				if (section.parse() && section.check()) {
 					// OK
@@ -839,9 +839,9 @@ public:
 
 protected:
 	virtual void onPsiSection(PsiSection section) {
-		if (section != (MemoryChunk)curSection) {
+		if (section != curSection.get()) {
 			curSection.clear();
-			curSection.add(section.data, section.length);
+			curSection.add(section);
 			onTableUpdated(section);
 		}
 	}

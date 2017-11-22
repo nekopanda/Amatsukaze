@@ -172,6 +172,25 @@ static void DebugPrint(const char* fmt, ...)
 	OutputDebugString(buf);
 }
 
+/** @brief ポインタとサイズのセット */
+struct MemoryChunk {
+
+	MemoryChunk() : data(NULL), length(0) { }
+	MemoryChunk(uint8_t* data, size_t length) : data(data), length(length) { }
+
+	// データの中身を比較
+	bool operator==(MemoryChunk o) const {
+		if (o.length != length) return false;
+		return memcmp(data, o.data, length) == 0;
+	}
+	bool operator!=(MemoryChunk o) const {
+		return !operator==(o);
+	}
+
+	uint8_t* data;
+	size_t length;
+};
+
 /** @brief リングバッファではないがtrimHeadとtrimTailが同じくらい高速なバッファ */
 class AutoBuffer {
 public:
@@ -182,10 +201,10 @@ public:
 		, tail_(0)
 	{ }
 
-	void add(uint8_t* data, size_t size) {
-		ensure(size);
-		memcpy(data_ + tail_, data, size);
-		tail_ += size;
+	void add(MemoryChunk mc) {
+		ensure(mc.length);
+		memcpy(mc.data + tail_, mc.data, mc.length);
+		tail_ += mc.length;
 	}
 
 	void add(uint8_t byte) {
@@ -200,9 +219,13 @@ public:
 		return tail_ - head_;
 	}
 
-	/** @brief データへのポインタ */
-	uint8_t* get() const {
+	uint8_t* ptr() const {
 		return &data_[head_];
+	}
+
+	/** @brief データへ */
+	MemoryChunk get() const {
+		return MemoryChunk(&data_[head_], size());
 	}
 
 	/** @brief size分だけ頭を削る */
@@ -272,27 +295,6 @@ private:
 			head_ = 0;
 		}
 	}
-};
-
-/** @brief ポインタとサイズのセット */
-struct MemoryChunk {
-
-	MemoryChunk() : data(NULL), length(0) { }
-	MemoryChunk(uint8_t* data, size_t length) : data(data), length(length) { }
-	/** @brief AutoBufferのget()とsize()から作成 */
-	MemoryChunk(const AutoBuffer& buffer) : data(buffer.get()), length(buffer.size()) { }
-
-	// データの中身を比較
-	bool operator==(MemoryChunk o) const {
-		if (o.length != length) return false;
-		return memcmp(data, o.data, length) == 0;
-	}
-	bool operator!=(MemoryChunk o) const {
-		return !operator==(o);
-	}
-
-	uint8_t* data;
-	size_t length;
 };
 
 std::string GetFullPath(const std::string& path)
