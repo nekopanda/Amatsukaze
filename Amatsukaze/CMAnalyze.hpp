@@ -124,11 +124,13 @@ private:
 
   std::string makeAVSFile(int videoFileIndex)
   {
+		StringBuilder sb;
+		sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
+		sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(videoFileIndex));
+		sb.append("Prefetch(1)\n", GetModulePath());
     std::string avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
-    std::ofstream out(avspath);
-    out << "LoadPlugin(\"" << GetModulePath().c_str() << "\")" << std::endl;
-    out << "AMTSource(\"" << setting_.getTmpAMTSourcePath(videoFileIndex) << "\")" << std::endl;
-    out << "Prefetch(1)" << std::endl;
+		File file(avspath, "w");
+		file.write(sb.getMC());
     return avspath;
   }
 
@@ -168,11 +170,9 @@ private:
 
 	std::string MakeChapterExeArgs(int videoFileIndex, const std::string& avspath)
 	{
-		std::ostringstream ss;
-		ss << "\"" << setting_.getChapterExePath() << "\"";
-		ss << " -v \"" << avspath << "\"";
-		ss << " -o \"" << setting_.getTmpChapterExePath(videoFileIndex) << "\"";
-		return ss.str();
+		return StringFormat("\"%s\" -v \"%s\" -o \"%s\"",
+			setting_.getChapterExePath(), avspath,
+			setting_.getTmpChapterExePath(videoFileIndex));
 	}
 
 	void chapterExe(int videoFileIndex, const std::string& avspath)
@@ -189,16 +189,17 @@ private:
 
 	std::string MakeJoinLogoScpArgs(int videoFileIndex)
 	{
-		std::ostringstream ss;
-		ss << "\"" << setting_.getJoinLogoScpPath() << "\"";
+		StringBuilder sb;
+		sb.append("\"%s\"", setting_.getJoinLogoScpPath());
 		if (logopath.size() > 0) {
-			ss << " -inlogo \"" << setting_.getTmpLogoFramePath(videoFileIndex) << "\"";
+			sb.append(" -inlogo \"%s\"", setting_.getTmpLogoFramePath(videoFileIndex));
 		}
-		ss << " -inscp \"" << setting_.getTmpChapterExePath(videoFileIndex) << "\"";
-		ss << " -incmd \"" << setting_.getJoinLogoScpCmdPath() << "\"";
-		ss << " -o \"" << setting_.getTmpTrimAVSPath(videoFileIndex) << "\"";
-		ss << " -oscp \"" << setting_.getTmpJlsPath(videoFileIndex) << "\"";
-		return ss.str();
+		sb.append(" -inscp \"%s\" -incmd \"%s\" -o \"%s\" -oscp \"%s\"",
+			setting_.getTmpChapterExePath(videoFileIndex),
+			setting_.getJoinLogoScpCmdPath(),
+			setting_.getTmpTrimAVSPath(videoFileIndex),
+			setting_.getTmpJlsPath(videoFileIndex));
+		return sb.str();
 	}
 
 	void joinLogoScp(int videoFileIndex)
@@ -454,10 +455,9 @@ private:
 		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
 		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
 
-		std::ofstream file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype));
-
 		ctx.info("ƒtƒ@ƒCƒ‹: %d-%d", videoFileIndex, encoderIndex);
 
+		StringBuilder sb;
 		int sumframes = 0;
 		for (int i = 0; i < (int)chapters.size(); ++i) {
 			auto& c = chapters[i];
@@ -473,20 +473,13 @@ private:
 			m %= 60;
 			h %= 60;
 
-			file << "CHAPTER" <<
-				std::setfill('0') << std::setw(2) << (i + 1) << "=" << 
-				std::setfill('0') << std::setw(2) << h << ":" <<
-				std::setfill('0') << std::setw(2) << m << ":" <<
-				std::setfill('0') << std::setw(2) << s << "." <<
-				std::setfill('0') << std::setw(3) << ss << std::endl;
-
-			file << "CHAPTER" <<
-				std::setfill('0') << std::setw(2) << (i + 1) << "NAME=" <<
-				c.comment << std::endl;
+			sb.append("CHAPTER%02d=%02d:%02d:%02d.%03d\n", (i + 1), h, m, s, ss);
+			sb.append("CHAPTER%02dNAME=%s\n", (i + 1), c.comment);
 
 			sumframes += c.frameEnd - c.frameStart;
 		}
 
-		file.close();
+		File file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype), "w");
+		file.write(sb.getMC());
 	}
 };

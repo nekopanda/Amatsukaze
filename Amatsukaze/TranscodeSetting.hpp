@@ -111,9 +111,9 @@ static std::string makeEncoderArgs(
 	const VideoFormat& fmt,
 	const std::string& outpath)
 {
-	std::ostringstream ss;
+	StringBuilder sb;
 
-	ss << "\"" << binpath << "\"";
+	sb.append("\"%s\"", binpath);
 
 	// y4mヘッダにあるので必要ない
 	//ss << " --fps " << fmt.frameRateNum << "/" << fmt.frameRateDenom;
@@ -121,13 +121,13 @@ static std::string makeEncoderArgs(
 	//ss << " --sar " << fmt.sarWidth << ":" << fmt.sarHeight;
 
 	if (fmt.colorPrimaries != AVCOL_PRI_UNSPECIFIED) {
-		ss << " --colorprim " << av::getColorPrimStr(fmt.colorPrimaries);
+		sb.append(" --colorprim %s", av::getColorPrimStr(fmt.colorPrimaries));
 	}
 	if (fmt.transferCharacteristics != AVCOL_TRC_UNSPECIFIED) {
-		ss << " --transfer " << av::getTransferCharacteristicsStr(fmt.transferCharacteristics);
+		sb.append(" --transfer %s", av::getTransferCharacteristicsStr(fmt.transferCharacteristics));
 	}
 	if (fmt.colorSpace != AVCOL_TRC_UNSPECIFIED) {
-		ss << " --colormatrix " << av::getColorSpaceStr(fmt.colorSpace);
+		sb.append(" --colormatrix %s", av::getColorSpaceStr(fmt.colorSpace));
 	}
 
 	// インターレース
@@ -135,32 +135,32 @@ static std::string makeEncoderArgs(
 	case ENCODER_X264:
 	case ENCODER_QSVENC:
 	case ENCODER_NVENC:
-		ss << (fmt.progressive ? "" : " --tff");
+		sb.append(fmt.progressive ? "" : " --tff");
 		break;
 	case ENCODER_X265:
-		ss << (fmt.progressive ? " --no-interlace" : " --interlace tff");
+		sb.append(fmt.progressive ? " --no-interlace" : " --interlace tff");
 		break;
 	}
 
-	ss << " " << options << " -o \"" << outpath << "\"";
+	sb.append(" %s -o \"%s\"", options, outpath);
 
 	// 入力形式
 	switch (encoder) {
 	case ENCODER_X264:
-		ss << " --stitchable";
-		ss << " --demuxer y4m -";
+		sb.append(" --stitchable")
+			.append(" --demuxer y4m -");
 		break;
 	case ENCODER_X265:
-		ss << " --no-opt-qp-pps --no-opt-ref-list-length-pps";
-		ss << " --y4m --input -";
+		sb.append(" --no-opt-qp-pps --no-opt-ref-list-length-pps")
+			.append(" --y4m --input -");
 		break;
 	case ENCODER_QSVENC:
 	case ENCODER_NVENC:
-		ss << " --format raw --y4m -i -";
+		sb.append(" --format raw --y4m -i -");
 		break;
 	}
 
-	return ss.str();
+	return sb.str();
 }
 
 static std::string makeMuxerArgs(
@@ -171,27 +171,26 @@ static std::string makeMuxerArgs(
 	const std::string& outpath,
 	const std::string& chapterpath)
 {
-	std::ostringstream ss;
+	StringBuilder sb;
 
-	ss << "\"" << binpath << "\"";
+	sb.append("\"%s\"", binpath);
 	if (videoFormat.fixedFrameRate) {
-		ss << " -i \"" << inVideo << "?fps="
-			<< videoFormat.frameRateNum << "/"
-			<< videoFormat.frameRateDenom << "\"";
+		sb.append(" -i \"%s?fps=%d/%d\"", inVideo,
+			videoFormat.frameRateNum, videoFormat.frameRateDenom);
 	}
 	else {
-		ss << " -i \"" << inVideo << "\"";
+		sb.append(" -i \"%s\"", inVideo);
 	}
 	for (const auto& inAudio : inAudios) {
-		ss << " -i \"" << inAudio << "\"";
+		sb.append(" -i \"%s\"", inAudio);
 	}
 	if (chapterpath.size() > 0) {
-		ss << " --chapter \"" << chapterpath << "\"";
+		sb.append(" --chapter \"%s\"", chapterpath);
 	}
-	ss << " --optimize-pd";
-	ss << " -o \"" << outpath << "\"";
+	sb.append(" --optimize-pd");
+	sb.append(" -o \"%s\"", outpath);
 
-	return ss.str();
+	return sb.str();
 }
 
 static std::string makeTimelineEditorArgs(
@@ -201,15 +200,15 @@ static std::string makeTimelineEditorArgs(
 	const std::string& timecodepath,
 	std::pair<int, int> timebase)
 {
-	std::ostringstream ss;
-	ss << "\"" << binpath << "\"";
-	ss << " --track 1";
-	ss << " --timecode \"" << timecodepath << "\"";
-	ss << " --media-timescale " << timebase.first;
-	ss << " --media-timebase " << timebase.second;
-	ss << " \"" << inpath << "\"";
-	ss << " \"" << outpath << "\"";
-	return ss.str();
+	StringBuilder sb;
+	sb.append("\"%s\"", binpath)
+		.append(" --track 1")
+		.append(" --timecode \"%s\"", timecodepath)
+		.append(" --media-timescale %d", timebase.first)
+		.append(" --media-timebase %d", timebase.second)
+		.append(" \"%s\"", inpath)
+		.append(" \"%s\"", outpath);
+	return sb.str();
 }
 
 static const char* cmOutMaskToString(int outmask) {
@@ -285,9 +284,7 @@ private:
 
 	std::string genPath(const std::string& base, int code)
 	{
-		std::ostringstream ss;
-		ss << base << "/amt" << code;
-		return ss.str();
+		return StringFormat("%s/amt%d", base, code);
 	}
 };
 
@@ -472,207 +469,136 @@ public:
 		return systemAvsPlugin;
 	}
 
-	std::string getAudioFilePath() const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/audio.dat";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getAudioFilePath() const {
+		return regtmp(StringFormat("%s/audio.dat", tmpDir.path()));
 	}
 
-	std::string getWaveFilePath() const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/audio.wav";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getWaveFilePath() const {
+		return regtmp(StringFormat("%s/audio.wav", tmpDir.path()));
 	}
 
-	std::string getIntVideoFilePath(int index) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/i" << index << ".mpg";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getIntVideoFilePath(int index) const {
+		return regtmp(StringFormat("%s/i%d.mpg", tmpDir.path(), index));
 	}
 
-	std::string getStreamInfoPath() const
-	{
+	std::string getStreamInfoPath() const {
 		return outVideoPath + "-streaminfo.dat";
 	}
 
-	std::string getEncVideoFilePath(int vindex, int index, CMType cmtype) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/v" << vindex << "-" << index << GetCMSuffix(cmtype) << ".raw";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/v%d-%d%s.raw", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
 	std::string getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/s" << vindex << "-" << index << GetCMSuffix(cmtype) << ".log";
-		ctx.registerTmpFile(ss.str());
+		auto str = StringFormat("%s/s%d-%d%s.log", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+		ctx.registerTmpFile(str);
 		// x264は.mbtreeも生成するので
-		ctx.registerTmpFile(ss.str() + ".mbtree");
+		ctx.registerTmpFile(str + ".mbtree");
 		// x265は.cutreeも生成するので
-		ctx.registerTmpFile(ss.str() + ".cutree");
-		return ss.str();
+		ctx.registerTmpFile(str + ".cutree");
+		return str;
 	}
 
-	std::string getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/a" << vindex << "-" << index << "-" << aindex << GetCMSuffix(cmtype) << ".aac";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const {
+		return regtmp(StringFormat("%s/a%d-%d-%d%s.aac",
+			tmpDir.path(), vindex, index, aindex, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/c" << vindex << "-" << index << "-" << langindex << GetCMSuffix(cmtype) << ".ass";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
+		return regtmp(StringFormat("%s/c%d-%d-%d%s.ass",
+			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
-	std::string getLogoTmpFilePath() const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/logotmp.dat";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getLogoTmpFilePath() const {
+		return regtmp(StringFormat("%s/logotmp.dat", tmpDir.path()));
 	}
 
-	std::string getTmpAMTSourcePath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/amts" << vindex << ".dat";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpAMTSourcePath(int vindex) const {
+		return regtmp(StringFormat("%s/amts%d.dat", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpSourceAVSPath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/amts" << vindex << ".avs";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpSourceAVSPath(int vindex) const {
+		return regtmp(StringFormat("%s/amts%d.avs", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpLogoFramePath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/logof" << vindex << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpLogoFramePath(int vindex) const {
+		return regtmp(StringFormat("%s/logof%d.txt", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpChapterExePath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/chapter_exe" << vindex << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpChapterExePath(int vindex) const {
+		return regtmp(StringFormat("%s/chapter_exe%d.txt", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpChapterExeOutPath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/chapter_exe_o" << vindex << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpChapterExeOutPath(int vindex) const {
+		return regtmp(StringFormat("%s/chapter_exe_o%d.txt", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpTrimAVSPath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/trim" << vindex << ".avs";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpTrimAVSPath(int vindex) const {
+		return regtmp(StringFormat("%s/trim%d.avs", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpJlsPath(int vindex) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/jls" << vindex << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpJlsPath(int vindex) const {
+		return regtmp(StringFormat("%s/jls%d.txt", tmpDir.path(), vindex));
 	}
 
-	std::string getTmpChapterPath(int vindex, int index, CMType cmtype) const
-	{
-		std::ostringstream ss;
-		ss << tmpDir.path() << "/chapter" << vindex << "-" << index << GetCMSuffix(cmtype) << ".txt";
-		ctx.registerTmpFile(ss.str());
-		return ss.str();
+	std::string getTmpChapterPath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/chapter%d-%d%s.txt",
+			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-	std::string getOutFilePath(int index, CMType cmtype) const
-	{
-		std::ostringstream ss;
-		ss << outVideoPath;
+	std::string getOutFilePath(int index, CMType cmtype) const {
+		StringBuilder sb;
+		sb.append("%s", outVideoPath);
 		if (index != 0) {
-			ss << "-" << index;
+			sb.append("-%d", index);
 		}
-    ss << GetCMSuffix(cmtype) << ".mp4";
-		return ss.str();
+		sb.append("%s.mp4", GetCMSuffix(cmtype));
+		return sb.str();
 	}
 
-	std::string getOutSummaryPath() const
-	{
-		std::ostringstream ss;
-		ss << outVideoPath;
-		ss << ".txt";
-		return ss.str();
+	std::string getOutSummaryPath() const {
+		return StringFormat("%s.txt", outVideoPath);
 	}
 
 	std::string getDRCSOutPath(const std::string& md5) const {
-		std::ostringstream ss;
-		ss << drcsOutPath << md5 << ".bmp";
-		return ss.str();
+		return StringFormat("%s%s.bmp", drcsOutPath, md5);
 	}
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, CMType cmtype) const
 	{
-		std::ostringstream ss;
-		ss << encoderOptions;
+		StringBuilder sb;
+		sb.append("%s", encoderOptions);
 		if (autoBitrate) {
 			double targetBitrate = bitrate.getTargetBitrate(srcFormat, srcBitrate);
       if (cmtype == CMTYPE_CM) {
         targetBitrate *= bitrateCM;
       }
 			if (encoder == ENCODER_QSVENC) {
-				ss << " --la " << (int)targetBitrate;
-				ss << " --maxbitrate " << (int)(targetBitrate * 2);
+				sb.append(" --la %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
 			}
 			else if (encoder == ENCODER_NVENC) {
-				ss << " --vbrhq " << (int)targetBitrate;
-				ss << " --maxbitrate " << (int)(targetBitrate * 2);
+				sb.append(" --vbrhq %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
 			}
 			else {
-				ss << " --bitrate " << (int)targetBitrate;
-				ss << " --vbv-maxrate " << (int)(targetBitrate * 2);
-				ss << " --vbv-bufsize " << (int)(targetBitrate * 2);
+				sb.append(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d", 
+					(int)targetBitrate, (int)(targetBitrate * 2), (int)(targetBitrate * 2));
 			}
 		}
 		if (pass >= 0) {
-			ss << " --pass " << pass;
-			ss << " --stats \"" << getEncStatsFilePath(vindex, index, cmtype) << "\"";
+			sb.append(" --pass %d --stats \"%s\"",
+				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
 		if (zones.size() && bitrateCM != 1.0 && encoder != ENCODER_QSVENC && encoder != ENCODER_NVENC) {
-			ss << " --zones ";
-			ss << std::setprecision(3);
+			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
-				if (i > 0) ss << "/";
-				ss << zone.startFrame << "," << zone.endFrame << ",b=" << bitrateCM;
+				sb.append("%s%d,%d,b=%3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, bitrateCM);
 			}
 		}
-		return ss.str();
+		return sb.str();
 	}
 
 	void dump() const {
@@ -760,6 +686,11 @@ private:
 		case DECODER_CUVID: return "CUVID";
 		}
 		return "default";
+	}
+
+	std::string regtmp(std::string str) const {
+		ctx.registerTmpFile(str);
+		return str;
 	}
 };
 

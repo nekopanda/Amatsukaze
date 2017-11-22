@@ -1741,16 +1741,17 @@ public:
 			logosec.push_back(numFrames);
 		}
 
-		std::ofstream os(outpath, std::ios::out);
+		StringBuilder sb;
 		int numLogoFrames = 0;
 		for (int i = 0; i < (int)logosec.size(); i += 2) {
 			int start = logosec[i];
 			int end = logosec[i + 1];
 			numLogoFrames += end - start;
-			os << std::setw(6) << start << " S 0 ALL" << std::setw(7) << start << std::setw(7) << start << std::endl;
-			os << std::setw(6) << end << " E 0 ALL" << std::setw(7) << end << std::setw(7) << end << std::endl;
+			sb.append("%6d S 0 ALL%7d%7d\n", start, start, start);
+			sb.append("%6d E 0 ALL%7d%7d\n", end, end, end);
 		}
-		os.close();
+		File file(outpath, "w");
+		file.write(sb.getMC());
 		logoRatio = (float)numLogoFrames / numFrames;
 	}
 

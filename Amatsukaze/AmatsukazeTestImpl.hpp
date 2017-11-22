@@ -109,21 +109,22 @@ static int VerifyMpeg2Ps(AMTContext& ctx, const TranscoderSetting& setting) {
 	enum {
 		BUF_SIZE = 1400 * 1024 * 1024, // 1GB
 	};
-	uint8_t* buf = (uint8_t*)malloc(BUF_SIZE); // 
-	FILE* fp = fopen(setting.getSrcFilePath().c_str(), "rb");
+	auto buf = std::unique_ptr<uint8_t>(new uint8_t[BUF_SIZE]);
+	FILE* fp = nullptr;
+	if (fopen_s(&fp, setting.getSrcFilePath().c_str(), "rb")) {
+		return 1;
+	}
 	try {
 		AMTContext ctx;
 		PsStreamVerifier psVerifier(ctx);
 
-		size_t readBytes = fread(buf, 1, BUF_SIZE, fp);
-		psVerifier.verify(MemoryChunk(buf, readBytes));
+		size_t readBytes = fread(buf.get(), 1, BUF_SIZE, fp);
+		psVerifier.verify(MemoryChunk(buf.get(), readBytes));
 	}
 	catch (const Exception& e) {
 		fprintf(stderr, "Verify MPEG2-PS Error: 例外がスローされました -> %s\n", e.message());
 		return 1;
 	}
-	free(buf);
-	buf = NULL;
 	fclose(fp);
 	fp = NULL;
 
@@ -153,13 +154,16 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 	std::string srcfile = setting.getSrcFilePath() + ".aac";
 	std::string testfile = setting.getSrcFilePath() + ".wav";
 
-	FILE* fp = fopen(srcfile.c_str(), "rb");
+	FILE* fp = nullptr;
+	if (fopen_s(&fp, srcfile.c_str(), "rb")) {
+		return 1;
+	}
 
 	enum {
 		BUF_SIZE = 1024 * 1024, // 1MB
 	};
-	uint8_t* buf = (uint8_t*)malloc(BUF_SIZE);
-	size_t readBytes = fread(buf, 1, BUF_SIZE, fp);
+	auto buf = std::unique_ptr<uint8_t>(new uint8_t[BUF_SIZE]);
+	size_t readBytes = fread(buf.get(), 1, BUF_SIZE, fp);
 
 	AutoBuffer decoded;
 
@@ -172,7 +176,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 
 	unsigned long samplerate;
 	unsigned char channels;
-	if (NeAACDecInit(hAacDec, buf, (unsigned long)readBytes, &samplerate, &channels)) {
+	if (NeAACDecInit(hAacDec, buf.get(), (unsigned long)readBytes, &samplerate, &channels)) {
 		fprintf(stderr, "NeAACDecInit failed\n");
 		return 1;
 	}
@@ -181,24 +185,28 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 
 	for (int i = 0; i < (int)readBytes; ) {
 		NeAACDecFrameInfo frameInfo;
-		void* samples = NeAACDecDecode(hAacDec, &frameInfo, buf + i, (unsigned long)readBytes - i);
+		void* samples = NeAACDecDecode(hAacDec, &frameInfo, buf.get() + i, (unsigned long)readBytes - i);
 		decoded.add(MemoryChunk((uint8_t*)samples, frameInfo.samples * 2));
 		i += frameInfo.bytesconsumed;
 	}
 
 	// 正解データと比較
-	FILE* testfp = fopen(testfile.c_str(), "rb");
-	uint8_t* testbuf = (uint8_t*)malloc(BUF_SIZE);
-	size_t testBytes = fread(testbuf, 1, BUF_SIZE, testfp);
+	FILE* testfp = nullptr;
+	if (fopen_s(&testfp, testfile.c_str(), "rb")) {
+		return 1;
+	}
+	
+	auto testbuf = std::unique_ptr<uint8_t>(new uint8_t[BUF_SIZE]);
+	size_t testBytes = fread(testbuf.get(), 1, BUF_SIZE, testfp);
 	// data chunkを探す
 	for (int i = sizeof(RiffHeader); ; ) {
 		if (!(i < (int)testBytes - 8)) {
 			fprintf(stderr, "出力が小さすぎます\n");
 			return 1;
 		}
-		if (read32(testbuf + i) == 'data') {
+		if (read32(testbuf.get() + i) == 'data') {
 			int testLength = (int)testBytes - i - 8;
-			const uint16_t* pTest = (const uint16_t*)(testbuf + i + 8);
+			const uint16_t* pTest = (const uint16_t*)(testbuf.get() + i + 8);
 			const uint16_t* pDec = (const uint16_t*)decoded.ptr();
 			if (testLength != decoded.size()) {
 				fprintf(stderr, "結果のサイズが合いません\n");
@@ -213,12 +221,10 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 			}
 			break;
 		}
-		i += *(uint32_t*)(testbuf + i + 4) + 8;
+		i += *(uint32_t*)(testbuf.get() + i + 4) + 8;
 	}
 
 	NeAACDecClose(hAacDec);
-	free(buf);
-	free(testbuf);
 	fclose(fp);
 	fclose(testfp);
 
@@ -229,8 +235,8 @@ static int WaveWriteHeader(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	std::string dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
 
-	FILE* fp = fopen(dstfile.c_str(), "wb");
-	if (fp == nullptr) {
+	FILE* fp = nullptr;
+	if(fopen_s(&fp, dstfile.c_str(), "wb")) {
 		fprintf(stderr, "failed to open file...\n");
 		return 1;
 	}

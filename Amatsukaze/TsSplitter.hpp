@@ -585,15 +585,14 @@ protected:
 		}
 		if (preferedServiceId > 0) {
 			// サービス指定があるのに該当サービスがなかったらエラーとする
-			std::ostringstream ss;
-			ss << "サービスID: ";
+			StringBuilder sb;
+			sb.append("サービスID: ");
 			for (int i = 0; i < (int)pids.size(); ++i) {
-				if (i > 0) ss << ", ";
-				ss << pids[i];
+				sb.append("%s%d", (i > 0) ? ", " : "", pids[i]);
 			}
-			ss << " 指定サービスID: " << preferedServiceId;
+			sb.append(" 指定サービスID: %d", preferedServiceId);
 			ctx.error("指定されたサービスがありません");
-			ctx.error(ss.str().c_str());
+			ctx.error(sb.str().c_str());
 			THROW(InvalidOperationException, "failed to select service");
 		}
 		selectedServiceId = pids[0];

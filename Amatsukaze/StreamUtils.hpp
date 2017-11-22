@@ -18,6 +18,7 @@
 
 #include "CoreUtils.hpp"
 #include "OSUtil.hpp"
+#include "StringUtils.hpp"
 
 enum {
 	TS_SYNC_BYTE = 0x47,

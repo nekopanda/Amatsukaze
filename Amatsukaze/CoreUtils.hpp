@@ -227,6 +227,20 @@ public:
 	MemoryChunk get() const {
 		return MemoryChunk(&data_[head_], size());
 	}
+	
+	/** @brief 追加スペース取得 */
+	MemoryChunk space(int at_least = 0) {
+		if (at_least > 0) {
+			ensure(at_least);
+		}
+		return MemoryChunk(&data_[tail_], capacity_ - tail_);
+	}
+
+	/** @brief 尻をsizeだけ後ろにずらす（その分サイズも増える） */
+	void extend(int size) {
+		ensure(size);
+		tail_ += size;
+	}
 
 	/** @brief size分だけ頭を削る */
 	void trimHead(size_t size) {

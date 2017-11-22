@@ -118,21 +118,17 @@ struct AudioDiffInfo {
 		}
 	}
 
-	void printToJson(std::ostringstream& ss) {
+	void printToJson(StringBuilder& sb) {
 		double avgDiff = this->avgDiff() * 1000;
 		double maxDiff = this->maxDiff() * 1000;
 		int notIncluded = totalSrcFrames - totalUniquAudioFrames;
     double maxDiffPos = maxPtsDiff > 0 ? elapsedTime(maxPtsDiffPos) : 0.0;
 
-		ss << "{ \"totalsrcframes\": " << totalSrcFrames 
-			<< ", \"totaloutframes\": " << totalAudioFrames
-			<< ", \"totaloutuniqueframes\": " << totalUniquAudioFrames
-			<< ", \"notincludedper\": " << std::fixed << std::setprecision(3)
-			<< ((double)notIncluded * 100 / totalSrcFrames)
-			<< ", \"avgdiff\": " << std::fixed << std::setprecision(3) << avgDiff
-			<< ", \"maxdiff\": " << std::fixed << std::setprecision(3) << maxDiff
-      << ", \"maxdiffpos\": " << std::fixed << std::setprecision(3) << maxDiffPos
-			<< " }";
+		sb.append(
+			"{ \"totalsrcframes\": %d, \"totaloutframes\": %d, \"totaloutuniqueframes\": %d, "
+			"\"notincludedper\": %g, \"avgdiff\": %g, \"maxdiff\": %g, \"maxdiffpos\": %g }",
+			totalSrcFrames, totalAudioFrames, totalUniquAudioFrames, 
+			(double)notIncluded * 100 / totalSrcFrames, avgDiff, maxDiff, maxDiffPos);
 	}
 
 private:

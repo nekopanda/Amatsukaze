@@ -502,16 +502,16 @@ private:
 	std::vector<EncoderZone> outZones_;
 
   std::string makePreamble() {
-    std::stringstream ss;
+		StringBuilder sb;
     // システムのプラグインフォルダを無効化
     if (setting_.isSystemAvsPlugin() == false) {
-      ss << "ClearAutoloadDirs()" << std::endl;
+			sb.append("ClearAutoloadDirs()\n");
     }
     // Amatsukaze用オートロードフォルダを追加
-    ss << "AddAutoloadDir(\"" << GetModuleDirectory() << "\\plugins64\")" << std::endl;
+		sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
     // メモリ節約オプションを有効にする
-    ss << "SetCacheMode(CACHE_OPTIMAL_SIZE)" << std::endl;
-    return ss.str();
+		sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
+    return sb.str();
   }
 
 	PClip prefetch(PClip clip, int threads) {
@@ -1572,40 +1572,37 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 	// 出力結果JSON出力
 	if (setting.getOutInfoJsonPath().size() > 0) {
-		std::ostringstream ss;
-		ss << "{ \"srcpath\": \"" << toJsonString(setting.getSrcFilePath()) << "\"";
-		ss << ", \"outfiles\": [";
+		StringBuilder sb;
+		sb.append("{ ")
+			.append("\"srcpath\": \"%s\", ", toJsonString(setting.getSrcFilePath()))
+			.append("\"outfiles\": [");
 		for (int i = 0; i < (int)outFileInfo.size(); ++i) {
-			if (i > 0) ss << ", ";
+			if (i > 0) sb.append(", ");
       const auto& info = outFileInfo[i];
-      ss << "{ \"path\": \"" << toJsonString(info.outPath) <<
-        "\", \"srcbitrate\": " << (int)info.srcBitrate <<
-        ", \"outbitrate\": " << (int)info.targetBitrate << " }";
+			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d }",
+				toJsonString(info.outPath), (int)info.srcBitrate, (int)info.targetBitrate);
 		}
-    ss << "]";
-		ss << ", \"logofiles\": [";
+		sb.append("]")
+			.append(", \"logofiles\": [");
 		for (int i = 0; i < reformInfo.getNumVideoFile(); ++i) {
-			if (i > 0) ss << ", ";
-			ss << "\"" << toJsonString(cmanalyze[i]->getLogoPath()) << "\"";
+			if (i > 0) sb.append(", ");
+			sb.append("\"%s\"", toJsonString(cmanalyze[i]->getLogoPath()));
 		}
-		ss << "]";
-		ss << ", \"srcfilesize\": " << srcFileSize;
-		ss << ", \"intvideofilesize\": " << totalIntVideoSize;
-		ss << ", \"outfilesize\": " << totalOutSize;
+		sb.append("]")
+			.append(", \"srcfilesize\": %lld, \"intvideofilesize\": %lld, \"outfilesize\": %lld",
+				srcFileSize, totalIntVideoSize, totalOutSize);
 		auto duration = reformInfo.getInOutDuration();
-		ss << ", \"srcduration\": " << std::fixed << std::setprecision(3)
-			 << ((double)duration.first / MPEG_CLOCK_HZ);
-		ss << ", \"outduration\": " << std::fixed << std::setprecision(3)
-			 << ((double)duration.second / MPEG_CLOCK_HZ);
-		ss << ", \"audiodiff\": ";
-		audioDiffInfo.printToJson(ss);
+		sb.append(", \"srcduration\": %.3f, \"outduration\": %.3f",
+			(double)duration.first / MPEG_CLOCK_HZ, (double)duration.second / MPEG_CLOCK_HZ);
+		sb.append(", \"audiodiff\": ");
+		audioDiffInfo.printToJson(sb);
 		for (const auto& pair : ctx.getCounter()) {
-			ss << ", \"" << pair.first << "\": " << pair.second;
+			sb.append(", \"%s\": %d", pair.first, pair.second);
 		}
-    ss << ", \"cmanalyze\": " << (setting.isChapterEnabled() ? "true" : "false");
-		ss << " }";
+		sb.append(", \"cmanalyze\": %s", (setting.isChapterEnabled() ? "true" : "false"))
+			.append(" }");
 
-		std::string str = ss.str();
+		std::string str = sb.str();
 		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
 		File file(setting.getOutInfoJsonPath(), "w");
 		file.write(mc);
@@ -1633,16 +1630,14 @@ static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& settin
 	// 出力結果を表示
 	ctx.info("完了");
 	if (setting.getOutInfoJsonPath().size() > 0) {
-		std::ostringstream ss;
-		ss << "{ \"srcpath\": \"" << toJsonString(setting.getSrcFilePath()) << "\", ";
-		ss << "\"outpath\": ";
-		ss << "\"" << toJsonString(setting.getOutFilePath(0, CMTYPE_BOTH)) << "\"";
-		ss << ", ";
-		ss << "\"srcfilesize\": " << srcFileSize << ", ";
-		ss << "\"outfilesize\": " << totalOutSize;
-		ss << " }";
+		StringBuilder sb;
+		sb.append("{ \"srcpath\": \"%s\"", toJsonString(setting.getSrcFilePath()))
+			.append(", \"outpath\": \"%s\"", toJsonString(setting.getOutFilePath(0, CMTYPE_BOTH)))
+			.append(", \"srcfilesize\": %lld", srcFileSize)
+			.append(", \"outfilesize\": %lld", totalOutSize)
+			.append(" }");
 
-		std::string str = ss.str();
+		std::string str = sb.str();
 		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
 		File file(setting.getOutInfoJsonPath(), "w");
 		file.write(mc);

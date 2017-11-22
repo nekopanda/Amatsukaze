@@ -31,8 +31,9 @@ extern "C" __declspec(dllexport) void InitAmatsukazeDLL()
 static void init_console()
 {
 	AllocConsole();
-	freopen("CONOUT$", "w", stdout);
-	freopen("CONIN$", "r", stdin);
+	FILE* fp;
+	freopen_s(&fp, "CONOUT$", "w", stdout);
+	freopen_s(&fp, "CONIN$", "r", stdin);
 }
 
 // CM解析用（＋デバッグ用）インターフェース
