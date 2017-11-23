@@ -365,6 +365,23 @@ TEST_F(TestBase, AACDecodeTest)
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
 
+TEST_F(TestBase, CaptionASSTest)
+{
+	std::wstring srcDir = TestDataDir + L"\\";
+	std::wstring dstDir = TestWorkDir + L"\\";
+
+	std::wstring srcfile = srcDir + MPEG2VideoTsFile + L".ts";
+	std::wstring outfile = dstDir + MPEG2VideoTsFile + L".mp4";
+
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_ass",
+		L"-i", srcfile.c_str(),
+		L"-o", outfile.c_str(),
+		L"-w", dstDir.c_str(),
+	};
+	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+}
+
 TEST(CLI, ArgumentTest)
 {
 	const wchar_t* argv[] = {
@@ -412,7 +429,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*MPEG2Parser";
+	::testing::GTEST_FLAG(filter) = "*CaptionASSTest";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

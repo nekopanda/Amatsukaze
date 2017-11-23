@@ -498,6 +498,7 @@ private:
 		}
 
 		// 字幕の開始・終了を計算
+		captionDuration_.resize(captionItemList_.size());
 		double curEnd = dataPTS_.back();
 		for (int i = (int)captionItemList_.size() - 1; i >= 0; --i) {
 			double modPTS = modifiedCaptionPTS_[i] + (captionItemList_[i].waitTime * (MPEG_CLOCK_HZ / 1000));
@@ -1209,9 +1210,9 @@ private:
 				if (captionItemList_[i].line) { // クリア以外
 					auto duration = captionDuration_[i];
 					auto start = std::lower_bound(frames.begin(), frames.end(), duration.startPTS,
-						[](const FilterSourceFrame& frame, double mid) { return mid < frame.pts; }) - frames.begin();
+						[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
 					auto end = std::lower_bound(frames.begin(), frames.end(), duration.endPTS,
-						[](const FilterSourceFrame& frame, double mid) { return mid < frame.pts; }) - frames.end();
+						[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
 					if (start < end) { // 1フレーム以上表示時間のある場合のみ
 						int langIndex = captionItemList_[i].langIndex;
 						for (int c = 0; c < CMTYPE_MAX; ++c) {
@@ -1219,7 +1220,7 @@ private:
 							double endTime = frameTimes[c][end];
 							if (startTime < endTime) { // 表示時間のある場合のみ
 								if (langIndex >= listItem[c]->size()) { // 言語が足りない場合は広げる
-									listItem[c]->resize(langIndex);
+									listItem[c]->resize(langIndex + 1);
 								}
 								OutCaptionLine outcap = { startTime, endTime, captionItemList_[i].line.get() };
 								listItem[c]->at(langIndex).push_back(outcap);

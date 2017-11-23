@@ -176,6 +176,7 @@
     <ClInclude Include="Mpeg2VideoParser.hpp" />
     <ClInclude Include="StreamReform.hpp" />
     <ClInclude Include="StreamUtils.hpp" />
+    <ClInclude Include="StringUtils.hpp" />
     <ClInclude Include="Transcode.hpp" />
     <ClInclude Include="TranscodeManager.hpp" />
     <ClInclude Include="TranscodeSetting.hpp" />

@@ -1331,8 +1331,8 @@ public:
 template <typename Op, bool shortHead>
 float GoldenRatioSearch(float x0, float x1, float x2, float v0, float v1, float v2, Op& op)
 {
-	assert(x0 < x1);
-	assert(x1 < x2);
+	_ASSERT(x0 < x1);
+	_ASSERT(x1 < x2);
 
 	if (op.end(x0, x1, x2, v0, v1, v2)) {
 		return x1;
@@ -1368,7 +1368,7 @@ float GoldenRatioSearch(float x0, float x1, float x2, float v0, float v1, float 
 template <typename Op>
 float GoldenRatioSearch(float x0, float x1, Op& op)
 {
-	assert(x0 < x1);
+	_ASSERT(x0 < x1);
 
 	// 両端
 	float v0 = op.f(x0);

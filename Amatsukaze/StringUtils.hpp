@@ -45,46 +45,9 @@ namespace string_internal {
 	const wchar_t* MakeArgW(const std::string& value) { return to_wstring(value).data(); }
 	const wchar_t* MakeArgW(const std::wstring& value) { return value.c_str(); }
 
-	template <typename ... Args>
-	int SPrintF(char * const buffer, size_t const bufferCount,
-		char const * const fmt, Args const & ... args) noexcept
-	{
-		int const result = snprintf(
-			buffer, bufferCount, fmt, MakeArg(args) ...);
-		assert(-1 != result);
-		return result;
-	}
-
-	template <typename ... Args>
-	int SPrintF(wchar_t * const buffer, size_t const bufferCount,
-		wchar_t const * const fmt, Args const & ... args) noexcept
-	{
-		int const result = swprintf(
-			buffer, bufferCount, fmt, MakeArgW(args) ...);
-		assert(-1 != result);
-		return result;
-	}
-
-	template <typename T>
 	class StringBuilderBase {
 	public:
 		StringBuilderBase() { }
-
-		template <typename ... Args>
-		StringBuilderBase& append(const T* const fmt, Args const & ... args)
-		{
-			auto mc = buffer.space();
-			size_t size = SPrintF(
-				reinterpret_cast<T*>(mc.data), mc.length / sizeof(T) + 1, fmt, args ...);
-			if (size > mc.length / sizeof(T))
-			{
-				mc = buffer.space((int)(size * sizeof(T)));
-				size = SPrintF(
-					reinterpret_cast<T*>(mc.data), mc.length / sizeof(T) + 1, fmt, args ...);
-			}
-			buffer.extend((int)(size * sizeof(T)));
-			return *this;
-		}
 
 		MemoryChunk getMC() {
 			return buffer.get();
@@ -99,23 +62,51 @@ namespace string_internal {
 	};
 }
 
-template <typename T, typename ... Args>
-std::basic_string<T> StringFormat(const T* fmt, const Args& ... args)
+template <typename ... Args>
+std::string StringFormat(const char* fmt, const Args& ... args)
 {
-	std::basic_string<T> str;
-	size_t size = string_internal::SPrintF(nullptr, 0, fmt, args ...);
+	std::string str;
+	size_t size = _scprintf(fmt, string_internal::MakeArg(args) ...);
 	if (size > 0)
 	{
+		str.reserve(size + 1); // null終端を足す
 		str.resize(size);
-		string_internal::SPrintF(
-			&str[0], str.size() + 1, fmt, args ...);
+		snprintf(&str[0], str.size() + 1, fmt, string_internal::MakeArg(args) ...);
 	}
 	return str;
 }
 
-class StringBuilder : public string_internal::StringBuilderBase<char>
+template <typename ... Args>
+std::wstring StringFormat(const wchar_t* fmt, const Args& ... args)
+{
+	std::wstring str;
+	size_t size = _scwprintf(fmt, string_internal::MakeArgW(args) ...);
+	if (size > 0)
+	{
+		str.reserve(size + 1); // null終端を足す
+		str.resize(size);
+		swprintf(&str[0], str.size() + 1, fmt, string_internal::MakeArgW(args) ...);
+	}
+	return str;
+}
+
+class StringBuilder : public string_internal::StringBuilderBase
 {
 public:
+	template <typename ... Args>
+	StringBuilder& append(const char* const fmt, Args const & ... args)
+	{
+		size_t size = _scprintf(fmt, string_internal::MakeArg(args) ...);
+		if (size > 0)
+		{
+			auto mc = buffer.space((int)((size + 1) * sizeof(char))); // null終端を足す
+			snprintf(reinterpret_cast<char*>(mc.data), mc.length / sizeof(char), 
+				fmt, string_internal::MakeArg(args) ...);
+		}
+		buffer.extend((int)(size * sizeof(char)));
+		return *this;
+	}
+
 	std::string str() const {
 		auto mc = buffer.get();
 		return std::string(
@@ -124,9 +115,23 @@ public:
 	}
 };
 
-class StringBuilderW : public string_internal::StringBuilderBase<wchar_t>
+class StringBuilderW : public string_internal::StringBuilderBase
 {
 public:
+	template <typename ... Args>
+	StringBuilderW& append(const wchar_t* const fmt, Args const & ... args)
+	{
+		size_t size = _scwprintf(fmt, string_internal::MakeArgW(args) ...);
+		if (size > 0)
+		{
+			auto mc = buffer.space((int)((size + 1) * sizeof(wchar_t))); // null終端を足す
+			swprintf(reinterpret_cast<wchar_t*>(mc.data), mc.length / sizeof(wchar_t),
+				fmt, string_internal::MakeArgW(args) ...);
+		}
+		buffer.extend((int)(size * sizeof(wchar_t)));
+		return *this;
+	}
+
 	std::wstring str() const {
 		auto mc = buffer.get();
 		return std::wstring(

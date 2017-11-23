@@ -626,8 +626,8 @@ public:
 		file.readHeader();
 		vi.width = file.getWidth();
 		vi.height = file.getHeight();
-		assert(format.width == vi.width);
-		assert(format.height == vi.height);
+		_ASSERT(format.width == vi.width);
+		_ASSERT(format.height == vi.height);
 		vi.num_frames = file.getNumFrames();
 		vi.pixel_type = VideoInfo::CS_YV12;
 		vi.SetFPS(format.frameRateNum, format.frameRateDenom);

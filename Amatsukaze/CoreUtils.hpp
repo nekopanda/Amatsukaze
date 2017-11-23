@@ -203,7 +203,7 @@ public:
 
 	void add(MemoryChunk mc) {
 		ensure(mc.length);
-		memcpy(mc.data + tail_, mc.data, mc.length);
+		memcpy(data_ + tail_, mc.data, mc.length);
 		tail_ += mc.length;
 	}
 

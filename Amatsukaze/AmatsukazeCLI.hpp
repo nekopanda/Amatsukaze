@@ -123,8 +123,8 @@ static size_t pathGetExtensionSplitPos(const STR& path) {
 	size_t namebegin = (lastsplit == STR::npos)
 		? 0
 		: lastsplit + 1;
-	size_t dotpos = path.find(_T('.'), namebegin);
-	size_t len = (dotpos == STR::npos)
+	size_t dotpos = path.rfind(_T('.'));
+	size_t len = (dotpos == STR::npos || dotpos < namebegin)
 		? path.size()
 		: dotpos;
 	return len;
@@ -480,6 +480,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& set
 			test::SplitDualMonoAAC(ctx, setting);
 		else if (mode == "test_aacdecode")
 			test::AACDecodeTest(ctx, setting);
+		else if (mode == "test_ass")
+			test::CaptionASS(ctx, setting);
 
 		else
 			PRINTF("--mode‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %s\n", mode.c_str());

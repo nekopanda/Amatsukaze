@@ -531,6 +531,11 @@ static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
 {
 	try {
 		StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
+		
+		reformInfo.prepare();
+		auto audioDiffInfo = reformInfo.genAudio();
+		audioDiffInfo.printAudioPtsDiff(ctx);
+
 		CaptionASSFormatter formatter(ctx);
 		int numFiles = reformInfo.getNumVideoFile();
 		for (int videoFileIndex = 0; videoFileIndex < numFiles; ++videoFileIndex) {
@@ -539,8 +544,9 @@ static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
 				for (int c = 0; c < CMTYPE_MAX; ++c) {
 					auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)c);
 					for (int lang = 0; lang < capList.size(); ++lang) {
-						auto asstext = formatter.generate(capList[lang]);
-						File file(setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)c), "r");
+						std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+						auto asstext = converter.to_bytes(formatter.generate(capList[lang]));
+						File file(setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)c), "w");
 						file.write(MemoryChunk((uint8_t*)asstext.data(), asstext.size()));
 					}
 				}

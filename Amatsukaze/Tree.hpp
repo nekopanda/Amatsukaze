@@ -226,7 +226,7 @@ class Tree
     }
     root.left->red = 0;
 
-    assert(!root.red);
+    _ASSERT(!root.red);
   }
 
   TreeNode<K, V>* TreeSuccessor(const TreeNode<K, V>* x) const

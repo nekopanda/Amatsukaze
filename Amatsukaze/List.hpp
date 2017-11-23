@@ -154,17 +154,17 @@ public:
   }
 
   void pop_front() {
-    assert(size_ > 0);
+    _ASSERT(size_ > 0);
     Remove(root.right);
   }
 
   void pop_back() {
-    assert(size_ > 0);
+    _ASSERT(size_ > 0);
     Remove(root.left);
   }
 
   iterator erase(iterator pos) {
-    assert(pos != end());
+    _ASSERT(pos != end());
     value_type* node = &*pos;
     iterator it = ++pos;
     Remove(node);
@@ -172,12 +172,12 @@ public:
   }
 
   value_type& front() {
-    assert(size_ > 0);
+    _ASSERT(size_ > 0);
     return *root.right;
   }
 
   value_type& back() {
-    assert(size_ > 0);
+    _ASSERT(size_ > 0);
     return *root.left;
   }
 };

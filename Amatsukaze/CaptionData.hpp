@@ -10,6 +10,10 @@
 #include "StreamUtils.hpp"
 #include "TranscodeSetting.hpp"
 
+inline bool operator==(const CLUT_DAT_DLL &a, const CLUT_DAT_DLL &b) {
+	return a.ucR == b.ucR && a.ucG == b.ucG && a.ucB == b.ucB && a.ucAlpha == b.ucAlpha;
+}
+
 struct CaptionFormat {
 
 	enum STYLE {
@@ -159,10 +163,6 @@ std::vector<CaptionItem> ReadCaptions(const File& file) {
 static const LPCWSTR HALF_F_LIST = L"　、。，．・：；？！＾＿／｜（［］｛｝「＋－＝＜＞＄％＃＆＊＠０Ａａ";
 static const LPCWSTR HALF_T_LIST = L"　、。，．・：；？！＾＿／｜）［］｛｝」＋－＝＜＞＄％＃＆＊＠９Ｚｚ";
 static const LPCWSTR HALF_R_LIST = L" ､｡,.･:;?!^_/|([]{}｢+-=<>$%#&*@0Aa";
-
-inline bool operator==(const CLUT_DAT_DLL &a, const CLUT_DAT_DLL &b) {
-	return a.ucR == b.ucR && a.ucG == b.ucG && a.ucB == b.ucB && a.ucAlpha == b.ucAlpha;
-}
 
 static BOOL CalcMD5FromDRCSPattern(std::vector<char>& hash, const DRCS_PATTERN_DLL *pPattern)
 {
