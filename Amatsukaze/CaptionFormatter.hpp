@@ -14,8 +14,9 @@ public:
 		initialState.y = 0;
 		initialState.fsx = 1;
 		initialState.fsy = 1;
-		initialState.textColor = { 0xFF, 0xFF, 0xFF, 0 };
-		initialState.backColor = { 0, 0, 0, 0 };
+		initialState.spacing = 4;
+		initialState.textColor = { 0xFF, 0xFF, 0xFF, 0xFF };
+		initialState.backColor = { 0, 0, 0, 0x80 };
 		initialState.style = 0;
 	}
 
@@ -34,6 +35,7 @@ private:
 	struct FormatState {
 		int x, y;
 		float fsx, fsy;
+		int spacing;
 		CLUT_DAT_DLL textColor;
 		CLUT_DAT_DLL backColor;
 		int style;
@@ -60,15 +62,19 @@ private:
 			.append(L"Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
 				"Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
 				"BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-			.append(L"Style: Default,MS UI Gothic,%d,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,"
-				"0,0,0,0,100,100,0,"
-				"0,1,2,2,1,10,10,10,0\n", (int)DefFontSize)
+			.append(L"Style: Default,MS Gothic,%d,&H00FFFFFF,&H000000FF,&H00000000,&H7F000000,"
+				"0,0,0,0,100,100,4,"
+				"0,1,2,2,1,0,0,0,1\n", (int)DefFontSize)
 			.append(L"\n")
 			.append(L"[Events]\n")
 			.append(L"Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n");
 	}
 
 	void item(const OutCaptionLine& line) {
+		if (line.line->formats.size() == 0) {
+			return;
+		}
+
 		curState = initialState;
 
 		sb.append(L"Dialogue: 0,");
@@ -76,35 +82,47 @@ private:
 		sb.append(L",");
 		time(line.end);
 		sb.append(L",Default,,0000,0000,0000,,");
-
-		float x = line.line->posX;
-		float y = line.line->posY;
 		
 		int nfrags = (int)line.line->formats.size();
 		auto& text = line.line->text;
+		
 		for (int i = 0; i < nfrags; ++i) {
 			int begin = line.line->formats[i].pos;
 			int end = (i + 1 < nfrags) ? line.line->formats[i + 1].pos : (int)text.size();
 			auto& fmt = line.line->formats[i];
 			auto& fragtext = std::wstring(text.begin() + begin, text.begin() + end);
-			fragment(x, y, fragtext, line.line->formats[i]);
+
+			if (i == 0) {
+				int len = StrlenWoLoSurrogate(fragtext.c_str());
+				float x = line.line->posX + (fmt.width / len - fmt.charW) * DefFontSize / fmt.charW / 2;
+				float y = line.line->posY - (fmt.height - fmt.charH) / 2;
+				// posは先頭でしか効果がない模様
+				setPos((int)x, (int)y);
+			}
+
+			fragment(fragtext, line.line->formats[i]);
 		}
 
 		sb.append(L"\n");
 	}
 
-	void fragment(float& x, float& y, const std::wstring& text, const CaptionFormat& fmt) {
-		setPos((int)x, (int)y);
+	void fragment(const std::wstring& text, const CaptionFormat& fmt) {
+		int len = StrlenWoLoSurrogate(text.c_str());
+		float fsx = fmt.charW / DefFontSize;
+		float fsy = fmt.charH / DefFontSize;
+		float spacing = (fmt.width / len - fmt.charW) / fsx;
+
 		setColor(fmt.textColor, fmt.backColor);
-		setFontSize(fmt.charW / DefFontSize, fmt.charH / DefFontSize);
+		setFontSize(fsx, fsy);
+		setSpacing((int)std::round(spacing));
 		setStyle(fmt.style);
+		
 		if (attr.getMC().length > 0) {
 			// オーバーライドコード出力
 			sb.append(L"{%s}", attr.str());
 			attr.clear();
 		}
 		sb.append(L"%s", text);
-		x += fmt.width;
 	}
 
 	void time(double t) {
@@ -126,13 +144,13 @@ private:
 
 	void setColor(CLUT_DAT_DLL textColor, CLUT_DAT_DLL backColor) {
 		if (!(curState.textColor == textColor)) {
-			attr.append(L"\\c&H%02x%02x%02x%02x",
-				textColor.ucAlpha, textColor.ucB, textColor.ucG, textColor.ucR);
+			attr.append(L"\\c&H%02X%02X%02X%02X",
+				255 - textColor.ucAlpha, textColor.ucB, textColor.ucG, textColor.ucR);
 			curState.textColor = textColor;
 		}
 		if (!(curState.backColor == backColor)) {
-			attr.append(L"\\4c&H%02x%02x%02x%02x",
-				backColor.ucAlpha, backColor.ucB, backColor.ucG, backColor.ucR);
+			attr.append(L"\\4c&H%02X%02X%02X%02X",
+				255 - backColor.ucAlpha, backColor.ucB, backColor.ucG, backColor.ucR);
 			curState.backColor = backColor;
 		}
 	}
@@ -145,6 +163,13 @@ private:
 		if (curState.fsy != fsy) {
 			attr.append(L"\\fscy%d", (int)(fsy * 100));
 			curState.fsy = fsy;
+		}
+	}
+
+	void setSpacing(int spacing) {
+		if (curState.spacing != spacing) {
+			attr.append(L"\\fsp%d", spacing);
+			curState.spacing = spacing;
 		}
 	}
 

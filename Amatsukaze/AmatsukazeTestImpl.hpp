@@ -544,9 +544,12 @@ static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
 				for (int c = 0; c < CMTYPE_MAX; ++c) {
 					auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)c);
 					for (int lang = 0; lang < capList.size(); ++lang) {
+						// BOM‚ ‚èUTF8‚Å‘‚«ž‚Þ
 						std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 						auto asstext = converter.to_bytes(formatter.generate(capList[lang]));
 						File file(setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)c), "w");
+						uint8_t bom[] = { 0xEF, 0xBB, 0xBF };
+						file.write(MemoryChunk(bom, sizeof(bom)));
 						file.write(MemoryChunk((uint8_t*)asstext.data(), asstext.size()));
 					}
 				}

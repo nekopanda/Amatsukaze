@@ -252,13 +252,6 @@ static int StrlenWoLoSurrogate(LPCWSTR str)
 
 class CaptionDLLParser : public AMTObject
 {
-	struct SHIFT_SMALL_STATE {
-		float posY;
-		float shiftH;
-		float dirH;
-		bool fSmall;
-		SHIFT_SMALL_STATE() : posY(-1), shiftH(0), dirH(0) {}
-	};
 public:
 	CaptionDLLParser(AMTContext& ctx)
 		: AMTObject(ctx)
@@ -276,28 +269,9 @@ public:
 		item.waitTime = caption.dwWaitTime;
 
 		if (caption.bClear) {
-			m_shiftSmallState = SHIFT_SMALL_STATE();
 		}
 		else {
-			if (m_shiftSmallState.posY < 0) {
-				// クリア後の最初の字幕本文
-				SHIFT_SMALL_STATE ssState;
-				for (int c = 0; c < capCount; ++c) {
-					const CAPTION_DATA_DLL *p = &capList[c];
-					if (p->bClear) {
-						break;
-					}
-					ssState.shiftH = -1;
-					DryrunCaptionData(*p, ssState);
-					if (ssState.shiftH >= 0) {
-						// リセットされた
-						break;
-					}
-					// 上に詰める高さを打ち消すことで実質的に下に詰める
-					m_shiftSmallState.shiftH -= ssState.shiftH + 1;
-				}
-			}
-			item.line = ShowCaptionData(caption, pDrcsList, drcsCount, m_shiftSmallState);
+			item.line = ShowCaptionData(caption, pDrcsList, drcsCount);
 		}
 
 		return item;
@@ -306,38 +280,6 @@ public:
 	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
 
 private:
-	SHIFT_SMALL_STATE m_shiftSmallState;
-
-	// 字幕本文を予行で1行だけ処理する
-	static void DryrunCaptionData(const CAPTION_DATA_DLL &caption, SHIFT_SMALL_STATE &ssState)
-	{
-		float posY = caption.wPosY;
-
-		if (posY < ssState.posY) {
-			// 前回よりも上方なのでリセット
-			ssState = SHIFT_SMALL_STATE();
-		}
-		if (posY > ssState.posY) {
-			if (ssState.dirH > 0 && posY >= ssState.posY + ssState.dirH && ssState.fSmall) {
-				// 前回の行を詰めることができる
-				ssState.shiftH -= ssState.dirH;
-			}
-			ssState.dirH = 0;
-			// 先頭行は詰めない
-			ssState.fSmall = ssState.posY >= 0;
-		}
-		ssState.posY = posY;
-
-		for (DWORD i = 0; i < caption.dwListCount; ++i) {
-			const CAPTION_CHAR_DATA_DLL &charData = caption.pstCharList[i];
-			float dirH;
-			GetCharSize(NULL, NULL, NULL, &dirH, charData);
-			if (ssState.dirH <= 0) {
-				ssState.dirH = dirH;
-			}
-			ssState.fSmall = ssState.fSmall && dirH == ssState.dirH && charData.wCharSizeMode == CP_STR_SMALL;
-		}
-	}
 
 	// 拡縮後の文字サイズを得る
 	static void GetCharSize(float *pCharW, float *pCharH, float *pDirW, float *pDirH, const CAPTION_CHAR_DATA_DLL &charData)
@@ -393,30 +335,9 @@ private:
 
 	// 字幕本文を1行だけ処理する
 	std::unique_ptr<CaptionLine> ShowCaptionData(
-		const CAPTION_DATA_DLL &caption, const DRCS_PATTERN_DLL *pDrcsList, DWORD drcsCount,
-		SHIFT_SMALL_STATE &ssState)
+		const CAPTION_DATA_DLL &caption, const DRCS_PATTERN_DLL *pDrcsList, DWORD drcsCount)
 	{
 		auto line = std::unique_ptr<CaptionLine>(new CaptionLine());
-
-		bool fDoneAntiPadding = false;
-		float posX = caption.wPosX;
-		float posY = caption.wPosY;
-
-		if (posY < ssState.posY) {
-			// 前回よりも上方なのでリセット
-			ssState = SHIFT_SMALL_STATE();
-		}
-		if (posY > ssState.posY) {
-			if (ssState.dirH > 0 && posY >= ssState.posY + ssState.dirH && ssState.fSmall) {
-				// 前回の行を詰めることができる
-				ssState.shiftH -= ssState.dirH;
-			}
-			ssState.dirH = 0;
-			// 先頭行は詰めない
-			ssState.fSmall = ssState.posY >= 0;
-		}
-		ssState.posY = posY;
-		posY += ssState.shiftH;
 
 		if (caption.wSWFMode == 9 || caption.wSWFMode == 10) {
 			line->planeW = 720;
@@ -426,19 +347,14 @@ private:
 			line->planeW = 960;
 			line->planeH = 540;
 		}
-		line->posX = posX;
-		line->posY = posY;
+		line->posX = caption.wPosX;
+		line->posY = caption.wPosY;
 
 		for (DWORD i = 0; i < caption.dwListCount; ++i) {
 			const CAPTION_CHAR_DATA_DLL &charData = caption.pstCharList[i];
 
 			float charW, charH, dirW, dirH;
 			GetCharSize(&charW, &charH, &dirW, &dirH, charData);
-
-			if (ssState.dirH <= 0) {
-				ssState.dirH = dirH;
-			}
-			ssState.fSmall = ssState.fSmall && dirH == ssState.dirH && charData.wCharSizeMode == CP_STR_SMALL;
 
 			bool fSearchHalf = (charData.wCharSizeMode == CP_STR_MEDIUM);
 
@@ -514,7 +430,6 @@ private:
 				int lenWos = StrlenWoLoSurrogate(showtext.c_str());
 				if (showtext.size() > 0) {
 					AddText(*line, showtext, charW, charH, dirW * lenWos, dirH, charData);
-					posX += dirW * lenWos;
 				}
 
 				if (pDrcs) {
@@ -526,13 +441,11 @@ private:
 					if (lenWos > 0) {
 						// レイアウト維持のため、何文字であっても1文字幅に詰める
 						AddText(*line, pszDrcsStr, (float)charData.wCharW / lenWos, charH, dirW, dirH, charData);
-						posX += dirW;
 					}
 				}
 				else if (szHalf[0]) {
 					// 半角文字を描画
 					AddText(*line, szHalf, charW, charH, dirW, dirH, charData);
-					posX += dirW;
 				}
 
 				srctext = nexttext;
