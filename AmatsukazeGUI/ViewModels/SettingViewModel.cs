@@ -125,6 +125,10 @@ namespace Amatsukaze.ViewModels
             get { return new string[] { "通常", "CMをカット", "本編とCMを分離", "CMのみ" }; }
         }
         private List<int> OutputMasklist = new List<int> { 1, 2, 6, 4 };
+        public string[] FormatList
+        {
+            get { return new string[] { "MP4", "MKV" }; }
+        }
 
         #region OutputOptionIndex変更通知プロパティ
         private int _OutputOptionIndex;

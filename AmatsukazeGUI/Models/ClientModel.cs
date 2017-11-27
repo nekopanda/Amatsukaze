@@ -903,6 +903,34 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DisableSubs変更通知プロパティ
+        public bool DisableSubs
+        {
+            get { return setting.DisableSubs; }
+            set
+            {
+                if (setting.DisableSubs == value)
+                    return;
+                setting.DisableSubs = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IgnoreNoDrcsMap変更通知プロパティ
+        public bool IgnoreNoDrcsMap
+        {
+            get { return setting.IgnoreNoDrcsMap; }
+            set
+            {
+                if (setting.IgnoreNoDrcsMap == value)
+                    return;
+                setting.IgnoreNoDrcsMap = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ClearWorkDirOnStart変更通知プロパティ
         public bool ClearWorkDirOnStart {
             get { return setting.ClearWorkDirOnStart; }
@@ -958,6 +986,20 @@ namespace Amatsukaze.Models
                 if ((int)setting.H264Deocder == value)
                     return;
                 setting.H264Deocder = (DecoderType)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region OutputFormatInt変更通知プロパティ
+        public int OutputFormatInt
+        {
+            get { return (int)setting.OutputFormat; }
+            set
+            {
+                if ((int)setting.OutputFormat == value)
+                    return;
+                setting.OutputFormat = (FormatType)value;
                 RaisePropertyChanged();
             }
         }
@@ -1313,12 +1355,15 @@ namespace Amatsukaze.Models
             OutputMask = setting.OutputMask;
             DefaultJLSCommand = setting.DefaultJLSCommand;
             DisableChapter = setting.DisableChapter;
+            DisableSubs = setting.DisableSubs;
+            IgnoreNoDrcsMap = setting.IgnoreNoDrcsMap;
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
             DisableHashCheck = setting.DisableHashCheck;
 
             Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
             H264DecoderInt = (int)setting.H264Deocder;
+            OutputFormatInt = (int)setting.OutputFormat;
             return Task.FromResult(0);
         }
 

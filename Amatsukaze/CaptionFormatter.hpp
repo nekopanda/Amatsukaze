@@ -83,13 +83,18 @@ private:
 		time(line.end);
 		sb.append(L",Default,,0000,0000,0000,,");
 		
-		int nfrags = (int)line.line->formats.size();
+		// 途中で解像度が変わったとき用
+		float scalex = (float)PlayResX / line.line->planeW;
+		float scaley = (float)PlayResY / line.line->planeH;
+
+		auto& fmts = line.line->formats;
+		int nfrags = (int)fmts.size();
 		auto& text = line.line->text;
 		
 		for (int i = 0; i < nfrags; ++i) {
-			int begin = line.line->formats[i].pos;
-			int end = (i + 1 < nfrags) ? line.line->formats[i + 1].pos : (int)text.size();
-			auto& fmt = line.line->formats[i];
+			int begin = fmts[i].pos;
+			int end = (i + 1 < nfrags) ? fmts[i + 1].pos : (int)text.size();
+			auto& fmt = fmts[i];
 			auto& fragtext = std::wstring(text.begin() + begin, text.begin() + end);
 
 			if (i == 0) {
@@ -97,24 +102,24 @@ private:
 				float x = line.line->posX + (fmt.width / len - fmt.charW) * DefFontSize / fmt.charW / 2;
 				float y = line.line->posY - (fmt.height - fmt.charH) / 2;
 				// posは先頭でしか効果がない模様
-				setPos((int)x, (int)y);
+				setPos((int)(x * scalex), (int)(y * scaley));
 			}
 
-			fragment(fragtext, line.line->formats[i]);
+			fragment(scalex, scaley, fragtext, line.line->formats[i]);
 		}
 
 		sb.append(L"\n");
 	}
 
-	void fragment(const std::wstring& text, const CaptionFormat& fmt) {
+	void fragment(float scalex, float scaley, const std::wstring& text, const CaptionFormat& fmt) {
 		int len = StrlenWoLoSurrogate(text.c_str());
 		float fsx = fmt.charW / DefFontSize;
 		float fsy = fmt.charH / DefFontSize;
 		float spacing = (fmt.width / len - fmt.charW) / fsx;
 
 		setColor(fmt.textColor, fmt.backColor);
-		setFontSize(fsx, fsy);
-		setSpacing((int)std::round(spacing));
+		setFontSize(fsx * scalex, fsy * scaley);
+		setSpacing((int)std::round(spacing * scalex));
 		setStyle(fmt.style);
 		
 		if (attr.getMC().length > 0) {
@@ -198,3 +203,86 @@ private:
 	}
 };
 
+class CaptionSRTFormatter : public AMTObject {
+public:
+	CaptionSRTFormatter(AMTContext& ctx)
+		: AMTObject(ctx)
+	{ }
+
+	std::wstring generate(const std::vector<OutCaptionLine>& lines) {
+		sb.clear();
+		subIndex = 1;
+		prevEnd = -1;
+		prevPosY = -1;
+
+		for (int i = 0; i < (int)lines.size(); ++i) {
+			item(lines[i]);
+		}
+		pushLine();
+		return sb.str();
+	}
+
+private:
+	StringBuilderW sb;
+	StringBuilderW linebuf;
+	int subIndex;
+	double prevEnd;
+	float prevPosY;
+
+	void pushLine() {
+		auto str = linebuf.str();
+		if (str.size() > 0) {
+			sb.append(L"%s\n", str);
+			linebuf.clear();
+		}
+	}
+
+	void time(double t) {
+		double totalSec = t / MPEG_CLOCK_HZ;
+		double totalMin = totalSec / 60;
+		int h = (int)(totalMin / 60);
+		int m = (int)totalMin % 60;
+		double sec = totalSec - (int)totalMin * 60;
+		int s = (int)sec;
+		int ss = (int)((sec - s) * 100);
+		sb.append(L"%02d:%02d:%02d,%03d", h, m, s, ss);
+	}
+
+	void item(const OutCaptionLine& line) {
+		if (line.line->formats.size() == 0) {
+			return;
+		}
+
+		if (line.end != prevEnd) {
+			pushLine();
+			// 時間を出力
+			sb.append(L"\n%d\n", subIndex++);
+			time(line.start);
+			sb.append(L" --> ");
+			time(line.end);
+			sb.append(L"\n");
+			prevPosY = -1;
+		}
+		if (line.line->posY != prevPosY) {
+			// 改行
+			linebuf.clear();
+			prevPosY = line.line->posY;
+		}
+
+		auto& fmts = line.line->formats;
+		int nfrags = (int)fmts.size();
+		auto& text = line.line->text;
+
+		for (int i = 0; i < nfrags; ++i) {
+			if (fmts[i].sizeMode == CP_STR_SMALL) {
+				// 小サイズは出力しない
+				continue;
+			}
+			int begin = fmts[i].pos;
+			int end = (i + 1 < nfrags) ? fmts[i + 1].pos : (int)text.size();
+			auto& fragtext = std::wstring(text.begin() + begin, text.begin() + end);
+			sb.append(L"%s", fragtext);
+		}
+	}
+
+};

@@ -541,7 +541,7 @@ namespace Amatsukaze.Server
 
                 var serviceSetting = server.appData.services.ServiceMap[src.ServiceId];
 
-                bool errorOnNologo = false;
+                bool ignoreNoLogo = true;
                 string[] logopaths = null;
                 if (server.appData.setting.DisableChapter == false)
                 {
@@ -555,7 +555,7 @@ namespace Amatsukaze.Server
                         src.FailReason = "ロゴ設定がありません";
                         return null;
                     }
-                    errorOnNologo = logofiles.All(path => path != LogoSetting.NO_LOGO);
+                    ignoreNoLogo = !logofiles.All(path => path != LogoSetting.NO_LOGO);
                     logopaths = logofiles.Where(path => path != LogoSetting.NO_LOGO).ToArray();
                 }
 
@@ -602,9 +602,10 @@ namespace Amatsukaze.Server
                         (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
                         server.appData.setting.DefaultJLSCommand :
                         serviceSetting.JLSCommand);
-
-                    string args = server.MakeAmatsukazeArgs(isMp4, srcpath, localdst, json,
-                        src.ServiceId, logopaths, errorOnNologo, jlscmd);
+                    
+                    string args = server.MakeAmatsukazeArgs(isMp4,
+                        srcpath, localdst, json,
+                        src.ServiceId, logopaths, ignoreNoLogo, jlscmd);
                     string exename = server.appData.setting.AmatsukazePath;
 
                     int outputMask = server.appData.setting.OutputMask;
@@ -1263,7 +1264,8 @@ namespace Amatsukaze.Server
 
         private string MakeAmatsukazeArgs(bool isGeneric,
             string src, string dst, string json,
-            int serviceId, string[] logofiles, bool errorOnNoLogo, string jlscommand)
+            int serviceId, string[] logofiles,
+            bool ignoreNoLogo, string jlscommand)
         {
             string encoderPath = GetEncoderPath(appData.setting);
 
@@ -1317,6 +1319,16 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
+            sb.Append(" -fmt ");
+            if (appData.setting.OutputFormat == FormatType.MP4)
+            {
+                sb.Append("mp4");
+            }
+            else
+            {
+                sb.Append("mkv");
+            }
+
             if (bitrateCM != 1)
             {
                 sb.Append(" -bcm ").Append(bitrateCM);
@@ -1325,6 +1337,10 @@ namespace Amatsukaze.Server
             if (!appData.setting.DisableChapter)
             {
                 sb.Append(" --chapter");
+            }
+            if (!appData.setting.DisableSubs)
+            {
+                sb.Append(" --subtitles");
             }
 
             if (string.IsNullOrEmpty(jlscommand) == false)
@@ -1374,10 +1390,15 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --2pass");
             }
-            if (errorOnNoLogo)
+            if (ignoreNoLogo)
             {
-                sb.Append(" --error-on-no-logo");
+                sb.Append(" --ignore-no-logo");
             }
+            if (appData.setting.IgnoreNoDrcsMap)
+            {
+                sb.Append(" --ignore-no-drcsmap");
+            }
+
             if (logofiles != null)
             {
                 foreach (var logo in logofiles)

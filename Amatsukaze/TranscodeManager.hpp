@@ -24,10 +24,11 @@
 #include "CMAnalyze.hpp"
 #include "InterProcessComm.hpp"
 #include "CaptionData.hpp"
+#include "CaptionFormatter.hpp"
 
 class AMTSplitter : public TsSplitter {
 public:
-	AMTSplitter(AMTContext& ctx, const TranscoderSetting& setting)
+	AMTSplitter(AMTContext& ctx, const ConfigWrapper& setting)
 		: TsSplitter(ctx)
 		, setting_(setting)
 		, psWriter(ctx)
@@ -89,7 +90,7 @@ protected:
 		}
 	};
 
-	const TranscoderSetting& setting_;
+	const ConfigWrapper& setting_;
 	PsStreamWriter psWriter;
 	StreamFileWriteHandler writeHandler;
 	File audioFile_;
@@ -430,7 +431,7 @@ class AMTFilterSource : public AMTObject {
 public:
 	// Main (+ Post)
   AMTFilterSource(AMTContext&ctx,
-    const TranscoderSetting& setting,
+    const ConfigWrapper& setting,
     const StreamReformInfo& reformInfo,
     const std::vector<EncoderZone>& zones,
     const std::string& logopath,
@@ -493,7 +494,7 @@ public:
 	}
 
 private:
-	const TranscoderSetting& setting_;
+	const ConfigWrapper& setting_;
 	ScriptEnvironmentPointer env_;
 	PClip filter_;
 	VideoFormat outfmt_;
@@ -685,7 +686,7 @@ class EncoderArgumentGenerator
 {
 public:
 	EncoderArgumentGenerator(
-		const TranscoderSetting& setting,
+		const ConfigWrapper& setting,
 		StreamReformInfo& reformInfo)
 		: setting_(setting)
 		, reformInfo_(reformInfo)
@@ -742,7 +743,7 @@ public:
 	}
 
 private:
-	const TranscoderSetting& setting_;
+	const ConfigWrapper& setting_;
 	const StreamReformInfo& reformInfo_;
 };
 
@@ -750,7 +751,7 @@ class AMTFilterOutTmp : public AMTObject {
 public:
 	AMTFilterOutTmp(
 		AMTContext&ctx,
-		const TranscoderSetting& setting)
+		const ConfigWrapper& setting)
 		: AMTObject(ctx)
 		, thread_(this, 8)
 		, codec_(make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze")))
@@ -989,7 +990,7 @@ class AMTSimpleVideoEncoder : public AMTObject {
 public:
   AMTSimpleVideoEncoder(
     AMTContext& ctx,
-    const TranscoderSetting& setting)
+    const ConfigWrapper& setting)
     : AMTObject(ctx)
     , setting_(setting)
     , reader_(this)
@@ -1075,7 +1076,7 @@ private:
 		File file_;
 	};
 
-  const TranscoderSetting& setting_;
+  const ConfigWrapper& setting_;
   SpVideoReader reader_;
   av::EncodeWriter* encoder_;
   SpDataPumpThread thread_;
@@ -1207,7 +1208,7 @@ class AMTMuxder : public AMTObject {
 public:
 	AMTMuxder(
 		AMTContext&ctx,
-		const TranscoderSetting& setting,
+		const ConfigWrapper& setting,
 		const StreamReformInfo& reformInfo)
 		: AMTObject(ctx)
 		, setting_(setting)
@@ -1261,9 +1262,22 @@ public:
 			chapterFile = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
 		}
 
-		std::string args = makeMuxerArgs(
+		std::vector<std::string> subsFiles;
+		for (CMType cmtype : setting_.getCMTypes()) {
+			auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
+			for (int lang = 0; lang < capList.size(); ++lang) {
+				if (setting_.getFormat() == FORMAT_MKV) {
+					subsFiles.push_back(setting_.getTmpASSFilePath(
+						videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+				}
+				subsFiles.push_back(setting_.getTmpSRTFilePath(
+					videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+			}
+		}
+
+		std::string args = makeMuxerArgs(setting_.getFormat(),
 			setting_.getMuxerPath(), encVideoFile,
-			info.vf, audioFiles, outFilePath, chapterFile);
+			info.vf, audioFiles, outFilePath, chapterFile, subsFiles);
 
 		ctx.info(args.c_str());
 
@@ -1304,7 +1318,7 @@ private:
 		}
 	};
 
-	const TranscoderSetting& setting_;
+	const ConfigWrapper& setting_;
 	const StreamReformInfo& reformInfo_;
 
 	PacketCache audioCache_;
@@ -1314,7 +1328,7 @@ class AMTSimpleMuxder : public AMTObject {
 public:
 	AMTSimpleMuxder(
 		AMTContext&ctx,
-		const TranscoderSetting& setting)
+		const ConfigWrapper& setting)
 		: AMTObject(ctx)
 		, setting_(setting)
 		, totalOutSize_(0)
@@ -1328,8 +1342,8 @@ public:
 		}
 		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
 		std::string outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
-		std::string args = makeMuxerArgs(
-			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath, std::string());
+		std::string args = makeMuxerArgs(FORMAT_MP4,
+			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath, std::string(), std::vector<std::string>());
 		ctx.info("[Mux開始]");
 		ctx.info(args.c_str());
 
@@ -1363,7 +1377,7 @@ private:
 		}
 	};
 
-	const TranscoderSetting& setting_;
+	const ConfigWrapper& setting_;
 	int64_t totalOutSize_;
 };
 
@@ -1373,7 +1387,7 @@ static const char* CMTypeToString(CMType cmtype) {
 	return "";
 }
 
-static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
+static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	setting.dump();
 
@@ -1460,6 +1474,27 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 
 	auto audioDiffInfo = reformInfo.genAudio();
 	audioDiffInfo.printAudioPtsDiff(ctx);
+
+	// 字幕ファイルを生成
+	for (int videoFileIndex = 0, currentEncoderFile = 0;
+		videoFileIndex < numVideoFiles; ++videoFileIndex) {
+		CaptionASSFormatter formatterASS(ctx);
+		CaptionSRTFormatter formatterSRT(ctx);
+		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
+		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentEncoderFile) {
+			for (CMType cmtype : setting.getCMTypes()) {
+				auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
+				for (int lang = 0; lang < capList.size(); ++lang) {
+					WriteUTF8File(
+						setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)cmtype),
+						formatterASS.generate(capList[lang]));
+					WriteUTF8File(
+						setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, (CMType)cmtype),
+						formatterSRT.generate(capList[lang]));
+				}
+			}
+		}
+	}
 
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
 	std::vector<EncodeFileInfo> outFileInfo;
@@ -1607,7 +1642,7 @@ static void transcodeMain(AMTContext& ctx, const TranscoderSetting& setting)
 	}
 }
 
-static void transcodeSimpleMain(AMTContext& ctx, const TranscoderSetting& setting)
+static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	if (ends_with(setting.getSrcFilePath(), ".ts")) {
 		ctx.warn("一般ファイルモードでのTSファイルの処理は非推奨です");

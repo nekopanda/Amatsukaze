@@ -70,23 +70,24 @@ static void printHelp(const tchar* bin) {
     "                      指定がない場合はビットレートオプションを追加しない\n"
 		"  -bcm|--bitrate-cm <float>   CM判定されたところのビットレート倍率\n"
 		"  --2pass             2passエンコード\n"
-		"  -m|--muxer  <パス>  L-SMASHのmuxerへのパス[muxer.exe]\n"
-		"  -t|--timelineeditor <パス> L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
+		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
+		"                      対応エンコーダ: mp4,mkv\n"
+		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
 		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
 		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID\n"
 		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID\n"
-    "  --chapter           チャプター・CM解析を行う\n"
-		"  --error-on-no-logo  ロゴが見つからない場合はエラーとする\n"
+		"  --chapter           チャプター・CM解析を行う\n"
+		"  --subtitles          字幕を処理する\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
+		"  --ignore-no-drcsmap マッピングにないDRCS文字があっても処理を続行する\n"
+		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
+		"  --drcsout <パス>    DRCS画像出力フォルダへのパス\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
-		"  --chapter-jls <パス> chapter_????へのパス\n"
-		"  --inpipe <ハンドル> Amatsukazeホストへの送信パイプ\n"
-		"  --outpipe <ハンドル> Amatsukzeホストからの受信パイ\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
     "  --mode <モード>     処理モード[ts]\n"
     "                      ts : MPGE2-TSを入力する詳細解析モード\n"
@@ -169,164 +170,164 @@ static DECODER_TYPE decoderFromString(const std::tstring& str) {
 	return (DECODER_TYPE)-1;
 }
 
-static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, const tchar* argv[])
+static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const tchar* argv[])
 {
-	std::tstring srcFilePath;
-	std::tstring outVideoPath;
-	std::tstring workDir = _T("./");
-	std::tstring outInfoJsonPath;
-	std::tstring filterScriptPath;
-	std::tstring postFilterScriptPath;
-	std::tstring drcsOutPath = _T("./");
-	ENUM_ENCODER encoder = ENUM_ENCODER();
-	std::tstring encoderPath = _T("x264.exe");
-  std::tstring encoderOptions = _T("");
-	std::tstring muxerPath = _T("muxer.exe");
-	std::tstring timelineditorPath = _T("timelineeditor.exe");
-	std::tstring modeStr = _T("ts");
-  std::tstring modeArgs = _T("");
-  bool autoBitrate = bool();
-  BitrateSetting bitrate = BitrateSetting();
-	double bitrateCM = 1.0;
-  bool twoPass = bool();
-	bool chapter = bool();
-	int serviceId = -1;
-	DecoderSetting decoderSetting;
-	std::vector<std::string> logoPath;
-	bool errorOnNoLogo = false;
-	std::tstring chapterExePath;
-	std::tstring joinLogoScpPath;
-	std::tstring joinLogoScpCmdPath;
-  int cmoutmask = 1;
-	bool dumpStreamInfo = bool();
-	bool systemAvsPlugin = bool();
+	Config conf = Config();
+	conf.workDir = "./";
+	conf.drcsOutPath = "./";
+	conf.encoderPath = "x264.exe";
+	conf.encoderOptions = "";
+	conf.timelineditorPath = "timelineeditor.exe";
+	conf.mode = "ts";
+	conf.modeArgs = "";
+	conf.bitrateCM = 1.0;
+	conf.serviceId = -1;
+	conf.cmoutmask = 1;
 
 	for (int i = 1; i < argc; ++i) {
 		std::tstring key = argv[i];
 		if (key == _T("-i") || key == _T("--input")) {
-			srcFilePath = pathNormalize(getParam(argc, argv, i++));
+			conf.srcFilePath = to_string(pathNormalize(getParam(argc, argv, i++)));
 		}
 		else if (key == _T("-o") || key == _T("--output")) {
-			outVideoPath =
-				pathRemoveExtension(pathNormalize(getParam(argc, argv, i++)));
+			conf.outVideoPath =
+				to_string(pathRemoveExtension(pathNormalize(getParam(argc, argv, i++))));
 		}
     else if (key == _T("--mode")) {
-			modeStr = getParam(argc, argv, i++);
+			conf.mode = to_string(getParam(argc, argv, i++));
     }
     else if (key == _T("-a") || key == _T("--args")) {
-      modeArgs = getParam(argc, argv, i++);
+			conf.modeArgs = to_string(getParam(argc, argv, i++));
     }
 		else if (key == _T("-w") || key == _T("--work")) {
-			workDir = pathNormalize(getParam(argc, argv, i++));
-			if (workDir.size() == 0) {
+			conf.workDir = to_string(pathNormalize(getParam(argc, argv, i++)));
+			if (conf.workDir.size() == 0) {
 				THROW(RuntimeException, "... uha");
-				workDir = _T("./");
+				conf.workDir = "./";
 			}
 		}
 		else if (key == _T("-et") || key == _T("--encoder-type")) {
 			std::tstring arg = getParam(argc, argv, i++);
-			encoder = encoderFtomString(arg);
-			if (encoder == (ENUM_ENCODER)-1) {
+			conf.encoder = encoderFtomString(arg);
+			if (conf.encoder == (ENUM_ENCODER)-1) {
 				PRINTF("--encoder-typeの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
 		else if (key == _T("-e") || key == _T("--encoder")) {
-			encoderPath = getParam(argc, argv, i++);
+			conf.encoderPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
-			encoderOptions = getParam(argc, argv, i++);
+			conf.encoderOptions = to_string(getParam(argc, argv, i++));
     }
     else if (key == _T("-b") || key == _T("--bitrate")) {
       const auto arg = getParam(argc, argv, i++);
       int ret = stscanf(arg.c_str(), _T("%lf:%lf:%lf:%lf"),
-        &bitrate.a, &bitrate.b, &bitrate.h264, &bitrate.h265);
+        &conf.bitrate.a, &conf.bitrate.b, &conf.bitrate.h264, &conf.bitrate.h265);
       if (ret < 3) {
         THROWF(ArgumentException, "--bitrateの指定が間違っています");
       }
       if (ret <= 3) {
-        bitrate.h265 = 2;
+				conf.bitrate.h265 = 2;
       }
-      autoBitrate = true;
+			conf.autoBitrate = true;
     }
 		else if (key == _T("-bcm") || key == _T("--bitrate-cm")) {
 			const auto arg = getParam(argc, argv, i++);
-			int ret = stscanf(arg.c_str(), _T("%lf"), &bitrateCM);
+			int ret = stscanf(arg.c_str(), _T("%lf"), &conf.bitrateCM);
 			if (ret == 0) {
 				THROWF(ArgumentException, "--bitrate-cmの指定が間違っています");
 			}
 		}
     else if (key == _T("--2pass")) {
-      twoPass = true;
+			conf.twoPass = true;
     }
+		else if (key == _T("-fmt") || key == _T("--format")) {
+			const auto arg = getParam(argc, argv, i++);
+			if (arg == _T("mp4")) {
+				conf.format = FORMAT_MP4;
+			}
+			else if (arg == _T("mkv")) {
+				conf.format = FORMAT_MKV;
+			}
+			else {
+				THROWF(ArgumentException, "--formatの指定が間違っています: %" PRITSTR "", arg.c_str());
+			}
+		}
 		else if (key == _T("--chapter")) {
-      chapter = true;
+			conf.chapter = true;
+		}
+		else if (key == _T("--subtitles")) {
+			conf.subtitles = true;
 		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
-			muxerPath = getParam(argc, argv, i++);
+			conf.muxerPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-t") || key == _T("--timelineeditor")) {
-			timelineditorPath = getParam(argc, argv, i++);
+			conf.timelineditorPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-j") || key == _T("--json")) {
-			outInfoJsonPath = getParam(argc, argv, i++);
+			conf.outInfoJsonPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--drcsout")) {
-			drcsOutPath = pathNormalize(getParam(argc, argv, i++));
+			conf.drcsOutPath = to_string(pathNormalize(getParam(argc, argv, i++)));
 		}
     else if (key == _T("-f") || key == _T("--filter")) {
-      filterScriptPath = getParam(argc, argv, i++);
+			conf.filterScriptPath = to_string(getParam(argc, argv, i++));
     }
 		else if (key == _T("-pf") || key == _T("--postfilter")) {
-			postFilterScriptPath = getParam(argc, argv, i++);
+			conf.postFilterScriptPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-s") || key == _T("--serivceid")) {
 			std::tstring sidstr = getParam(argc, argv, i++);
 			if (sidstr.size() > 2 && sidstr.substr(0, 2) == _T("0x")) {
 				// 16進
-				serviceId = std::stoi(sidstr.substr(2), NULL, 16);;
+				conf.serviceId = std::stoi(sidstr.substr(2), NULL, 16);;
 			}
 			else {
 				// 10進
-				serviceId = std::stoi(sidstr);
+				conf.serviceId = std::stoi(sidstr);
 			}
 		}
 		else if (key == _T("--mpeg2decoder")) {
 			std::tstring arg = getParam(argc, argv, i++);
-			decoderSetting.mpeg2 = decoderFromString(arg);
-			if (decoderSetting.mpeg2 == (DECODER_TYPE)-1) {
+			conf.decoderSetting.mpeg2 = decoderFromString(arg);
+			if (conf.decoderSetting.mpeg2 == (DECODER_TYPE)-1) {
 				PRINTF("--mpeg2decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
 		else if (key == _T("--h264decoder")) {
 			std::tstring arg = getParam(argc, argv, i++);
-			decoderSetting.h264 = decoderFromString(arg);
-			if (decoderSetting.h264 == (DECODER_TYPE)-1) {
+			conf.decoderSetting.h264 = decoderFromString(arg);
+			if (conf.decoderSetting.h264 == (DECODER_TYPE)-1) {
 				PRINTF("--h264decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
-		else if (key == _T("--error-on-no-logo")) {
-			errorOnNoLogo = true;
+		else if (key == _T("--ignore-no-logo")) {
+			conf.ignoreNoLogo = true;
+		}
+		else if (key == _T("--ignore-no-drcsmap")) {
+			conf.ignoreNoDrcsMap = true;
 		}
 		else if (key == _T("--logo")) {
-			logoPath.push_back(to_string(getParam(argc, argv, i++)));
+			conf.logoPath.push_back(to_string(getParam(argc, argv, i++)));
 		}
 		else if (key == _T("--chapter-exe")) {
-			chapterExePath = getParam(argc, argv, i++);
+			conf.chapterExePath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--jls")) {
-			joinLogoScpPath = getParam(argc, argv, i++);
+			conf.joinLogoScpPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--jls-cmd")) {
-			joinLogoScpCmdPath = getParam(argc, argv, i++);
+			conf.joinLogoScpCmdPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--cmoutmask")) {
-      cmoutmask = std::stol(getParam(argc, argv, i++));
+			conf.cmoutmask = std::stol(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--dump")) {
-			dumpStreamInfo = true;
+			conf.dumpStreamInfo = true;
 		}
 		else if (key == _T("--systemavsplugin")) {
-			systemAvsPlugin = true;
+			conf.systemAvsPlugin = true;
 		}
 		else if (key.size() == 0) {
 			continue;
@@ -336,67 +337,37 @@ static std::unique_ptr<TranscoderSetting> parseArgs(AMTContext& ctx, int argc, c
 		}
 	}
 
-	if (modeStr == L"ts" || modeStr == L"g") {
-		if (srcFilePath.size() == 0) {
+	if (conf.mode == "ts" || conf.mode == "g") {
+		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
-		if (outVideoPath.size() == 0) {
+		if (conf.outVideoPath.size() == 0) {
 			THROWF(ArgumentException, "出力ファイルを指定してください");
 		}
 	}
 
-	if (errorOnNoLogo) {
-		if (logoPath.size() == 0) {
+	if (!conf.ignoreNoLogo) {
+		if (conf.logoPath.size() == 0) {
 			THROW(ArgumentException, "ロゴが指定されていません");
 		}
 	}
 
 	// CM解析は４つ揃える必要がある
-	if (chapterExePath.size() > 0 || joinLogoScpPath.size() > 0) {
-		if (chapterExePath.size() == 0) {
+	if (conf.chapterExePath.size() > 0 || conf.joinLogoScpPath.size() > 0) {
+		if (conf.chapterExePath.size() == 0) {
 			THROW(ArgumentException, "chapter_exe.exeへのパスが設定されていません");
 		}
-		if (joinLogoScpPath.size() == 0) {
+		if (conf.joinLogoScpPath.size() == 0) {
 			THROW(ArgumentException, "join_logo_scp.exeへのパスが設定されていません");
 		}
 	}
 
-	if (modeStr == _T("enctask")) {
+	if (conf.mode == "enctask") {
 		// 必要ない
-		workDir = _T("");
+		conf.workDir = "";
 	}
 
-	return std::unique_ptr<TranscoderSetting>(new TranscoderSetting(
-		ctx,
-		to_string(workDir),
-		to_string(modeStr),
-    to_string(modeArgs),
-		to_string(srcFilePath),
-		to_string(outVideoPath),
-		to_string(outInfoJsonPath),
-		to_string(drcsOutPath),
-    to_string(filterScriptPath),
-		to_string(postFilterScriptPath),
-		encoder,
-		to_string(encoderPath),
-		to_string(encoderOptions),
-		to_string(muxerPath),
-		to_string(timelineditorPath),
-		twoPass,
-		autoBitrate,
-    chapter,
-		bitrate,
-		bitrateCM,
-		serviceId,
-		decoderSetting,
-		logoPath,
-		errorOnNoLogo,
-		to_string(chapterExePath),
-		to_string(joinLogoScpPath),
-		to_string(joinLogoScpCmdPath),
-    cmoutmask,
-		dumpStreamInfo,
-		systemAvsPlugin));
+	return std::unique_ptr<ConfigWrapper>(new ConfigWrapper(ctx, conf));
 }
 
 static CRITICAL_SECTION g_log_crisec;
@@ -442,7 +413,7 @@ static void amatsukaze_av_log_callback(
   LeaveCriticalSection(&g_log_crisec);
 }
 
-static int amatsukazeTranscodeMain(AMTContext& ctx, const TranscoderSetting& setting) {
+static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting) {
 	try {
 		std::string mode = setting.getMode();
 		if (mode == "ts")

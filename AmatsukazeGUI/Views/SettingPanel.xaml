@@ -80,13 +80,18 @@
                       ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="QSVの方が速いです。"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力" VerticalAlignment="Top" Margin="0,8,1,0"/>
-                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5.667,0,0" VerticalAlignment="Top" Width="130"
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力フォーマット" VerticalAlignment="Top" Margin="0,8,1,0"/>
+                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5.667,0,0" VerticalAlignment="Top" Width="78"
+                      ItemsSource="{Binding OutputOptionList}" SelectedIndex="{Binding Model.OutputFormatInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="MP4はASSに対応しないため、字幕のレイアウト情報は失われます"/>
+                
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力選択" VerticalAlignment="Top" Margin="0,35,1,0"/>
+                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,33,0,0" VerticalAlignment="Top" Width="130"
                       ItemsSource="{Binding OutputOptionList}" SelectedIndex="{Binding OutputOptionIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="CMカットの精度は100%ではありません"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,34.667,1,0"/>
-                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,36,0,6"
+                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,62,1,0"/>
+                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,62,0,6"
                           IsChecked="{Binding Model.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
 
                 <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
@@ -149,7 +154,7 @@
                 </Grid>
 
                 <StackPanel Grid.Row="5" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,36" Text="その他の設定"/>
+                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,58" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
@@ -164,6 +169,8 @@
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
                     <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" IsChecked="{Binding Model.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="字幕を無効にする" IsChecked="{Binding Model.DisableSubs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS文字は無視する" IsChecked="{Binding Model.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" IsChecked="{Binding Model.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする" IsChecked="{Binding Model.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"

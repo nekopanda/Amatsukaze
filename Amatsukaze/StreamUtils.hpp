@@ -871,6 +871,17 @@ void ConcatFiles(const std::vector<std::string>& srcpaths, const std::string& ds
 	}
 }
 
+void WriteUTF8File(const std::string& filename, const std::wstring& text)
+{
+	// BOMÇ†ÇËUTF8Ç≈èëÇ´çûÇﬁ
+	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	auto utf8text = converter.to_bytes(text);
+	File file(filename, "w");
+	uint8_t bom[] = { 0xEF, 0xBB, 0xBF };
+	file.write(MemoryChunk(bom, sizeof(bom)));
+	file.write(MemoryChunk((uint8_t*)utf8text.data(), utf8text.size()));
+}
+
 // C API for P/Invoke
 extern "C" __declspec(dllexport) AMTContext* AMTContext_Create() { return new AMTContext(); }
 extern "C" __declspec(dllexport) void ATMContext_Delete(AMTContext* ptr) { delete ptr; }

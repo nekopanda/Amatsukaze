@@ -33,7 +33,7 @@ class CMAnalyze : public AMTObject
 {
 public:
   CMAnalyze(AMTContext& ctx,
-    const TranscoderSetting& setting,
+    const ConfigWrapper& setting,
     int videoFileIndex, int numFrames)
     : AMTObject(ctx)
     , setting_(setting)
@@ -80,7 +80,7 @@ public:
   }
 
   CMAnalyze(AMTContext& ctx,
-    const TranscoderSetting& setting)
+    const ConfigWrapper& setting)
     : AMTObject(ctx)
     , setting_(setting)
   { }
@@ -117,7 +117,7 @@ private:
     }
   };
 
-  const TranscoderSetting& setting_;
+  const ConfigWrapper& setting_;
 
   std::string logopath;
   std::vector<EncoderZone> cmzones;
@@ -155,7 +155,7 @@ private:
         if (duration <= 180) {
           ctx.info("ƒ}ƒbƒ`‚·‚éƒƒS‚Í‚ ‚è‚Ü‚¹‚ñ‚Å‚µ‚½‚ªA“®‰æ‚Ì’·‚³‚ª%d•b(180•bˆÈ‰º)‚È‚Ì‚Å–³Ž‹‚µ‚Ü‚·", duration);
         }
-        else if (setting_.getErrorOnNoLogo()) {
+        else if (!setting_.getIgnoreNoLogo()) {
           THROW(NoLogoException, "ƒ}ƒbƒ`‚·‚éƒƒS‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½");
         }
       }
@@ -252,7 +252,7 @@ class MakeChapter : public AMTObject
 {
 public:
 	MakeChapter(AMTContext& ctx,
-		const TranscoderSetting& setting,
+		const ConfigWrapper& setting,
 		const StreamReformInfo& reformInfo,
 		int videoFileIndex)
 		: AMTObject(ctx)
@@ -280,7 +280,7 @@ private:
 		bool isCM;
 	};
 
-	const TranscoderSetting& setting;
+	const ConfigWrapper& setting;
 	const StreamReformInfo& reformInfo;
 
 	std::vector<JlsElement> chapters;

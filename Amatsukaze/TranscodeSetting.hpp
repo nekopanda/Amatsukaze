@@ -75,6 +75,11 @@ enum ENUM_ENCODER {
 	ENCODER_NVENC,
 };
 
+enum ENUM_FORMAT {
+	FORMAT_MP4,
+	FORMAT_MKV
+};
+
 struct BitrateSetting {
 	double a, b;
 	double h264;
@@ -162,31 +167,56 @@ static std::string makeEncoderArgs(
 }
 
 static std::string makeMuxerArgs(
+	ENUM_FORMAT format,
 	const std::string& binpath,
 	const std::string& inVideo,
 	const VideoFormat& videoFormat,
 	const std::vector<std::string>& inAudios,
 	const std::string& outpath,
-	const std::string& chapterpath)
+	const std::string& chapterpath,
+	const std::vector<std::string>& inSubs)
 {
 	StringBuilder sb;
 
 	sb.append("\"%s\"", binpath);
-	if (videoFormat.fixedFrameRate) {
-		sb.append(" -i \"%s?fps=%d/%d\"", inVideo,
-			videoFormat.frameRateNum, videoFormat.frameRateDenom);
+
+	if (format == FORMAT_MP4) {
+
+		if (videoFormat.fixedFrameRate) {
+			sb.append(" -i \"%s?fps=%d/%d\"", inVideo,
+				videoFormat.frameRateNum, videoFormat.frameRateDenom);
+		}
+		else {
+			sb.append(" -i \"%s\"", inVideo);
+		}
+		for (const auto& inAudio : inAudios) {
+			sb.append(" -i \"%s\"", inAudio);
+		}
+		for (const auto& inSub : inSubs) {
+			sb.append(" -i \"%s\"", inSub);
+		}
+		if (chapterpath.size() > 0) {
+			sb.append(" --chapter \"%s\"", chapterpath);
+		}
+		sb.append(" --optimize-pd");
+		sb.append(" -o \"%s\"", outpath);
 	}
-	else {
-		sb.append(" -i \"%s\"", inVideo);
+	else { // mkv
+
+		if (chapterpath.size() > 0) {
+			sb.append(" --chapters \"%s\"", chapterpath);
+		}
+
+		sb.append(" -o \"%s\"", outpath);
+
+		sb.append(" \"%s\"", inVideo);
+		for (const auto& inAudio : inAudios) {
+			sb.append(" \"%s\"", inAudio);
+		}
+		for (const auto& inSub : inSubs) {
+			sb.append(" \"%s\"", inSub);
+		}
 	}
-	for (const auto& inAudio : inAudios) {
-		sb.append(" -i \"%s\"", inAudio);
-	}
-	if (chapterpath.size() > 0) {
-		sb.append(" --chapter \"%s\"", chapterpath);
-	}
-	sb.append(" --optimize-pd");
-	sb.append(" -o \"%s\"", outpath);
 
 	return sb.str();
 }
@@ -295,164 +325,157 @@ static const char* GetCMSuffix(CMType cmtype) {
   return "";
 }
 
-class TranscoderSetting : public AMTObject
+struct Config {
+	// 一時フォルダ
+	std::string workDir;
+	std::string mode;
+	std::string modeArgs; // テスト用
+	// 入力ファイルパス（拡張子を含む）
+	std::string srcFilePath;
+	// 出力ファイルパス（拡張子を除く）
+	std::string outVideoPath;
+	// 結果情報JSON出力パス
+	std::string outInfoJsonPath;
+	// マッピングなしDRCS画像出力ディレクトリパス
+	std::string drcsOutPath;
+	// フィルタパス
+	std::string filterScriptPath;
+	std::string postFilterScriptPath;
+	// エンコーダ設定
+	ENUM_ENCODER encoder;
+	std::string encoderPath;
+	std::string encoderOptions;
+	std::string muxerPath;
+	std::string timelineditorPath;
+	ENUM_FORMAT format;
+	bool twoPass;
+	bool autoBitrate;
+	bool chapter;
+	bool subtitles;
+	BitrateSetting bitrate;
+	double bitrateCM;
+	int serviceId;
+	DecoderSetting decoderSetting;
+	// CM解析用設定
+	std::vector<std::string> logoPath;
+	bool ignoreNoLogo;
+	bool ignoreNoDrcsMap;
+	std::string chapterExePath;
+	std::string joinLogoScpPath;
+	std::string joinLogoScpCmdPath;
+	int cmoutmask;
+	// デバッグ用設定
+	bool dumpStreamInfo;
+	bool systemAvsPlugin;
+};
+
+class ConfigWrapper : public AMTObject
 {
 public:
-	TranscoderSetting(
+	ConfigWrapper(
 		AMTContext& ctx,
-		std::string workDir,
-		std::string mode,
-		std::string modeArgs,
-		std::string srcFilePath,
-		std::string outVideoPath,
-		std::string outInfoJsonPath,
-		std::string drcsOutPath,
-		std::string filterScriptPath,
-		std::string postFilterScriptPath,
-		ENUM_ENCODER encoder,
-		std::string encoderPath,
-		std::string encoderOptions,
-		std::string muxerPath,
-		std::string timelineditorPath,
-		bool twoPass,
-		bool autoBitrate,
-		bool chapter,
-		BitrateSetting bitrate,
-		double bitrateCM,
-		int serviceId,
-		DecoderSetting decoderSetting,
-		std::vector<std::string> logoPath,
-		bool errorOnNoLogo,
-		std::string chapterExePath,
-		std::string joinLogoScpPath,
-		std::string joinLogoScpCmdPath,
-    int cmoutmask,
-		bool dumpStreamInfo,
-		bool systemAvsPlugin)
+		const Config& conf)
 		: AMTObject(ctx)
-		, tmpDir(ctx, workDir)
-		, mode(mode)
-		, modeArgs(modeArgs)
-		, srcFilePath(srcFilePath)
-		, outVideoPath(outVideoPath)
-		, outInfoJsonPath(outInfoJsonPath)
-		, drcsOutPath(drcsOutPath)
-		, filterScriptPath(filterScriptPath)
-		, postFilterScriptPath(postFilterScriptPath)
-		, encoder(encoder)
-		, encoderPath(encoderPath)
-		, encoderOptions(encoderOptions)
-		, muxerPath(muxerPath)
-		, timelineditorPath(timelineditorPath)
-		, twoPass(twoPass)
-		, autoBitrate(autoBitrate)
-		, chapter(chapter)
-		, bitrate(bitrate)
-		, bitrateCM(bitrateCM)
-		, serviceId(serviceId)
-		, decoderSetting(decoderSetting)
-		, logoPath(logoPath)
-		, errorOnNoLogo(errorOnNoLogo)
-		, chapterExePath(chapterExePath)
-		, joinLogoScpPath(joinLogoScpPath)
-		, joinLogoScpCmdPath(joinLogoScpCmdPath)
-    , cmoutmask(cmoutmask)
-		, dumpStreamInfo(dumpStreamInfo)
-		, systemAvsPlugin(systemAvsPlugin)
+		, conf(conf)
+		, tmpDir(ctx, conf.workDir)
 	{
 		for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
-			if (cmoutmask & (1 << cmtypei)) {
+			if (conf.cmoutmask & (1 << cmtypei)) {
 				cmtypes.push_back((CMType)cmtypei);
 			}
 		}
 	}
 
 	std::string getMode() const {
-		return mode;
+		return conf.mode;
 	}
 
 	std::string getModeArgs() const {
-		return modeArgs;
+		return conf.modeArgs;
 	}
 
 	std::string getSrcFilePath() const {
-		return srcFilePath;
+		return conf.srcFilePath;
 	}
 
 	std::string getOutInfoJsonPath() const {
-		return outInfoJsonPath;
+		return conf.outInfoJsonPath;
 	}
 
 	std::string getFilterScriptPath() const {
-		return filterScriptPath;
+		return conf.filterScriptPath;
 	}
 
 	std::string getPostFilterScriptPath() const {
-		return postFilterScriptPath;
+		return conf.postFilterScriptPath;
 	}
 
 	ENUM_ENCODER getEncoder() const {
-		return encoder;
+		return conf.encoder;
 	}
 
 	std::string getEncoderPath() const {
-		return encoderPath;
+		return conf.encoderPath;
+	}
+
+	ENUM_FORMAT getFormat() const {
+		return conf.format;
 	}
 
 	std::string getMuxerPath() const {
-		return muxerPath;
+		return conf.muxerPath;
 	}
 
 	std::string getTimelineEditorPath() const {
-		return timelineditorPath;
+		return conf.timelineditorPath;
 	}
 
 	bool isTwoPass() const {
-		return twoPass;
+		return conf.twoPass;
 	}
 
 	bool isAutoBitrate() const {
-		return autoBitrate;
+		return conf.autoBitrate;
 	}
 
 	bool isChapterEnabled() const {
-		return chapter;
+		return conf.chapter;
 	}
 
 	BitrateSetting getBitrate() const {
-		return bitrate;
+		return conf.bitrate;
 	}
 
 	double getBitrateCM() const {
-		return bitrateCM;
+		return conf.bitrateCM;
 	}
 
 	int getServiceId() const {
-		return serviceId;
+		return conf.serviceId;
 	}
 
 	DecoderSetting getDecoderSetting() const {
-		return decoderSetting;
+		return conf.decoderSetting;
 	}
 
 	const std::vector<std::string>& getLogoPath() const {
-		return logoPath;
+		return conf.logoPath;
 	}
 
-	bool getErrorOnNoLogo() const {
-		return errorOnNoLogo;
+	bool getIgnoreNoLogo() const {
+		return conf.ignoreNoLogo;
 	}
 
 	std::string getChapterExePath() const {
-		return chapterExePath;
+		return conf.chapterExePath;
 	}
 
 	std::string getJoinLogoScpPath() const {
-		return joinLogoScpPath;
+		return conf.joinLogoScpPath;
 	}
 
 	std::string getJoinLogoScpCmdPath() const {
-		return joinLogoScpCmdPath;
+		return conf.joinLogoScpCmdPath;
 	}
 
   const std::vector<CMType>& getCMTypes() const {
@@ -460,11 +483,11 @@ public:
   }
 
 	bool isDumpStreamInfo() const {
-		return dumpStreamInfo;
+		return conf.dumpStreamInfo;
 	}
 
 	bool isSystemAvsPlugin() const {
-		return systemAvsPlugin;
+		return conf.systemAvsPlugin;
 	}
 
 	std::string getAudioFilePath() const {
@@ -480,7 +503,7 @@ public:
 	}
 
 	std::string getStreamInfoPath() const {
-		return outVideoPath + "-streaminfo.dat";
+		return conf.outVideoPath + "-streaminfo.dat";
 	}
 
 	std::string getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
@@ -505,6 +528,11 @@ public:
 
 	std::string getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
 		return regtmp(StringFormat("%s/c%d-%d-%d%s.ass",
+			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
+	}
+
+	std::string getTmpSRTFilePath(int vindex, int index, int langindex, CMType cmtype) const {
+		return regtmp(StringFormat("%s/c%d-%d-%d%s.srt",
 			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
@@ -545,22 +573,30 @@ public:
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
+	const char* getOutputExtention() const {
+		switch (conf.format) {
+		case FORMAT_MP4: return "mp4";
+		case FORMAT_MKV: return "mkv";
+		}
+		return "amatsukze";
+	}
+
 	std::string getOutFilePath(int index, CMType cmtype) const {
 		StringBuilder sb;
-		sb.append("%s", outVideoPath);
+		sb.append("%s", conf.outVideoPath);
 		if (index != 0) {
 			sb.append("-%d", index);
 		}
-		sb.append("%s.mp4", GetCMSuffix(cmtype));
+		sb.append("%s.%s", GetCMSuffix(cmtype), getOutputExtention());
 		return sb.str();
 	}
 
 	std::string getOutSummaryPath() const {
-		return StringFormat("%s.txt", outVideoPath);
+		return StringFormat("%s.txt", conf.outVideoPath);
 	}
 
 	std::string getDRCSOutPath(const std::string& md5) const {
-		return StringFormat("%s%s.bmp", drcsOutPath, md5);
+		return StringFormat("%s%s.bmp", conf.drcsOutPath, md5);
 	}
 
 	std::string getOptions(
@@ -568,16 +604,16 @@ public:
 		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, CMType cmtype) const
 	{
 		StringBuilder sb;
-		sb.append("%s", encoderOptions);
-		if (autoBitrate) {
-			double targetBitrate = bitrate.getTargetBitrate(srcFormat, srcBitrate);
+		sb.append("%s", conf.encoderOptions);
+		if (conf.autoBitrate) {
+			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
       if (cmtype == CMTYPE_CM) {
-        targetBitrate *= bitrateCM;
+        targetBitrate *= conf.bitrateCM;
       }
-			if (encoder == ENCODER_QSVENC) {
+			if (conf.encoder == ENCODER_QSVENC) {
 				sb.append(" --la %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
 			}
-			else if (encoder == ENCODER_NVENC) {
+			else if (conf.encoder == ENCODER_NVENC) {
 				sb.append(" --vbrhq %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
 			}
 			else {
@@ -589,11 +625,11 @@ public:
 			sb.append(" --pass %d --stats \"%s\"",
 				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
-		if (zones.size() && bitrateCM != 1.0 && encoder != ENCODER_QSVENC && encoder != ENCODER_NVENC) {
+		if (zones.size() && conf.bitrateCM != 1.0 && conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC) {
 			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
-				sb.append("%s%d,%d,b=%3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, bitrateCM);
+				sb.append("%s%d,%d,b=%3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, conf.bitrateCM);
 			}
 		}
 		return sb.str();
@@ -601,82 +637,47 @@ public:
 
 	void dump() const {
 		ctx.info("[設定]");
-		if (mode != "ts") {
-			ctx.info("Mode: %s", mode.c_str());
+		if (conf.mode != "ts") {
+			ctx.info("Mode: %s", conf.mode.c_str());
 		}
-		ctx.info("入力: %s", srcFilePath.c_str());
-		ctx.info("出力: %s", outVideoPath.c_str());
+		ctx.info("入力: %s", conf.srcFilePath.c_str());
+		ctx.info("出力: %s", conf.outVideoPath.c_str());
 		ctx.info("一時フォルダ: %s", tmpDir.path().c_str());
-		ctx.info("エンコーダ: %s (%s)", encoderPath.c_str(), encoderToString(encoder));
-		ctx.info("エンコーダオプション: %s", encoderOptions.c_str());
-		if (autoBitrate) {
-			ctx.info("自動ビットレート: 有効 (%g:%g:%g)", bitrate.a, bitrate.b, bitrate.h264);
+		ctx.info("エンコーダ: %s (%s)", conf.encoderPath.c_str(), encoderToString(conf.encoder));
+		ctx.info("エンコーダオプション: %s", conf.encoderOptions.c_str());
+		if (conf.autoBitrate) {
+			ctx.info("自動ビットレート: 有効 (%g:%g:%g)", 
+				conf.bitrate.a, conf.bitrate.b, conf.bitrate.h264);
 		}
 		else {
 			ctx.info("自動ビットレート: 無効");
 		}
 		ctx.info("エンコード/出力: %s/%s",
-			twoPass ? "2パス" : "1パス",
-			cmOutMaskToString(cmoutmask));
+			conf.twoPass ? "2パス" : "1パス",
+			cmOutMaskToString(conf.cmoutmask));
     ctx.info("チャプター解析: %s%s",
-			chapter ? "有効" : "無効",
-			(chapter && errorOnNoLogo) ? "（ロゴ必須）" : "");
-    if (chapter) {
-      for (int i = 0; i < (int)logoPath.size(); ++i) {
-        ctx.info("logo%d: %s", (i + 1), logoPath[i].c_str());
+			conf.chapter ? "有効" : "無効",
+			(conf.chapter && conf.ignoreNoLogo) ? "" : "（ロゴ必須）");
+    if (conf.chapter) {
+      for (int i = 0; i < (int)conf.logoPath.size(); ++i) {
+        ctx.info("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
       }
     }
-		if (serviceId > 0) {
-			ctx.info("ServiceId: %d", serviceId);
+		if (conf.serviceId > 0) {
+			ctx.info("ServiceId: %d", conf.serviceId);
 		}
 		else {
 			ctx.info("ServiceId: 指定なし");
 		}
 		ctx.info("デコーダ: MPEG2:%s H264:%s",
-			decoderToString(decoderSetting.mpeg2),
-			decoderToString(decoderSetting.h264));
+			decoderToString(conf.decoderSetting.mpeg2),
+			decoderToString(conf.decoderSetting.h264));
 	}
 
 private:
+	Config conf;
 	TempDirectory tmpDir;
-
-	std::string mode;
-	std::string modeArgs; // テスト用
-	// 入力ファイルパス（拡張子を含む）
-	std::string srcFilePath;
-	// 出力ファイルパス（拡張子を除く）
-	std::string outVideoPath;
-	// 結果情報JSON出力パス
-	std::string outInfoJsonPath;
-	// マッピングなしDRCS画像出力ディレクトリパス
-	std::string drcsOutPath;
-	// フィルタパス
-	std::string filterScriptPath;
-	std::string postFilterScriptPath;
-	// エンコーダ設定
-	ENUM_ENCODER encoder;
-	std::string encoderPath;
-	std::string encoderOptions;
-	std::string muxerPath;
-	std::string timelineditorPath;
-	bool twoPass;
-	bool autoBitrate;
-	bool chapter;
-	BitrateSetting bitrate;
-	double bitrateCM;
-	int serviceId;
-	DecoderSetting decoderSetting;
-	// CM解析用設定
-	std::vector<std::string> logoPath;
-	bool errorOnNoLogo;
-	std::string chapterExePath;
-	std::string joinLogoScpPath;
-	std::string joinLogoScpCmdPath;
-  int cmoutmask;
 	std::vector<CMType> cmtypes;
-	// デバッグ用設定
-	bool dumpStreamInfo;
-	bool systemAvsPlugin;
 
 	const char* decoderToString(DECODER_TYPE decoder) const {
 		switch (decoder) {

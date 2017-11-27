@@ -38,6 +38,12 @@ namespace Amatsukaze.Server
         CUVID
     }
 
+    public enum FormatType
+    {
+        MP4 = 0,
+        MKV
+    }
+
     [DataContract]
     public class Setting : IExtensibleDataObject
     {
@@ -67,6 +73,8 @@ namespace Amatsukaze.Server
         public DecoderType Mpeg2Decoder { get; set; }
         [DataMember]
         public DecoderType H264Deocder { get; set; }
+        [DataMember]
+        public FormatType OutputFormat { get; set; }
 
         [DataMember]
         public string MuxerPath { get; set; }
@@ -106,6 +114,10 @@ namespace Amatsukaze.Server
         public string DefaultJLSCommand { get; set; }
         [DataMember]
         public bool DisableChapter { get; set; }
+        [DataMember]
+        public bool DisableSubs { get; set; }
+        [DataMember]
+        public bool IgnoreNoDrcsMap { get; set; }
         [DataMember]
         public bool ClearWorkDirOnStart { get; set; }
         [DataMember]

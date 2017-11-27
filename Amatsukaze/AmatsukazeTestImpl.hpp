@@ -9,11 +9,10 @@
 
 #include "TranscodeManager.hpp"
 #include "LogoScan.hpp"
-#include "CaptionFormatter.hpp"
 
 namespace test {
 
-static int PrintCRCTable(AMTContext& ctx, const TranscoderSetting& setting)
+static int PrintCRCTable(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	CRC32 crc;
 
@@ -26,7 +25,7 @@ static int PrintCRCTable(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int CheckCRC(AMTContext& ctx, const TranscoderSetting& setting)
+static int CheckCRC(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	CRC32 crc;
 
@@ -52,7 +51,7 @@ static int CheckCRC(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int ReadBits(AMTContext& ctx, const TranscoderSetting& setting)
+static int ReadBits(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	uint8_t data[16];
 	srand(0);
@@ -69,7 +68,7 @@ static int ReadBits(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int CheckAutoBuffer(AMTContext& ctx, const TranscoderSetting& setting)
+static int CheckAutoBuffer(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	srand(0);
 
@@ -105,7 +104,7 @@ static int CheckAutoBuffer(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int VerifyMpeg2Ps(AMTContext& ctx, const TranscoderSetting& setting) {
+static int VerifyMpeg2Ps(AMTContext& ctx, const ConfigWrapper& setting) {
 	enum {
 		BUF_SIZE = 1400 * 1024 * 1024, // 1GB
 	};
@@ -131,7 +130,7 @@ static int VerifyMpeg2Ps(AMTContext& ctx, const TranscoderSetting& setting) {
 	return 0;
 }
 
-static int ReadTS(AMTContext& ctx, const TranscoderSetting& setting)
+static int ReadTS(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	try {
 		auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
@@ -149,7 +148,7 @@ static int ReadTS(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
+static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	std::string srcfile = setting.getSrcFilePath() + ".aac";
 	std::string testfile = setting.getSrcFilePath() + ".wav";
@@ -231,7 +230,7 @@ static int AacDecode(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int WaveWriteHeader(AMTContext& ctx, const TranscoderSetting& setting)
+static int WaveWriteHeader(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	std::string dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
 
@@ -265,7 +264,7 @@ static int WaveWriteHeader(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int ProcessTest(AMTContext& ctx, const TranscoderSetting& setting)
+static int ProcessTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	class ProcTest : public EventBaseSubProcess {
 	public:
@@ -282,7 +281,7 @@ static int ProcessTest(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int FileStreamInfo(AMTContext& ctx, const TranscoderSetting& setting)
+static int FileStreamInfo(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 	reformInfo.prepare();
@@ -290,13 +289,13 @@ static int FileStreamInfo(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int ParseArgs(AMTContext& ctx, const TranscoderSetting& setting)
+static int ParseArgs(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	setting.dump();
 	return 0;
 }
 
-static int LosslessTest(AMTContext& ctx, const TranscoderSetting& setting)
+static int LosslessTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	auto env = make_unique_ptr(CreateScriptEnvironment2());
 	auto codecEnc = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
@@ -354,7 +353,7 @@ static int LosslessTest(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int LosslessFileTest(AMTContext& ctx, const TranscoderSetting& setting)
+static int LosslessFileTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	auto env = make_unique_ptr(CreateScriptEnvironment2());
 	auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
@@ -424,7 +423,7 @@ static int LosslessFileTest(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int LogoFrameTest(AMTContext& ctx, const TranscoderSetting& setting)
+static int LogoFrameTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	auto env = make_unique_ptr(CreateScriptEnvironment2());
 
@@ -460,7 +459,7 @@ public:
 	}
 };
 
-static int SplitDualMonoAAC(AMTContext& ctx, const TranscoderSetting& setting)
+static int SplitDualMonoAAC(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	std::vector<std::string> outpaths;
 	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 0, CMTYPE_BOTH));
@@ -487,7 +486,7 @@ static int SplitDualMonoAAC(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int AACDecodeTest(AMTContext& ctx, const TranscoderSetting& setting)
+static int AACDecodeTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	File src(setting.getSrcFilePath(), "rb");
 	int sz = (int)src.size();
@@ -527,7 +526,7 @@ static int AACDecodeTest(AMTContext& ctx, const TranscoderSetting& setting)
 	return 0;
 }
 
-static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
+static int CaptionASS(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	try {
 		StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
@@ -536,7 +535,8 @@ static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
 		auto audioDiffInfo = reformInfo.genAudio();
 		audioDiffInfo.printAudioPtsDiff(ctx);
 
-		CaptionASSFormatter formatter(ctx);
+		CaptionASSFormatter formatterASS(ctx);
+		CaptionSRTFormatter formatterSRT(ctx);
 		int numFiles = reformInfo.getNumVideoFile();
 		for (int videoFileIndex = 0; videoFileIndex < numFiles; ++videoFileIndex) {
 			int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
@@ -544,13 +544,12 @@ static int CaptionASS(AMTContext& ctx, const TranscoderSetting& setting)
 				for (int c = 0; c < CMTYPE_MAX; ++c) {
 					auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)c);
 					for (int lang = 0; lang < capList.size(); ++lang) {
-						// BOM‚ ‚èUTF8‚Å‘‚«ž‚Þ
-						std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-						auto asstext = converter.to_bytes(formatter.generate(capList[lang]));
-						File file(setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)c), "w");
-						uint8_t bom[] = { 0xEF, 0xBB, 0xBF };
-						file.write(MemoryChunk(bom, sizeof(bom)));
-						file.write(MemoryChunk((uint8_t*)asstext.data(), asstext.size()));
+						WriteUTF8File(
+							setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)c),
+							formatterASS.generate(capList[lang]));
+						WriteUTF8File(
+							setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, (CMType)c),
+							formatterSRT.generate(capList[lang]));
 					}
 				}
 			}
