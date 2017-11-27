@@ -639,6 +639,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region MKVMergePath変更通知プロパティ
+        public string MKVMergePath {
+            get { return setting.MKVMergePath; }
+            set {
+                if (setting.MKVMergePath == value)
+                    return;
+                setting.MKVMergePath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region TimelineEditorPath変更通知プロパティ
         public string TimelineEditorPath {
             get { return setting.TimelineEditorPath; }
@@ -1337,6 +1349,7 @@ namespace Amatsukaze.Models
             this.setting.NVEncOption = setting.NVEncOption;
             EncoderTypeInt = (int)setting.EncoderType;
             MuxerPath = setting.MuxerPath;
+            MKVMergePath = setting.MKVMergePath;
             TimelineEditorPath = setting.TimelineEditorPath;
 
             ChapterExePath = setting.ChapterExePath;

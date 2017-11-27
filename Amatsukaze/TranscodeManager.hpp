@@ -1263,21 +1263,24 @@ public:
 		}
 
 		std::vector<std::string> subsFiles;
+		std::vector<std::string> subsTitles;
 		for (CMType cmtype : setting_.getCMTypes()) {
 			auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
 			for (int lang = 0; lang < capList.size(); ++lang) {
 				if (setting_.getFormat() == FORMAT_MKV) {
 					subsFiles.push_back(setting_.getTmpASSFilePath(
 						videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+					subsTitles.push_back("ASS");
 				}
 				subsFiles.push_back(setting_.getTmpSRTFilePath(
 					videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+				subsTitles.push_back("SRT");
 			}
 		}
 
 		std::string args = makeMuxerArgs(setting_.getFormat(),
 			setting_.getMuxerPath(), encVideoFile,
-			info.vf, audioFiles, outFilePath, chapterFile, subsFiles);
+			info.vf, audioFiles, outFilePath, chapterFile, subsFiles, subsTitles);
 
 		ctx.info(args.c_str());
 
@@ -1343,7 +1346,8 @@ public:
 		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
 		std::string outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
 		std::string args = makeMuxerArgs(FORMAT_MP4,
-			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath, std::string(), std::vector<std::string>());
+			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath, 
+			std::string(), std::vector<std::string>(), std::vector<std::string>());
 		ctx.info("[MuxŠJŽn]");
 		ctx.info(args.c_str());
 

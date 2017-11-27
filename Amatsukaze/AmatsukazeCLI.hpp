@@ -346,7 +346,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (!conf.ignoreNoLogo) {
+	if (conf.chapter && !conf.ignoreNoLogo) {
 		if (conf.logoPath.size() == 0) {
 			THROW(ArgumentException, "ÉçÉSÇ™éwíËÇ≥ÇÍÇƒÇ¢Ç‹ÇπÇÒ");
 		}

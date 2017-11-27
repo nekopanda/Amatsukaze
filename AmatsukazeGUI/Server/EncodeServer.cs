@@ -1107,6 +1107,7 @@ namespace Amatsukaze.Server
                         X264Path = GetExePath(basePath, "x264"),
                         X265Path = GetExePath(basePath, "x265"),
                         MuxerPath = Path.Combine(basePath, "muxer.exe"),
+                        MKVMergePath = Path.Combine(basePath, "mkvmerge.exe"),
                         TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
                         ChapterExePath = GetExePath(basePath, "chapter_exe"),
                         JoinLogoScpPath = GetExePath(basePath, "join_logo_scp"),
@@ -1296,10 +1297,8 @@ namespace Amatsukaze.Server
                 .Append(GetEncoderName())
                 .Append(" -e \"")
                 .Append(encoderPath)
-                .Append("\" -m \"")
-                .Append(appData.setting.MuxerPath)
-                .Append("\" -t \"")
-                .Append(appData.setting.TimelineEditorPath)
+                //.Append("\" -t \"")
+                //.Append(appData.setting.TimelineEditorPath)
                 .Append("\" -j \"")
                 .Append(json)
                 .Append("\" --chapter-exe \"")
@@ -1319,14 +1318,13 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
-            sb.Append(" -fmt ");
             if (appData.setting.OutputFormat == FormatType.MP4)
             {
-                sb.Append("mp4");
+                sb.Append(" -fmt mp4 -m \"" + appData.setting.MuxerPath + "\"");
             }
             else
             {
-                sb.Append("mkv");
+                sb.Append(" -fmt mkv -m \"" + appData.setting.MKVMergePath + "\"");
             }
 
             if (bitrateCM != 1)
@@ -1478,24 +1476,40 @@ namespace Amatsukaze.Server
                     "エンコーダパスが無効です: " + encoderPath);
             }
 
-            if (string.IsNullOrEmpty(setting.MuxerPath))
+            if(setting.OutputFormat == FormatType.MP4)
             {
-                throw new ArgumentException("Muxerパスが指定されていません");
+                if (string.IsNullOrEmpty(setting.MuxerPath))
+                {
+                    throw new ArgumentException("L-SMASH Muxerパスが指定されていません");
+                }
+                if (!File.Exists(setting.MuxerPath))
+                {
+                    throw new InvalidOperationException(
+                        "Muxerパスが無効です: " + setting.MuxerPath);
+                }
             }
-            if (!File.Exists(setting.MuxerPath))
+            else
             {
-                throw new InvalidOperationException(
-                    "Muxerパスが無効です: " + setting.MuxerPath);
+                if (string.IsNullOrEmpty(setting.MKVMergePath))
+                {
+                    throw new ArgumentException("MKVMergeパスが指定されていません");
+                }
+                if (!File.Exists(setting.MKVMergePath))
+                {
+                    throw new InvalidOperationException(
+                        "MKVMergePathパスが無効です: " + setting.MuxerPath);
+                }
             }
-            if (string.IsNullOrEmpty(setting.TimelineEditorPath))
-            {
-                throw new ArgumentException("Timelineeditorパスが指定されていません");
-            }
-            if (!File.Exists(setting.TimelineEditorPath))
-            {
-                throw new InvalidOperationException(
-                    "Timelineeditorパスが無効です: " + setting.TimelineEditorPath);
-            }
+
+            //if (string.IsNullOrEmpty(setting.TimelineEditorPath))
+            //{
+            //    throw new ArgumentException("Timelineeditorパスが指定されていません");
+            //}
+            //if (!File.Exists(setting.TimelineEditorPath))
+            //{
+            //    throw new InvalidOperationException(
+            //        "Timelineeditorパスが無効です: " + setting.TimelineEditorPath);
+            //}
             if (!setting.DisableChapter)
             {
                 if (string.IsNullOrEmpty(setting.ChapterExePath))

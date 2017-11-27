@@ -174,7 +174,8 @@ static std::string makeMuxerArgs(
 	const std::vector<std::string>& inAudios,
 	const std::string& outpath,
 	const std::string& chapterpath,
-	const std::vector<std::string>& inSubs)
+	const std::vector<std::string>& inSubs,
+	const std::vector<std::string>& subsTitles)
 {
 	StringBuilder sb;
 
@@ -213,8 +214,8 @@ static std::string makeMuxerArgs(
 		for (const auto& inAudio : inAudios) {
 			sb.append(" \"%s\"", inAudio);
 		}
-		for (const auto& inSub : inSubs) {
-			sb.append(" \"%s\"", inSub);
+		for (int i = 0; i < (int)inSubs.size(); ++i) {
+			sb.append(" --track-name \"0:%s\" \"%s\"", subsTitles[i], inSubs[i]);
 		}
 	}
 

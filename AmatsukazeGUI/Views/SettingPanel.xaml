@@ -6,7 +6,7 @@
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
-             d:DesignHeight="900" d:DesignWidth="500"
+             d:DesignHeight="1100" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
     <Grid>
         <Grid.RowDefinitions>
@@ -82,7 +82,7 @@
 
                 <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力フォーマット" VerticalAlignment="Top" Margin="0,8,1,0"/>
                 <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5.667,0,0" VerticalAlignment="Top" Width="78"
-                      ItemsSource="{Binding OutputOptionList}" SelectedIndex="{Binding Model.OutputFormatInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      ItemsSource="{Binding FormatList}" SelectedIndex="{Binding Model.OutputFormatInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="MP4はASSに対応しないため、字幕のレイアウト情報は失われます"/>
                 
                 <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力選択" VerticalAlignment="Top" Margin="0,35,1,0"/>
@@ -161,7 +161,8 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x265パス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="QSVEncCパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NVEncCパス"/>
-                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="Muxerパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="L-SMASH Muxerパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="mkvmergeパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="TimelineEditorパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="ChapterExeパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
@@ -181,6 +182,7 @@
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.MKVMergePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>

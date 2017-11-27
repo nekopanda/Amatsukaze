@@ -79,6 +79,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string MuxerPath { get; set; }
         [DataMember]
+        public string MKVMergePath { get; set; }
+        [DataMember]
         public string TimelineEditorPath { get; set; }
 
         [DataMember]

@@ -62,9 +62,9 @@ private:
 			.append(L"Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
 				"Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
 				"BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-			.append(L"Style: Default,MS Gothic,%d,&H00FFFFFF,&H000000FF,&H00000000,&H7F000000,"
-				"0,0,0,0,100,100,4,"
-				"0,1,2,2,1,0,0,0,1\n", (int)DefFontSize)
+			.append(L"Style: Default,Yu Gothic,%d,&H00FFFFFF,&H000000FF,&H00000000,&H7F000000,"
+				"1,0,0,0,100,100,4,"
+				"0,1,2,2,1,0,0,0,1\n", (int)DefFontSize + 10) // なぜかYu Gothicは+10しないとそのサイズにならなかった
 			.append(L"\n")
 			.append(L"[Events]\n")
 			.append(L"Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n");
@@ -244,29 +244,13 @@ private:
 		int m = (int)totalMin % 60;
 		double sec = totalSec - (int)totalMin * 60;
 		int s = (int)sec;
-		int ss = (int)((sec - s) * 100);
+		int ss = (int)std::round(((sec - s) * 1000));
 		sb.append(L"%02d:%02d:%02d,%03d", h, m, s, ss);
 	}
 
 	void item(const OutCaptionLine& line) {
 		if (line.line->formats.size() == 0) {
 			return;
-		}
-
-		if (line.end != prevEnd) {
-			pushLine();
-			// 時間を出力
-			sb.append(L"\n%d\n", subIndex++);
-			time(line.start);
-			sb.append(L" --> ");
-			time(line.end);
-			sb.append(L"\n");
-			prevPosY = -1;
-		}
-		if (line.line->posY != prevPosY) {
-			// 改行
-			linebuf.clear();
-			prevPosY = line.line->posY;
 		}
 
 		auto& fmts = line.line->formats;
@@ -278,10 +262,26 @@ private:
 				// 小サイズは出力しない
 				continue;
 			}
+			if (line.end != prevEnd) {
+				pushLine();
+				// 時間を出力
+				sb.append(L"\n%d\n", subIndex++);
+				time(line.start);
+				sb.append(L" --> ");
+				time(line.end);
+				sb.append(L"\n");
+				prevEnd = line.end;
+				prevPosY = -1;
+			}
+			if (line.line->posY != prevPosY) {
+				// 改行
+				pushLine();
+				prevPosY = line.line->posY;
+			}
 			int begin = fmts[i].pos;
 			int end = (i + 1 < nfrags) ? fmts[i + 1].pos : (int)text.size();
 			auto& fragtext = std::wstring(text.begin() + begin, text.begin() + end);
-			sb.append(L"%s", fragtext);
+			linebuf.append(L"%s", fragtext);
 		}
 	}
 

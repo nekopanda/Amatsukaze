@@ -393,7 +393,9 @@ public:
 		else {
 			// BOMありUTF-8で読み込む
 			std::wifstream input(mapPath);
-			input.imbue(std::locale(input.getloc(), new std::codecvt_utf8<wchar_t, 0x10ffff, std::consume_header>));
+			// codecvt_utf8 はUCS-2にしか対応していないので使わないように！
+			// 必ず codecvt_utf8_utf16 を使うこと
+			input.imbue(std::locale(input.getloc(), new std::codecvt_utf8_utf16<wchar_t, 0x10ffff, std::consume_header>));
 			for (std::wstring line; getline(input, line);)
 			{
 				if (line.size() >= 34) {
