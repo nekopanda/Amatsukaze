@@ -183,6 +183,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnLogoData:
                     userClient.OnLogoData((LogoData)arg);
                     break;
+                case RPCMethodId.OnDrcsData:
+                    userClient.OnDrcsData((DrcsImageUpdate)arg);
+                    break;
                 case RPCMethodId.OnOperationResult:
                     userClient.OnOperationResult((string)arg);
                     break;
@@ -262,6 +265,11 @@ namespace Amatsukaze.Server
         public Task RetryItem(string itemPath)
         {
             return Send(RPCMethodId.RetryItem, itemPath);
+        }
+
+        public Task AddDrcsMap(DrcsImage drcsMap)
+        {
+            return Send(RPCMethodId.AddDrcsMap, drcsMap);
         }
     }
 }

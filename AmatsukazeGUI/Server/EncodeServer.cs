@@ -202,6 +202,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.SetServiceSetting:
                     server.SetServiceSetting((ServiceSettingUpdate)arg);
                     break;
+                case RPCMethodId.AddDrcsMap:
+                    server.AddDrcsMap((DrcsImage)arg);
+                    break;
                 case RPCMethodId.RequestSetting:
                     server.RequestSetting();
                     break;
@@ -316,6 +319,11 @@ namespace Amatsukaze.Server
         public Task OnAvsScriptFiles(AvsScriptFiles files)
         {
             return Send(RPCMethodId.OnAvsScriptFiles, files);
+        }
+
+        public Task OnDrcsData(DrcsImageUpdate update)
+        {
+            return Send(RPCMethodId.OnDrcsData, update);
         }
         #endregion
     }
@@ -747,6 +755,11 @@ namespace Amatsukaze.Server
                         // マッチするロゴがなかった
                         return FailLogItem(src.Path, "マッチするロゴがありませんでした", start, finish);
                     }
+                    else if (exitCode == 101)
+                    {
+                        // DRCSマッピングがなかった
+                        return FailLogItem(src.Path, "DRCS文字のマッピングがありませんでした", start, finish);
+                    }
                     else
                     {
                         // 失敗
@@ -834,6 +847,9 @@ namespace Amatsukaze.Server
                         server.log.Items.Add(logItem);
                         server.WriteLog();
                         waitList.Add(server.client.OnLogUpdate(server.log.Items.Last()));
+
+                        // DRCSイメージリストを更新
+                        server.drcsMapQ.Post(null);
                     }
 
                     waitList.Add(server.NotifyQueueItemUpdate(src, dir));
@@ -889,6 +905,10 @@ namespace Amatsukaze.Server
         private Task saveSettingThread;
         private BufferBlock<int> saveSettingQ = new BufferBlock<int>();
         private bool settingUpdated;
+
+        // DRCSマップを更新するスレッド
+        private Task drcsMapThread;
+        private BufferBlock<DrcsImage> drcsMapQ = new BufferBlock<DrcsImage>();
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -965,6 +985,7 @@ namespace Amatsukaze.Server
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
             saveSettingThread = SaveSettingThread();
+            drcsMapThread = DrcsMapThread();
         }
 
         #region IDisposable Support
@@ -994,6 +1015,7 @@ namespace Amatsukaze.Server
                     queueQ.Complete();
                     watchFileQ.Complete();
                     saveSettingQ.Complete();
+                    drcsMapQ.Complete();
 
                     if (settingUpdated)
                     {
@@ -1069,6 +1091,10 @@ namespace Amatsukaze.Server
         private string GetAvsDirectoryPath()
         {
             return Path.GetFullPath("avs");
+        }
+        private string GetDRCSDirectoryPath()
+        {
+            return Path.GetFullPath("drcsout");
         }
         #endregion
 
@@ -1308,7 +1334,9 @@ namespace Amatsukaze.Server
                 .Append("\" -s ")
                 .Append(serviceId)
                 .Append(" --cmoutmask ")
-                .Append(outputMask);
+                .Append(outputMask)
+                .Append(" --drcsout ")
+                .Append(GetDRCSDirectoryPath());
 
             string option = GetEncoderOption();
             if (string.IsNullOrEmpty(option) == false)
@@ -2090,6 +2118,136 @@ namespace Amatsukaze.Server
             }
         }
 
+        private Dictionary<string, DrcsImage> LoadDrcsMap(string filename)
+        {
+            Func<char, bool> isHex = c => 
+                     (c >= '0' && c <= '9') ||
+                     (c >= 'a' && c <= 'f') ||
+                     (c >= 'A' && c <= 'F');
+
+            var ret = new Dictionary<string, DrcsImage>();
+            foreach (var line in File.ReadAllLines(filename))
+            {
+                if(line.Length >= 34 && line.IndexOf("=") == 32)
+                {
+                    string md5 = line.Substring(0, 32);
+                    string mapStr = line.Substring(33);
+                    if(md5.All(isHex))
+                    {
+                        ret.Add(md5, new DrcsImage() { MD5 = md5, MapStr = mapStr, Image = null });
+                    }
+                }
+            }
+            return ret;
+        }
+
+        private Dictionary<string, DrcsImage> LoadDrcsImages(Dictionary<string, DrcsImage> map)
+        {
+            var ret = new Dictionary<string, DrcsImage>();
+
+            foreach (var imgpath in Directory.GetFiles(GetDRCSDirectoryPath()))
+            {
+                if (imgpath.Length == 36 && Path.GetExtension(imgpath).ToLower() == ".bmp")
+                {
+                    string md5 = imgpath.Substring(0, 32);
+                    if (map.ContainsKey(md5) == false)
+                    {
+                        ret.Add(md5, new DrcsImage()
+                        {
+                            MD5 = md5,
+                            MapStr = null,
+                            Image = new System.Windows.Media.Imaging.BitmapImage(new Uri(imgpath))
+                        });
+                    }
+                }
+            }
+
+            return ret;
+        }
+
+        private async Task DrcsMapThread()
+        {
+            var map = new Dictionary<string, DrcsImage>();
+            var pending = new Dictionary<string, DrcsImage>();
+            var filepath = "";
+            var lastModify = DateTime.MinValue;
+
+            try
+            {
+                while(await drcsMapQ.OutputAvailableAsync())
+                {
+                    var item = await drcsMapQ.ReceiveAsync();
+
+                    var newpath = Path.GetDirectoryName(appData.setting.AmatsukazePath) + "\\drcs_map.txt";
+                    if (File.Exists(newpath))
+                    {
+                        if (filepath != newpath)
+                        {
+                            map = LoadDrcsMap(newpath);
+                            filepath = newpath;
+                            lastModify = File.GetLastWriteTime(newpath);
+                        }
+                        else
+                        {
+                            var newLastModity = File.GetLastWriteTime(filepath);
+                            if(lastModify != newLastModity)
+                            {
+                                // ファイルが更新された
+                                map = LoadDrcsMap(filepath);
+                                lastModify = newLastModity;
+                            }
+                        }
+
+                        if (item != null)
+                        {
+                            // 追加
+                            if(map.ContainsKey(item.MD5) == false) // 更新はサポートしない
+                            {
+                                File.AppendText(item.MD5 + "=" + item.MapStr + "\r\n");
+                                map.Add(item.MD5, item);
+                            }
+                            pending.Remove(item.MD5);
+                            await client.OnDrcsData(new DrcsImageUpdate() {
+                                Type = DrcsUpdateType.Remove,
+                                Image = item
+                            });
+                        }
+                        else
+                        {
+                            // 更新
+                            var newpending = LoadDrcsImages(map);
+                            foreach(var key in pending.Keys.Union(newpending.Keys))
+                            {
+                                if(newpending.ContainsKey(key) == false)
+                                {
+                                    // 消えた
+                                    await client.OnDrcsData(new DrcsImageUpdate()
+                                    {
+                                        Type = DrcsUpdateType.Remove,
+                                        Image = pending[key]
+                                    });
+                                }
+                                else if(pending.ContainsKey(key) == false)
+                                {
+                                    // 追加された
+                                    await client.OnDrcsData(new DrcsImageUpdate()
+                                    {
+                                        Type = DrcsUpdateType.Add,
+                                        Image = newpending[key]
+                                    });
+                                }
+                            }
+                            pending = newpending;
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                await client.OnOperationResult("DrcsMapThreadがエラー終了しました: " + exception.Message);
+            }
+        }
+
         private DiskItem MakeDiskItem(string path)
         {
             ulong available = 0;
@@ -2377,6 +2535,12 @@ namespace Amatsukaze.Server
                     }
                 }
             }
+            return Task.FromResult(0);
+        }
+
+        public Task AddDrcsMap(DrcsImage drcsMap)
+        {
+            drcsMapQ.Post(drcsMap);
             return Task.FromResult(0);
         }
     }

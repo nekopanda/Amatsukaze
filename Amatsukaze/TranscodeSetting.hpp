@@ -419,6 +419,10 @@ public:
 		return conf.encoderPath;
 	}
 
+	std::string getEncoderOptions() const {
+		return conf.encoderOptions;
+	}
+
 	ENUM_FORMAT getFormat() const {
 		return conf.format;
 	}

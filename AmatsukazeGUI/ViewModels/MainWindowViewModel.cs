@@ -213,6 +213,7 @@ namespace Amatsukaze.ViewModels
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
             InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model });
+            InfoPanelMenu.Add(new DrcsImageViewModel() { Name = "DRCS文字", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 

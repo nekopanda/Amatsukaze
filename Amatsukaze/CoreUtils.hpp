@@ -42,6 +42,7 @@ DEFINE_EXCEPTION(ArgumentException)
 DEFINE_EXCEPTION(IOException)
 DEFINE_EXCEPTION(RuntimeException)
 DEFINE_EXCEPTION(NoLogoException)
+DEFINE_EXCEPTION(NoDrcsMapException)
 DEFINE_EXCEPTION(AviSynthException)
 
 #undef DEFINE_EXCEPTION

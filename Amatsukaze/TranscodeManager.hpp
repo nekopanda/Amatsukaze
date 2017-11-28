@@ -25,6 +25,7 @@
 #include "InterProcessComm.hpp"
 #include "CaptionData.hpp"
 #include "CaptionFormatter.hpp"
+#include "EncoderOptionParser.hpp"
 
 class AMTSplitter : public TsSplitter {
 public:
@@ -1198,12 +1199,6 @@ private:
   }
 };
 
-struct OutVideoFileInfo {
-	VideoFormat vf;
-	int numFragments;
-	int framesPerFragment;
-};
-
 class AMTMuxder : public AMTObject {
 public:
 	AMTMuxder(
@@ -1217,9 +1212,37 @@ public:
 	{ }
 
 	int64_t mux(int videoFileIndex, int encoderIndex, CMType cmtype,
-		const OutVideoFileInfo& info, const std::string& outFilePath)
+		const VideoFormat& fvfmt, // フィルタ出力フォーマット
+		const EncoderOptionInfo& eoInfo, // エンコーダオプション情報
+		const std::string& outFilePath)
 	{
 		auto fmt = reformInfo_.getFormat(encoderIndex, videoFileIndex);
+		auto vfmt = fvfmt;
+
+		if (vfmt.progressive == false) {
+			// エンコーダでインタレ解除している場合があるので、それを反映する
+			switch (eoInfo.deint) {
+			case ENCODER_DEINT_24P:
+				vfmt.mulDivFps(4, 5);
+				vfmt.progressive = true;
+				break;
+			case ENCODER_DEINT_30P:
+				vfmt.progressive = true;
+				break;
+			case ENCODER_DEINT_60P:
+				vfmt.mulDivFps(2, 1);
+				vfmt.progressive = true;
+				break;
+			}
+		}
+		else {
+			if (eoInfo.deint != ENCODER_DEINT_NONE) {
+				// 一応警告を出す
+				ctx.warn("エンコーダへの入力はプログレッシブですが、"
+					"エンコーダオプションでインタレ解除指定がされています。");
+				ctx.warn("エンコーダでこのオプションが無視される場合は問題ありません。");
+			}
+		}
 
 		// 音声ファイルを作成
 		std::vector<std::string> audioFiles;
@@ -1253,34 +1276,35 @@ public:
 			}
 		}
 
-		// Mux
+		// 映像ファイル
 		std::string encVideoFile;
 		encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype);
 
+		// チャプターファイル
 		std::string chapterFile;
 		if (setting_.isChapterEnabled()) {
 			chapterFile = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
 		}
 
+		// 字幕ファイル
 		std::vector<std::string> subsFiles;
 		std::vector<std::string> subsTitles;
-		for (CMType cmtype : setting_.getCMTypes()) {
-			auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
-			for (int lang = 0; lang < capList.size(); ++lang) {
-				if (setting_.getFormat() == FORMAT_MKV) {
-					subsFiles.push_back(setting_.getTmpASSFilePath(
-						videoFileIndex, encoderIndex, lang, (CMType)cmtype));
-					subsTitles.push_back("ASS");
-				}
-				subsFiles.push_back(setting_.getTmpSRTFilePath(
+		auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
+		for (int lang = 0; lang < capList.size(); ++lang) {
+			if (setting_.getFormat() == FORMAT_MKV) {
+				subsFiles.push_back(setting_.getTmpASSFilePath(
 					videoFileIndex, encoderIndex, lang, (CMType)cmtype));
-				subsTitles.push_back("SRT");
+				subsTitles.push_back("ASS");
 			}
+			subsFiles.push_back(setting_.getTmpSRTFilePath(
+				videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+			subsTitles.push_back("SRT");
 		}
 
+		// Mux
 		std::string args = makeMuxerArgs(setting_.getFormat(),
 			setting_.getMuxerPath(), encVideoFile,
-			info.vf, audioFiles, outFilePath, chapterFile, subsFiles, subsTitles);
+			vfmt, audioFiles, outFilePath, chapterFile, subsFiles, subsTitles);
 
 		ctx.info(args.c_str());
 
@@ -1426,7 +1450,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		auto& counter = ctx.getCounter();
 		auto it = counter.find("drcsnomap");
 		if (it != counter.end() && it->second > 0) {
-			THROW(FormatException, "マッピングにない外字あり正常に字幕処理できなかったため終了します");
+			THROW(NoDrcsMapException, "マッピングにない外字あり正常に字幕処理できなかったため終了します");
 		}
 	}
 
@@ -1500,9 +1524,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
+	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
+	PrintEncoderInfo(ctx, eoInfo);
+
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
 	std::vector<EncodeFileInfo> outFileInfo;
-	std::vector<OutVideoFileInfo> outfiles;
+	std::vector<VideoFormat> outfiles;
 
 	sw.start();
 	for (int videoFileIndex = 0, currentEncoderFile = 0;
@@ -1543,12 +1570,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
             ctx.info("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
 
 						outFileInfo.push_back(argGen->printBitrate(ctx, videoFileIndex, cmtype));
-
-            OutVideoFileInfo info;
-            info.vf = filterSource.getFormat();
-            info.numFragments = 0;
-            info.framesPerFragment = 0;
-            outfiles.push_back(info);
+            outfiles.push_back(outfmt);
 
             std::vector<std::string> encoderArgs;
             for (int i = 0; i < (int)pass.size(); ++i) {
@@ -1594,7 +1616,9 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 					outFileMapping[outIndex], (i == 0) ? CMTYPE_BOTH : cmtype);
 
 				ctx.info("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
-				totalOutSize += muxer->mux(videoFileIndex, encoderIndex, cmtype, outfiles[outIndex], outFilePath);
+				totalOutSize += muxer->mux(
+					videoFileIndex, encoderIndex, cmtype,
+					outfiles[outIndex], eoInfo, outFilePath);
 
 				outFileInfo[currentOutFile++].outPath = outFilePath;
 			}

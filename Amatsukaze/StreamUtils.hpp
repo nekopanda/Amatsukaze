@@ -545,6 +545,14 @@ struct VideoFormat {
 		return sarWidth == 0 && sarHeight == 1;
 	}
 
+	void mulDivFps(int mul, int div) {
+		frameRateNum *= mul;
+		frameRateDenom *= div;
+		int g = gcd(frameRateNum, frameRateDenom);
+		frameRateNum /= g;
+		frameRateDenom /= g;
+	}
+
 	bool operator==(const VideoFormat& o) const {
 		return (width == o.width && height == o.height
 			&& frameRateNum == o.frameRateNum && frameRateDenom == o.frameRateDenom
@@ -552,6 +560,17 @@ struct VideoFormat {
 	}
 	bool operator!=(const VideoFormat& o) const {
 		return !(*this == o);
+	}
+
+private:
+	static int gcd(int u, int v) {
+		int r;
+		while (0 != v) {
+			r = u % v;
+			u = v;
+			v = r;
+		}
+		return u;
 	}
 };
 

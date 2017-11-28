@@ -20,6 +20,7 @@ namespace Amatsukaze.Server
         Task PauseEncode(bool pause);
 
         Task SetServiceSetting(ServiceSettingUpdate update);
+        Task AddDrcsMap(DrcsImage drcsMap);
 
         // 情報取得系
         Task RequestSetting();
@@ -53,6 +54,7 @@ namespace Amatsukaze.Server
         Task OnJlsCommandFiles(JLSCommandFiles files);
         Task OnAvsScriptFiles(AvsScriptFiles files);
         Task OnLogoData(LogoData logoData);
+        Task OnDrcsData(DrcsImageUpdate update);
 
         Task OnOperationResult(string result);
         void Finish();
@@ -66,6 +68,7 @@ namespace Amatsukaze.Server
         RetryItem,
         PauseEncode,
         SetServiceSetting,
+        AddDrcsMap,
         RequestSetting,
         RequestQueue,
         RequestLog,
@@ -90,6 +93,7 @@ namespace Amatsukaze.Server
         OnLlsCommandFiles,
         OnAvsScriptFiles,
         OnLogoData,
+        OnDrcsData,
         OnOperationResult,
     }
 
@@ -108,6 +112,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RetryItem, typeof(string) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
+            { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
             { RPCMethodId.RequestSetting, null },
             { RPCMethodId.RequestQueue, null },
             { RPCMethodId.RequestLog, null },
@@ -132,6 +137,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
             { RPCMethodId.OnAvsScriptFiles, typeof(AvsScriptFiles) },
             { RPCMethodId.OnLogoData, typeof(LogoData) },
+            { RPCMethodId.OnDrcsData, typeof(DrcsImageUpdate) },
             { RPCMethodId.OnOperationResult, typeof(string) }
         };
 
@@ -149,6 +155,24 @@ namespace Amatsukaze.Server
             return rv;
         }
 
+        private static BitmapSource GetImage(object obj)
+        {
+            if(obj is LogoData)
+            {
+                return ((LogoData)obj).Image;
+            }
+            return null;
+        }
+
+        private static Action<BitmapSource> ImageSetter(object obj)
+        {
+            if (obj is LogoData)
+            {
+                return image => { ((LogoData)obj).Image = image; };
+            }
+            return null;
+        }
+
         public static byte[] Serialize(Type type, object obj)
         {
             var ms = new MemoryStream();
@@ -156,11 +180,12 @@ namespace Amatsukaze.Server
             serializer.WriteObject(ms, obj);
             var objbytes = ms.ToArray();
             // 画像だけ特別処理
-            if (obj is LogoData)
+            var image = GetImage(obj);
+            if (image != null)
             {
                 var ms2 = new MemoryStream();
                 var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(((LogoData)obj).Image));
+                encoder.Frames.Add(BitmapFrame.Create(image));
                 encoder.Save(ms2);
                 var databytes = ms2.ToArray();
                 return Combine(
@@ -198,11 +223,12 @@ namespace Amatsukaze.Server
             var ms = new MemoryStream(data, 4, objsize);
             var arg = s.ReadObject(ms);
             // 画像だけ特別処理
-            if (arg is LogoData)
+            var setter = ImageSetter(arg);
+            if (setter != null)
             {
                 var datasize = BitConverter.ToInt32(data, 4 + objsize);
                 var ms2 = new MemoryStream(data, 4 + objsize + 4, datasize);
-                ((LogoData)arg).Image = BitmapFrame.Create(ms2);
+                setter(BitmapFrame.Create(ms2));
             }
             return arg;
         }
@@ -340,6 +366,11 @@ namespace Amatsukaze.Server
         public Task OnAvsScriptFiles(AvsScriptFiles files)
         {
             return client.OnAvsScriptFiles((AvsScriptFiles)Copy(typeof(AvsScriptFiles), files));
+        }
+
+        public Task OnDrcsData(DrcsImageUpdate update)
+        {
+            return client.OnDrcsData(update);
         }
     }
 }

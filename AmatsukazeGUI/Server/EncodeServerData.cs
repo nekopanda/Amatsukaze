@@ -594,4 +594,32 @@ namespace Amatsukaze.Server
         [DataMember]
         public int RemoveLogoIndex { get; set; }
     }
+
+    public enum DrcsUpdateType
+    {
+        Add, Remove
+    }
+
+    [DataContract]
+    public class DrcsImage
+    {
+        [DataMember]
+        public string MD5 { get; set; }
+
+        [DataMember]
+        public string MapStr { get; set; }
+
+        // これはシリアライズできないので、別処理で送信する
+        public BitmapSource Image { get; set; }
+    }
+
+    [DataContract]
+    public class DrcsImageUpdate
+    {
+        [DataMember]
+        public DrcsUpdateType Type { get; set; }
+
+        [DataMember]
+        public DrcsImage Image;
+    }
 }

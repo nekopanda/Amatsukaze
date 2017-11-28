@@ -463,6 +463,10 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 		// ロゴ無しは100とする
 		return 100;
 	}
+	catch (const NoDrcsMapException&) {
+		// DRCSマッピングなしは101とする
+		return 101;
+	}
 	catch (const AvisynthError& avserror) {
 		ctx.error("AviSynth Error");
 		ctx.error(avserror.msg);

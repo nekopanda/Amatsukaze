@@ -12,6 +12,8 @@ using Amatsukaze.Server;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks.Dataflow;
 using System.Windows.Data;
+using Livet.Commands;
+using System.Windows;
 
 namespace Amatsukaze.Models
 {
@@ -230,6 +232,53 @@ namespace Amatsukaze.Models
             Setting.To = _To;
             Model.UpdateLogo(this);
         }
+    }
+
+    public class DisplayDrcsImage : NotificationObject
+    {
+        public ClientModel Model { get; set; }
+
+        public DrcsImage Image { get; set; }
+
+        #region MapStr変更通知プロパティ
+        public string MapStr
+        {
+            get
+            { return Image.MapStr; }
+            set
+            {
+                if (Image.MapStr == value)
+                    return;
+                Image.MapStr = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SetMapStrCommand
+        private ViewModelCommand _SetMapStrCommand;
+
+        public ViewModelCommand SetMapStrCommand
+        {
+            get
+            {
+                if (_SetMapStrCommand == null)
+                {
+                    _SetMapStrCommand = new ViewModelCommand(SetMapStr);
+                }
+                return _SetMapStrCommand;
+            }
+        }
+
+        public void SetMapStr()
+        {
+            if(MessageBox.Show("「" + MapStr + "」をマッピングに追加します。\r\nよろしいですか？",
+                "AmatsukazeGUI", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
+            {
+                Model.Server.AddDrcsMap(Image);
+            }
+        }
+        #endregion
     }
 
     public class ConsoleText : ConsoleTextBase
@@ -1031,6 +1080,22 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DrcsImageList変更通知プロパティ
+        private ObservableCollection<DisplayDrcsImage> drcsImageList_ = new ObservableCollection<DisplayDrcsImage>();
+
+        public ObservableCollection<DisplayDrcsImage> DrcsImageList
+        {
+            get { return drcsImageList_; }
+            set
+            {
+                if (drcsImageList_ == value)
+                    return;
+                drcsImageList_ = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public ClientModel()
         {
             Util.LogHandlers.Add(AddLog);
@@ -1568,6 +1633,25 @@ namespace Amatsukaze.Models
                 if (logo != null)
                 {
                     logo.Data = logoData;
+                }
+            }
+            return Task.FromResult(0);
+        }
+
+        public Task OnDrcsData(DrcsImageUpdate update)
+        {
+            if(update.Type == DrcsUpdateType.Add)
+            {
+                drcsImageList_.Add(new DisplayDrcsImage() {
+                    Model = this, Image = update.Image
+                });
+            }
+            else if(update.Type == DrcsUpdateType.Remove)
+            {
+                var item = drcsImageList_.First(s => s.Image.MD5 == update.Image.MD5);
+                if(item != null)
+                {
+                    drcsImageList_.Remove(item);
                 }
             }
             return Task.FromResult(0);
