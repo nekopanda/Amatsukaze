@@ -33,6 +33,7 @@ namespace Amatsukaze.Server
 
         Task RequestServiceSetting();
         Task RequestLogoData(string fileName);
+        Task RequestDrcsImages();
 
         void Finish();
     }
@@ -78,6 +79,7 @@ namespace Amatsukaze.Server
         RequestFreeSpace,
         RequestServiceSetting,
         RequestLogoData,
+        RequestDrcsImages,
 
         OnSetting = 200,
         OnQueueData,
@@ -122,6 +124,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RequestFreeSpace, null },
             { RPCMethodId.RequestServiceSetting, null },
             { RPCMethodId.RequestLogoData, typeof(string) },
+            { RPCMethodId.RequestDrcsImages, null },
 
             { RPCMethodId.OnSetting, typeof(Setting) },
             { RPCMethodId.OnQueueData, typeof(QueueData) },
@@ -269,7 +272,8 @@ namespace Amatsukaze.Server
                     server.RequestConsole(),
                     server.RequestState(),
                     server.RequestFreeSpace(),
-                    server.RequestServiceSetting());
+                    server.RequestServiceSetting(),
+                    server.RequestDrcsImages());
         }
     }
 

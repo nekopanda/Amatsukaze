@@ -242,6 +242,11 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.RequestFreeSpace, null);
         }
 
+        public Task RequestDrcsImages()
+        {
+            return Send(RPCMethodId.RequestDrcsImages, null);
+        }
+
         public Task SetSetting(Setting setting)
         {
             return Send(RPCMethodId.SetSetting, setting);

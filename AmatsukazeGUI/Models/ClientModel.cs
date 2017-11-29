@@ -234,53 +234,6 @@ namespace Amatsukaze.Models
         }
     }
 
-    public class DisplayDrcsImage : NotificationObject
-    {
-        public ClientModel Model { get; set; }
-
-        public DrcsImage Image { get; set; }
-
-        #region MapStr変更通知プロパティ
-        public string MapStr
-        {
-            get
-            { return Image.MapStr; }
-            set
-            {
-                if (Image.MapStr == value)
-                    return;
-                Image.MapStr = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region SetMapStrCommand
-        private ViewModelCommand _SetMapStrCommand;
-
-        public ViewModelCommand SetMapStrCommand
-        {
-            get
-            {
-                if (_SetMapStrCommand == null)
-                {
-                    _SetMapStrCommand = new ViewModelCommand(SetMapStr);
-                }
-                return _SetMapStrCommand;
-            }
-        }
-
-        public void SetMapStr()
-        {
-            if(MessageBox.Show("「" + MapStr + "」をマッピングに追加します。\r\nよろしいですか？",
-                "AmatsukazeGUI", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
-            {
-                Model.Server.AddDrcsMap(Image);
-            }
-        }
-        #endregion
-    }
-
     public class ConsoleText : ConsoleTextBase
     {
         #region TextLines変更通知プロパティ
@@ -1096,9 +1049,9 @@ namespace Amatsukaze.Models
         #endregion
 
         #region DrcsImageList変更通知プロパティ
-        private ObservableCollection<DisplayDrcsImage> drcsImageList_ = new ObservableCollection<DisplayDrcsImage>();
+        private ObservableCollection<DrcsImage> drcsImageList_ = new ObservableCollection<DrcsImage>();
 
-        public ObservableCollection<DisplayDrcsImage> DrcsImageList
+        public ObservableCollection<DrcsImage> DrcsImageList
         {
             get { return drcsImageList_; }
             set
@@ -1658,16 +1611,27 @@ namespace Amatsukaze.Models
         {
             if(update.Type == DrcsUpdateType.Add)
             {
-                drcsImageList_.Add(new DisplayDrcsImage() {
-                    Model = this, Image = update.Image
-                });
+                if(drcsImageList_.Any(s => s.MD5 == update.Image.MD5) == false)
+                {
+                    drcsImageList_.Add(update.Image);
+                }
             }
             else if(update.Type == DrcsUpdateType.Remove)
             {
-                var item = drcsImageList_.First(s => s.Image.MD5 == update.Image.MD5);
+                var item = drcsImageList_.FirstOrDefault(s => s.MD5 == update.Image.MD5);
                 if(item != null)
                 {
                     drcsImageList_.Remove(item);
+                }
+            }
+            else if(update.Type == DrcsUpdateType.Update)
+            {
+                foreach(var item in update.ImageList)
+                {
+                    if (drcsImageList_.Any(s => s.MD5 == item.MD5) == false)
+                    {
+                        drcsImageList_.Add(item);
+                    }
                 }
             }
             return Task.FromResult(0);

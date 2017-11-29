@@ -98,6 +98,8 @@
     <Compile Include="Server\Scheduler.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
+    <Compile Include="ViewModels\DrcsImageListViewModel.cs" />
+    <Compile Include="ViewModels\DrcsImageViewModel.cs" />
     <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />
     <Compile Include="ViewModels\LogoImageViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
@@ -112,6 +114,12 @@
     </Compile>
     <Compile Include="Views\DiskFreeSpacePanel.xaml.cs">
       <DependentUpon>DiskFreeSpacePanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\DrcsImage.xaml.cs">
+      <DependentUpon>DrcsImage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\DrcsImageListPanel.xaml.cs">
+      <DependentUpon>DrcsImageListPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\LogoAnalyzeWindow.xaml.cs">
       <DependentUpon>LogoAnalyzeWindow.xaml</DependentUpon>
@@ -156,6 +164,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\DiskFreeSpacePanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\DrcsImage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\DrcsImageListPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

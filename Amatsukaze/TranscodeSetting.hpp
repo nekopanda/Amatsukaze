@@ -611,7 +611,7 @@ public:
 	}
 
 	std::string getDRCSOutPath(const std::string& md5) const {
-		return StringFormat("%s%s.bmp", conf.drcsOutPath, md5);
+		return StringFormat("%s\\%s.bmp", conf.drcsOutPath, md5);
 	}
 
 	std::string getOptions(

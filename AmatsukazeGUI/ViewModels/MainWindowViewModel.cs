@@ -211,9 +211,9 @@ namespace Amatsukaze.ViewModels
             MainPanelMenu.Add(new SettingViewModel() { Name = "基本設定", Model = Model });
             MainPanelMenu.Add(new ServiceSettingViewModel() { Name = "チャンネルごとの設定", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
+            InfoPanelMenu.Add(new DrcsImageListViewModel() { Name = "DRCS文字", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
             InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model });
-            InfoPanelMenu.Add(new DrcsImageViewModel() { Name = "DRCS文字", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 

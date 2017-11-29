@@ -623,5 +623,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public DrcsImage Image;
+
+        [DataMember]
+        public List<DrcsImage> ImageList;
     }
 }

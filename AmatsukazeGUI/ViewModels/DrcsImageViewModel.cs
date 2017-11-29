@@ -1,9 +1,12 @@
 ﻿using Amatsukaze.Models;
+using Amatsukaze.Server;
+using Livet.Commands;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
@@ -52,35 +55,39 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        public void Initialize()
-        {
-        }
+        public DrcsImage Image { get; set; }
 
-        #region ImageItemSelectedIndex変更通知プロパティ
-        private int _ImageItemSelectedIndex;
-
-        public int ImageItemSelectedIndex
-        {
-            get { return _ImageItemSelectedIndex; }
-            set
-            {
-                if (_ImageItemSelectedIndex == value)
+        #region MapStr変更通知プロパティ
+        public string MapStr {
+            get { return Image.MapStr; }
+            set {
+                if (Image.MapStr == value)
                     return;
-                _ImageItemSelectedIndex = value;
+                Image.MapStr = value;
                 RaisePropertyChanged();
-                RaisePropertyChanged("SelectedImageItem");
+            }
+        }
+        #endregion
+
+        #region SetMapStrCommand
+        private ViewModelCommand _SetMapStrCommand;
+
+        public ViewModelCommand SetMapStrCommand {
+            get {
+                if (_SetMapStrCommand == null)
+                {
+                    _SetMapStrCommand = new ViewModelCommand(SetMapStr);
+                }
+                return _SetMapStrCommand;
             }
         }
 
-        public DisplayDrcsImage SelectedImageItem
+        public void SetMapStr()
         {
-            get
+            if (MessageBox.Show("「" + MapStr + "」をマッピングに追加します。\r\nよろしいですか？",
+                "AmatsukazeGUI", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
-                if (_ImageItemSelectedIndex >= 0 && _ImageItemSelectedIndex < Model.DrcsImageList.Count)
-                {
-                    return Model.DrcsImageList[_ImageItemSelectedIndex];
-                }
-                return null;
+                Model.Server.AddDrcsMap(Image);
             }
         }
         #endregion

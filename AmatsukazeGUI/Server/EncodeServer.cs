@@ -226,6 +226,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.RequestFreeSpace:
                     server.RequestFreeSpace();
                     break;
+                case RPCMethodId.RequestDrcsImages:
+                    server.RequestDrcsImages();
+                    break;
                 case RPCMethodId.RequestServiceSetting:
                     server.RequestServiceSetting();
                     break;
@@ -960,6 +963,7 @@ namespace Amatsukaze.Server
                     consoleText = new ConsoleText(500),
                 },
                 OnStart = () => {
+                    Directory.CreateDirectory(GetDRCSDirectoryPath());
                     if (appData.setting.ClearWorkDirOnStart)
                     {
                         CleanTmpDir();
@@ -2418,6 +2422,14 @@ namespace Amatsukaze.Server
             RefrechDiskSpace();
             return client.OnFreeSpace(new DiskFreeSpace() {
                 Disks = diskMap.Values.ToList()
+            });
+        }
+
+        public Task RequestDrcsImages()
+        {
+            return client.OnDrcsData(new DrcsImageUpdate() {
+                Type = DrcsUpdateType.Update,
+                ImageList = drcsImageList
             });
         }
 
