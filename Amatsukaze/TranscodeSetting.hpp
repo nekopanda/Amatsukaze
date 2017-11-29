@@ -337,7 +337,8 @@ struct Config {
 	std::string outVideoPath;
 	// 結果情報JSON出力パス
 	std::string outInfoJsonPath;
-	// マッピングなしDRCS画像出力ディレクトリパス
+	// DRCSマッピングファイルパス
+	std::string drcsMapPath;
 	std::string drcsOutPath;
 	// フィルタパス
 	std::string filterScriptPath;
@@ -349,6 +350,7 @@ struct Config {
 	std::string muxerPath;
 	std::string timelineditorPath;
 	ENUM_FORMAT format;
+	bool splitSub;
 	bool twoPass;
 	bool autoBitrate;
 	bool chapter;
@@ -433,6 +435,10 @@ public:
 
 	std::string getTimelineEditorPath() const {
 		return conf.timelineditorPath;
+	}
+
+	bool isSplitSub() const {
+		return conf.splitSub;
 	}
 
 	bool isTwoPass() const {
@@ -598,6 +604,10 @@ public:
 
 	std::string getOutSummaryPath() const {
 		return StringFormat("%s.txt", conf.outVideoPath);
+	}
+
+	std::string getDRCSMapPath() const {
+		return conf.drcsMapPath;
 	}
 
 	std::string getDRCSOutPath(const std::string& md5) const {

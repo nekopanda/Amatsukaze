@@ -851,6 +851,21 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region SplitSub変更通知プロパティ
+        public bool SplitSub
+        {
+            get
+            { return setting.SplitSub; }
+            set
+            {
+                if (setting.SplitSub == value)
+                    return;
+                setting.SplitSub = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region OutputMask変更通知プロパティ
         public int OutputMask
         {
@@ -1430,6 +1445,7 @@ namespace Amatsukaze.Models
             BitrateH264 = setting.Bitrate.H264;
             BitrateCM = setting.BitrateCM;
             TwoPass = setting.TwoPass;
+            SplitSub = setting.SplitSub;
             OutputMask = setting.OutputMask;
             DefaultJLSCommand = setting.DefaultJLSCommand;
             DisableChapter = setting.DisableChapter;

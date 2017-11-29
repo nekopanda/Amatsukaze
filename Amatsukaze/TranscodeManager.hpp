@@ -1454,7 +1454,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
-  reformInfo.prepare();
+  reformInfo.prepare(setting.isSplitSub());
 
 	int numVideoFiles = reformInfo.getNumVideoFile();
 	int numOutFiles = reformInfo.getNumOutFiles();

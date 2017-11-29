@@ -101,6 +101,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool TwoPass { get; set; }
         [DataMember]
+        public bool SplitSub { get; set; }
+        [DataMember]
         public int OutputMask { get; set; }
         [DataMember]
         public bool AutoBuffer { get; set; }
@@ -597,7 +599,7 @@ namespace Amatsukaze.Server
 
     public enum DrcsUpdateType
     {
-        Add, Remove
+        Add, Remove, Update
     }
 
     [DataContract]

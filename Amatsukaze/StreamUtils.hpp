@@ -384,11 +384,10 @@ public:
 		return drcsMap;
 	}
 
-	void loadDRCSMapping()
+	void loadDRCSMapping(const std::string& mapPath)
 	{
-		std::string mapPath = GetModuleDirectory() + "\\drcs_map.txt";
 		if (File::exists(mapPath) == false) {
-			warn("DRCSマッピングファイルが見つかりません");
+			THROW(ArgumentException, "DRCSマッピングファイルが見つかりません");
 		}
 		else {
 			// BOMありUTF-8で読み込む

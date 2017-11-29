@@ -284,7 +284,7 @@ static int ProcessTest(AMTContext& ctx, const ConfigWrapper& setting)
 static int FileStreamInfo(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
-	reformInfo.prepare();
+	reformInfo.prepare(false);
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
 	return 0;
 }
@@ -531,7 +531,7 @@ static int CaptionASS(AMTContext& ctx, const ConfigWrapper& setting)
 	try {
 		StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 		
-		reformInfo.prepare();
+		reformInfo.prepare(false);
 		auto audioDiffInfo = reformInfo.genAudio();
 		audioDiffInfo.printAudioPtsDiff(ctx);
 

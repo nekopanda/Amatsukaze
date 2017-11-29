@@ -70,6 +70,7 @@ static void printHelp(const tchar* bin) {
     "                      指定がない場合はビットレートオプションを追加しない\n"
 		"  -bcm|--bitrate-cm <float>   CM判定されたところのビットレート倍率\n"
 		"  --2pass             2passエンコード\n"
+		"  --splitsub          メイン以外のフォーマットは結合しない\n"
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
 		"                      対応エンコーダ: mp4,mkv\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
@@ -80,11 +81,11 @@ static void printHelp(const tchar* bin) {
 		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID\n"
 		"  --chapter           チャプター・CM解析を行う\n"
-		"  --subtitles          字幕を処理する\n"
+		"  --subtitles         字幕を処理する\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
+		"  --drcs <パス>       DRCSマッピングファイルパス\n"
 		"  --ignore-no-drcsmap マッピングにないDRCS文字があっても処理を続行する\n"
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
-		"  --drcsout <パス>    DRCS画像出力フォルダへのパス\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
@@ -131,6 +132,14 @@ static size_t pathGetExtensionSplitPos(const STR& path) {
 	return len;
 }
 
+static std::tstring pathGetDirectory(const std::tstring& path) {
+	size_t lastsplit = path.rfind(_T('/'));
+	size_t namebegin = (lastsplit == std::tstring::npos)
+		? 0
+		: lastsplit;
+	return path.substr(namebegin);
+}
+
 static std::tstring pathRemoveExtension(const std::tstring& path) {
 	return path.substr(0, pathGetExtensionSplitPos(path));
 }
@@ -174,7 +183,6 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 {
 	Config conf = Config();
 	conf.workDir = "./";
-	conf.drcsOutPath = "./";
 	conf.encoderPath = "x264.exe";
 	conf.encoderOptions = "";
 	conf.timelineditorPath = "timelineeditor.exe";
@@ -241,6 +249,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
     else if (key == _T("--2pass")) {
 			conf.twoPass = true;
     }
+		else if (key == _T("--splitsub")) {
+			conf.splitSub = true;
+		}
 		else if (key == _T("-fmt") || key == _T("--format")) {
 			const auto arg = getParam(argc, argv, i++);
 			if (arg == _T("mp4")) {
@@ -267,9 +278,6 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("-j") || key == _T("--json")) {
 			conf.outInfoJsonPath = to_string(getParam(argc, argv, i++));
-		}
-		else if (key == _T("--drcsout")) {
-			conf.drcsOutPath = to_string(pathNormalize(getParam(argc, argv, i++)));
 		}
     else if (key == _T("-f") || key == _T("--filter")) {
 			conf.filterScriptPath = to_string(getParam(argc, argv, i++));
@@ -310,6 +318,14 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--logo")) {
 			conf.logoPath.push_back(to_string(getParam(argc, argv, i++)));
+		}
+		else if (key == _T("--drcs")) {
+			auto path = getParam(argc, argv, i++);
+			conf.drcsMapPath = to_string(path);
+			conf.drcsOutPath = to_string(pathGetDirectory(pathNormalize(path)));
+			if(conf.drcsOutPath.size() == 0) {
+				conf.drcsOutPath = "./";
+			}
 		}
 		else if (key == _T("--chapter-exe")) {
 			conf.chapterExePath = to_string(getParam(argc, argv, i++));
@@ -415,6 +431,13 @@ static void amatsukaze_av_log_callback(
 
 static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting) {
 	try {
+
+		auto drcsMapPath = setting.getDRCSMapPath();
+		if (drcsMapPath.size()) {
+			// DRCSマッピングをロード
+			ctx.loadDRCSMapping(drcsMapPath);
+		}
+
 		std::string mode = setting.getMode();
 		if (mode == "ts")
 			transcodeMain(ctx, setting);
@@ -492,9 +515,6 @@ __declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
 
 		// キャプションDLL初期化
 		InitializeCPW();
-
-		// DRCSマッピングをロード
-		ctx.loadDRCSMapping();
 
     return amatsukazeTranscodeMain(ctx, *setting);
   }
