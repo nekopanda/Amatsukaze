@@ -9,11 +9,33 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:DrcsImageViewModel}}">
+    <UserControl.Resources>
+        <Style x:Key="AddButtonStyle" TargetType="Button">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ModityButtonStyle" TargetType="Button">
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
     <StackPanel Orientation="Horizontal">
         <Image Source="{Binding Image.Image}" Width="36" Height="36" />
         <TextBox Text="{Binding MapStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />
         <Button Margin="10,0,0,0" Content="マッピング追加" Command="{Binding SetMapStrCommand, Mode=OneWay}"
-                HorizontalAlignment="Left" Width="80" Height="22" VerticalAlignment="Center" />
+                HorizontalAlignment="Left" Width="80" Height="22" VerticalAlignment="Center" Style="{StaticResource AddButtonStyle}" IsEnabled="{Binding IsModified}" />
+        <Button Margin="10,0,0,0" Content="変更" Command="{Binding SetMapStrCommand, Mode=OneWay}"
+                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" Style="{StaticResource ModityButtonStyle}" IsEnabled="{Binding IsModified}" />
+        <Button Margin="10,0,0,0" Content="削除" Command="{Binding DeleteMapStrCommand, Mode=OneWay}"
+                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" Style="{StaticResource ModityButtonStyle}" />
     </StackPanel>
 </UserControl>

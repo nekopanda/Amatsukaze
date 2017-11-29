@@ -682,7 +682,7 @@ private:
 			}
 			for (int i = 0; i < (int)outFormat_.size(); ++i) {
 				// ファイルとフォーマットは恒等変換
-				fileFormatId_[i] = i;
+				fileFormatId_.push_back(i);
 			}
 			videoFileStartIndex_ = videoFormatStartIndex_;
 		}
@@ -842,6 +842,7 @@ private:
 	void makeModifiedPTS(std::vector<double>& modifiedPTS, const std::vector<I>& frames)
 	{
 		// 前後のフレームのPTSに6時間以上のずれがあると正しく処理できない
+		if (frames.size() == 0) return;
 
 		// ラップアラウンドしないPTSを生成
 		modifiedPTS.resize(frames.size());

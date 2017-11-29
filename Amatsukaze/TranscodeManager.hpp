@@ -679,6 +679,7 @@ private:
 
 struct EncodeFileInfo {
 	std::string outPath;
+	int64_t fileSize;
 	double srcBitrate;
 	double targetBitrate;
 };
@@ -1283,7 +1284,10 @@ public:
 		// チャプターファイル
 		std::string chapterFile;
 		if (setting_.isChapterEnabled()) {
-			chapterFile = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
+			auto path = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
+			if (File::exists(path)) {
+				chapterFile = path;
+			}
 		}
 
 		// 字幕ファイル
@@ -1544,8 +1548,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
       for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentEncoderFile) {
         for (CMType cmtype : setting.getCMTypes()) {
 
-          // 出力フレーム数がゼロならスキップ
-          if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) == 0)
+          // 出力が1秒以下ならスキップ
+          if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) < MPEG_CLOCK_HZ)
             continue;
 
           AMTFilterSource filterSource(ctx, setting, reformInfo,
@@ -1608,19 +1612,20 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			for (int i = 0; i < (int)cmtypes.size(); ++i) {
 				CMType cmtype = cmtypes[i];
 
-				// 出力フレーム数がゼロならスキップ
-				if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) == 0)
+				// 出力が1秒以下ならスキップ
+				if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) < MPEG_CLOCK_HZ)
 					continue;
 
-				std::string outFilePath = setting.getOutFilePath(
+				auto& info = outFileInfo[currentOutFile++];
+				info.outPath = setting.getOutFilePath(
 					outFileMapping[outIndex], (i == 0) ? CMTYPE_BOTH : cmtype);
 
 				ctx.info("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
-				totalOutSize += muxer->mux(
+				info.fileSize = muxer->mux(
 					videoFileIndex, encoderIndex, cmtype,
-					outfiles[outIndex], eoInfo, outFilePath);
+					outfiles[outIndex], eoInfo, info.outPath);
 
-				outFileInfo[currentOutFile++].outPath = outFilePath;
+				totalOutSize += info.fileSize;
 			}
 		}
   }
@@ -1640,8 +1645,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		for (int i = 0; i < (int)outFileInfo.size(); ++i) {
 			if (i > 0) sb.append(", ");
       const auto& info = outFileInfo[i];
-			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d }",
-				toJsonString(info.outPath), (int)info.srcBitrate, (int)info.targetBitrate);
+			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d, \"outfilesize\": %lld }",
+				toJsonString(info.outPath), (int)info.srcBitrate, (int)info.targetBitrate, info.fileSize);
 		}
 		sb.append("]")
 			.append(", \"logofiles\": [");

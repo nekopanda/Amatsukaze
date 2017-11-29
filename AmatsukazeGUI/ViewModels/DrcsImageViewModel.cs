@@ -1,5 +1,6 @@
 ﻿using Amatsukaze.Models;
 using Amatsukaze.Server;
+using Livet;
 using Livet.Commands;
 using System;
 using System.Collections.Generic;
@@ -55,17 +56,38 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        public DrcsImage Image { get; set; }
+        #region Image変更通知プロパティ
+        private DrcsImage _Image;
+
+        public DrcsImage Image {
+            get { return _Image; }
+            set { 
+                if (_Image == value)
+                    return;
+                _Image = value;
+                MapStr = value.MapStr;
+                RaisePropertyChanged();
+                RaisePropertyChanged("IsModified");
+            }
+        }
+        #endregion
 
         #region MapStr変更通知プロパティ
+        private string _MapStr;
+
         public string MapStr {
-            get { return Image.MapStr; }
-            set {
-                if (Image.MapStr == value)
+            get { return _MapStr; }
+            set { 
+                if (_MapStr == value)
                     return;
-                Image.MapStr = value;
+                _MapStr = value;
                 RaisePropertyChanged();
+                RaisePropertyChanged("IsModified");
             }
+        }
+
+        public bool IsModified {
+            get { return !string.IsNullOrEmpty(_MapStr) && _MapStr != Image.MapStr; }
         }
         #endregion
 
@@ -84,12 +106,39 @@ namespace Amatsukaze.ViewModels
 
         public void SetMapStr()
         {
-            if (MessageBox.Show("「" + MapStr + "」をマッピングに追加します。\r\nよろしいですか？",
+            Image.MapStr = _MapStr;
+            Model.Server.AddDrcsMap(Image);
+        }
+        #endregion
+
+        #region DeleteMapStrCommand
+        private ViewModelCommand _DeleteMapStrCommand;
+
+        public ViewModelCommand DeleteMapStrCommand {
+            get {
+                if (_DeleteMapStrCommand == null)
+                {
+                    _DeleteMapStrCommand = new ViewModelCommand(DeleteMapStr);
+                }
+                return _DeleteMapStrCommand;
+            }
+        }
+
+        public void DeleteMapStr()
+        {
+            if (MessageBox.Show("「" + Image.MapStr + "」を削除します。画像ファイルも削除します。\r\nよろしいですか？",
                 "AmatsukazeGUI", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
+                Image.MapStr = null;
                 Model.Server.AddDrcsMap(Image);
             }
         }
         #endregion
+
+        public DrcsImageViewModel(ClientModel model, DrcsImage image)
+        {
+            Model = model;
+            Image = image;
+        }
     }
 }

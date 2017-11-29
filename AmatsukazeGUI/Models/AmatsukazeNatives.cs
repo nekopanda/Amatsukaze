@@ -434,7 +434,7 @@ namespace Amatsukaze.Models
             }
         }
 
-        public BitmapSource GetImage(byte bg)
+        public BitmapFrame GetImage(byte bg)
         {
             int stride = Width * 3;
             byte[] buffer = new byte[stride * Height];
@@ -445,8 +445,8 @@ namespace Amatsukaze.Models
                     LogoFile_GetImage(Ptr, pbuffer, stride, bg);
                 }
             }
-            return BitmapSource.Create(
-                Width, Height, 96, 96, PixelFormats.Bgr24, null, buffer, stride);
+            return BitmapFrame.Create(BitmapSource.Create(
+                Width, Height, 96, 96, PixelFormats.Bgr24, null, buffer, stride));
         }
 
         public void Save(string filepath)

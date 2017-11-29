@@ -338,6 +338,7 @@ public:
 		fclose(fp_);
 	}
 	void write(MemoryChunk mc) const {
+		if (mc.length == 0) return;
 		if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
 			THROWF(IOException, "failed to write to file");
 		}

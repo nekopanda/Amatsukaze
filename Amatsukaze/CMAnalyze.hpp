@@ -267,7 +267,9 @@ public:
 	void exec(int videoFileIndex, int encoderIndex, CMType cmtype)
 	{
 		auto filechapters = makeFileChapter(videoFileIndex, encoderIndex, cmtype);
-		writeChapter(filechapters, videoFileIndex, encoderIndex, cmtype);
+		if (filechapters.size() > 0) {
+			writeChapter(filechapters, videoFileIndex, encoderIndex, cmtype);
+		}
 	}
 
 private:

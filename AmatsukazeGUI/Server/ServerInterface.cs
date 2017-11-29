@@ -158,48 +158,125 @@ namespace Amatsukaze.Server
             return rv;
         }
 
-        private static BitmapSource GetImage(object obj)
+        private static byte[] CombineChunks(List<byte[]> arrays)
+        {
+            byte[] rv = new byte[arrays.Sum(a => a.Length) + arrays.Count * 4];
+            int offset = 0;
+            foreach (byte[] array in arrays)
+            {
+                System.Buffer.BlockCopy(
+                    BitConverter.GetBytes((int)array.Length), 0, rv, offset, 4);
+                offset += 4;
+                System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
+                offset += array.Length;
+            }
+            return rv;
+        }
+
+        private static List<MemoryStream> SplitChunks(byte[] bytes)
+        {
+            var ret = new List<MemoryStream>();
+            for(int offset = 0; offset < bytes.Length; )
+            {
+                int sz = BitConverter.ToInt32(bytes, offset);
+                offset += 4;
+                ret.Add(new MemoryStream(bytes, offset, sz));
+                offset += sz;
+            }
+            return ret;
+        }
+
+        private static List<BitmapFrame> GetImage(object obj)
         {
             if(obj is LogoData)
             {
-                return ((LogoData)obj).Image;
+                return new List<BitmapFrame> { ((LogoData)obj).Image };
+            }
+            if(obj is DrcsImage)
+            {
+                return new List<BitmapFrame> { ((DrcsImage)obj).Image };
+            }
+            if(obj is DrcsImageUpdate)
+            {
+                var update = (DrcsImageUpdate)obj;
+                var ret = new List<BitmapFrame>();
+                if(update.Image != null)
+                {
+                    ret.Add(update.Image.Image);
+                }
+                if (update.ImageList != null)
+                {
+                    foreach(var img in update.ImageList)
+                    {
+                        ret.Add(img.Image);
+                    }
+                }
+                return ret;
             }
             return null;
         }
 
-        private static Action<BitmapSource> ImageSetter(object obj)
+        private static Action<List<BitmapFrame>> ImageSetter(object obj)
         {
             if (obj is LogoData)
             {
-                return image => { ((LogoData)obj).Image = image; };
+                return image => { ((LogoData)obj).Image = image[0]; };
+            }
+            if (obj is DrcsImage)
+            {
+                return image => { ((DrcsImage)obj).Image = image[0]; };
+            }
+            if (obj is DrcsImageUpdate)
+            {
+                return images => {
+                    var update = (DrcsImageUpdate)obj;
+                    int idx = 0;
+                    if (update.Image != null)
+                    {
+                        update.Image.Image = images[idx++];
+                    }
+                    if (update.ImageList != null)
+                    {
+                        foreach (var img in update.ImageList)
+                        {
+                            img.Image = images[idx++];
+                        }
+                    }
+                };
             }
             return null;
         }
 
         public static byte[] Serialize(Type type, object obj)
         {
-            var ms = new MemoryStream();
-            var serializer = new DataContractSerializer(type);
-            serializer.WriteObject(ms, obj);
-            var objbytes = ms.ToArray();
+            var data = new List<byte[]>();
+            {
+                var ms = new MemoryStream();
+                var serializer = new DataContractSerializer(type);
+                serializer.WriteObject(ms, obj);
+                data.Add(ms.ToArray());
+            }
             // 画像だけ特別処理
             var image = GetImage(obj);
             if (image != null)
             {
-                var ms2 = new MemoryStream();
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(image));
-                encoder.Save(ms2);
-                var databytes = ms2.ToArray();
-                return Combine(
-                    BitConverter.GetBytes((int)objbytes.Length),
-                    objbytes,
-                    BitConverter.GetBytes((int)databytes.Length),
-                    databytes);
+                for(int i = 0; i < image.Count; ++i)
+                {
+                    if(image[i] != null)
+                    {
+                        var ms2 = new MemoryStream();
+                        var encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(image[i]);
+                        encoder.Save(ms2);
+                        data.Add(ms2.ToArray());
+                    }
+                    else
+                    {
+                        data.Add(new byte[0]);
+                    }
+                }
             }
-            return Combine(
-                BitConverter.GetBytes((int)objbytes.Length),
-                objbytes);
+            return CombineChunks(data);
         }
 
         public static byte[] Serialize(RPCMethodId id, object obj)
@@ -219,19 +296,27 @@ namespace Amatsukaze.Server
                 objbyes);
         }
 
-        public static object Deserialize(Type type, byte[] data)
+        public static object Deserialize(Type type, byte[] bytes)
         {
-            var objsize = BitConverter.ToInt32(data, 0);
-            var s = new DataContractSerializer(type);
-            var ms = new MemoryStream(data, 4, objsize);
-            var arg = s.ReadObject(ms);
+            var data = SplitChunks(bytes);
+            var arg = new DataContractSerializer(type).ReadObject(data[0]);
             // 画像だけ特別処理
             var setter = ImageSetter(arg);
             if (setter != null)
             {
-                var datasize = BitConverter.ToInt32(data, 4 + objsize);
-                var ms2 = new MemoryStream(data, 4 + objsize + 4, datasize);
-                setter(BitmapFrame.Create(ms2));
+                List<BitmapFrame> images = new List<BitmapFrame>();
+                for(int i = 1; i < data.Count; ++i)
+                {
+                    if(data[i].Length == 0)
+                    {
+                        images.Add(null);
+                    }
+                    else
+                    {
+                        images.Add(BitmapFrame.Create(data[i]));
+                    }
+                }
+                setter(images);
             }
             return arg;
         }
@@ -374,7 +459,7 @@ namespace Amatsukaze.Server
 
         public Task OnDrcsData(DrcsImageUpdate update)
         {
-            return client.OnDrcsData(update);
+            return client.OnDrcsData((DrcsImageUpdate)Copy(typeof(DrcsImageUpdate), update));
         }
     }
 }

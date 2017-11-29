@@ -570,7 +570,7 @@ namespace Amatsukaze.Server
         public int ImageHeight { get; set; }
 
         // これはシリアライズできないので、別処理で送信する
-        public BitmapSource Image { get; set; }
+        public BitmapFrame Image { get; set; }
     }
 
     public enum ServiceSettingUpdateType
@@ -599,7 +599,7 @@ namespace Amatsukaze.Server
 
     public enum DrcsUpdateType
     {
-        Add, Remove, Update
+        Remove, Update
     }
 
     [DataContract]
@@ -612,7 +612,7 @@ namespace Amatsukaze.Server
         public string MapStr { get; set; }
 
         // これはシリアライズできないので、別処理で送信する
-        public BitmapSource Image { get; set; }
+        public BitmapFrame Image { get; set; }
     }
 
     [DataContract]

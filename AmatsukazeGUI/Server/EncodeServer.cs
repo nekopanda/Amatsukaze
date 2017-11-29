@@ -12,10 +12,12 @@ using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using System.Windows.Media.Imaging;
 
 namespace Amatsukaze.Server
 {
@@ -1094,6 +1096,11 @@ namespace Amatsukaze.Server
             return Path.GetFullPath("drcs");
         }
 
+        private string GetDRCSImagePath(string md5)
+        {
+            return GetDRCSDirectoryPath() + "\\" + md5 + ".bmp";
+        }
+
         private string GetDRCSMapPath()
         {
             return GetDRCSDirectoryPath() + "\\drcs_map.txt";
@@ -1900,16 +1907,17 @@ namespace Amatsukaze.Server
 
             foreach (var imgpath in Directory.GetFiles(GetDRCSDirectoryPath()))
             {
-                if (imgpath.Length == 36 && Path.GetExtension(imgpath).ToLower() == ".bmp")
+                var filename = Path.GetFileName(imgpath);
+                if (filename.Length == 36 && Path.GetExtension(filename).ToLower() == ".bmp")
                 {
-                    string md5 = imgpath.Substring(0, 32);
+                    string md5 = filename.Substring(0, 32);
                     if (oldMap.ContainsKey(md5) == false)
                     {
                         ret.Add(md5, new DrcsImage()
                         {
                             MD5 = md5,
                             MapStr = null,
-                            Image = new System.Windows.Media.Imaging.BitmapImage(new Uri(imgpath))
+                            Image = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(imgpath)))
                         });
                     }
                     else
@@ -2163,32 +2171,36 @@ namespace Amatsukaze.Server
                             var newImageMap = LoadDrcsImages(drcsMap);
                             var newStrMap = LoadDrcsMap();
 
+                            var updateImages = new List<DrcsImage>();
+
                             // newStrMapをnewImageMapにマージ
-                            foreach (var key in newImageMap.Keys.Union(newStrMap.Keys).ToArray())
+                            foreach (var key in newImageMap.Keys)
                             {
-                                bool imageExist = newImageMap.ContainsKey(key);
-                                bool strExist = newStrMap.ContainsKey(key);
-                                if(strExist)
+                                var item = newImageMap[key];
+                                string newstr = item.MapStr;
+                                if (newStrMap.ContainsKey(key))
                                 {
-                                    if(imageExist)
-                                    {
-                                        newImageMap[key].MapStr = newStrMap[key].MapStr;
-                                    }
-                                    else
-                                    {
-                                        newImageMap.Add(key, newStrMap[key]);
-                                    }
+                                    newstr = newStrMap[key].MapStr;
+                                }
+                                else
+                                {
+                                    newstr = null;
+                                }
+                                if (item.MapStr != newstr)
+                                {
+                                    // 変更された
+                                    item.MapStr = newstr;
+                                    updateImages.Add(item);
                                 }
                             }
 
-                            // 更新処理
+                            // 増減処理
                             foreach (var key in newImageMap.Keys.Union(drcsMap.Keys))
                             {
                                 if (newImageMap.ContainsKey(key) == false)
                                 {
                                     // 消えた
-                                    await client.OnDrcsData(new DrcsImageUpdate()
-                                    {
+                                    await client.OnDrcsData(new DrcsImageUpdate() {
                                         Type = DrcsUpdateType.Remove,
                                         Image = drcsMap[key]
                                     });
@@ -2196,22 +2208,18 @@ namespace Amatsukaze.Server
                                 else if (drcsMap.ContainsKey(key) == false)
                                 {
                                     // 追加された
-                                    await client.OnDrcsData(new DrcsImageUpdate()
-                                    {
-                                        Type = DrcsUpdateType.Add,
-                                        Image = newImageMap[key]
-                                    });
-                                }
-                                else if (newImageMap[key].MapStr != drcsMap[key].MapStr)
-                                {
-                                    // 変更された
-                                    await client.OnDrcsData(new DrcsImageUpdate()
-                                    {
-                                        Type = DrcsUpdateType.Update,
-                                        Image = newImageMap[key]
-                                    });
+                                    updateImages.Add(newImageMap[key]);
                                 }
                             }
+
+                            if(updateImages.Count > 0)
+                            {
+                                await client.OnDrcsData(new DrcsImageUpdate() {
+                                    Type = DrcsUpdateType.Update,
+                                    ImageList = updateImages.Distinct().ToList()
+                                });
+                            }
+
                             drcsMap = newImageMap;
                         }
                     }
@@ -2429,7 +2437,7 @@ namespace Amatsukaze.Server
         {
             return client.OnDrcsData(new DrcsImageUpdate() {
                 Type = DrcsUpdateType.Update,
-                ImageList = drcsImageList
+                ImageList = drcsMap.Values.ToList()
             });
         }
 
@@ -2554,6 +2562,10 @@ namespace Amatsukaze.Server
             return Task.FromResult(0);
         }
 
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern bool MoveFileEx(string existingFileName, string newFileName, int flags);
+
         public Task AddDrcsMap(DrcsImage recvitem)
         {
             if (drcsMap.ContainsKey(recvitem.MD5))
@@ -2562,13 +2574,14 @@ namespace Amatsukaze.Server
 
                 if (item.MapStr != recvitem.MapStr)
                 {
-                    // データ更新
-                    item.MapStr = recvitem.MapStr;
-
                     var filepath = GetDRCSMapPath();
-                    if (string.IsNullOrEmpty(item.MapStr))
+                    var updateType = DrcsUpdateType.Update;
+
+                    // データ更新
+                    if (item.MapStr == null)
                     {
                         // 既存のマッピングにないので追加
+                        item.MapStr = recvitem.MapStr;
                         using (var sw = File.AppendText(filepath))
                         {
                             sw.WriteLine(item.MD5 + "=" + item.MapStr);
@@ -2576,7 +2589,20 @@ namespace Amatsukaze.Server
                     }
                     else
                     {
-                        // 既にマッピングにあるので変更
+                        // 既にマッピングにある
+                        item.MapStr = recvitem.MapStr;
+                        if(item.MapStr == null)
+                        {
+                            // 削除
+                            drcsMap.Remove(recvitem.MD5);
+                            try
+                            {
+                                File.Delete(GetDRCSImagePath(recvitem.MD5));
+                            }
+                            catch(Exception) { }
+                            updateType = DrcsUpdateType.Remove;
+                        }
+
                         // まず、一時ファイルに書き込む
                         var tmppath = filepath + ".tmp";
                         // BOMありUTF-8
@@ -2588,12 +2614,11 @@ namespace Amatsukaze.Server
                             }
                         }
                         // ファイル置き換え
-                        File.Move(tmppath, filepath);
+                        MoveFileEx(tmppath, filepath, 11);
                     }
 
-                    return client.OnDrcsData(new DrcsImageUpdate()
-                    {
-                        Type = DrcsUpdateType.Update,
+                    return client.OnDrcsData(new DrcsImageUpdate() {
+                        Type = updateType,
                         Image = item
                     });
                 }

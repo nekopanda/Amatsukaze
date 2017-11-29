@@ -46,9 +46,11 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
@@ -58,7 +60,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="フォルダ"/>
                     <TextBlock HorizontalAlignment="Left" Text="ファイル名"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Grid.ColumnSpan="3">
+                <StackPanel Grid.Column="2" Grid.ColumnSpan="4">
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayResult}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayReason}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDirectory}"/>
@@ -81,7 +83,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="インシデント数"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力ファイル数"/>
                 </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="1">
+                <StackPanel Grid.Row="1" Grid.Column="2">
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTsTime}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}"/>
@@ -98,7 +100,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutNum}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="1" Grid.Column="2">
+                <StackPanel Grid.Row="1" Grid.Column="3">
                     <TextBlock HorizontalAlignment="Left" Text="入力サイズ[MB]"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力サイズ[MB]"/>
                     <TextBlock HorizontalAlignment="Left" Text="中間サイズ[MB]"/>
@@ -113,7 +115,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="最大音ズレ位置[ms]"/>
                     <TextBlock HorizontalAlignment="Left" Text="未出力音声割合[%]"/>
                 </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="3">
+                <StackPanel Grid.Row="1" Grid.Column="5">
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileSize}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutFileSize}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntFileSize}"/>
@@ -129,11 +131,11 @@
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioNotIncluded}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="2" Grid.ColumnSpan="3">
+                <StackPanel Grid.Row="2">
                     <TextBlock HorizontalAlignment="Left" Text="出力フォルダ"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力ファイル"/>
                 </StackPanel>
-                <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3">
+                <StackPanel Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="4">
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDirectory}"/>
                     <ItemsControl ItemsSource="{Binding DisplayOutFile}">
                         <ItemsControl.ItemTemplate>

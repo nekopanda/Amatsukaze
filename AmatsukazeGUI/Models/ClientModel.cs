@@ -1609,29 +1609,36 @@ namespace Amatsukaze.Models
 
         public Task OnDrcsData(DrcsImageUpdate update)
         {
-            if(update.Type == DrcsUpdateType.Add)
-            {
-                if(drcsImageList_.Any(s => s.MD5 == update.Image.MD5) == false)
+            Action<DrcsImage> procItem = image => {
+                var item = drcsImageList_.FirstOrDefault(s => s.MD5 == image.MD5);
+                if (item == null)
                 {
-                    drcsImageList_.Add(update.Image);
-                }
-            }
-            else if(update.Type == DrcsUpdateType.Remove)
-            {
-                var item = drcsImageList_.FirstOrDefault(s => s.MD5 == update.Image.MD5);
-                if(item != null)
-                {
-                    drcsImageList_.Remove(item);
-                }
-            }
-            else if(update.Type == DrcsUpdateType.Update)
-            {
-                foreach(var item in update.ImageList)
-                {
-                    if (drcsImageList_.Any(s => s.MD5 == item.MD5) == false)
+                    if(update.Type == DrcsUpdateType.Update)
                     {
-                        drcsImageList_.Add(item);
+                        drcsImageList_.Add(image);
                     }
+                }
+                else
+                {
+                    if(update.Type == DrcsUpdateType.Remove)
+                    {
+                        drcsImageList_.Remove(item);
+                    }
+                    else
+                    {
+                        drcsImageList_[drcsImageList_.IndexOf(item)] = image;
+                    }
+                }
+            };
+            if(update.Image != null)
+            {
+                procItem(update.Image);
+            }
+            if(update.ImageList != null)
+            {
+                foreach (var item in update.ImageList)
+                {
+                    procItem(item);
                 }
             }
             return Task.FromResult(0);

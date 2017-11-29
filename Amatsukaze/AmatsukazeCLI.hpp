@@ -137,7 +137,7 @@ static std::tstring pathGetDirectory(const std::tstring& path) {
 	size_t namebegin = (lastsplit == std::tstring::npos)
 		? 0
 		: lastsplit;
-	return path.substr(namebegin);
+	return path.substr(0, namebegin);
 }
 
 static std::tstring pathRemoveExtension(const std::tstring& path) {
@@ -324,7 +324,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			conf.drcsMapPath = to_string(path);
 			conf.drcsOutPath = to_string(pathGetDirectory(pathNormalize(path)));
 			if(conf.drcsOutPath.size() == 0) {
-				conf.drcsOutPath = "./";
+				conf.drcsOutPath = ".";
 			}
 		}
 		else if (key == _T("--chapter-exe")) {

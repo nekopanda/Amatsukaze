@@ -15,6 +15,7 @@ using Amatsukaze.Models;
 using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using Amatsukaze.Server;
+using System.Windows.Data;
 
 namespace Amatsukaze.ViewModels
 {
@@ -77,6 +78,53 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region ImageItemSelectedIndex変更通知プロパティ
+        private int _ImageItemSelectedIndex;
+
+        public int ImageItemSelectedIndex {
+            get { return _ImageItemSelectedIndex; }
+            set { 
+                if (_ImageItemSelectedIndex == value)
+                    return;
+                _ImageItemSelectedIndex = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IsNoMapOnly変更通知プロパティ
+        private bool _IsNoMapOnly = true;
+
+        public bool IsNoMapOnly {
+            get { return _IsNoMapOnly; }
+            set { 
+                if (_IsNoMapOnly == value)
+                    return;
+                _IsNoMapOnly = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ToggleNoMapOnlyCommand
+        private ViewModelCommand _ToggleNoMapOnlyCommand;
+
+        public ViewModelCommand ToggleNoMapOnlyCommand {
+            get {
+                if (_ToggleNoMapOnlyCommand == null)
+                {
+                    _ToggleNoMapOnlyCommand = new ViewModelCommand(ToggleNoMapOnly);
+                }
+                return _ToggleNoMapOnlyCommand;
+            }
+        }
+
+        public void ToggleNoMapOnly()
+        {
+            IsNoMapOnly = !IsNoMapOnly;
+        }
+        #endregion
+
         private List<CollectionChangedEventListener> consoleTextListener = new List<CollectionChangedEventListener>();
 
         public void Initialize()
@@ -87,52 +135,33 @@ namespace Amatsukaze.ViewModels
                     case NotifyCollectionChangedAction.Add:
                         foreach(var item in e.NewItems)
                         {
-                            _ImageList.Add(new DrcsImageViewModel() {
-                                Model = Model,
-                                Image = item as DrcsImage
-                            });
+                            _ImageList.Add(new DrcsImageViewModel(Model, item as DrcsImage));
                         }
                         break;
                     case NotifyCollectionChangedAction.Remove:
                         foreach (var item in e.OldItems)
                         {
-                            var tgt = _ImageList.FirstOrDefault(s => s.Image == item);
-                            if(tgt != null)
-                            {
-                                _ImageList.Remove(tgt);
-                            }
+                            var tgt = _ImageList.First(s => s.Image == item);
+                            _ImageList.Remove(tgt);
                         }
                         break;
                     case NotifyCollectionChangedAction.Reset:
                         _ImageList.Clear();
                         break;
+                    case NotifyCollectionChangedAction.Replace:
+                        for(int i = 0; i < e.NewItems.Count; ++i)
+                        {
+                            _ImageList[e.NewStartingIndex + i].Image = e.NewItems[i] as DrcsImage;
+                        }
+                        break;
                 }
             }));
         }
 
-        #region ImageItemSelectedIndex変更通知プロパティ
-        private int _ImageItemSelectedIndex;
-
-        public int ImageItemSelectedIndex {
-            get { return _ImageItemSelectedIndex; }
-            set {
-                if (_ImageItemSelectedIndex == value)
-                    return;
-                _ImageItemSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("SelectedImageItem");
-            }
+        private void _UnmappedImageList_Filter(object sender, FilterEventArgs e)
+        {
+            throw new NotImplementedException();
         }
-
-        public DrcsImageViewModel SelectedImageItem {
-            get {
-                if (_ImageItemSelectedIndex >= 0 && _ImageItemSelectedIndex < _ImageList.Count)
-                {
-                    return _ImageList[_ImageItemSelectedIndex];
-                }
-                return null;
-            }
-        }
-        #endregion
+        
     }
 }
