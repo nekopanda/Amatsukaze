@@ -28,7 +28,7 @@
         </Style>
     </UserControl.Resources>
     <StackPanel Orientation="Horizontal">
-        <Image Source="{Binding Image.Image}" Width="36" Height="36" />
+        <Image Source="{Binding Image.Image}" Width="24" Height="24" />
         <TextBox Text="{Binding MapStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />
         <Button Margin="10,0,0,0" Content="マッピング追加" Command="{Binding SetMapStrCommand, Mode=OneWay}"

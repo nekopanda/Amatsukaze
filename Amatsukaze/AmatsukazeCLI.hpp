@@ -353,6 +353,16 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
+	// muxerのデフォルト値
+	if (conf.muxerPath.size() == 0) {
+		if (conf.format == FORMAT_MP4) {
+			conf.muxerPath = "muxer.exe";
+		}
+		else {
+			conf.muxerPath = "mkvmerge.exe";
+		}
+	}
+
 	if (conf.mode == "ts" || conf.mode == "g") {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
@@ -476,6 +486,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			test::AACDecodeTest(ctx, setting);
 		else if (mode == "test_ass")
 			test::CaptionASS(ctx, setting);
+		else if (mode == "test_eo")
+			test::EncoderOptionParse(ctx, setting);
 
 		else
 			PRINTF("--modeの指定が間違っています: %s\n", mode.c_str());

@@ -125,6 +125,15 @@ protected:
 
 	void ParserTest(const std::wstring& filename, bool verify = true);
 
+	void EncoderOptionTest(const wchar_t* option) {
+		printf("Option: %ls\n", option);
+		const wchar_t* args[] = {
+			L"AmatsukazeTest.exe", L"--mode", L"test_eo", L"-e", L"QSVEnc",
+			L"-eo", option,
+		};
+		EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+	}
+
 private:
 	void getParam(const std::wstring& inipath, const wchar_t* key, std::wstring& dst) {
 		wchar_t buf[200];
@@ -382,6 +391,43 @@ TEST_F(TestBase, CaptionASSTest)
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
 
+TEST_F(TestBase, EncoderOptionTest01)
+{
+	EncoderOptionTest(L"--vpp-deinterlace none");
+}
+TEST_F(TestBase, EncoderOptionTest02)
+{
+	EncoderOptionTest(L"--vpp-deinterlace normal");
+}
+TEST_F(TestBase, EncoderOptionTest03)
+{
+	EncoderOptionTest(L"--vpp-deinterlace adaptive");
+}
+TEST_F(TestBase, EncoderOptionTest04)
+{
+	EncoderOptionTest(L"--vpp-deinterlace bob");
+}
+TEST_F(TestBase, EncoderOptionTest05)
+{
+	EncoderOptionTest(L"--vpp-afs preset=anime,24fps=true,rff=true");
+}
+TEST_F(TestBase, EncoderOptionTest06)
+{
+	EncoderOptionTest(L"--vpp-afs preset=anime");
+}
+TEST_F(TestBase, EncoderOptionTest07)
+{
+	EncoderOptionTest(L"--vpp-afs preset=24fps");
+}
+TEST_F(TestBase, EncoderOptionTest08)
+{
+	EncoderOptionTest(L"--vpp-afs 24fps=true,preset=anime");
+}
+TEST_F(TestBase, EncoderOptionTest09)
+{
+	EncoderOptionTest(L"-i %1 --avqsv --cqp 22:24:26 -u best --output-res 1280x720 --vpp-denoise 20 --tff --vpp-deinterlace normal --trellis auto --bframes 2 --gop-len 300 --audio-codec aac --audio-bitrate 128 -o \"dpn1.mp4\" --vpp-afs rff=true,24fps=true");
+}
+
 TEST(CLI, ArgumentTest)
 {
 	const wchar_t* argv[] = {
@@ -429,7 +475,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*CaptionASSTest";
+	::testing::GTEST_FLAG(filter) = "*EncoderOptionTest*";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

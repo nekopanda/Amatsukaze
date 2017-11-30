@@ -16,12 +16,13 @@ enum ENUM_ENCODER_DEINT {
 
 struct EncoderOptionInfo {
 	ENUM_ENCODER_DEINT deint;
+	bool afsTimecode;
 };
 
 static std::vector<std::wstring> SplitOptions(const std::string& str)
 {
 	auto vec = string_internal::to_wstring(str);
-	std::wstring wstr(vec.begin(), vec.end());
+	std::wstring wstr(vec.begin(), vec.end() - 1); // -1: null終端を取り除く
 	std::wregex re(L"(([^\" ]+)|\"([^\"]+)\") *");
 	std::wsregex_iterator it(wstr.begin(), wstr.end(), re);
 	std::wsregex_iterator end;
@@ -64,6 +65,8 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const std::string& st
 		}
 		else if (arg == L"--vpp-afs") {
 			bool is24 = false;
+			bool timecode = false;
+			bool drop = false;
 			std::wregex re(L"([^=]+)=([^,]+),?");
 			std::wsregex_iterator it(next.begin(), next.end(), re);
 			std::wsregex_iterator end;
@@ -71,12 +74,32 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const std::string& st
 			for (; it != end; ++it) {
 				auto key = (*it)[1].str();
 				auto val = (*it)[2].str();
+				std::transform(val.begin(), val.end(), val.begin(), ::tolower);
 				if (key == L"24fps") {
-					std::transform(val.begin(), val.end(), val.begin(), ::tolower);
 					is24 = (val == L"1" || val == L"true");
 				}
+				else if (key == L"drop") {
+					drop = (val == L"1" || val == L"true");
+				}
+				else if (key == L"timecode") {
+					timecode = (val == L"1" || val == L"true");
+				}
+				else if (key == L"preset") {
+					is24 = (val == L"24fps");
+					drop = (val == L"double" || val == L"anime" ||
+						val == L"cinema" || val == L"min_afterimg" || val == L"24fps");
+				}
+			}
+			if (is24 && !drop) {
+				THROW(ArgumentException, 
+					"vpp-afsオプションに誤りがあります。24fps化する場合は間引き(drop)もonにする必要があります");
+			}
+			if (drop && !timecode) {
+				THROW(ArgumentException,
+					"vpp-afsで間引き(drop)がonの場合はタイムコード(timecode=true)が必須です");
 			}
 			info.deint = is24 ? ENCODER_DEINT_24P : ENCODER_DEINT_30P;
+			info.afsTimecode = timecode;
 		}
 	}
 

@@ -174,6 +174,7 @@ static std::string makeMuxerArgs(
 	const std::vector<std::string>& inAudios,
 	const std::string& outpath,
 	const std::string& chapterpath,
+	const std::string& timecodepath,
 	const std::vector<std::string>& inSubs,
 	const std::vector<std::string>& subsTitles)
 {
@@ -521,6 +522,10 @@ public:
 		return regtmp(StringFormat("%s/v%d-%d%s.raw", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
+	std::string getTimecodeFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/v%d-%d%s.timecode.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	}
+
 	std::string getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
 		auto str = StringFormat("%s/s%d-%d%s.log", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
@@ -658,6 +663,7 @@ public:
 		ctx.info("入力: %s", conf.srcFilePath.c_str());
 		ctx.info("出力: %s", conf.outVideoPath.c_str());
 		ctx.info("一時フォルダ: %s", tmpDir.path().c_str());
+		ctx.info("出力フォーマット: %s", formatToString(conf.format));
 		ctx.info("エンコーダ: %s (%s)", conf.encoderPath.c_str(), encoderToString(conf.encoder));
 		ctx.info("エンコーダオプション: %s", conf.encoderOptions.c_str());
 		if (conf.autoBitrate) {
@@ -678,6 +684,10 @@ public:
         ctx.info("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
       }
     }
+		ctx.info("字幕: %s", conf.subtitles ? "有効" : "無効");
+		if (conf.subtitles) {
+			ctx.info("DRCSマッピング: %s", conf.drcsMapPath.c_str());
+		}
 		if (conf.serviceId > 0) {
 			ctx.info("ServiceId: %d", conf.serviceId);
 		}
@@ -700,6 +710,14 @@ private:
 		case DECODER_CUVID: return "CUVID";
 		}
 		return "default";
+	}
+
+	const char* formatToString(ENUM_FORMAT fmt) const {
+		switch (fmt) {
+		case FORMAT_MP4: return "mp4";
+		case FORMAT_MKV: return "matroska";
+		}
+		return "unknown";
 	}
 
 	std::string regtmp(std::string str) const {

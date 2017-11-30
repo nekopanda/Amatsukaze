@@ -1305,10 +1305,16 @@ public:
 			subsTitles.push_back("SRT");
 		}
 
+		// タイムコードファイル
+		std::string timecodeFile;
+		if (eoInfo.afsTimecode) {
+			timecodeFile = setting_.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
+		}
+
 		// Mux
 		std::string args = makeMuxerArgs(setting_.getFormat(),
 			setting_.getMuxerPath(), encVideoFile,
-			vfmt, audioFiles, outFilePath, chapterFile, subsFiles, subsTitles);
+			vfmt, audioFiles, outFilePath, chapterFile, timecodeFile, subsFiles, subsTitles);
 
 		ctx.info(args.c_str());
 
@@ -1593,6 +1599,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 	ctx.info("エンコード完了: %.2f秒", sw.getAndReset());
+
+	MessageBox(NULL, "エンコード完了", "AmatsukazeCLI", MB_OK);
 
 	argGen = nullptr;
 

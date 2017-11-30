@@ -387,7 +387,8 @@ public:
 	void loadDRCSMapping(const std::string& mapPath)
 	{
 		if (File::exists(mapPath) == false) {
-			THROW(ArgumentException, "DRCSマッピングファイルが見つかりません");
+			THROWF(ArgumentException, "DRCSマッピングファイルが見つかりません: %s",
+				mapPath.c_str());
 		}
 		else {
 			// BOMありUTF-8で読み込む

@@ -10,9 +10,10 @@ namespace string_internal {
 	template <typename T> T MakeArg(T value) { return value; }
 	template <typename T> T MakeArgW(T value) { return value; }
 
+	// nullèIí[Ç™Ç†ÇÈÇÃÇ≈
 	static std::vector<char> to_string(std::wstring str) {
 		if (str.size() == 0) {
-			return std::vector<char>();
+			return std::vector<char>(1);
 		}
 		int dstlen = WideCharToMultiByte(
 			CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0, NULL, NULL);
@@ -24,7 +25,7 @@ namespace string_internal {
 	}
 	static std::vector<wchar_t> to_wstring(std::string str) {
 		if (str.size() == 0) {
-			return std::vector<wchar_t>();
+			return std::vector<wchar_t>(1);
 		}
 		int dstlen = MultiByteToWideChar(
 			CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0);

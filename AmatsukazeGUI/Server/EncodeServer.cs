@@ -965,7 +965,14 @@ namespace Amatsukaze.Server
                     consoleText = new ConsoleText(500),
                 },
                 OnStart = () => {
-                    Directory.CreateDirectory(GetDRCSDirectoryPath());
+                    if(!Directory.Exists(GetDRCSDirectoryPath()))
+                    {
+                        Directory.CreateDirectory(GetDRCSDirectoryPath());
+                    }
+                    if(!File.Exists(GetDRCSMapPath()))
+                    {
+                        File.Create(GetDRCSMapPath());
+                    }
                     if (appData.setting.ClearWorkDirOnStart)
                     {
                         CleanTmpDir();
@@ -1913,11 +1920,19 @@ namespace Amatsukaze.Server
                     string md5 = filename.Substring(0, 32);
                     if (oldMap.ContainsKey(md5) == false)
                     {
+                        BitmapFrame image = null;
+
+                        try
+                        {
+                            image = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(imgpath)));
+                        }
+                        catch (Exception) { }
+
                         ret.Add(md5, new DrcsImage()
                         {
                             MD5 = md5,
                             MapStr = null,
-                            Image = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(imgpath)))
+                            Image = image
                         });
                     }
                     else
@@ -1939,17 +1954,23 @@ namespace Amatsukaze.Server
 
             var ret = new Dictionary<string, DrcsImage>();
 
-            foreach (var line in File.ReadAllLines(GetDRCSMapPath()))
+            try
             {
-                if (line.Length >= 34 && line.IndexOf("=") == 32)
+                foreach (var line in File.ReadAllLines(GetDRCSMapPath()))
                 {
-                    string md5 = line.Substring(0, 32);
-                    string mapStr = line.Substring(33);
-                    if (md5.All(isHex))
+                    if (line.Length >= 34 && line.IndexOf("=") == 32)
                     {
-                        ret.Add(md5, new DrcsImage() { MD5 = md5, MapStr = mapStr, Image = null });
+                        string md5 = line.Substring(0, 32);
+                        string mapStr = line.Substring(33);
+                        if (md5.All(isHex))
+                        {
+                            ret.Add(md5, new DrcsImage() { MD5 = md5, MapStr = mapStr, Image = null });
+                        }
                     }
                 }
+            }
+            catch(Exception) {
+                // do nothing
             }
 
             return ret;
@@ -2149,7 +2170,8 @@ namespace Amatsukaze.Server
                     }
 
                     string drcspath = GetDRCSDirectoryPath();
-                    if (Directory.Exists(drcspath))
+                    string drcsmappath = GetDRCSMapPath();
+                    if (Directory.Exists(drcspath) && File.Exists(drcsmappath))
                     {
                         bool needUpdate = false;
                         var lastModified = Directory.GetLastWriteTime(drcspath);
@@ -2159,7 +2181,7 @@ namespace Amatsukaze.Server
                             needUpdate = true;
                             drcsDirTime = lastModified;
                         }
-                        lastModified = File.GetLastWriteTime(GetDRCSMapPath());
+                        lastModified = File.GetLastWriteTime(drcsmappath);
                         if (drcsTime != lastModified)
                         {
                             // マッピングが更新された
@@ -2566,7 +2588,7 @@ namespace Amatsukaze.Server
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         static extern bool MoveFileEx(string existingFileName, string newFileName, int flags);
 
-        public Task AddDrcsMap(DrcsImage recvitem)
+        public async Task AddDrcsMap(DrcsImage recvitem)
         {
             if (drcsMap.ContainsKey(recvitem.MD5))
             {
@@ -2582,9 +2604,16 @@ namespace Amatsukaze.Server
                     {
                         // 既存のマッピングにないので追加
                         item.MapStr = recvitem.MapStr;
-                        using (var sw = File.AppendText(filepath))
+                        try
                         {
-                            sw.WriteLine(item.MD5 + "=" + item.MapStr);
+                            using (var sw = File.AppendText(filepath))
+                            {
+                                sw.WriteLine(item.MD5 + "=" + recvitem.MapStr);
+                            }
+                        }
+                        catch (Exception e) {
+                            await client.OnOperationResult(
+                                "DRCSマッピングファイル書き込みに失敗: " + e.Message);
                         }
                     }
                     else
@@ -2595,35 +2624,46 @@ namespace Amatsukaze.Server
                         {
                             // 削除
                             drcsMap.Remove(recvitem.MD5);
+                            updateType = DrcsUpdateType.Remove;
                             try
                             {
                                 File.Delete(GetDRCSImagePath(recvitem.MD5));
                             }
-                            catch(Exception) { }
-                            updateType = DrcsUpdateType.Remove;
+                            catch(Exception e)
+                            {
+                                await client.OnOperationResult(
+                                    "DRCS画像ファイル削除に失敗: " + e.Message);
+                            }
                         }
 
                         // まず、一時ファイルに書き込む
                         var tmppath = filepath + ".tmp";
                         // BOMありUTF-8
-                        using (var sw = new StreamWriter(File.OpenWrite(tmppath), Encoding.UTF8))
+                        try
                         {
-                            foreach (var s in drcsMap.Values)
+                            using (var sw = new StreamWriter(File.OpenWrite(tmppath), Encoding.UTF8))
                             {
-                                sw.WriteLine(s.MD5 + "=" + s.MapStr);
+                                foreach (var s in drcsMap.Values)
+                                {
+                                    sw.WriteLine(s.MD5 + "=" + s.MapStr);
+                                }
                             }
+                        }
+                        catch (Exception e)
+                        {
+                            await client.OnOperationResult(
+                                "DRCSマッピングファイル書き込みに失敗: " + e.Message);
                         }
                         // ファイル置き換え
                         MoveFileEx(tmppath, filepath, 11);
                     }
 
-                    return client.OnDrcsData(new DrcsImageUpdate() {
+                    await client.OnDrcsData(new DrcsImageUpdate() {
                         Type = updateType,
                         Image = item
                     });
                 }
             }
-            return Task.FromResult(0);
         }
     }
 }

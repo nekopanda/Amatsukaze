@@ -563,4 +563,11 @@ static int CaptionASS(AMTContext& ctx, const ConfigWrapper& setting)
 	return 0;
 }
 
+static int EncoderOptionParse(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	auto info = ParseEncoderOption(ENCODER_NVENC, setting.getEncoderOptions());
+	PrintEncoderInfo(ctx, info);
+	return 0;
+}
+
 } // namespace test
