@@ -172,7 +172,7 @@
                     <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" IsChecked="{Binding Model.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="字幕を無効にする" IsChecked="{Binding Model.DisableSubs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS文字は無視する" IsChecked="{Binding Model.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS外字は無視する" IsChecked="{Binding Model.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない" IsChecked="{Binding Model.SplitSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" IsChecked="{Binding Model.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする" IsChecked="{Binding Model.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

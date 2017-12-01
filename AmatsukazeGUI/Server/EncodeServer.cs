@@ -763,7 +763,7 @@ namespace Amatsukaze.Server
                     else if (exitCode == 101)
                     {
                         // DRCSマッピングがなかった
-                        return FailLogItem(src.Path, "DRCS文字のマッピングがありませんでした", start, finish);
+                        return FailLogItem(src.Path, "DRCS外字のマッピングがありませんでした", start, finish);
                     }
                     else
                     {

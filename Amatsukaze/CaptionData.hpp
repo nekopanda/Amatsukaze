@@ -1,3 +1,22 @@
+/*
+* ARIB Caption
+* このソースコードはTVCaptionMod2やCaption.dllのコードを流用しています。
+* ライセンスはオリジナル版の以下ライセンスに従います。
+------引用開始------
+●EpgDataCap_Bon、TSEpgView_Sample、NetworkRemocon、Caption、TSEpgViewServerの
+ソースの取り扱いについて
+　特にGPLとかにはしないので自由に改変してもらって構わないです。
+　改変して公開する場合は改変部分のソースぐらいは一緒に公開してください。
+　（強制ではないので別に公開しなくてもいいです）
+　EpgDataCap.dllの使い方の参考にしてもらうといいかも。
+
+●EpgDataCap.dll、Caption.dllの取り扱いについて
+	フリーソフトに組み込む場合は特に制限は設けません。ただし、dllはオリジナルのまま
+	組み込んでください。
+	このdllを使用したことによって発生した問題について保証は一切行いません。
+　商用、シェアウェアなどに組み込むのは不可です。
+------引用終了------
+*/
 #pragma once
 
 #include <stdint.h>
@@ -397,7 +416,7 @@ private:
 										SaveDRCSImage(filename, pDrcs);
 
 										ctx.incrementCounter("drcsnomap");
-										ctx.warn("[字幕] マッピングのない外字があります。追加してください -> %s", filename.c_str());
+										ctx.warn("[字幕] マッピングのないDRCS外字があります。追加してください -> %s", filename.c_str());
 									}
 								}
 								showtext = srctext.substr(0, j);

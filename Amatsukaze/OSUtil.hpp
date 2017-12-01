@@ -27,6 +27,14 @@ std::string GetModuleDirectory() {
 	return buf;
 }
 
+std::string SearchExe(const std::string& name) {
+	char buf[MAX_PATH] = { 0 };
+	if (!SearchPath(0, name.c_str(), 0, MAX_PATH, buf, 0)) {
+		return name;
+	}
+	return buf;
+}
+
 // プロセスに設定されているコア数を取得
 int GetProcessorCount()
 {

@@ -30,7 +30,7 @@
 class AMTSplitter : public TsSplitter {
 public:
 	AMTSplitter(AMTContext& ctx, const ConfigWrapper& setting)
-		: TsSplitter(ctx)
+		: TsSplitter(ctx, setting.isSubtitlesEnabled())
 		, setting_(setting)
 		, psWriter(ctx)
 		, writeHandler(*this)
@@ -1431,12 +1431,6 @@ private:
 	int64_t totalOutSize_;
 };
 
-static const char* CMTypeToString(CMType cmtype) {
-	if (cmtype == CMTYPE_CM) return "CM";
-	if (cmtype == CMTYPE_NONCM) return "本編";
-	return "";
-}
-
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	setting.dump();
@@ -1471,11 +1465,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
-	{ // DRCSマッピングチェック
+	if(setting.isIgnoreNoDrcsMap() == false) {
+		// DRCSマッピングチェック
 		auto& counter = ctx.getCounter();
 		auto it = counter.find("drcsnomap");
 		if (it != counter.end() && it->second > 0) {
-			THROW(NoDrcsMapException, "マッピングにない外字あり正常に字幕処理できなかったため終了します");
+			THROW(NoDrcsMapException, "マッピングにないDRCS外字あり正常に字幕処理できなかったため終了します");
 		}
 	}
 

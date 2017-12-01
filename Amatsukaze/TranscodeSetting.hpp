@@ -182,13 +182,14 @@ static std::vector<std::string> makeMuxerArgs(
 	const std::vector<std::string>& inSubs,
 	const std::vector<std::string>& subsTitles)
 {
-	StringBuilder sb;
 	std::vector<std::string> ret;
+
+	StringBuilder sb;
+	sb.append("\"%s\"", binpath);
 
 	if (format == FORMAT_MP4) {
 
 		// まずはmuxerで映像、音声、チャプターをmux
-		sb.append("\"%s\"", binpath);
 		if (videoFormat.fixedFrameRate) {
 			sb.append(" -i \"%s?fps=%d/%d\"", inVideo,
 				videoFormat.frameRateNum, videoFormat.frameRateDenom);
@@ -283,11 +284,11 @@ static const char* cmOutMaskToString(int outmask) {
 	{
 	case 1: return "通常";
 	case 2: return "CMをカット";
-	case 3: return "通常+CMカット";
+	case 3: return "通常出力とCMカット出力";
 	case 4: return "CMのみ";
-	case 5: return "通常+CM";
+	case 5: return "通常出力とCM出力";
 	case 6: return "本編とCMを分離";
-	case 7: return "通常+本編+CM";
+	case 7: return "通常,本編,CM全出力";
 	}
 	return "不明";
 }
@@ -503,6 +504,10 @@ public:
 		return conf.chapter;
 	}
 
+	bool isSubtitlesEnabled() const {
+		return conf.subtitles;
+	}
+
 	BitrateSetting getBitrate() const {
 		return conf.bitrate;
 	}
@@ -523,8 +528,12 @@ public:
 		return conf.logoPath;
 	}
 
-	bool getIgnoreNoLogo() const {
+	bool isIgnoreNoLogo() const {
 		return conf.ignoreNoLogo;
+	}
+
+	bool isIgnoreNoDrcsMap() const {
+		return conf.ignoreNoDrcsMap;
 	}
 
 	std::string getChapterExePath() const {
@@ -742,10 +751,10 @@ public:
 			ctx.info("DRCSマッピング: %s", conf.drcsMapPath.c_str());
 		}
 		if (conf.serviceId > 0) {
-			ctx.info("ServiceId: %d", conf.serviceId);
+			ctx.info("サービスID: %d", conf.serviceId);
 		}
 		else {
-			ctx.info("ServiceId: 指定なし");
+			ctx.info("サービスID: 指定なし");
 		}
 		ctx.info("デコーダ: MPEG2:%s H264:%s",
 			decoderToString(conf.decoderSetting.mpeg2),
@@ -767,8 +776,8 @@ private:
 
 	const char* formatToString(ENUM_FORMAT fmt) const {
 		switch (fmt) {
-		case FORMAT_MP4: return "mp4";
-		case FORMAT_MKV: return "matroska";
+		case FORMAT_MP4: return "MP4";
+		case FORMAT_MKV: return "Matroska";
 		}
 		return "unknown";
 	}

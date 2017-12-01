@@ -155,7 +155,7 @@ private:
 				if (duration <= 180) {
 					ctx.info("マッチするロゴはありませんでしたが、動画の長さが%d秒(180秒以下)なので無視します", duration);
 				}
-				else if (!setting_.getIgnoreNoLogo()) {
+				else if (!setting_.isIgnoreNoLogo()) {
 					THROW(NoLogoException, "マッチするロゴが見つかりませんでした");
 				}
 			}
@@ -457,7 +457,7 @@ private:
 		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
 		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
 
-		ctx.info("ファイル: %d-%d", videoFileIndex, encoderIndex);
+		ctx.info("ファイル: %d-%d %s", videoFileIndex, encoderIndex, CMTypeToString(cmtype));
 
 		StringBuilder sb;
 		int sumframes = 0;

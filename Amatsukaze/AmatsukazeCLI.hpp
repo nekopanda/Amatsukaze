@@ -51,7 +51,7 @@ static void printCopyright() {
 }
 
 static void printHelp(const tchar* bin) {
-	PRINTF(
+	printf(
 		"%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
 		"オプション []はデフォルト値 \n"
 		"  -i|--input  <パス>  入力ファイルパス\n"
@@ -74,10 +74,10 @@ static void printHelp(const tchar* bin) {
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
 		"                      対応エンコーダ: mp4,mkv\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
-		"  -t|--timelineeditor  <パス>  L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
-		"  --mp4box <パス>     mp4boxへのパス[mp4box.exe]\n"
-		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
-		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]"
+		"  -t|--timelineeditor  <パス>  timelineeditorへのパス（MP4でVFR出力する場合に必要）[timelineeditor.exe]\n"
+		"  --mp4box <パス>     mp4boxへのパス（MP4で字幕処理する場合に必要）[mp4box.exe]\n"
+		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]\n"
+		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]\n"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
 		"                      使用可能デコーダ: default,QSV,CUVID\n"
 		"  --h264decoder <デコーダ>  H264用デコーダ[default]\n"
@@ -86,11 +86,16 @@ static void printHelp(const tchar* bin) {
 		"  --subtitles         字幕を処理する\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
 		"  --drcs <パス>       DRCSマッピングファイルパス\n"
-		"  --ignore-no-drcsmap マッピングにないDRCS文字があっても処理を続行する\n"
+		"  --ignore-no-drcsmap マッピングにないDRCS外字があっても処理を続行する\n"
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
+		"  -om|--cmoutmask <数値> 出力マスク[1]\n"
+		"                      1 : 通常\n"
+		"                      2 : CMをカット\n"
+		"                      4 : CMのみ出力\n"
+		"                      ORも可 例) 6: 本編とCMを分離\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
 		"                      ts : MPGE2-TSを入力する詳細解析モード\n"
@@ -348,7 +353,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--jls-cmd")) {
 			conf.joinLogoScpCmdPath = to_string(getParam(argc, argv, i++));
 		}
-		else if (key == _T("--cmoutmask")) {
+		else if (key == _T("-om") || key == _T("--cmoutmask")) {
 			conf.cmoutmask = std::stol(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--dump")) {
@@ -406,6 +411,14 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		conf.workDir = "";
 	}
 
+	// exeを探す
+	conf.chapterExePath = SearchExe(conf.chapterExePath);
+	conf.encoderPath = SearchExe(conf.encoderPath);
+	conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
+	conf.mp4boxPath = SearchExe(conf.mp4boxPath);
+	conf.muxerPath = SearchExe(conf.muxerPath);
+	conf.timelineditorPath = SearchExe(conf.timelineditorPath);
+
 	return std::unique_ptr<ConfigWrapper>(new ConfigWrapper(ctx, conf));
 }
 
@@ -455,10 +468,9 @@ static void amatsukaze_av_log_callback(
 static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting) {
 	try {
 
-		auto drcsMapPath = setting.getDRCSMapPath();
-		if (drcsMapPath.size()) {
+		if (setting.isSubtitlesEnabled()) {
 			// DRCSマッピングをロード
-			ctx.loadDRCSMapping(drcsMapPath);
+			ctx.loadDRCSMapping(setting.getDRCSMapPath());
 		}
 
 		std::string mode = setting.getMode();

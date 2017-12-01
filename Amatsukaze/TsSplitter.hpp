@@ -386,7 +386,7 @@ private:
 
 class TsSplitter : public AMTObject, protected TsPacketSelectorHandler {
 public:
-	TsSplitter(AMTContext& ctx)
+	TsSplitter(AMTContext& ctx, bool enableCaption)
 		: AMTObject(ctx)
 		, initPhase(PMT_WAITING)
 		, tsPacketHandler(*this)
@@ -395,6 +395,7 @@ public:
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
 		, captionParser(ctx, *this)
+		, enableCaption(enableCaption)
 		, numTotalPackets(0)
 		, numScramblePackets(0)
 	{
@@ -544,6 +545,7 @@ protected:
 	std::vector<SpAudioFrameParser*> audioParsers;
 	SpCaptionParser captionParser;
 
+	bool enableCaption;
 	int preferedServiceId;
 	int selectedServiceId;
 
@@ -652,7 +654,7 @@ protected:
 	}
 
 	virtual void onCaptionPacket(int64_t clock, TsPacket packet) {
-		if (checkScramble(packet)) captionParser.onTsPacket(clock, packet);
+		if (enableCaption && checkScramble(packet)) captionParser.onTsPacket(clock, packet);
 	}
 };
 

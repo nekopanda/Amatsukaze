@@ -474,6 +474,12 @@ enum CMType {
 	CMTYPE_MAX
 };
 
+static const char* CMTypeToString(CMType cmtype) {
+	if (cmtype == CMTYPE_CM) return "CM";
+	if (cmtype == CMTYPE_NONCM) return "–{•Ò";
+	return "";
+}
+
 enum VIDEO_STREAM_FORMAT {
 	VS_UNKNOWN,
 	VS_MPEG2,
