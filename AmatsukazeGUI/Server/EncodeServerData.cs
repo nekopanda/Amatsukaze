@@ -81,6 +81,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string MKVMergePath { get; set; }
         [DataMember]
+        public string MP4BoxPath { get; set; }
+        [DataMember]
         public string TimelineEditorPath { get; set; }
 
         [DataMember]

@@ -51,11 +51,11 @@ static void printCopyright() {
 }
 
 static void printHelp(const tchar* bin) {
-  PRINTF(
-    "%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
-    "オプション []はデフォルト値 \n"
-    "  -i|--input  <パス>  入力ファイルパス\n"
-    "  -o|--output <パス>  出力ファイルパス\n"
+	PRINTF(
+		"%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
+		"オプション []はデフォルト値 \n"
+		"  -i|--input  <パス>  入力ファイルパス\n"
+		"  -o|--output <パス>  出力ファイルパス\n"
 		"  -s|--serviceid <数値> 処理するサービスIDを指定[]\n"
 		"  -w|--work   <パス>  一時ファイルパス[./]\n"
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
@@ -64,10 +64,10 @@ static void printHelp(const tchar* bin) {
 		"  -eo|--encoder-opotion <オプション> エンコーダへ渡すオプション[]\n"
 		"                      入力ファイルの解像度、アスペクト比、インタレースフラグ、\n"
 		"                      フレームレート、カラーマトリクス等は自動で追加されるので不要\n"
-    "  -b|--bitrate a:b:f  ビットレート計算式 映像ビットレートkbps = f*(a*s+b)\n"
-    "                      sは入力映像ビットレート、fは入力がH264の場合は入力されたfだが、\n"
-    "                      入力がMPEG2の場合はf=1とする\n"
-    "                      指定がない場合はビットレートオプションを追加しない\n"
+		"  -b|--bitrate a:b:f  ビットレート計算式 映像ビットレートkbps = f*(a*s+b)\n"
+		"                      sは入力映像ビットレート、fは入力がH264の場合は入力されたfだが、\n"
+		"                      入力がMPEG2の場合はf=1とする\n"
+		"                      指定がない場合はビットレートオプションを追加しない\n"
 		"  -bcm|--bitrate-cm <float>   CM判定されたところのビットレート倍率\n"
 		"  --2pass             2passエンコード\n"
 		"  --splitsub          メイン以外のフォーマットは結合しない\n"
@@ -75,6 +75,7 @@ static void printHelp(const tchar* bin) {
 		"                      対応エンコーダ: mp4,mkv\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor  <パス>  L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
+		"  --mp4box <パス>     mp4boxへのパス[mp4box.exe]\n"
 		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
 		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
@@ -91,9 +92,9 @@ static void printHelp(const tchar* bin) {
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
-    "  --mode <モード>     処理モード[ts]\n"
-    "                      ts : MPGE2-TSを入力する詳細解析モード\n"
-    "                      g  : MPEG2-TS以外の入力ファイルを処理する一般ファイルモード\n"
+		"  --mode <モード>     処理モード[ts]\n"
+		"                      ts : MPGE2-TSを入力する詳細解析モード\n"
+		"                      g  : MPEG2-TS以外の入力ファイルを処理する一般ファイルモード\n"
 		"                           一般ファイルモードはFFMPEGでデコードするため音ズレ補正\n"
 		"                           などの処理は一切ないので、MPEG2-TSには使用しないように\n"
 		"  --dump              処理途中のデータをダンプ（デバッグ用）\n",
@@ -182,11 +183,18 @@ static DECODER_TYPE decoderFromString(const std::tstring& str) {
 
 static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const tchar* argv[])
 {
+	std::string moduleDir = GetModuleDirectory();
 	Config conf = Config();
 	conf.workDir = "./";
 	conf.encoderPath = "x264.exe";
 	conf.encoderOptions = "";
 	conf.timelineditorPath = "timelineeditor.exe";
+	conf.mp4boxPath = "mp4box.exe";
+	conf.chapterExePath = "chapter_exe.exe";
+	conf.joinLogoScpPath = "join_logo_scp.exe";
+	conf.drcsOutPath = moduleDir + "\\..\\drcs";
+	conf.drcsMapPath = conf.drcsOutPath + "\\drcs_map.txt";
+	conf.joinLogoScpCmdPath = moduleDir + "\\..\\JL\\JL_標準.txt";
 	conf.mode = "ts";
 	conf.modeArgs = "";
 	conf.bitrateCM = 1.0;
@@ -202,12 +210,12 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			conf.outVideoPath =
 				to_string(pathRemoveExtension(pathNormalize(getParam(argc, argv, i++))));
 		}
-    else if (key == _T("--mode")) {
+		else if (key == _T("--mode")) {
 			conf.mode = to_string(getParam(argc, argv, i++));
-    }
-    else if (key == _T("-a") || key == _T("--args")) {
+		}
+		else if (key == _T("-a") || key == _T("--args")) {
 			conf.modeArgs = to_string(getParam(argc, argv, i++));
-    }
+		}
 		else if (key == _T("-w") || key == _T("--work")) {
 			conf.workDir = to_string(pathNormalize(getParam(argc, argv, i++)));
 			if (conf.workDir.size() == 0) {
@@ -227,19 +235,19 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
 			conf.encoderOptions = to_string(getParam(argc, argv, i++));
-    }
-    else if (key == _T("-b") || key == _T("--bitrate")) {
-      const auto arg = getParam(argc, argv, i++);
-      int ret = stscanf(arg.c_str(), _T("%lf:%lf:%lf:%lf"),
-        &conf.bitrate.a, &conf.bitrate.b, &conf.bitrate.h264, &conf.bitrate.h265);
-      if (ret < 3) {
-        THROWF(ArgumentException, "--bitrateの指定が間違っています");
-      }
-      if (ret <= 3) {
+		}
+		else if (key == _T("-b") || key == _T("--bitrate")) {
+			const auto arg = getParam(argc, argv, i++);
+			int ret = stscanf(arg.c_str(), _T("%lf:%lf:%lf:%lf"),
+				&conf.bitrate.a, &conf.bitrate.b, &conf.bitrate.h264, &conf.bitrate.h265);
+			if (ret < 3) {
+				THROWF(ArgumentException, "--bitrateの指定が間違っています");
+			}
+			if (ret <= 3) {
 				conf.bitrate.h265 = 2;
-      }
+			}
 			conf.autoBitrate = true;
-    }
+		}
 		else if (key == _T("-bcm") || key == _T("--bitrate-cm")) {
 			const auto arg = getParam(argc, argv, i++);
 			int ret = stscanf(arg.c_str(), _T("%lf"), &conf.bitrateCM);
@@ -247,9 +255,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 				THROWF(ArgumentException, "--bitrate-cmの指定が間違っています");
 			}
 		}
-    else if (key == _T("--2pass")) {
+		else if (key == _T("--2pass")) {
 			conf.twoPass = true;
-    }
+		}
 		else if (key == _T("--splitsub")) {
 			conf.splitSub = true;
 		}
@@ -277,12 +285,15 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("-t") || key == _T("--timelineeditor")) {
 			conf.timelineditorPath = to_string(getParam(argc, argv, i++));
 		}
+		else if (key == _T("--mp4box")) {
+			conf.mp4boxPath = to_string(getParam(argc, argv, i++));
+		}
 		else if (key == _T("-j") || key == _T("--json")) {
 			conf.outInfoJsonPath = to_string(getParam(argc, argv, i++));
 		}
-    else if (key == _T("-f") || key == _T("--filter")) {
+		else if (key == _T("-f") || key == _T("--filter")) {
 			conf.filterScriptPath = to_string(getParam(argc, argv, i++));
-    }
+		}
 		else if (key == _T("-pf") || key == _T("--postfilter")) {
 			conf.postFilterScriptPath = to_string(getParam(argc, argv, i++));
 		}
@@ -350,7 +361,8 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			continue;
 		}
 		else {
-			THROWF(FormatException, "不明なオプション: %" PRITSTR, argv[i]);
+			// なぜか%lsで長い文字列食わすと落ちるので%sで表示
+			THROWF(FormatException, "不明なオプション: %s", to_string(argv[i]).c_str());
 		}
 	}
 
@@ -399,45 +411,45 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 
 static CRITICAL_SECTION g_log_crisec;
 static void amatsukaze_av_log_callback(
-  void* ptr, int level, const char* fmt, va_list vl)
+	void* ptr, int level, const char* fmt, va_list vl)
 {
-  level &= 0xff;
+	level &= 0xff;
 
-  if (level > av_log_get_level()) {
-    return;
-  }
+	if (level > av_log_get_level()) {
+		return;
+	}
 
-  char buf[1024];
-  vsnprintf(buf, sizeof(buf), fmt, vl);
-  int len = (int)strlen(buf);
-  if (len == 0) {
-    return;
-  }
+	char buf[1024];
+	vsnprintf(buf, sizeof(buf), fmt, vl);
+	int len = (int)strlen(buf);
+	if (len == 0) {
+		return;
+	}
 
-  static char* log_levels[] = {
-    "panic", "fatal", "error", "warn", "info", "verb", "debug", "trace"
-  };
+	static char* log_levels[] = {
+		"panic", "fatal", "error", "warn", "info", "verb", "debug", "trace"
+	};
 
-  EnterCriticalSection(&g_log_crisec);
-  
-  static bool print_prefix = true;
-  bool tmp_pp = print_prefix;
-  print_prefix = (buf[len - 1] == '\r' || buf[len - 1] == '\n');
-  if (tmp_pp) {
-    int logtype = level / 8;
-    const char* level_str =
-      (logtype >= sizeof(log_levels) / sizeof(log_levels[0]))
-      ? "unk" : log_levels[logtype];
-    fprintf(stderr, "FFMPEG [%s] %s", level_str, buf);
-  }
-  else {
-    fprintf(stderr, buf);
-  }
-  if (print_prefix) {
-    fflush(stdout);
-  }
+	EnterCriticalSection(&g_log_crisec);
+	
+	static bool print_prefix = true;
+	bool tmp_pp = print_prefix;
+	print_prefix = (buf[len - 1] == '\r' || buf[len - 1] == '\n');
+	if (tmp_pp) {
+		int logtype = level / 8;
+		const char* level_str =
+			(logtype >= sizeof(log_levels) / sizeof(log_levels[0]))
+			? "unk" : log_levels[logtype];
+		fprintf(stderr, "FFMPEG [%s] %s", level_str, buf);
+	}
+	else {
+		fprintf(stderr, buf);
+	}
+	if (print_prefix) {
+		fflush(stdout);
+	}
 
-  LeaveCriticalSection(&g_log_crisec);
+	LeaveCriticalSection(&g_log_crisec);
 }
 
 static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting) {
@@ -514,26 +526,28 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 }
 
 __declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
-  try {
-    printCopyright();
+	try {
+		printCopyright();
 
-    AMTContext ctx;
+		AMTContext ctx;
 
-    auto setting = parseArgs(ctx, argc, argv);
+		ctx.setDefaultCP();
 
-    // FFMPEGライブラリ初期化
-    InitializeCriticalSection(&g_log_crisec);
-    av_log_set_callback(amatsukaze_av_log_callback);
-    av_register_all();
+		auto setting = parseArgs(ctx, argc, argv);
+
+		// FFMPEGライブラリ初期化
+		InitializeCriticalSection(&g_log_crisec);
+		av_log_set_callback(amatsukaze_av_log_callback);
+		av_register_all();
 
 		// キャプションDLL初期化
 		InitializeCPW();
 
-    return amatsukazeTranscodeMain(ctx, *setting);
-  }
-  catch (const Exception&) {
-    // parseArgsでエラー
-    printHelp(argv[0]);
-    return 1;
-  }
+		return amatsukazeTranscodeMain(ctx, *setting);
+	}
+	catch (const Exception&) {
+		// parseArgsでエラー
+		printHelp(argv[0]);
+		return 1;
+	}
 }

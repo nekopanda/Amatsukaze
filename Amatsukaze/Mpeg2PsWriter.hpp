@@ -354,13 +354,13 @@ public:
 
 		initWhenNeeded(clock);
 #if REDEFINE_PTS
-    int64_t PTS = frames.front().PTS - systemClock.clockOffset / 300;
-    int64_t DTS = frames.front().DTS - systemClock.clockOffset / 300;
-    int64_t lastDTS = frames.back().DTS - systemClock.clockOffset / 300;
+		int64_t PTS = frames.front().PTS - systemClock.clockOffset / 300;
+		int64_t DTS = frames.front().DTS - systemClock.clockOffset / 300;
+		int64_t lastDTS = frames.back().DTS - systemClock.clockOffset / 300;
 #else
-    int64_t PTS = frames.front().PTS;
-    int64_t DTS = frames.front().DTS;
-    int64_t lastDTS = frames.back().DTS;
+		int64_t PTS = frames.front().PTS;
+		int64_t DTS = frames.front().DTS;
+		int64_t lastDTS = frames.back().DTS;
 #endif
 
 		// デコーダバッファが空くまでクロックを進める
@@ -382,8 +382,8 @@ public:
 		int64_t PTS = frames.front().PTS - systemClock.clockOffset / 300;
 		int64_t lastDTS = frames.back().PTS - systemClock.clockOffset / 300;
 #else
-    int64_t PTS = frames.front().PTS;
-    int64_t lastDTS = frames.back().PTS;
+		int64_t PTS = frames.front().PTS;
+		int64_t lastDTS = frames.back().PTS;
 #endif
 
 		// バッファサイズ調整
@@ -421,7 +421,7 @@ private:
 		if (systemClock.currentClock == -1) {
 #if REDEFINE_PTS
 			systemClock.clockOffset = clock - SYSTEM_CLOCK;
-      ctx.info("[PsWriter] ClockOffset = %lld", systemClock.clockOffset);
+			ctx.info("[PsWriter] ClockOffset = %lld", systemClock.clockOffset);
 #endif
 			systemClock.currentClock = clock;
 		}

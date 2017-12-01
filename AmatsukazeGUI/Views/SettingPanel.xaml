@@ -163,6 +163,7 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NVEncCパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="L-SMASH Muxerパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="mkvmergeパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="MP4Boxパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="TimelineEditorパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="ChapterExeパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
@@ -184,6 +185,7 @@
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.MKVMergePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.MP4BoxPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     <TextBox Height="22" Margin="0,3" Text="{Binding Model.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>

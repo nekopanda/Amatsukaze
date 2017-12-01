@@ -1150,6 +1150,7 @@ namespace Amatsukaze.Server
                         X265Path = GetExePath(basePath, "x265"),
                         MuxerPath = Path.Combine(basePath, "muxer.exe"),
                         MKVMergePath = Path.Combine(basePath, "mkvmerge.exe"),
+                        MP4BoxPath = Path.Combine(basePath, "mp4box.exe"),
                         TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
                         ChapterExePath = GetExePath(basePath, "chapter_exe"),
                         JoinLogoScpPath = GetExePath(basePath, "join_logo_scp"),
@@ -1339,8 +1340,6 @@ namespace Amatsukaze.Server
                 .Append(GetEncoderName())
                 .Append(" -e \"")
                 .Append(encoderPath)
-                //.Append("\" -t \"")
-                //.Append(appData.setting.TimelineEditorPath)
                 .Append("\" -j \"")
                 .Append(json)
                 .Append("\" --chapter-exe \"")
@@ -1354,6 +1353,15 @@ namespace Amatsukaze.Server
                 .Append(" --drcs \"")
                 .Append(GetDRCSMapPath())
                 .Append("\"");
+
+            if (appData.setting.OutputFormat == FormatType.MP4)
+            {
+                sb.Append(" --mp4box \"")
+                    .Append(appData.setting.MP4BoxPath)
+                    .Append("\" -t \"")
+                    .Append(appData.setting.TimelineEditorPath)
+                    .Append("\"");
+            }
 
             string option = GetEncoderOption();
             if (string.IsNullOrEmpty(option) == false)
@@ -1535,6 +1543,24 @@ namespace Amatsukaze.Server
                     throw new InvalidOperationException(
                         "Muxerパスが無効です: " + setting.MuxerPath);
                 }
+                if (string.IsNullOrEmpty(setting.MP4BoxPath))
+                {
+                    throw new ArgumentException("MP4BoxPathパスが指定されていません");
+                }
+                if (!File.Exists(setting.MP4BoxPath))
+                {
+                    throw new InvalidOperationException(
+                        "Timelineeditorパスが無効です: " + setting.MP4BoxPath);
+                }
+                if (string.IsNullOrEmpty(setting.TimelineEditorPath))
+                {
+                    throw new ArgumentException("Timelineeditorパスが指定されていません");
+                }
+                if (!File.Exists(setting.TimelineEditorPath))
+                {
+                    throw new InvalidOperationException(
+                        "Timelineeditorパスが無効です: " + setting.TimelineEditorPath);
+                }
             }
             else
             {
@@ -1549,15 +1575,6 @@ namespace Amatsukaze.Server
                 }
             }
 
-            //if (string.IsNullOrEmpty(setting.TimelineEditorPath))
-            //{
-            //    throw new ArgumentException("Timelineeditorパスが指定されていません");
-            //}
-            //if (!File.Exists(setting.TimelineEditorPath))
-            //{
-            //    throw new InvalidOperationException(
-            //        "Timelineeditorパスが無効です: " + setting.TimelineEditorPath);
-            //}
             if (!setting.DisableChapter)
             {
                 if (string.IsNullOrEmpty(setting.ChapterExePath))

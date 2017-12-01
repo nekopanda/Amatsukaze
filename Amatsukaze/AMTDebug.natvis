@@ -1,57 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-  <Type Name="av::Tree&lt;*,*&gt;">
-    <DisplayString>{{ size={size_} }}</DisplayString>
-    <Expand>
-      <CustomListItems MaxItemsPerView="5000" ExcludeView="Test">
-        <Variable Name="x" InitialValue="&amp;nil" />
-        <Variable Name="y" InitialValue="&amp;root" />
-        <Variable Name="down" InitialValue="false" />
-        <Size>size_</Size>
-        <Loop>
-          <Break Condition="y->left == &amp;nil"/>
-          <Exec>y = y->left</Exec>
-        </Loop>
-        <Item>y</Item>
-        <Loop>
-          <Exec>down = (y->right != &amp;nil)</Exec>
-          <If Condition="down">
-            <Exec>y = y->right</Exec>
-            <Loop>
-              <Break Condition="y->left == &amp;nil"/>
-              <Exec>y = y->left</Exec>
-            </Loop>
-            <Item>y</Item>
-          </If>
-          <If Condition="!down">
-            <Loop>
-              <Exec>x = y</Exec>
-              <Exec>y = y->parent</Exec>
-              <Break Condition="x != y->right"/>
-            </Loop>
-            <Item>y</Item>
-          </If>
-        </Loop>
-      </CustomListItems>
-    </Expand>
-  </Type>
+	<Type Name="av::Tree&lt;*,*&gt;">
+		<DisplayString>{{ size={size_} }}</DisplayString>
+		<Expand>
+			<CustomListItems MaxItemsPerView="5000" ExcludeView="Test">
+				<Variable Name="x" InitialValue="&amp;nil" />
+				<Variable Name="y" InitialValue="&amp;root" />
+				<Variable Name="down" InitialValue="false" />
+				<Size>size_</Size>
+				<Loop>
+					<Break Condition="y->left == &amp;nil"/>
+					<Exec>y = y->left</Exec>
+				</Loop>
+				<Item>y</Item>
+				<Loop>
+					<Exec>down = (y->right != &amp;nil)</Exec>
+					<If Condition="down">
+						<Exec>y = y->right</Exec>
+						<Loop>
+							<Break Condition="y->left == &amp;nil"/>
+							<Exec>y = y->left</Exec>
+						</Loop>
+						<Item>y</Item>
+					</If>
+					<If Condition="!down">
+						<Loop>
+							<Exec>x = y</Exec>
+							<Exec>y = y->parent</Exec>
+							<Break Condition="x != y->right"/>
+						</Loop>
+						<Item>y</Item>
+					</If>
+				</Loop>
+			</CustomListItems>
+		</Expand>
+	</Type>
 
-  <Type Name="av::TreeNode&lt;*,*&gt;">
-    <DisplayString>{{ key={key} value={value} }}</DisplayString>
-  </Type>
+	<Type Name="av::TreeNode&lt;*,*&gt;">
+		<DisplayString>{{ key={key} value={value} }}</DisplayString>
+	</Type>
 
-  <Type Name="av::List&lt;*&gt;">
-    <DisplayString>{{ size={size_} }}</DisplayString>
-    <Expand>
-      <Item Name="[size]">size_</Item>
-      <LinkedListItems>
-        <Size>size_</Size>
-        <HeadPointer>root.right</HeadPointer>
-        <NextPointer>right</NextPointer>
-        <ValueNode>value</ValueNode>
-      </LinkedListItems>
-    </Expand>
-  </Type>
+	<Type Name="av::List&lt;*&gt;">
+		<DisplayString>{{ size={size_} }}</DisplayString>
+		<Expand>
+			<Item Name="[size]">size_</Item>
+			<LinkedListItems>
+				<Size>size_</Size>
+				<HeadPointer>root.right</HeadPointer>
+				<NextPointer>right</NextPointer>
+				<ValueNode>value</ValueNode>
+			</LinkedListItems>
+		</Expand>
+	</Type>
 
 </AutoVisualizer>

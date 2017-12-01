@@ -269,18 +269,18 @@ struct H264SequenceParameterSet {
 		}
 	}
 
-  void getColorDesc(uint8_t& colorPrimaries, uint8_t& transferCharacteristics, uint8_t& colorSpace) {
-    if (!vui_parameters_present_flag || !colour_description_present_flag) {
-      // 2はUNSPECIFIED
-      colorPrimaries = 2;
-      transferCharacteristics = 2;
-      colorSpace = 2;
-      return;
-    }
-    colorPrimaries = colour_primaries;
-    transferCharacteristics = transfer_characteristics;
-    colorSpace = matrix_coefficients;
-  }
+	void getColorDesc(uint8_t& colorPrimaries, uint8_t& transferCharacteristics, uint8_t& colorSpace) {
+		if (!vui_parameters_present_flag || !colour_description_present_flag) {
+			// 2はUNSPECIFIED
+			colorPrimaries = 2;
+			transferCharacteristics = 2;
+			colorSpace = 2;
+			return;
+		}
+		colorPrimaries = colour_primaries;
+		transferCharacteristics = transfer_characteristics;
+		colorSpace = matrix_coefficients;
+	}
 
 	double getClockTick() {
 		if (!vui_parameters_present_flag) {
@@ -655,12 +655,12 @@ public:
 		int64_t DTS_from_SEI = -1;
 		int64_t PTS_from_SEI = -1;
 		int64_t next_bp_DTS = beffering_period_DTS;
-    int codedDataSize = 0;
+		int codedDataSize = 0;
 
-    int numNalUnits = (int)nalUnits.size();
-    for (int i = 0; i < numNalUnits; ++i) {
-      codedDataSize += nalUnits[i].length;
-    }
+		int numNalUnits = (int)nalUnits.size();
+		for (int i = 0; i < numNalUnits; ++i) {
+			codedDataSize += nalUnits[i].length;
+		}
 
 		for (int i = 0; i < numNalUnits; ++i) {
 			NalUnit nalUnit = nalUnits[i];
@@ -773,7 +773,7 @@ public:
 						finfo.type = type;
 						finfo.DTS = (DTS != -1) ? DTS : DTS_from_SEI;
 						finfo.PTS = (PTS != -1) ? PTS : PTS_from_SEI;
-            finfo.codedDataSize = codedDataSize;
+						finfo.codedDataSize = codedDataSize;
 						info.push_back(finfo);
 
 						// 初期化しておく
@@ -782,7 +782,7 @@ public:
 						picType = PIC_FRAME;
 						type = FRAME_NO_INFO;
 						PTS_from_SEI = -1;
-            codedDataSize = 0;
+						codedDataSize = 0;
 
 						// 入力されたPTS,DTSは最初のフレームにしか適用されないので-1にしておく
 						DTS = PTS = -1;
@@ -794,13 +794,13 @@ public:
 					sei.updateSPS(&sps);
 
 					isGopStart = true;
-          format.format = VS_H264;
+					format.format = VS_H264;
 					sps.getPicutureSize(format.width, format.height);
 					sps.getSAR(format.sarWidth, format.sarHeight);
 					sps.getFramteRate(format.frameRateNum, format.frameRateDenom, format.fixedFrameRate);
-          sps.getColorDesc(format.colorPrimaries,
-            format.transferCharacteristics, format.colorSpace);
-          format.progressive = (sps.frame_mbs_only_flag != 0);
+					sps.getColorDesc(format.colorPrimaries,
+						format.transferCharacteristics, format.colorSpace);
+					format.progressive = (sps.frame_mbs_only_flag != 0);
 				}
 				break;
 			case 8: // PPS

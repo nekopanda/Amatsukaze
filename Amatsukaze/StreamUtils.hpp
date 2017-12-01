@@ -309,6 +309,7 @@ class AMTContext {
 public:
 	AMTContext()
 		: debugEnabled(true)
+		, acp(GetACP())
 	{
 		counter["incident"] = 0;
 	}
@@ -411,9 +412,16 @@ public:
 		}
 	}
 
+	// コンソール出力をデフォルトコードページに設定
+	void setDefaultCP() {
+		SetConsoleCP(acp);
+		SetConsoleOutputCP(acp);
+	}
+
 private:
 	bool debugEnabled;
 	CRC32 crc;
+	int acp;
 
 	std::set<std::string> tmpFiles;
 	std::map<std::string, int> counter;
@@ -422,10 +430,10 @@ private:
 	std::map<std::string, std::wstring> drcsMap;
 
 	void print(const char* fmt, va_list arg, AMT_LOG_LEVEL level) const {
-    static const char* log_levels[] = { "debug", "info", "warn", "error" };
+		static const char* log_levels[] = { "debug", "info", "warn", "error" };
 		char buf[1024];
 		vsnprintf_s(buf, sizeof(buf), fmt, arg);
-    PRINTF("AMT [%s] %s\n", log_levels[level], buf);
+		PRINTF("AMT [%s] %s\n", log_levels[level], buf);
 	}
 
 	void printProgress(const char* fmt, va_list arg) const {
@@ -460,14 +468,14 @@ struct DecoderSetting {
 };
 
 enum CMType {
-  CMTYPE_BOTH = 0,
-  CMTYPE_NONCM = 1,
-  CMTYPE_CM = 2,
-  CMTYPE_MAX
+	CMTYPE_BOTH = 0,
+	CMTYPE_NONCM = 1,
+	CMTYPE_CM = 2,
+	CMTYPE_MAX
 };
 
 enum VIDEO_STREAM_FORMAT {
-  VS_UNKNOWN,
+	VS_UNKNOWN,
 	VS_MPEG2,
 	VS_H264,
 	VS_H265
@@ -530,7 +538,7 @@ double presenting_time(PICTURE_TYPE picType, double frameRate) {
 }
 
 struct VideoFormat {
-  VIDEO_STREAM_FORMAT format;
+	VIDEO_STREAM_FORMAT format;
 	int width, height; // 横縦
 	int sarWidth, sarHeight; // アスペクト比
 	int frameRateNum, frameRateDenom; // フレームレート
@@ -582,7 +590,7 @@ struct VideoFrameInfo {
 	bool progressive;
 	PICTURE_TYPE pic;
 	FRAME_TYPE type; // 使わないけど参考情報
-  int codedDataSize; // 映像ビットストリームにおけるバイト数
+	int codedDataSize; // 映像ビットストリームにおけるバイト数
 	VideoFormat format;
 };
 

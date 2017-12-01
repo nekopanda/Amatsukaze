@@ -395,8 +395,8 @@ public:
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
 		, captionParser(ctx, *this)
-    , numTotalPackets(0)
-    , numScramblePackets(0)
+		, numTotalPackets(0)
+		, numScramblePackets(0)
 	{
 		tsPacketParser.setHandler(&tsPacketHandler);
 		tsPacketParser.setNumBufferingPackets(50 * 1024); // 9.6MB
@@ -427,13 +427,13 @@ public:
 		tsPacketParser.flush();
 	}
 
-  int64_t getNumTotalPackets() const {
-    return numTotalPackets;
-  }
+	int64_t getNumTotalPackets() const {
+		return numTotalPackets;
+	}
 
-  int64_t getNumScramblePackets() const {
-    return numScramblePackets;
-  }
+	int64_t getNumScramblePackets() const {
+		return numScramblePackets;
+	}
 
 protected:
 	enum INITIALIZATION_PHASE {
@@ -547,8 +547,8 @@ protected:
 	int preferedServiceId;
 	int selectedServiceId;
 
-  int64_t numTotalPackets;
-  int64_t numScramblePackets;
+	int64_t numTotalPackets;
+	int64_t numScramblePackets;
 
 	virtual void onVideoPesPacket(
 		int64_t clock,
@@ -633,14 +633,14 @@ protected:
 		}
 	}
 
-  bool checkScramble(TsPacket packet) {
-    ++numTotalPackets;
-    if (packet.transport_scrambling_control()) {
-      ++numScramblePackets;
-      return false;
-    }
-    return true;
-  }
+	bool checkScramble(TsPacket packet) {
+		++numTotalPackets;
+		if (packet.transport_scrambling_control()) {
+			++numScramblePackets;
+			return false;
+		}
+		return true;
+	}
 
 	virtual void onVideoPacket(int64_t clock, TsPacket packet) {
 		if(checkScramble(packet)) videoParser.onTsPacket(clock, packet);
@@ -648,7 +648,7 @@ protected:
 
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {
 		ASSERT(audioIdx < (int)audioParsers.size());
-    if (checkScramble(packet)) audioParsers[audioIdx]->onTsPacket(clock, packet);
+		if (checkScramble(packet)) audioParsers[audioIdx]->onTsPacket(clock, packet);
 	}
 
 	virtual void onCaptionPacket(int64_t clock, TsPacket packet) {

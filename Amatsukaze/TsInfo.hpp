@@ -34,7 +34,7 @@ public:
 		, patOK(false)
 		, serviceOK(false)
 		, timeOK(false)
-    , numPrograms(0)
+		, numPrograms(0)
 	{
 		handlerTable.addConstant(0x0000, newPsiHandler()); // PAT
 		handlerTable.addConstant(0x0011, newPsiHandler()); // SDT/BAT
@@ -42,10 +42,10 @@ public:
 	}
 
 	void inputTsPacket(int64_t clock, TsPacket packet) {
-    if (packet.transport_scrambling_control()) {
-      // スクランブルパケットは対応していないので捨てる
-      return;
-    }
+		if (packet.transport_scrambling_control()) {
+			// スクランブルパケットは対応していないので捨てる
+			return;
+		}
 		TsPacketHandler* handler = handlerTable.get(packet.PID());
 		if (handler != NULL) {
 			handler->onTsPacket(clock, packet);

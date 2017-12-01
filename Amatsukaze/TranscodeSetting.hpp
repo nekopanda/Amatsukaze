@@ -166,24 +166,29 @@ static std::string makeEncoderArgs(
 	return sb.str();
 }
 
-static std::string makeMuxerArgs(
+static std::vector<std::string> makeMuxerArgs(
 	ENUM_FORMAT format,
 	const std::string& binpath,
+	const std::string& timelineeditorpath,
+	const std::string& mp4boxpath,
 	const std::string& inVideo,
 	const VideoFormat& videoFormat,
 	const std::vector<std::string>& inAudios,
 	const std::string& outpath,
+	const std::string& tmpoutpath,
 	const std::string& chapterpath,
 	const std::string& timecodepath,
+	std::pair<int, int> timebase,
 	const std::vector<std::string>& inSubs,
 	const std::vector<std::string>& subsTitles)
 {
 	StringBuilder sb;
-
-	sb.append("\"%s\"", binpath);
+	std::vector<std::string> ret;
 
 	if (format == FORMAT_MP4) {
 
+		// まずはmuxerで映像、音声、チャプターをmux
+		sb.append("\"%s\"", binpath);
 		if (videoFormat.fixedFrameRate) {
 			sb.append(" -i \"%s?fps=%d/%d\"", inVideo,
 				videoFormat.frameRateNum, videoFormat.frameRateDenom);
@@ -194,14 +199,42 @@ static std::string makeMuxerArgs(
 		for (const auto& inAudio : inAudios) {
 			sb.append(" -i \"%s\"", inAudio);
 		}
-		for (const auto& inSub : inSubs) {
-			sb.append(" -i \"%s\"", inSub);
-		}
 		if (chapterpath.size() > 0) {
 			sb.append(" --chapter \"%s\"", chapterpath);
 		}
 		sb.append(" --optimize-pd");
-		sb.append(" -o \"%s\"", outpath);
+
+		std::string dst = (timecodepath.size() > 0) ? tmpoutpath : outpath;
+		sb.append(" -o \"%s\"", dst);
+
+		ret.push_back(sb.str());
+		sb.clear();
+
+		if (timecodepath.size() > 0) {
+			// 必要ならtimelineeditorでtimecodeを埋め込む
+			sb.append("\"%s\"", timelineeditorpath)
+				.append(" --track 1")
+				.append(" --timecode \"%s\"", timecodepath)
+				.append(" --media-timescale %d", timebase.first)
+				.append(" --media-timebase %d", timebase.second)
+				.append(" \"%s\"", dst)
+				.append(" \"%s\"", outpath);
+			ret.push_back(sb.str());
+			sb.clear();
+		}
+
+		if (inSubs.size() > 0) {
+			// あれば字幕を埋め込む
+			sb.append("\"%s\"", mp4boxpath);
+			for (int i = 0; i < (int)inSubs.size(); ++i) {
+				if (subsTitles[i] == "SRT") { // mp4はSRTのみ
+					sb.append(" -add \"%s#:name=%s\"", inSubs[i], subsTitles[i]);
+				}
+			}
+			sb.append(" \"%s\"", outpath);
+			ret.push_back(sb.str());
+			sb.clear();
+		}
 	}
 	else { // mkv
 
@@ -222,9 +255,12 @@ static std::string makeMuxerArgs(
 		for (int i = 0; i < (int)inSubs.size(); ++i) {
 			sb.append(" --track-name \"0:%s\" \"%s\"", subsTitles[i], inSubs[i]);
 		}
+
+		ret.push_back(sb.str());
+		sb.clear();
 	}
 
-	return sb.str();
+	return ret;
 }
 
 static std::string makeTimelineEditorArgs(
@@ -290,6 +326,13 @@ public:
 		if (path_.size() == 0) {
 			THROW(IOException, "一時ディレクトリ作成失敗");
 		}
+		
+		std::string abolutePath;
+		int sz = GetFullPathNameA(path_.c_str(), 0, 0, 0);
+		abolutePath.resize(sz);
+		GetFullPathNameA(path_.c_str(), sz, &abolutePath[0], 0);
+		abolutePath.resize(sz - 1);
+		path_ = abolutePath;
 	}
 	~TempDirectory() {
 		if (path_.size() == 0) {
@@ -320,12 +363,12 @@ private:
 };
 
 static const char* GetCMSuffix(CMType cmtype) {
-  switch (cmtype) {
-  case CMTYPE_CM: return "-cm";
-  case CMTYPE_NONCM: return "-main";
-  case CMTYPE_BOTH: return "";
-  }
-  return "";
+	switch (cmtype) {
+	case CMTYPE_CM: return "-cm";
+	case CMTYPE_NONCM: return "-main";
+	case CMTYPE_BOTH: return "";
+	}
+	return "";
 }
 
 struct Config {
@@ -351,6 +394,7 @@ struct Config {
 	std::string encoderOptions;
 	std::string muxerPath;
 	std::string timelineditorPath;
+	std::string mp4boxPath;
 	ENUM_FORMAT format;
 	bool splitSub;
 	bool twoPass;
@@ -439,6 +483,10 @@ public:
 		return conf.timelineditorPath;
 	}
 
+	std::string getMp4BoxPath() const {
+		return conf.mp4boxPath;
+	}
+
 	bool isSplitSub() const {
 		return conf.splitSub;
 	}
@@ -491,9 +539,9 @@ public:
 		return conf.joinLogoScpCmdPath;
 	}
 
-  const std::vector<CMType>& getCMTypes() const {
-    return cmtypes;
-  }
+	const std::vector<CMType>& getCMTypes() const {
+		return cmtypes;
+	}
 
 	bool isDumpStreamInfo() const {
 		return conf.dumpStreamInfo;
@@ -591,7 +639,7 @@ public:
 	}
 
 	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/t%d-%d%s..mp4", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+		return regtmp(StringFormat("%s/t%d-%d%s.mp4", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
 	const char* getOutputExtention() const {
@@ -632,9 +680,9 @@ public:
 		sb.append("%s", conf.encoderOptions);
 		if (conf.autoBitrate) {
 			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
-      if (cmtype == CMTYPE_CM) {
-        targetBitrate *= conf.bitrateCM;
-      }
+			if (cmtype == CMTYPE_CM) {
+				targetBitrate *= conf.bitrateCM;
+			}
 			if (conf.encoder == ENCODER_QSVENC) {
 				sb.append(" --la %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
 			}
@@ -681,14 +729,14 @@ public:
 		ctx.info("エンコード/出力: %s/%s",
 			conf.twoPass ? "2パス" : "1パス",
 			cmOutMaskToString(conf.cmoutmask));
-    ctx.info("チャプター解析: %s%s",
+		ctx.info("チャプター解析: %s%s",
 			conf.chapter ? "有効" : "無効",
 			(conf.chapter && conf.ignoreNoLogo) ? "" : "（ロゴ必須）");
-    if (conf.chapter) {
-      for (int i = 0; i < (int)conf.logoPath.size(); ++i) {
-        ctx.info("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
-      }
-    }
+		if (conf.chapter) {
+			for (int i = 0; i < (int)conf.logoPath.size(); ++i) {
+				ctx.info("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
+			}
+		}
 		ctx.info("字幕: %s", conf.subtitles ? "有効" : "無効");
 		if (conf.subtitles) {
 			ctx.info("DRCSマッピング: %s", conf.drcsMapPath.c_str());

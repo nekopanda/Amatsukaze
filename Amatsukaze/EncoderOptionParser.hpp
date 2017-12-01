@@ -12,6 +12,7 @@ enum ENUM_ENCODER_DEINT {
 	ENCODER_DEINT_30P,
 	ENCODER_DEINT_24P,
 	ENCODER_DEINT_60P,
+	ENCODER_DEINT_VFR
 };
 
 struct EncoderOptionInfo {
@@ -98,8 +99,14 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const std::string& st
 				THROW(ArgumentException,
 					"vpp-afsで間引き(drop)がonの場合はタイムコード(timecode=true)が必須です");
 			}
-			info.deint = is24 ? ENCODER_DEINT_24P : ENCODER_DEINT_30P;
-			info.afsTimecode = timecode;
+			if (timecode) {
+				info.deint = ENCODER_DEINT_VFR;
+				info.afsTimecode = true;
+			}
+			else {
+				info.deint = is24 ? ENCODER_DEINT_24P : ENCODER_DEINT_30P;
+				info.afsTimecode = false;
+			}
 		}
 	}
 
@@ -119,6 +126,9 @@ void PrintEncoderInfo(AMTContext& ctx, EncoderOptionInfo info) {
 		break;
 	case ENCODER_DEINT_60P:
 		ctx.info("エンコーダでのインタレ解除: 60fps化");
+		break;
+	case ENCODER_DEINT_VFR:
+		ctx.info("エンコーダでのインタレ解除: VFR化");
 		break;
 	}
 }

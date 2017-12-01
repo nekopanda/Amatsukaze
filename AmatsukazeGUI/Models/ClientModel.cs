@@ -665,6 +665,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region MP4BoxPath変更通知プロパティ
+        public string MP4BoxPath
+        {
+            get { return setting.MP4BoxPath; }
+            set
+            {
+                if (setting.MP4BoxPath == value)
+                    return;
+                setting.MP4BoxPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ChapterExePath変更通知プロパティ
         public string ChapterExePath {
             get { return setting.ChapterExePath; }
@@ -1384,6 +1398,7 @@ namespace Amatsukaze.Models
             MuxerPath = setting.MuxerPath;
             MKVMergePath = setting.MKVMergePath;
             TimelineEditorPath = setting.TimelineEditorPath;
+            MP4BoxPath = setting.MP4BoxPath;
 
             ChapterExePath = setting.ChapterExePath;
             JoinLogoScpPath = setting.JoinLogoScpPath;

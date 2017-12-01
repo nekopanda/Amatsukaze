@@ -136,7 +136,7 @@ public:
 
 static void approxim_line(int n, double sum_x, double sum_y, double sum_x2, double sum_xy, double& a, double& b)
 {
-  // doubleやfloatにはNaNが定義されているのでゼロ除算で例外は発生しない
+	// doubleやfloatにはNaNが定義されているのでゼロ除算で例外は発生しない
 	double temp = (double)n * sum_x2 - sum_x * sum_x;
 	a = ((double)n * sum_xy - sum_x * sum_y) / temp;
 	b = (sum_x2 * sum_y - sum_x * sum_xy) / temp;
@@ -164,33 +164,33 @@ public:
 		sumFB += f * b;
 	}
 
-  // 値を0～1に正規化
-  void Normalize(int maxv)
-  {
-    sumF /= (double)maxv;
-    sumB /= (double)maxv;
-    sumF2 /= (double)maxv*maxv;
-    sumB2 /= (double)maxv*maxv;
-    sumFB /= (double)maxv*maxv;
-  }
+	// 値を0～1に正規化
+	void Normalize(int maxv)
+	{
+		sumF /= (double)maxv;
+		sumB /= (double)maxv;
+		sumF2 /= (double)maxv*maxv;
+		sumB2 /= (double)maxv*maxv;
+		sumFB /= (double)maxv*maxv;
+	}
 
 	/*====================================================================
 	* 	GetAB_?()
 	* 		回帰直線の傾きと切片を返す X軸:前景 Y軸:背景
 	*===================================================================*/
 	bool GetAB(float& A, float& B, int data_count) const
-  {
+	{
 		double A1, A2;
 		double B1, B2;
-    approxim_line(data_count, sumF, sumB, sumF2, sumFB, A1, B1);
-    approxim_line(data_count, sumB, sumF, sumB2, sumFB, A2, B2);
+		approxim_line(data_count, sumF, sumB, sumF2, sumFB, A1, B1);
+		approxim_line(data_count, sumB, sumF, sumB2, sumFB, A2, B2);
 
-    // XY入れ替えたもの両方で平均を取る
+		// XY入れ替えたもの両方で平均を取る
 		A = (float)((A1 + (1 / A2)) / 2);   // 傾きを平均
 		B = (float)((B1 + (-B2 / A2)) / 2); // 切片も平均
 
-    if (std::isnan(A) || std::isnan(B) || std::isinf(A) || std::isinf(B) || A == 0)
-      return false;
+		if (std::isnan(A) || std::isnan(B) || std::isinf(A) || std::isinf(B) || A == 0)
+			return false;
 
 		return true;
 	}
@@ -292,27 +292,27 @@ public:
 	{
 		int scanUVw = scanw >> logUVx;
 		int scanUVh = scanh >> logUVy;
-    auto data = std::unique_ptr<LogoData>(new LogoData(scanw, scanh, logUVx, logUVy));
-    float *aY = data->GetA(PLANAR_Y);
-    float *aU = data->GetA(PLANAR_U);
-    float *aV = data->GetA(PLANAR_V);
-    float *bY = data->GetB(PLANAR_Y);
-    float *bU = data->GetB(PLANAR_U);
-    float *bV = data->GetB(PLANAR_V);
+		auto data = std::unique_ptr<LogoData>(new LogoData(scanw, scanh, logUVx, logUVy));
+		float *aY = data->GetA(PLANAR_Y);
+		float *aU = data->GetA(PLANAR_U);
+		float *aV = data->GetA(PLANAR_V);
+		float *bY = data->GetB(PLANAR_Y);
+		float *bU = data->GetB(PLANAR_U);
+		float *bV = data->GetB(PLANAR_V);
 
 		for (int y = 0; y < scanh; ++y) {
 			for (int x = 0; x < scanw; ++x) {
 				int off = x + y * scanw;
-        if (!logoY[off].GetAB(aY[off], bY[off], nframes)) return nullptr;
+				if (!logoY[off].GetAB(aY[off], bY[off], nframes)) return nullptr;
 			}
 		}
-    for (int y = 0; y < scanUVh; ++y) {
-      for (int x = 0; x < scanUVw; ++x) {
-        int off = x + y * scanUVw;
-        if (!logoU[off].GetAB(aU[off], bU[off], nframes)) return nullptr;
-        if (!logoV[off].GetAB(aV[off], bV[off], nframes)) return nullptr;
-      }
-    }
+		for (int y = 0; y < scanUVh; ++y) {
+			for (int x = 0; x < scanUVw; ++x) {
+				int off = x + y * scanUVw;
+				if (!logoU[off].GetAB(aU[off], bU[off], nframes)) return nullptr;
+				if (!logoV[off].GetAB(aV[off], bV[off], nframes)) return nullptr;
+			}
+		}
 
 		if (clean) {
 			// ロゴを綺麗にする
@@ -679,12 +679,12 @@ class LogoAnalyzer : AMTObject
 	LOGO_ANALYZE_CB cb;
 
 	int scanx, scany;
-  int scanw, scanh, thy;
+	int scanw, scanh, thy;
 	int numMaxFrames;
-  int logUVx, logUVy;
+	int logUVx, logUVy;
 	int imgw, imgh;
-  int numFrames;
-  std::unique_ptr<LogoData> logodata;
+	int numFrames;
+	std::unique_ptr<LogoData> logodata;
 
 	float progressbase;
 
@@ -792,20 +792,20 @@ class LogoAnalyzer : AMTObject
 		};
 	};
 
-  void MakeInitialLogo()
-  {
+	void MakeInitialLogo()
+	{
 		InitialLogoCreator creator(this);
 		creator.readAll(srcpath, serviceid);
-  }
+	}
 
-  void ReMakeLogo()
-  {
-    // 複数fade値でロゴを評価 //
+	void ReMakeLogo()
+	{
+		// 複数fade値でロゴを評価 //
 		auto codec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
 
-    // ロゴを評価用にインタレ解除
+		// ロゴを評価用にインタレ解除
 		LogoDataParam deintLogo(LogoData(scanw, scanh, logUVx, logUVy), scanw, scanh, scanx, scany);
-    DeintLogo(deintLogo, *logodata, scanw, scanh);
+		DeintLogo(deintLogo, *logodata, scanw, scanh);
 		deintLogo.CreateLogoMask(0.1f);
 
 		size_t scanDataSize = scanw * scanh * 3 / 2;
@@ -862,7 +862,7 @@ class LogoAnalyzer : AMTObject
 			codec->DecodeEnd();
 		}
 
-    // 評価値を集約
+		// 評価値を集約
 		// とりあえず出してみる
 		std::vector<int> numMinFades(numFade);
 		for (int i = 0; i < numFrames; ++i) {
@@ -904,19 +904,19 @@ class LogoAnalyzer : AMTObject
 			codec->DecodeEnd();
 		}
 
-    // ロゴ作成
+		// ロゴ作成
 		logoscan.Normalize(255);
 		logodata = logoscan.GetLogo(true);
 		if (logodata == nullptr) {
 			THROW(RuntimeException, "Insufficient logo frames");
 		}
-  }
+	}
 
 public:
-  LogoAnalyzer(AMTContext& ctx, const char* srcpath, int serviceid, const char* workfile, const char* dstpath,
+	LogoAnalyzer(AMTContext& ctx, const char* srcpath, int serviceid, const char* workfile, const char* dstpath,
 			int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 			LOGO_ANALYZE_CB cb)
-    : AMTObject(ctx)
+		: AMTObject(ctx)
 		, srcpath(srcpath)
 		, serviceid(serviceid)
 		, workfile(workfile)
@@ -928,17 +928,17 @@ public:
 		, thy(thy)
 		, numMaxFrames(numMaxFrames)
 		, cb(cb)
-  {
-    //
-  }
+	{
+		//
+	}
 
-  void ScanLogo()
-  {
+	void ScanLogo()
+	{
 		// 有効フレームデータと初期ロゴの取得
 		progressbase = 0;
-    MakeInitialLogo();
+		MakeInitialLogo();
 
-    // データ解析とロゴの作り直し
+		// データ解析とロゴの作り直し
 		progressbase = 50;
 		//MultiCandidate();
 		ReMakeLogo();
@@ -953,7 +953,7 @@ public:
 		LogoHeader header(scanw, scanh, logUVx, logUVy, imgw, imgh, scanx, scany, "No Name");
 		header.serviceId = serviceid;
 		logodata->Save(dstpath, &header);
-  }
+	}
 };
 
 // C API for P/Invoke

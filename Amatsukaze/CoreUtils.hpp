@@ -12,10 +12,10 @@
 #include <string>
 
 struct Exception {
-  virtual ~Exception() { }
-  virtual const char* message() const {
-    return "No Message ...";
-  };
+	virtual ~Exception() { }
+	virtual const char* message() const {
+		return "No Message ...";
+	};
 	virtual void raise() const { throw *this;	}
 };
 
@@ -30,9 +30,9 @@ struct Exception {
 			va_end(arg); \
 		} \
 		virtual const char* message() const { return mes.c_str(); } \
-	  virtual void raise() const { throw *this;	} \
+		virtual void raise() const { throw *this;	} \
 	private: \
-    std::string mes; \
+		std::string mes; \
 	};
 
 DEFINE_EXCEPTION(EOFException)
@@ -48,10 +48,10 @@ DEFINE_EXCEPTION(AviSynthException)
 #undef DEFINE_EXCEPTION
 
 #define THROW(exception, message) \
-  throw_exception_(exception("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__))
+	throw_exception_(exception("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__))
 
 #define THROWF(exception, fmt, ...) \
-  throw_exception_(exception("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__))
+	throw_exception_(exception("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__))
 
 static void throw_exception_(const Exception& exc)
 {
@@ -64,11 +64,11 @@ static void throw_exception_(const Exception& exc)
 class NonCopyable
 {
 protected:
-  NonCopyable() {}
-  ~NonCopyable() {} /// protected な非仮想デストラクタ
+	NonCopyable() {}
+	~NonCopyable() {} /// protected な非仮想デストラクタ
 private:
-  NonCopyable(const NonCopyable &);
-  NonCopyable& operator=(const NonCopyable &) { }
+	NonCopyable(const NonCopyable &);
+	NonCopyable& operator=(const NonCopyable &) { }
 };
 
 // with idiom サポート //
@@ -77,19 +77,19 @@ template <typename T>
 class WithHolder
 {
 public:
-  WithHolder(T& obj) : obj_(obj) {
-    obj_.enter();
-  }
-  ~WithHolder() {
-    obj_.exit();
-  }
+	WithHolder(T& obj) : obj_(obj) {
+		obj_.enter();
+	}
+	~WithHolder() {
+		obj_.exit();
+	}
 private:
-  T& obj_;
+	T& obj_;
 };
 
 template <typename T>
 WithHolder<T> with(T& obj) {
-  return WithHolder<T>(obj);
+	return WithHolder<T>(obj);
 }
 
 class CondWait;
@@ -97,70 +97,70 @@ class CondWait;
 class CriticalSection : NonCopyable
 {
 public:
-  CriticalSection() {
-    InitializeCriticalSection(&critical_section_);
-  }
-  ~CriticalSection() {
-    DeleteCriticalSection(&critical_section_);
-  }
-  void enter() {
-    EnterCriticalSection(&critical_section_);
-  }
-  void exit() {
-    LeaveCriticalSection(&critical_section_);
-  }
+	CriticalSection() {
+		InitializeCriticalSection(&critical_section_);
+	}
+	~CriticalSection() {
+		DeleteCriticalSection(&critical_section_);
+	}
+	void enter() {
+		EnterCriticalSection(&critical_section_);
+	}
+	void exit() {
+		LeaveCriticalSection(&critical_section_);
+	}
 private:
-  CRITICAL_SECTION critical_section_;
+	CRITICAL_SECTION critical_section_;
 
-  friend CondWait;
+	friend CondWait;
 };
 
 class CondWait : NonCopyable
 {
 public:
-  CondWait()
-    : cond_val_(CONDITION_VARIABLE_INIT)
-  { }
-  void wait(CriticalSection& cs) {
-    SleepConditionVariableCS(&cond_val_, &cs.critical_section_, INFINITE);
-  }
-  void signal() {
-    WakeConditionVariable(&cond_val_);
-  }
-  void broadcast() {
-    WakeAllConditionVariable(&cond_val_);
-  }
+	CondWait()
+		: cond_val_(CONDITION_VARIABLE_INIT)
+	{ }
+	void wait(CriticalSection& cs) {
+		SleepConditionVariableCS(&cond_val_, &cs.critical_section_, INFINITE);
+	}
+	void signal() {
+		WakeConditionVariable(&cond_val_);
+	}
+	void broadcast() {
+		WakeAllConditionVariable(&cond_val_);
+	}
 private:
-  CONDITION_VARIABLE cond_val_;
+	CONDITION_VARIABLE cond_val_;
 };
 
 class Semaphore : NonCopyable
 {
 public:
-  Semaphore(int initial_count)
-  {
-    handle = CreateSemaphore(NULL, initial_count, INT_MAX, NULL);
-    if (handle == NULL) {
-      THROW(RuntimeException, "failed to create semaphore");
-    }
-  }
-  ~Semaphore()
-  {
-    CloseHandle(handle);
-    handle = NULL;
-  }
-  void enter() {
-    if (WaitForSingleObject(handle, INFINITE) == WAIT_FAILED) {
-      THROW(RuntimeException, "failed to wait semaphore");
-    }
-  }
-  void exit() {
-    if (ReleaseSemaphore(handle, 1, NULL) == 0) {
-      THROW(RuntimeException, "failed to release semaphore");
-    }
-  }
+	Semaphore(int initial_count)
+	{
+		handle = CreateSemaphore(NULL, initial_count, INT_MAX, NULL);
+		if (handle == NULL) {
+			THROW(RuntimeException, "failed to create semaphore");
+		}
+	}
+	~Semaphore()
+	{
+		CloseHandle(handle);
+		handle = NULL;
+	}
+	void enter() {
+		if (WaitForSingleObject(handle, INFINITE) == WAIT_FAILED) {
+			THROW(RuntimeException, "failed to wait semaphore");
+		}
+	}
+	void exit() {
+		if (ReleaseSemaphore(handle, 1, NULL) == 0) {
+			THROW(RuntimeException, "failed to release semaphore");
+		}
+	}
 private:
-  HANDLE handle;
+	HANDLE handle;
 };
 
 static void DebugPrint(const char* fmt, ...)
