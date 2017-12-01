@@ -1311,18 +1311,35 @@ public:
 			timecodeFile = setting_.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
 		}
 
-		// Mux
+		// L-SMASH‚Ìmuxer‚Ímuxer‚Ætimelineeditor‚ª•Ê
+		bool needTimeline = (timecodeFile.size() > 0) && (setting_.getFormat() == FORMAT_MP4);
+		std::string muxOutFile = needTimeline
+			? setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype)
+			: outFilePath;
+
 		std::string args = makeMuxerArgs(setting_.getFormat(),
 			setting_.getMuxerPath(), encVideoFile,
-			vfmt, audioFiles, outFilePath, chapterFile, timecodeFile, subsFiles, subsTitles);
+			vfmt, audioFiles, muxOutFile, chapterFile, timecodeFile, subsFiles, subsTitles);
 
 		ctx.info(args.c_str());
 
 		{
+			// Mux
 			MySubProcess muxer(args);
 			int ret = muxer.join();
 			if (ret != 0) {
 				THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
+			}
+		}
+
+		if (needTimeline) {
+			// Timelie
+			std::string targs = makeTimelineEditorArgs(
+				setting_.getTimelineEditorPath(), muxOutFile, outFilePath, timecodeFile);
+			MySubProcess timelieeditor(args);
+			int ret = timelieeditor.join();
+			if (ret != 0) {
+				THROWF(RuntimeException, "timelieeditor failed (timelieeditor exit code: %d)", ret);
 			}
 		}
 
@@ -1381,7 +1398,7 @@ public:
 		std::string outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
 		std::string args = makeMuxerArgs(FORMAT_MP4,
 			setting_.getMuxerPath(), encVideoFile, videoFormat, audioFiles, outFilePath, 
-			std::string(), std::vector<std::string>(), std::vector<std::string>());
+			std::string(), std::string(), std::vector<std::string>(), std::vector<std::string>());
 		ctx.info("[MuxŠJŽn]");
 		ctx.info(args.c_str());
 
@@ -1428,6 +1445,9 @@ static const char* CMTypeToString(CMType cmtype) {
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	setting.dump();
+
+	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
+	PrintEncoderInfo(ctx, eoInfo);
 
 	Stopwatch sw;
 	sw.start();
@@ -1533,9 +1553,6 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			}
 		}
 	}
-
-	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
-	PrintEncoderInfo(ctx, eoInfo);
 
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
 	std::vector<EncodeFileInfo> outFileInfo;

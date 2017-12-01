@@ -211,7 +211,11 @@ static std::string makeMuxerArgs(
 
 		sb.append(" -o \"%s\"", outpath);
 
+		if (timecodepath.size()) {
+			sb.append(" --timestamps \"0:%s\"", timecodepath);
+		}
 		sb.append(" \"%s\"", inVideo);
+
 		for (const auto& inAudio : inAudios) {
 			sb.append(" \"%s\"", inAudio);
 		}
@@ -227,15 +231,12 @@ static std::string makeTimelineEditorArgs(
 	const std::string& binpath,
 	const std::string& inpath,
 	const std::string& outpath,
-	const std::string& timecodepath,
-	std::pair<int, int> timebase)
+	const std::string& timecodepath)
 {
 	StringBuilder sb;
 	sb.append("\"%s\"", binpath)
 		.append(" --track 1")
 		.append(" --timecode \"%s\"", timecodepath)
-		.append(" --media-timescale %d", timebase.first)
-		.append(" --media-timebase %d", timebase.second)
 		.append(" \"%s\"", inpath)
 		.append(" \"%s\"", outpath);
 	return sb.str();
@@ -587,6 +588,10 @@ public:
 	std::string getTmpChapterPath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat("%s/chapter%d-%d%s.txt",
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	}
+
+	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/t%d-%d%s..mp4", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
 	const char* getOutputExtention() const {

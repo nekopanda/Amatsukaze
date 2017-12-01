@@ -74,6 +74,7 @@ static void printHelp(const tchar* bin) {
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
 		"                      対応エンコーダ: mp4,mkv\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
+		"  -t|--timelineeditor  <パス>  L-SMASHのtimelineeditorへのパス[timelineeditor.exe]\n"
 		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]"
 		"  -pf|--postfilter <パス>  ポストフィルタAvisynthスクリプトへのパス[]"
 		"  --mpeg2decoder <デコーダ>  MPEG2用デコーダ[default]\n"
