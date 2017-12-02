@@ -60,7 +60,7 @@ GTX 970または1060以上のNVIDIA GPUを搭載したPC
 
 ### 1. "Amatsukaze.vbs"を起動
 
-<img src="https://i.imgur.com/hRnzkgV.png" width="225">
+<img src="https://i.imgur.com/SFTasoX.png" width="206">
 
 ### 2. 「基本設定」タブで一時フォルダを設定
 
@@ -159,6 +159,8 @@ TSファイルによっては、うまくロゴが採取できないことがあ
 「チャンネルごとの設定」タブで、当該サービス（＝チャンネル）を選択して、
 右のロゴリストを右クリック→「ロゴなし」を追加で
 サービス（＝チャンネル）にロゴなし設定を追加してください。
+
+<img src="https://i.imgur.com/4SPX6KV.png" width="490">
 
 チャンネルごとのjoin_logo_scpコマンドフィイルもこのタブで設定できます。
 
