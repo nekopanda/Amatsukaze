@@ -131,6 +131,12 @@ QSVEnc,NVEncを使いたい場合は、別途入手してパスを設定して�
 
 <img src="https://i.imgur.com/aEDxg7r.png" width="463">←NVEncのパス設定
 
+## AmatsukazeCLI
+
+実際のエンコードはAmatsukazeCLI.exeがバックエンドで動いています。
+コマンドラインやバッチファイルから AmatsukazeCLI.exe を直接使うこともできます。
+オプションや使い方は、引数なしでコマンドを打つと表示されるヘルプを見てください。
+
 # 設定や動作について
 
 ## [エンコード設定例](https://github.com/nekopanda/Amatsukaze/wiki/%E3%82%A8%E3%83%B3%E3%82%B3%E3%83%BC%E3%83%89%E8%A8%AD%E5%AE%9A%E4%BE%8B)
