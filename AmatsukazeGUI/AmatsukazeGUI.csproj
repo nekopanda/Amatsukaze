@@ -92,6 +92,7 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Components\IsNullConverter.cs" />
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Models\AmatsukazeNatives.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
@@ -156,6 +157,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\ClientLogPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\CommonResources.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -260,6 +260,7 @@ namespace Amatsukaze.Server
         public bool IsEncoding { get { return State == QueueState.Encoding; } }
         public bool IsError { get { return State == QueueState.Failed || State == QueueState.PreFailed; } }
         public bool IsPending { get { return State == QueueState.LogoPending; } }
+        public bool IsPreFailed { get { return State == QueueState.PreFailed; } }
         public string TsTimeString { get { return TsTime.ToString("yyyy年MM月dd日"); } }
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
 

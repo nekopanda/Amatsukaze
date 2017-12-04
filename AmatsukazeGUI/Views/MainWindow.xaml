@@ -41,90 +41,43 @@
     </i:Interaction.Triggers>
     
     <Window.Resources>
-        <Style x:Key="HeaderMenuStyle" TargetType="ListBox">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ItemsControl">
-                        <Border Background="Azure">
-                            <UniformGrid Rows="1" IsItemsHost="True" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="ItemTemplate">
-                <Setter.Value>
-                    <DataTemplate>
-                        <TextBlock Margin="3" Text="{Binding Name}" HorizontalAlignment="Stretch" TextAlignment="Center" />
-                    </DataTemplate>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="ItemContainerStyle">
-                <Setter.Value>
-                    <Style TargetType="ListBoxItem">
-                        <Setter Property="OverridesDefaultStyle" Value="True"/>
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="{x:Type ContentControl}">
-                                    <Border BorderThickness="0.5" BorderBrush="Gray" CornerRadius="5" Background="{TemplateBinding Background}">
-                                        <ContentPresenter />
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                        <Style.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="Plum" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="LightGray" />
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsSelected" Value="True"/>
-                                    <Condition Property="IsMouseOver" Value="True"/>
-                                </MultiTrigger.Conditions>
-                                <Setter Property="Background" Value="DarkGray" />
-                            </MultiTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <DataTemplate DataType="{x:Type vm:LogFileViewModel}">
-            <v:LogFilePanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ConsoleViewModel}">
-            <v:ConsolePanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:SettingViewModel}">
-            <v:SettingPanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ServiceSettingViewModel}">
-            <v:ServiceSettingPanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:QueueViewModel}">
-            <v:QueuePanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:LogViewModel}">
-            <v:LogPanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:DiskFreeSpaceViewModel}">
-            <v:DiskFreeSpacePanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:SummaryViewModel}">
-            <v:SummaryPanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ClientLogViewModel}">
-            <v:ClientLogPanel />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:DrcsImageListViewModel}">
-            <v:DrcsImageListPanel />
-        </DataTemplate>
-
+        <ResourceDictionary Source="CommonResources.xaml"/>
     </Window.Resources>
     
     <Grid>
+        <Grid.Resources>
+            <DataTemplate DataType="{x:Type vm:LogFileViewModel}">
+                <v:LogFilePanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ConsoleViewModel}">
+                <v:ConsolePanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SettingViewModel}">
+                <v:SettingPanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ServiceSettingViewModel}">
+                <v:ServiceSettingPanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:QueueViewModel}">
+                <v:QueuePanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:LogViewModel}">
+                <v:LogPanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:DiskFreeSpaceViewModel}">
+                <v:DiskFreeSpacePanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SummaryViewModel}">
+                <v:SummaryPanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ClientLogViewModel}">
+                <v:ClientLogPanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:DrcsImageListViewModel}">
+                <v:DrcsImageListPanel />
+            </DataTemplate>
+        </Grid.Resources>
+        
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
@@ -179,15 +132,8 @@
             <TextBlock Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center"/>
             <TextBlock Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
             <Button Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">
-                <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                        <Border BorderThickness="0.5" BorderBrush="Gray" CornerRadius="5" Background="{TemplateBinding Background}">
-                            <ContentPresenter HorizontalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Button.Template>
                 <Button.Style>
-                    <Style TargetType="Button">
+                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                         <Setter Property="Foreground" Value="#FFA4A4A4"/>
                         <Setter Property="Background" Value="White"/>
                         <Style.Triggers>

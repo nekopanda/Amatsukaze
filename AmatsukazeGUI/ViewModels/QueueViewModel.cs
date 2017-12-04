@@ -372,5 +372,21 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region HideOneSeg変更通知プロパティ
+        private bool _HideOneSeg = false;
+
+        public bool HideOneSeg
+        {
+            get { return _HideOneSeg; }
+            set
+            {
+                if (_HideOneSeg == value)
+                    return;
+                _HideOneSeg = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 }

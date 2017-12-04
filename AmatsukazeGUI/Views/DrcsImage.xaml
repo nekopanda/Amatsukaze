@@ -9,25 +9,31 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:DrcsImageViewModel}}">
+
     <UserControl.Resources>
-        <Style x:Key="AddButtonStyle" TargetType="Button">
-            <Setter Property="Visibility" Value="Collapsed"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="ModityButtonStyle" TargetType="Button">
-            <Setter Property="Visibility" Value="Visible"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
+        <ResourceDictionary Source="CommonResources.xaml"/>
     </UserControl.Resources>
+    
     <StackPanel Orientation="Horizontal">
+        <StackPanel.Resources>
+            <Style x:Key="AddButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="ModityButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Visibility" Value="Visible"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </StackPanel.Resources>
+        
         <Image Source="{Binding Image.Image}" Width="24" Height="24" />
         <TextBox Text="{Binding MapStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />

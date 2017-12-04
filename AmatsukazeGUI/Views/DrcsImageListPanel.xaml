@@ -5,29 +5,21 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Amatsukaze.Views"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:DrcsImageListViewModel}}">
+    
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.Resources>
             <DataTemplate DataType="{x:Type vm:DrcsImageViewModel}">
                 <local:DrcsImage />
             </DataTemplate>
-            <Style x:Key="AllItemStyle" TargetType="ListBox">
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsNoMapOnly}" Value="True">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-            <Style x:Key="NoMapStyle" TargetType="ListBox">
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsNoMapOnly}" Value="False">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
         </Grid.Resources>
         
         <Grid.RowDefinitions>
@@ -35,45 +27,35 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Button Command="{Binding ToggleNoMapOnlyCommand, Mode=OneWay}" Height="20">
-            <Button.Template>
-                <ControlTemplate TargetType="Button">
-                    <Border BorderThickness="0.5" BorderBrush="Gray" CornerRadius="5" Background="{TemplateBinding Background}">
-                        <ContentPresenter HorizontalAlignment="Center" />
-                    </Border>
-                </ControlTemplate>
-            </Button.Template>
-            <Button.Resources>
-                
-            </Button.Resources>
+        <Button Command="{Binding ToggleNoMapOnlyCommand, Mode=OneWay}">
             <Button.Style>
-                <Style TargetType="Button">
+                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                     <Setter Property="Content" Value="マッピングのない文字"/>
-                    <Setter Property="Background" Value="White"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsNoMapOnly}" Value="False">
                             <Setter Property="Content" Value="すべての文字" />
                         </DataTrigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="LightGray" />
-                        </Trigger>
                     </Style.Triggers>
                 </Style>
             </Button.Style>
         </Button>
         
-        <ListBox ItemsSource="{Binding ImageList}" Style="{StaticResource AllItemStyle}" Grid.Row="1"
-             SelectedIndex="{Binding ImageItemSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-        <ListBox ItemsSource="{Binding ImageList}" Style="{StaticResource NoMapStyle}" Grid.Row="1"
+        <ListBox ItemsSource="{Binding ImageList}" Grid.Row="1"
              SelectedIndex="{Binding ImageItemSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" >
+            <ListBox.Resources>
+                <c:IsNullConverter x:Key="isNullConverter"/>
+            </ListBox.Resources>
             <ListBox.ItemContainerStyle>
                 <Style TargetType="{x:Type ListBoxItem}">
-                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Setter Property="Visibility" Value="Visible"/>
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding Image.MapStr}" Value="{x:Null}">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding DataContext.IsNoMapOnly, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:DrcsImageListPanel}}}" Value="True" />
+                                <Condition Binding="{Binding Image.MapStr, Converter={StaticResource isNullConverter}}" Value="False" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </MultiDataTrigger>
                     </Style.Triggers>
                 </Style>
             </ListBox.ItemContainerStyle>

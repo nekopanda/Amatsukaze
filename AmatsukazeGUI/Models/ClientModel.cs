@@ -1567,10 +1567,13 @@ namespace Amatsukaze.Models
             DiskFreeSpace = space.Disks;
 
             // 一時フォルダの容量があれば更新
-            var diskItem = space.Disks.Find(item => WorkPath.StartsWith(item.Path));
-            if(diskItem != null)
+            if(WorkPath != null)
             {
-                TmpDiskSpaceGB = (int)(diskItem.Capacity / (1024*1024*1024L));
+                var diskItem = space.Disks.Find(item => WorkPath.StartsWith(item.Path));
+                if (diskItem != null)
+                {
+                    TmpDiskSpaceGB = (int)(diskItem.Capacity / (1024 * 1024 * 1024L));
+                }
             }
 
             return Task.FromResult(0);

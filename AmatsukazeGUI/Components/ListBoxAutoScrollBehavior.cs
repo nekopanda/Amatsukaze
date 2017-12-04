@@ -69,7 +69,7 @@ namespace Amatsukaze.Components
                 if (AutoScroll)
                 {
                     AssociatedObject.ScrollIntoView(e.NewItems[0]);
-                    AssociatedObject.SelectedItem = e.NewItems[0];
+                    //AssociatedObject.SelectedItem = e.NewItems[0];
                 }
             }
         }

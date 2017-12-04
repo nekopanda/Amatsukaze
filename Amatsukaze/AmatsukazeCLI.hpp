@@ -45,7 +45,7 @@ static std::string to_string(std::string str) {
 
 static void printCopyright() {
 	PRINTF(
-		"Amatsukaze - Automated MPEG2-TS Transcode\n"
+		"Amatsukaze - Automated MPEG2-TS Transcoder\n"
 		"Built on %s %s\n"
 		"Copyright (c) 2017 Nekopanda\n", __DATE__, __TIME__);
 }
@@ -72,7 +72,7 @@ static void printHelp(const tchar* bin) {
 		"  --2pass             2passエンコード\n"
 		"  --splitsub          メイン以外のフォーマットは結合しない\n"
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
-		"                      対応エンコーダ: mp4,mkv\n"
+		"                      対応フォーマット: mp4,mkv\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor  <パス>  timelineeditorへのパス（MP4でVFR出力する場合に必要）[timelineeditor.exe]\n"
 		"  --mp4box <パス>     mp4boxへのパス（MP4で字幕処理する場合に必要）[mp4box.exe]\n"
@@ -224,7 +224,6 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("-w") || key == _T("--work")) {
 			conf.workDir = to_string(pathNormalize(getParam(argc, argv, i++)));
 			if (conf.workDir.size() == 0) {
-				THROW(RuntimeException, "... uha");
 				conf.workDir = "./";
 			}
 		}

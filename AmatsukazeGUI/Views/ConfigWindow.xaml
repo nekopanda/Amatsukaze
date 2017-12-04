@@ -13,6 +13,10 @@
         d:DataContext="{d:DesignInstance {x:Type vm:ConfigWindowViewModel}}"
         SizeToContent="Height" Loaded="Window_Loaded" >
 
+    <Window.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </Window.Resources>
+    
     <i:Interaction.Triggers>
 
         <!--Viewに特別な要件が存在しない限りは、トリガーやアクションの自作にこだわらず積極的にコードビハインドを使いましょう -->

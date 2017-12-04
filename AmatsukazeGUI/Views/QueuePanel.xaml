@@ -71,6 +71,14 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Background" Value="LightGray" />
                         </Trigger>
+                        
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding DataContext.HideOneSeg, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBox}}}" Value="True" />
+                                <Condition Binding="{Binding IsPreFailed}" Value="True" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </MultiDataTrigger>
                     </Style.Triggers>
                 </Style>
             </ListBox.ItemContainerStyle>
@@ -88,6 +96,7 @@
                     <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
+                    <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                 </ContextMenu>
             </ListBox.ContextMenu>
         </ListBox>
