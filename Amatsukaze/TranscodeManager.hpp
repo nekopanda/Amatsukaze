@@ -30,7 +30,7 @@
 class AMTSplitter : public TsSplitter {
 public:
 	AMTSplitter(AMTContext& ctx, const ConfigWrapper& setting)
-		: TsSplitter(ctx, setting.isSubtitlesEnabled())
+		: TsSplitter(ctx, true, setting.isSubtitlesEnabled())
 		, setting_(setting)
 		, psWriter(ctx)
 		, writeHandler(*this)
@@ -315,6 +315,60 @@ protected:
 		ev.frameIdx = (int)videoFrameList_.size();
 		streamEventList_.push_back(ev);
 	}
+};
+
+class DrcsSearchSplitter : public TsSplitter {
+public:
+	DrcsSearchSplitter(AMTContext& ctx, const ConfigWrapper& setting)
+		: TsSplitter(ctx, false, true)
+		, setting_(setting)
+	{ }
+
+	void readAll()
+	{
+		enum { BUFSIZE = 4 * 1024 * 1024 };
+		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
+		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
+		File srcfile(setting_.getSrcFilePath(), "rb");
+		size_t readBytes;
+		do {
+			readBytes = srcfile.read(buffer);
+			inputTsData(MemoryChunk(buffer.data, readBytes));
+		} while (readBytes == buffer.length);
+	}
+
+protected:
+	const ConfigWrapper& setting_;
+
+	// TsSplitterâºëzä÷êî //
+
+	virtual void onVideoPesPacket(
+		int64_t clock,
+		const std::vector<VideoFrameInfo>& frames,
+		PESPacket packet)
+	{ }
+
+	virtual void onVideoFormatChanged(VideoFormat fmt) { }
+
+	virtual void onAudioPesPacket(
+		int audioIdx,
+		int64_t clock,
+		const std::vector<AudioFrameData>& frames,
+		PESPacket packet)
+	{ }
+
+	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) { }
+
+	virtual void onCaptionPesPacket(
+		int64_t clock,
+		std::vector<CaptionItem>& captions,
+		PESPacket packet)
+	{ }
+
+	virtual std::string getDRCSOutPath(const std::string& md5) {
+		return setting_.getDRCSOutPath(md5);
+	}
+
 };
 
 class RFFExtractor
@@ -1686,6 +1740,18 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		File file(setting.getOutInfoJsonPath(), "w");
 		file.write(mc);
 	}
+}
+
+static void searchDrcsMain(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	Stopwatch sw;
+	sw.start();
+	auto splitter = std::unique_ptr<DrcsSearchSplitter>(new DrcsSearchSplitter(ctx, setting));
+	if (setting.getServiceId() > 0) {
+		splitter->setServiceId(setting.getServiceId());
+	}
+	splitter->readAll();
+	ctx.info("äÆóπ: %.2fïb", sw.getAndReset());
 }
 
 static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)

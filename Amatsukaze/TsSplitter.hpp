@@ -386,7 +386,7 @@ private:
 
 class TsSplitter : public AMTObject, protected TsPacketSelectorHandler {
 public:
-	TsSplitter(AMTContext& ctx, bool enableCaption)
+	TsSplitter(AMTContext& ctx, bool enableAV, bool enableCaption)
 		: AMTObject(ctx)
 		, initPhase(PMT_WAITING)
 		, tsPacketHandler(*this)
@@ -395,6 +395,7 @@ public:
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
 		, captionParser(ctx, *this)
+		, enableAV(enableAV)
 		, enableCaption(enableCaption)
 		, numTotalPackets(0)
 		, numScramblePackets(0)
@@ -545,6 +546,7 @@ protected:
 	std::vector<SpAudioFrameParser*> audioParsers;
 	SpCaptionParser captionParser;
 
+	bool enableAV;
 	bool enableCaption;
 	int preferedServiceId;
 	int selectedServiceId;
@@ -616,22 +618,24 @@ protected:
 
 	// TsPacketSelectorでPID Tableが変更された時変更後の情報が送られる
 	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio, const PMTESInfo caption) {
-		// 映像ストリーム形式をセット
-		switch (video.stype) {
-		case 0x02: // MPEG2-VIDEO
-			videoParser.setStreamFormat(VS_MPEG2);
-			break;
-		case 0x1B: // H.264/AVC
-			videoParser.setStreamFormat(VS_H264);
-			break;
-		}
+		if (enableAV) {
+			// 映像ストリーム形式をセット
+			switch (video.stype) {
+			case 0x02: // MPEG2-VIDEO
+				videoParser.setStreamFormat(VS_MPEG2);
+				break;
+			case 0x1B: // H.264/AVC
+				videoParser.setStreamFormat(VS_H264);
+				break;
+			}
 
-		// 必要な数だけ音声パーサ作る
-		size_t numAudios = audio.size();
-		while (audioParsers.size() < numAudios) {
-			int audioIdx = int(audioParsers.size());
-			audioParsers.push_back(new SpAudioFrameParser(ctx, *this, audioIdx));
-			ctx.info("音声パーサ %d を追加", audioIdx);
+			// 必要な数だけ音声パーサ作る
+			size_t numAudios = audio.size();
+			while (audioParsers.size() < numAudios) {
+				int audioIdx = int(audioParsers.size());
+				audioParsers.push_back(new SpAudioFrameParser(ctx, *this, audioIdx));
+				ctx.info("音声パーサ %d を追加", audioIdx);
+			}
 		}
 	}
 
@@ -645,12 +649,14 @@ protected:
 	}
 
 	virtual void onVideoPacket(int64_t clock, TsPacket packet) {
-		if(checkScramble(packet)) videoParser.onTsPacket(clock, packet);
+		if(enableAV && checkScramble(packet)) videoParser.onTsPacket(clock, packet);
 	}
 
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {
-		ASSERT(audioIdx < (int)audioParsers.size());
-		if (checkScramble(packet)) audioParsers[audioIdx]->onTsPacket(clock, packet);
+		if (enableAV && checkScramble(packet)) {
+			ASSERT(audioIdx < (int)audioParsers.size());
+			audioParsers[audioIdx]->onTsPacket(clock, packet);
+		}
 	}
 
 	virtual void onCaptionPacket(int64_t clock, TsPacket packet) {

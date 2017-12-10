@@ -477,6 +477,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			transcodeMain(ctx, setting);
 		else if (mode == "g")
 			transcodeSimpleMain(ctx, setting);
+		else if (mode == "drcs")
+			searchDrcsMain(ctx, setting);
 
 		else if (mode == "test_print_crc")
 			test::PrintCRCTable(ctx, setting);

@@ -6,7 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="Amatsukaze 出力先選択" Height="155" Width="370" Loaded="Window_Loaded">
+        Title="Amatsukaze 出力先選択" Height="180" Width="370" Loaded="Window_Loaded">
 
     <Window.DataContext>
         <vm:SelectOutPathViewModel/>
@@ -48,6 +48,7 @@
         <TextBlock x:Name="textBlock1" Margin="10,68,10.333,0" TextWrapping="Wrap" Text="{Binding Description}" VerticalAlignment="Top" Foreground="Red"/>
         <Button x:Name="button2" Content="OK" Margin="0,90,167.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Command="{Binding OkCommand, Mode=OneWay}"/>
         <Button x:Name="button1" Content="デフォルト" Margin="0,90,87.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Command="{Binding DefualtCommand, Mode=OneWay}"/>
+        <Button x:Name="button3" Content="DRCS外字をサーチ" Margin="0,115,7.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="115" Command="{Binding SearchCommand, Mode=OneWay}"/>
         <Button x:Name="button" Content="キャンセル" Margin="0,90,7.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75">
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="Click">

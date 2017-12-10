@@ -782,7 +782,7 @@ namespace Amatsukaze.Server
                 }
             }
 
-            public async Task<bool> RunItem(WorkerQueueItem workerItem)
+            private async Task<bool> RunEncodeItem(WorkerQueueItem workerItem)
             {
                 try
                 {
@@ -866,6 +866,121 @@ namespace Amatsukaze.Server
                 {
                     await server.client.OnOperationResult("予期せぬエラー: " + e.Message);
                     return false;
+                }
+            }
+
+            private async Task<bool> ProcessSearchItem(EncodeServer server, QueueItem src)
+            {
+                if (File.Exists(src.Path) == false)
+                {
+                    return false;
+                }
+
+                string args = server.MakeAmatsukazeSearchArgs(
+                    src.Path, src.ServiceId);
+                string exename = server.appData.setting.AmatsukazePath;
+
+                Util.AddLog(id, "サーチ開始: " + src.Path);
+                Util.AddLog(id, "Args: " + exename + " " + args);
+
+                var psi = new ProcessStartInfo(exename, args)
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = Directory.GetCurrentDirectory(),
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardInput = false,
+                    CreateNoWindow = true
+                };
+
+                int exitCode = -1;
+                logText.Clear();
+
+                try
+                {
+                    using (var p = Process.Start(psi))
+                    {
+                        current = new TranscodeTask()
+                        {
+                            thread = this,
+                            src = src,
+                            process = p,
+                        };
+
+                        // 起動コマンドをログ出力
+                        await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
+
+                        await Task.WhenAll(
+                            RedirectOut(server, current, p.StandardOutput.BaseStream),
+                            RedirectOut(server, current, p.StandardError.BaseStream),
+                            Task.Run(() => p.WaitForExit()));
+
+                        exitCode = p.ExitCode;
+                    }
+
+                    if (exitCode == 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                catch (Win32Exception w32e)
+                {
+                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
+                    throw w32e;
+                }
+                finally
+                {
+                    current = null;
+                }
+            }
+
+            private async Task<bool> RunSearchItem(WorkerQueueItem workerItem)
+            {
+                try
+                {
+                    var dir = workerItem.Dir;
+                    var src = workerItem.Item;
+
+                    // キューじゃなかったらダメ
+                    if (src.State != QueueState.Queue)
+                    {
+                        return true;
+                    }
+
+                    // 待たなくてもいいタスクリスト
+                    waitList = new List<Task>();
+
+                    src.State = QueueState.Encoding;
+                    waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                    bool result = await ProcessSearchItem(server, src);
+                    src.State = result ? QueueState.Complete : QueueState.Failed;
+                    waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+
+                    await Task.WhenAll(waitList);
+
+                    return result;
+
+                }
+                catch (Exception e)
+                {
+                    await server.client.OnOperationResult("予期せぬエラー: " + e.Message);
+                    return false;
+                }
+            }
+
+            public Task<bool> RunItem(WorkerQueueItem workerItem)
+            {
+                if(workerItem.Item.IsDrcsSearch)
+                {
+                    return RunSearchItem(workerItem);
+                }
+                else
+                {
+                    return RunEncodeItem(workerItem);
                 }
             }
         }
@@ -1307,6 +1422,24 @@ namespace Amatsukaze.Server
             }
         }
 
+        private string MakeAmatsukazeSearchArgs(string src, int serviceId)
+        {
+            string encoderPath = GetEncoderPath(appData.setting);
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append("--mode drcs")
+                .Append(" --subtitles")
+                .Append(" -i \"")
+                .Append(src)
+                .Append("\" -s ")
+                .Append(serviceId)
+                .Append(" --drcs \"")
+                .Append(GetDRCSMapPath())
+                .Append("\"");
+
+            return sb.ToString();
+        }
+
         private string MakeAmatsukazeArgs(bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles,
@@ -1654,7 +1787,7 @@ namespace Amatsukaze.Server
                             }))
                         .Where(f => !ignoreSet.Contains(f));
 
-                    if (dir.DstPath != null && Directory.Exists(dir.DstPath) == false)
+                    if (dir.IsSearch == false && dir.DstPath != null && Directory.Exists(dir.DstPath) == false)
                     {
                         await client.OnOperationResult(
                             "出力先フォルダが存在しません:" + dir.DstPath);
@@ -1668,7 +1801,7 @@ namespace Amatsukaze.Server
                         DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded")
                     };
 
-                    if (appData.setting.DisableHashCheck == false && target.Path.StartsWith("\\\\"))
+                    if (dir.IsSearch == false && appData.setting.DisableHashCheck == false && target.Path.StartsWith("\\\\"))
                     {
                         var hashpath = target.Path + ".hash";
                         if (File.Exists(hashpath) == false)
@@ -1741,6 +1874,7 @@ namespace Amatsukaze.Server
                                     var item = new QueueItem()
                                     {
                                         Path = filepath,
+                                        IsDrcsSearch = dir.IsSearch,
                                         DstName = dstname,
                                         ServiceId = prog.ServiceId,
                                         ImageWidth = prog.Width,
@@ -1760,7 +1894,7 @@ namespace Amatsukaze.Server
                                     else
                                     {
                                         // ロゴファイルを探す
-                                        if (map.ContainsKey(item.ServiceId) == false)
+                                        if (dir.IsSearch == false && map.ContainsKey(item.ServiceId) == false)
                                         {
                                             // 新しいサービスを登録
                                             var newElement = new ServiceSettingElement() {
@@ -1842,43 +1976,57 @@ namespace Amatsukaze.Server
         {
             if(item.State == QueueState.LogoPending || item.State == QueueState.Queue)
             {
-                var map = appData.services.ServiceMap;
                 var prevState = item.State;
-                if (item.ServiceId == -1)
+                if (item.IsDrcsSearch && item.State == QueueState.LogoPending)
                 {
-                    item.FailReason = "TS情報取得中";
-                    item.State = QueueState.LogoPending;
-                }
-                else if (map.ContainsKey(item.ServiceId) == false)
-                {
-                    item.FailReason = "このTSに対する設定がありません";
-                    item.State = QueueState.LogoPending;
-                }
-                else if (appData.setting.DisableChapter == false &&
-                    map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
-                {
-                    item.FailReason = "ロゴ設定がありません";
-                    item.State = QueueState.LogoPending;
+                    item.FailReason = "";
+                    item.State = QueueState.Queue;
+                    scheduler.QueueItem(new WorkerQueueItem()
+                    {
+                        Dir = dir,
+                        Item = item
+                    });
                 }
                 else
                 {
-                    // OK
-                    if(item.State == QueueState.LogoPending)
+                    var map = appData.services.ServiceMap;
+                    if (item.ServiceId == -1)
                     {
-                        item.FailReason = "";
-                        item.State = QueueState.Queue;
+                        item.FailReason = "TS情報取得中";
+                        item.State = QueueState.LogoPending;
+                    }
+                    else if (map.ContainsKey(item.ServiceId) == false)
+                    {
+                        item.FailReason = "このTSに対する設定がありません";
+                        item.State = QueueState.LogoPending;
+                    }
+                    else if (appData.setting.DisableChapter == false &&
+                        map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
+                    {
+                        item.FailReason = "ロゴ設定がありません";
+                        item.State = QueueState.LogoPending;
+                    }
+                    else
+                    {
+                        // OK
+                        if (item.State == QueueState.LogoPending)
+                        {
+                            item.FailReason = "";
+                            item.State = QueueState.Queue;
 
-                        var workerItem = new WorkerQueueItem() {
-                            Dir = dir,
-                            Item = item
-                        };
-                        if (enqueue)
-                        {
-                            scheduler.QueueItem(workerItem);
-                        }
-                        else
-                        {
-                            scheduler.QueueItem(workerItem);
+                            var workerItem = new WorkerQueueItem()
+                            {
+                                Dir = dir,
+                                Item = item
+                            };
+                            if (enqueue)
+                            {
+                                scheduler.QueueItem(workerItem);
+                            }
+                            else
+                            {
+                                scheduler.StackItem(workerItem);
+                            }
                         }
                     }
                 }

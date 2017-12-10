@@ -120,6 +120,27 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region SearchCommand
+        private ViewModelCommand _SearchCommand;
+
+        public ViewModelCommand SearchCommand {
+            get {
+                if (_SearchCommand == null)
+                {
+                    _SearchCommand = new ViewModelCommand(Search);
+                }
+                return _SearchCommand;
+            }
+        }
+
+        public async void Search()
+        {
+            Item.IsSearch = true;
+            Succeeded = true;
+            await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+        }
+        #endregion
+
         #region OutPath変更通知プロパティ
         private string _OutPath;
 

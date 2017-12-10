@@ -219,6 +219,8 @@ namespace Amatsukaze.Server
         public List<string> Targets { get; set; }
         [DataMember]
         public string DstPath { get; set; }
+        [DataMember]
+        public bool IsSearch { get; set; }
     }
 
     public enum QueueState
@@ -237,6 +239,8 @@ namespace Amatsukaze.Server
     {
         [DataMember]
         public string Path { get; set; }
+        [DataMember]
+        public bool IsDrcsSearch { get; set; }
         [DataMember]
         public QueueState State { get; set; }
 
@@ -268,6 +272,16 @@ namespace Amatsukaze.Server
 
         public string StateString {
             get {
+                if(IsDrcsSearch)
+                {
+                    switch (State)
+                    {
+                        case QueueState.Queue: return "サーチ待ち";
+                        case QueueState.Encoding: return "サーチ中";
+                        case QueueState.Failed: return "サーチ失敗";
+                        case QueueState.Complete: return "サーチ完了";
+                    }
+                }
                 switch (State)
                 {
                     case QueueState.Queue: return "待ち";
