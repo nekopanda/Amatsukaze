@@ -32,9 +32,30 @@
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
+            <DataTemplate DataType="{x:Type ImageSource}">
+                <Image Source="{Binding}" />
+            </DataTemplate>
         </StackPanel.Resources>
+
+        <ContentControl Width="24" Height="24">
+            <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                    <Setter Property="Content" Value="{Binding Image.Image}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Image.Image}" Value="{x:Null}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <TextBlock Text="EMPTY" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
         
-        <Image Source="{Binding Image.Image}" Width="24" Height="24" />
         <TextBox Text="{Binding MapStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />
         <Button Margin="10,0,0,0" Content="マッピング追加" Command="{Binding SetMapStrCommand, Mode=OneWay}"

@@ -893,6 +893,7 @@ namespace Amatsukaze.Server
 
         private JLSCommandFiles jlsFiles = new JLSCommandFiles() { Files = new List<string>() };
         private AvsScriptFiles avsFiles = new AvsScriptFiles() { Main = new List<string>(), Post = new List<string>() };
+        private Dictionary<string, BitmapFrame> drcsImageCache = new Dictionary<string, BitmapFrame>();
         private Dictionary<string, DrcsImage> drcsMap = new Dictionary<string, DrcsImage>();
 
         // キューに追加されるTSを解析するスレッド
@@ -1925,7 +1926,24 @@ namespace Amatsukaze.Server
             }
         }
 
-        private Dictionary<string, DrcsImage> LoadDrcsImages(Dictionary<string, DrcsImage> oldMap)
+        private BitmapFrame LoadImage(string imgpath)
+        {
+            if(drcsImageCache.ContainsKey(imgpath))
+            {
+                return drcsImageCache[imgpath];
+            }
+            try
+            {
+                var img = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(imgpath)));
+                drcsImageCache.Add(imgpath, img);
+                return img;
+            }
+            catch (Exception) { }
+
+            return null;
+        }
+
+        private Dictionary<string, DrcsImage> LoadDrcsImages()
         {
             var ret = new Dictionary<string, DrcsImage>();
 
@@ -1935,27 +1953,12 @@ namespace Amatsukaze.Server
                 if (filename.Length == 36 && Path.GetExtension(filename).ToLower() == ".bmp")
                 {
                     string md5 = filename.Substring(0, 32);
-                    if (oldMap.ContainsKey(md5) == false)
+                    ret.Add(md5, new DrcsImage()
                     {
-                        BitmapFrame image = null;
-
-                        try
-                        {
-                            image = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(imgpath)));
-                        }
-                        catch (Exception) { }
-
-                        ret.Add(md5, new DrcsImage()
-                        {
-                            MD5 = md5,
-                            MapStr = null,
-                            Image = image
-                        });
-                    }
-                    else
-                    {
-                        ret.Add(md5, oldMap[md5]);
-                    }
+                        MD5 = md5,
+                        MapStr = null,
+                        Image = LoadImage(imgpath)
+                    });
                 }
             }
 
@@ -2207,36 +2210,29 @@ namespace Amatsukaze.Server
                         }
                         if (needUpdate)
                         {
-                            var newImageMap = LoadDrcsImages(drcsMap);
+                            var newImageMap = LoadDrcsImages();
                             var newStrMap = LoadDrcsMap();
 
-                            var updateImages = new List<DrcsImage>();
-
-                            // newStrMapをnewImageMapにマージ
-                            foreach (var key in newImageMap.Keys)
+                            var newDrcsMap = new Dictionary<string, DrcsImage>();
+                            foreach(var key in newImageMap.Keys.Union(newStrMap.Keys))
                             {
-                                var item = newImageMap[key];
-                                string newstr = item.MapStr;
-                                if (newStrMap.ContainsKey(key))
+                                var newItem = new DrcsImage() { MD5 = key };
+                                if (newImageMap.ContainsKey(key))
                                 {
-                                    newstr = newStrMap[key].MapStr;
+                                    newItem.Image = newImageMap[key].Image;
                                 }
-                                else
+                                if(newStrMap.ContainsKey(key))
                                 {
-                                    newstr = null;
+                                    newItem.MapStr = newStrMap[key].MapStr;
                                 }
-                                if (item.MapStr != newstr)
-                                {
-                                    // 変更された
-                                    item.MapStr = newstr;
-                                    updateImages.Add(item);
-                                }
+                                newDrcsMap.Add(key, newItem);
                             }
 
-                            // 増減処理
-                            foreach (var key in newImageMap.Keys.Union(drcsMap.Keys))
+                            // 更新処理
+                            var updateImages = new List<DrcsImage>();
+                            foreach (var key in newDrcsMap.Keys.Union(drcsMap.Keys))
                             {
-                                if (newImageMap.ContainsKey(key) == false)
+                                if (newDrcsMap.ContainsKey(key) == false)
                                 {
                                     // 消えた
                                     await client.OnDrcsData(new DrcsImageUpdate() {
@@ -2247,7 +2243,17 @@ namespace Amatsukaze.Server
                                 else if (drcsMap.ContainsKey(key) == false)
                                 {
                                     // 追加された
-                                    updateImages.Add(newImageMap[key]);
+                                    updateImages.Add(newDrcsMap[key]);
+                                }
+                                else
+                                {
+                                    var oldItem = drcsMap[key];
+                                    var newItem = newDrcsMap[key];
+                                    if(oldItem.MapStr != newItem.MapStr || oldItem.Image != newItem.Image)
+                                    {
+                                        // 変更された
+                                        updateImages.Add(newDrcsMap[key]);
+                                    }
                                 }
                             }
 
@@ -2259,7 +2265,7 @@ namespace Amatsukaze.Server
                                 });
                             }
 
-                            drcsMap = newImageMap;
+                            drcsMap = newDrcsMap;
                         }
                     }
 

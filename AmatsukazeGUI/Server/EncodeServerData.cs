@@ -130,6 +130,8 @@ namespace Amatsukaze.Server
         public bool SystemAviSynthPlugin { get; set; }
         [DataMember]
         public bool DisableHashCheck { get; set; }
+        [DataMember]
+        public bool HideOneSeg { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

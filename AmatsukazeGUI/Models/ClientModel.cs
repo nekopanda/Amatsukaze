@@ -1078,6 +1078,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region HideOneSeg変更通知プロパティ
+        public bool HideOneSeg {
+            get { return setting.HideOneSeg; }
+            set {
+                if (setting.HideOneSeg == value)
+                    return;
+                setting.HideOneSeg = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public ClientModel()
         {
             Util.LogHandlers.Add(AddLog);
@@ -1422,6 +1434,7 @@ namespace Amatsukaze.Models
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
             DisableHashCheck = setting.DisableHashCheck;
+            HideOneSeg = setting.HideOneSeg;
 
             Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
             H264DecoderInt = (int)setting.H264Deocder;

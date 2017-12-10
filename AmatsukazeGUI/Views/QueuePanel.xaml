@@ -96,7 +96,7 @@
                     <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
-                    <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
+                    <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                 </ContextMenu>
             </ListBox.ContextMenu>
         </ListBox>
