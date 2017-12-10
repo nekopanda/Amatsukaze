@@ -200,6 +200,11 @@ namespace Amatsukaze.Models
                 mediafile.Dispose();
                 mediafile = null;
             }
+            if(_Logo != null)
+            {
+                _Logo.Dispose();
+                _Logo = null;
+            }
         }
 
         private bool MakeSlimCallback()
@@ -286,34 +291,36 @@ namespace Amatsukaze.Models
                     context, filepath, serviceid, workfile, tmppath, imgx, imgy, w, h, thy, maxFrames, LogoScanCallback));
 
                 // TsInfoでサービス名を取得する
-                var info = new TsInfo(context);
-                if(info.ReadFile(filepath) == false)
+                using (var info = new TsInfo(context))
                 {
-                    MessageBox.Show("TS情報取得に失敗: " + context.GetError());
-                }
-                else
-                {
-                    // 名前を修正して保存し直す
-                    using (var logo = new LogoFile(context, tmppath))
+                    if (info.ReadFile(filepath) == false)
                     {
-                        if (info.HasServiceInfo)
-                        {
-                            int serviceId = logo.ServiceId;
-                            string serviceName = info.GetServiceList().First(s => s.ServiceId == serviceId).ServiceName;
-                            string date = info.GetTime().ToString("yyyy-MM-dd");
-                            logo.Name = serviceName + "(" + date + ")";
-                        }
-                        else
-                        {
-                            logo.Name = "情報なし";
-                        }
-
-                        logopath = workpath + "\\logo" + pid + ".lgd";
-                        logo.Save(logopath);
+                        MessageBox.Show("TS情報取得に失敗: " + context.GetError());
                     }
+                    else
+                    {
+                        // 名前を修正して保存し直す
+                        using (var logo = new LogoFile(context, tmppath))
+                        {
+                            if (info.HasServiceInfo)
+                            {
+                                int serviceId = logo.ServiceId;
+                                string serviceName = info.GetServiceList().First(s => s.ServiceId == serviceId).ServiceName;
+                                string date = info.GetTime().ToString("yyyy-MM-dd");
+                                logo.Name = serviceName + "(" + date + ")";
+                            }
+                            else
+                            {
+                                logo.Name = "情報なし";
+                            }
 
-                    Logo = new LogoFile(context, logopath);
-                    UpdateLogoImage();
+                            logopath = workpath + "\\logo" + pid + ".lgd";
+                            logo.Save(logopath);
+                        }
+
+                        Logo = new LogoFile(context, logopath);
+                        UpdateLogoImage();
+                    }
                 }
             }
             finally

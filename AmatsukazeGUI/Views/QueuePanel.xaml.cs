@@ -41,11 +41,12 @@ namespace Amatsukaze.Views
             {
                 if (e.Data.GetDataPresent(DataFormats.FileDrop))
                 {
-                    vm.FileDropped(e.Data.GetData(DataFormats.FileDrop) as string[]);
+                    vm.FileDropped(e.Data.GetData(DataFormats.FileDrop) as string[], false);
                 }
                 else if (e.Data.GetDataPresent(DataFormats.Text))
                 {
-                    vm.FileDropped(new string[] { (string)e.Data.GetData(DataFormats.Text) });
+                    var text = (string)e.Data.GetData(DataFormats.Text);
+                    vm.FileDropped(text.Split(new[] { '\r', '\n' }), true);
                 }
             }
         }

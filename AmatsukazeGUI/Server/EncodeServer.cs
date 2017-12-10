@@ -900,6 +900,15 @@ namespace Amatsukaze.Server
                 {
                     using (var p = Process.Start(psi))
                     {
+                        try
+                        {
+                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // 既にプロセスが終了していると例外が出るが無視する
+                        }
+
                         current = new TranscodeTask()
                         {
                             thread = this,
@@ -1832,119 +1841,124 @@ namespace Amatsukaze.Server
                     // TSファイル情報を読む
                     foreach (var filepath in items)
                     {
-                        var info = new TsInfo(amtcontext);
-                        var fileitems = new List<QueueItem>();
-                        var failReason = "";
-                        if (await Task.Run(() => info.ReadFile(filepath)) == false)
+                        using (var info = new TsInfo(amtcontext))
                         {
-                            failReason = "TS情報取得に失敗: " + amtcontext.GetError();
-                        }
-                        else
-                        {
-                            failReason = "TSファイルに映像が見つかりませんでした";
-                            var list = info.GetProgramList();
-                            var videopids = new List<int>();
-                            int numFiles = 0;
-                            for (int i = 0; i < list.Length; ++i)
+                            var fileitems = new List<QueueItem>();
+                            var failReason = "";
+                            if (await Task.Run(() => info.ReadFile(filepath)) == false)
                             {
-                                var prog = list[i];
-                                if (prog.HasVideo &&
-                                    videopids.Contains(prog.VideoPid) == false)
-                                {
-                                    videopids.Add(prog.VideoPid);
-
-                                    var serviceName = "不明";
-                                    var tsTime = DateTime.MinValue;
-                                    if (info.HasServiceInfo)
-                                    {
-                                        var service = info.GetServiceList().Where(s => s.ServiceId == prog.ServiceId).FirstOrDefault();
-                                        if (service.ServiceId != 0)
-                                        {
-                                            serviceName = service.ServiceName;
-                                        }
-                                        tsTime = info.GetTime();
-                                    }
-
-                                    var dstname = Path.GetFileName(filepath);
-                                    if(numFiles > 0)
-                                    {
-                                        dstname = Path.GetFileNameWithoutExtension(dstname) + "-" + numFiles + ".mp4";
-                                    }
-
-                                    var item = new QueueItem()
-                                    {
-                                        Path = filepath,
-                                        IsDrcsSearch = dir.IsSearch,
-                                        DstName = dstname,
-                                        ServiceId = prog.ServiceId,
-                                        ImageWidth = prog.Width,
-                                        ImageHeight = prog.Height,
-                                        TsTime = tsTime,
-                                        ServiceName = serviceName,
-                                        State = QueueState.LogoPending
-                                    };
-
-                                    Debug.Print("解析完了: " + filepath);
-
-                                    if (item.IsOneSeg)
-                                    {
-                                        item.State = QueueState.PreFailed;
-                                        item.FailReason = "映像が小さすぎます(" + prog.Width + "," + prog.Height + ")";
-                                    }
-                                    else
-                                    {
-                                        // ロゴファイルを探す
-                                        if (dir.IsSearch == false && map.ContainsKey(item.ServiceId) == false)
-                                        {
-                                            // 新しいサービスを登録
-                                            var newElement = new ServiceSettingElement() {
-                                                ServiceId = item.ServiceId,
-                                                ServiceName = item.ServiceName,
-                                                LogoSettings = new List<LogoSetting>()
-                                            };
-                                            map.Add(item.ServiceId, newElement);
-                                            serviceListUpdated = true;
-                                            waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate() {
-                                                Type = ServiceSettingUpdateType.Update,
-                                                ServiceId = newElement.ServiceId,
-                                                Data = newElement
-                                            }));
-                                        }
-                                        UpdateQueueItem(item, target, true);
-                                        ++numFiles;
-                                    }
-
-                                    fileitems.Add(item);
-
-                                }
+                                failReason = "TS情報取得に失敗: " + amtcontext.GetError();
                             }
-                        }
-
-                        if(fileitems.Count == 0)
-                        {
-                            fileitems.Add(new QueueItem()
+                            else
                             {
-                                Path = filepath,
-                                DstName = "",
-                                ServiceId = -1,
-                                ImageWidth = -1,
-                                ImageHeight = -1,
-                                TsTime = DateTime.MinValue,
-                                ServiceName = "不明",
-                                State = QueueState.PreFailed,
-                                FailReason = failReason
-                            });
-                        }
+                                failReason = "TSファイルに映像が見つかりませんでした";
+                                var list = info.GetProgramList();
+                                var videopids = new List<int>();
+                                int numFiles = 0;
+                                for (int i = 0; i < list.Length; ++i)
+                                {
+                                    var prog = list[i];
+                                    if (prog.HasVideo &&
+                                        videopids.Contains(prog.VideoPid) == false)
+                                    {
+                                        videopids.Add(prog.VideoPid);
 
-                        target.Items.AddRange(fileitems);
-                        foreach (var item in fileitems)
-                        {
-                            waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+                                        var serviceName = "不明";
+                                        var tsTime = DateTime.MinValue;
+                                        if (info.HasServiceInfo)
+                                        {
+                                            var service = info.GetServiceList().Where(s => s.ServiceId == prog.ServiceId).FirstOrDefault();
+                                            if (service.ServiceId != 0)
+                                            {
+                                                serviceName = service.ServiceName;
+                                            }
+                                            tsTime = info.GetTime();
+                                        }
+
+                                        var dstname = Path.GetFileName(filepath);
+                                        if (numFiles > 0)
+                                        {
+                                            dstname = Path.GetFileNameWithoutExtension(dstname) + "-" + numFiles + ".mp4";
+                                        }
+
+                                        var item = new QueueItem()
+                                        {
+                                            Path = filepath,
+                                            IsDrcsSearch = dir.IsSearch,
+                                            DstName = dstname,
+                                            ServiceId = prog.ServiceId,
+                                            ImageWidth = prog.Width,
+                                            ImageHeight = prog.Height,
+                                            TsTime = tsTime,
+                                            ServiceName = serviceName,
+                                            State = QueueState.LogoPending
+                                        };
+
+                                        Debug.Print("解析完了: " + filepath);
+
+                                        if (item.IsOneSeg)
+                                        {
+                                            item.State = QueueState.PreFailed;
+                                            item.FailReason = "映像が小さすぎます(" + prog.Width + "," + prog.Height + ")";
+                                        }
+                                        else
+                                        {
+                                            // ロゴファイルを探す
+                                            if (dir.IsSearch == false && map.ContainsKey(item.ServiceId) == false)
+                                            {
+                                                // 新しいサービスを登録
+                                                var newElement = new ServiceSettingElement()
+                                                {
+                                                    ServiceId = item.ServiceId,
+                                                    ServiceName = item.ServiceName,
+                                                    LogoSettings = new List<LogoSetting>()
+                                                };
+                                                map.Add(item.ServiceId, newElement);
+                                                serviceListUpdated = true;
+                                                waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate()
+                                                {
+                                                    Type = ServiceSettingUpdateType.Update,
+                                                    ServiceId = newElement.ServiceId,
+                                                    Data = newElement
+                                                }));
+                                            }
+                                            UpdateQueueItem(item, target, true);
+                                            ++numFiles;
+                                        }
+
+                                        fileitems.Add(item);
+
+                                    }
+                                }
+
+                            }
+
+                            if (fileitems.Count == 0)
                             {
-                                Type = UpdateType.Add,
-                                Item = item,
-                                DirId = target.Id
-                            }));
+                                fileitems.Add(new QueueItem()
+                                {
+                                    Path = filepath,
+                                    DstName = "",
+                                    ServiceId = -1,
+                                    ImageWidth = -1,
+                                    ImageHeight = -1,
+                                    TsTime = DateTime.MinValue,
+                                    ServiceName = "不明",
+                                    State = QueueState.PreFailed,
+                                    FailReason = failReason
+                                });
+                            }
+
+                            target.Items.AddRange(fileitems);
+                            foreach (var item in fileitems)
+                            {
+                                waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+                                {
+                                    Type = UpdateType.Add,
+                                    Item = item,
+                                    DirId = target.Id
+                                }));
+                            }
                         }
                     }
 

@@ -69,34 +69,53 @@ namespace Amatsukaze.ViewModels
         {
         }
 
-        public async void FileDropped(IEnumerable<string> list)
+        public async void FileDropped(IEnumerable<string> list, bool isText)
         {
             Dictionary<string, AddQueueDirectory> dirList = new Dictionary<string, AddQueueDirectory>();
-            foreach (var path in list)
+            if(isText)
             {
-                if (Directory.Exists(path))
+                // テキストパスの場合は存在チェックしない
+                foreach (var path in list)
                 {
-                    dirList.Add(path, new AddQueueDirectory() {
-                        DirPath = path
-                    });
-                }
-                else if (File.Exists(path))
-                {
-                    var dirPath = System.IO.Path.GetDirectoryName(path);
-                    AddQueueDirectory item;
-                    if (dirList.TryGetValue(dirPath, out item))
+                    if(string.IsNullOrWhiteSpace(path) == false)
                     {
-                        if (item.Targets != null)
+                        dirList.Add(path, new AddQueueDirectory()
                         {
-                            item.Targets.Add(path);
-                        }
-                    }
-                    else
-                    {
-                        dirList.Add(dirPath, new AddQueueDirectory() {
-                            DirPath = dirPath,
-                            Targets = new List<string>() { path }
+                            DirPath = path
                         });
+                    }
+                }
+            }
+            else
+            {
+                foreach (var path in list)
+                {
+                    if (Directory.Exists(path))
+                    {
+                        dirList.Add(path, new AddQueueDirectory()
+                        {
+                            DirPath = path
+                        });
+                    }
+                    else if (File.Exists(path))
+                    {
+                        var dirPath = System.IO.Path.GetDirectoryName(path);
+                        AddQueueDirectory item;
+                        if (dirList.TryGetValue(dirPath, out item))
+                        {
+                            if (item.Targets != null)
+                            {
+                                item.Targets.Add(path);
+                            }
+                        }
+                        else
+                        {
+                            dirList.Add(dirPath, new AddQueueDirectory()
+                            {
+                                DirPath = dirPath,
+                                Targets = new List<string>() { path }
+                            });
+                        }
                     }
                 }
             }

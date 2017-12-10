@@ -202,6 +202,10 @@ public:
 		, tail_(0)
 	{ }
 
+	~AutoBuffer() {
+		release();
+	}
+
 	void add(MemoryChunk mc) {
 		ensure(mc.length);
 		memcpy(data_ + tail_, mc.data, mc.length);
