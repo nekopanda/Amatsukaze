@@ -46,7 +46,7 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate>
-                                        <TextBlock Text="EMPTY" />
+                                        <Rectangle Fill="#FFDFDBFF" />
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>

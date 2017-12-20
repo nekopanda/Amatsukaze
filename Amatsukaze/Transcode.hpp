@@ -615,12 +615,14 @@ private:
 	int frameCount_;
 };
 
-class EncodeWriter : NonCopyable
+class EncodeWriter : AMTObject, NonCopyable
 {
 public:
-	EncodeWriter()
-		: videoWriter_(NULL)
+	EncodeWriter(AMTContext& ctx)
+		: AMTObject(ctx)
+		, videoWriter_(NULL)
 		, process_(NULL)
+		, error_(false)
 	{ }
 	~EncodeWriter()
 	{
@@ -649,6 +651,9 @@ public:
 	void inputFrame(Frame& frame) {
 		if (videoWriter_ == NULL) {
 			THROW(InvalidOperationException, "you need to call start method before input frame");
+		}
+		if (error_) {
+			THROW(RuntimeException, "failed to input frame due to encoder error ...");
 		}
 		if (fieldMode_) {
 			// フィールドモードのときはtop,bottomの2つに分けて出力
@@ -714,6 +719,7 @@ private:
 	MyVideoWriter* videoWriter_;
 	MySubProcess* process_;
 	bool fieldMode_;
+	bool error_;
 
 	void onProcessOut(bool isErr, MemoryChunk mc) {
 		// これはマルチスレッドで呼ばれるの注意
@@ -721,7 +727,12 @@ private:
 		fflush(isErr ? stderr : stdout);
 	}
 	void onVideoWrite(MemoryChunk mc) {
-		process_->write(mc);
+		try {
+			process_->write(mc);
+		}
+		catch (Exception&) {
+			error_ = true;
+		}
 	}
 
 	VideoFormat getEncoderInputVideoFormat(VideoFormat format) {
@@ -776,94 +787,6 @@ private:
 				memcpy(dst1, src1, wbytes);
 			}
 		}
-	}
-};
-
-// エンコーダテスト用クラス
-class MultiOutTranscoder : AMTObject
-{
-public:
-	MultiOutTranscoder(AMTContext& ctx)
-		: AMTObject(ctx)
-	{ }
-
-	void encode(
-		const std::string& srcpath,
-		const std::vector<VideoFormat>& formats,
-		const std::vector<std::string>& encoder_args,
-		const std::map<int64_t, int>& frameMap, 
-		int bufsize)
-	{
-		numEncoders_ = (int)encoder_args.size();
-		encoders_ = new EncodeWriter[numEncoders_];
-		frameMap_ = &frameMap;
-
-		MyVideoReader reader(this);
-
-		for (int i = 0; i < numEncoders_; ++i) {
-			encoders_[i].start(encoder_args[i], formats[i], false, bufsize);
-		}
-
-		reader.readAll(srcpath, DecoderSetting());
-
-		for (int i = 0; i < numEncoders_; ++i) {
-			encoders_[i].finish();
-		}
-
-		delete[] encoders_;
-
-		numEncoders_ = 0;
-		encoders_ = NULL;
-		frameMap_ = NULL;
-	}
-
-private:
-	class MyVideoReader : public VideoReader {
-	public:
-		MyVideoReader(MultiOutTranscoder* this_)
-			: VideoReader(this_->ctx)
-			, this_(this_)
-		{ }
-	protected:
-		virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) { }
-		virtual void onFrameDecoded(av::Frame& frame) {
-			this_->onFrameDecoded(frame);
-		}
-		virtual void onAudioPacket(AVPacket& packet) { }
-	private:
-		MultiOutTranscoder* this_;
-	};
-
-	bool test_enabled = true;
-
-	int numEncoders_;
-	EncodeWriter* encoders_;
-	const std::map<int64_t, int>* frameMap_;
-
-	int getEncoderIndex(Frame& frame) {
-		int64_t pts = frame()->pts;
-		auto it = frameMap_->find(pts);
-		if (it == frameMap_->end()) {
-			if (test_enabled) {
-				return 0;
-			}
-			THROWF(RuntimeException, "Unknown PTS frame %lld", pts);
-		}
-		if (it->second >= numEncoders_) {
-			THROWF(RuntimeException,
-				"Encoder number(%d) exceed numEncoders(%d) at %lld",
-				it->second, numEncoders_, pts);
-		}
-		return it->second;
-	}
-
-	void onFrameDecoded(Frame& frame__) {
-
-		// copy reference
-		Frame frame = frame__;
-
-		int index = getEncoderIndex(frame);
-		encoders_[index].inputFrame(frame);
 	}
 };
 

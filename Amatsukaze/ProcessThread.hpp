@@ -71,6 +71,7 @@ public:
 		: maximum_(maximum)
 		, current_(0)
 		, finished_(false)
+		, error_(false)
 	{ }
 
 	~DataPumpThread() {
@@ -82,6 +83,9 @@ public:
 	void put(T&& data, size_t amount)
 	{
 		auto& lock = with(critical_section_);
+		if (error_) {
+			THROW(RuntimeException, "DataPumpThread error");
+		}
 		while (current_ >= maximum_) {
 			if (PERF) producer.start();
 			cond_full_.wait(critical_section_);
@@ -131,6 +135,7 @@ private:
 	size_t current_;
 
 	bool finished_;
+	bool error_;
 
 	Stopwatch producer;
 	Stopwatch consumer;
@@ -142,11 +147,11 @@ private:
 			{
 				auto& lock = with(critical_section_);
 				while (data_.size() == 0) {
-					if (finished_) return;
+					if (finished_ || error_) return;
 					if (PERF) consumer.start();
 					cond_empty_.wait(critical_section_);
 					if (PERF) consumer.stop();
-					if (finished_) return;
+					if (finished_ || error_) return;
 				}
 				auto& entry = data_.front();
 				size_t newsize = current_ - entry.first;
@@ -157,7 +162,14 @@ private:
 				data = std::move(entry.second);
 				data_.pop_front();
 			}
-			OnDataReceived(std::move(data));
+			if (error_ == false) {
+				try {
+					OnDataReceived(std::move(data));
+				}
+				catch (Exception&) {
+					error_ = true;
+				}
+			}
 		}
 	}
 };
@@ -319,7 +331,12 @@ public:
 		* -> EventBaseSubProcessのjoin()が完了
 		* -> プロセスは終了しているのでSubProcessのデストラクタはすぐに完了
 		*/
-		finishWrite();
+		try {
+			finishWrite();
+		}
+		catch (RuntimeException&) {
+			// 子プロセスがエラー終了していると書き込みに失敗するが無視する
+		}
 		drainOut.join();
 		drainErr.join();
 		return SubProcess::join();

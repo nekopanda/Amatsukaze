@@ -588,7 +588,10 @@ namespace Amatsukaze.Server
                 }
                 byte[] hash = ReadHex(line.Substring(0, HASH_LENGTH * 2));
                 string name = line.Substring(HASH_LENGTH * 2 + 2);
-                dic.Add(name, hash);
+                if(dic.ContainsKey(name) == false)
+                {
+                    dic.Add(name, hash);
+                }
             }
             return dic;
         }

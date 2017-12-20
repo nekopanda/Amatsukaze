@@ -927,7 +927,7 @@ public:
 			const std::string& args = encoderOptions[i];
 			
 			// 初期化
-			encoder_ = std::unique_ptr<av::EncodeWriter>(new av::EncodeWriter());
+			encoder_ = std::unique_ptr<av::EncodeWriter>(new av::EncodeWriter(ctx));
 
 			ctx.info("[エンコーダ起動]");
 			ctx.info(args.c_str());
@@ -938,9 +938,16 @@ public:
 			thread_.start();
 			sw.start();
 
-			// エンコード
-			for (int i = 0; i < vi_.num_frames; ++i) {
-				thread_.put(std::unique_ptr<OutFrame>(new OutFrame(source->GetFrame(i, env), i)), 1);
+			bool error = false;
+
+			try {
+				// エンコード
+				for (int i = 0; i < vi_.num_frames; ++i) {
+					thread_.put(std::unique_ptr<OutFrame>(new OutFrame(source->GetFrame(i, env), i)), 1);
+				}
+			}
+			catch (Exception&) {
+				error = true;
 			}
 
 			// エンコードスレッドを終了して自分に引き継ぐ
@@ -948,6 +955,11 @@ public:
 
 			// 残ったフレームを処理
 			encoder_->finish();
+
+			if (error) {
+				THROW(RuntimeException, "エンコード中に不明なエラーが発生");
+			}
+			
 			encoder_ = nullptr;
 			sw.stop();
 
@@ -1166,7 +1178,7 @@ private:
 	{
 		pass_ = pass;
 
-		encoder_ = new av::EncodeWriter();
+		encoder_ = new av::EncodeWriter(ctx);
 
 		// エンコードスレッド開始
 		thread_.start();
@@ -1713,7 +1725,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			if (i > 0) sb.append(", ");
 			const auto& info = outFileInfo[i];
 			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d, \"outfilesize\": %lld }",
-				toJsonString(info.outPath), (int)info.srcBitrate, (int)info.targetBitrate, info.fileSize);
+				toJsonString(info.outPath), (int)info.srcBitrate, 
+				std::isnan(info.targetBitrate) ? -1 : (int)info.targetBitrate, info.fileSize);
 		}
 		sb.append("]")
 			.append(", \"logofiles\": [");

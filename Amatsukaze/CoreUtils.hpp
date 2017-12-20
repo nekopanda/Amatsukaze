@@ -55,7 +55,7 @@ DEFINE_EXCEPTION(AviSynthException)
 
 static void throw_exception_(const Exception& exc)
 {
-	PRINTF("%s\n", exc.message());
+	PRINTF("AMT [error] %s\n", exc.message());
 	//MessageBox(NULL, exc.message(), "Amatsukaze Error", MB_OK);
 	exc.raise();
 }
