@@ -204,7 +204,10 @@ protected:
 		ctx.info("[âfëúÉtÉåÅ[ÉÄìùåvèÓïÒ]");
 
 		int64_t totalTime = modifiedPTS.back().first - videoBasePTS;
-		ctx.info("éûä‘: %f ïb", totalTime / 90000.0);
+		double sec = (double)totalTime / MPEG_CLOCK_HZ;
+		int minutes = (int)(sec / 60);
+		sec -= minutes * 60;
+		ctx.info("éûä‘: %dï™%.3fïb", minutes, sec);
 
 		ctx.info("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
 			interaceCounter[0], interaceCounter[1], interaceCounter[2], interaceCounter[3], interaceCounter[4], interaceCounter[5], interaceCounter[6]);
@@ -295,8 +298,11 @@ protected:
 		}
 	}
 
-	virtual std::string getDRCSOutPath(const std::string& md5) {
-		return setting_.getDRCSOutPath(md5);
+	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
+		DRCSOutInfo info;
+		info.elapsed = (videoFrameList_.size() > 0) ? (double)(PTS - videoFrameList_[0].PTS) : -1.0;
+		info.filename = setting_.getDRCSOutPath(md5);
+		return info;
 	}
 
 	// TsPacketSelectorHandlerâºëzä÷êî //
@@ -365,8 +371,11 @@ protected:
 		PESPacket packet)
 	{ }
 
-	virtual std::string getDRCSOutPath(const std::string& md5) {
-		return setting_.getDRCSOutPath(md5);
+	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
+		DRCSOutInfo info;
+		info.elapsed = -1;
+		info.filename = setting_.getDRCSOutPath(md5);
+		return info;
 	}
 
 };

@@ -113,8 +113,11 @@ struct AudioDiffInfo {
 		ctx.info("音ズレ: 平均 %.2fms 最大 %.2fms",
 			avgDiff, maxDiff);
 		if (maxPtsDiff > 0 && maxDiff - avgDiff > 1) {
-			ctx.info("最大音ズレ位置: 入力最初の映像フレームから%.3f秒後",
-				elapsedTime(maxPtsDiffPos));
+			double sec = elapsedTime(maxPtsDiffPos);
+			int minutes = (int)(sec / 60);
+			sec -= minutes * 60;
+			ctx.info("最大音ズレ位置: 入力最初の映像フレームから%d分%.3f秒後",
+				minutes, sec);
 		}
 	}
 
@@ -343,14 +346,18 @@ public:
 			int fileId = frameFileId_[ordered];
 			if (prevFileId != fileId) {
 				// print
-				ctx.info("%8.3f秒 - %8.3f秒 -> %d",
-					elapsedTime(fromPTS), elapsedTime(pts), outFileIndex_[prevFileId]);
+				auto from = elapsedTime(fromPTS);
+				auto to = elapsedTime(pts);
+				ctx.info("%3d分%05.3f秒 - %3d分%05.3f秒 -> %d",
+					from.first, from.second, to.first, to.second, outFileIndex_[prevFileId]);
 				prevFileId = fileId;
 				fromPTS = pts;
 			}
 		}
-		ctx.info("%8.3f秒 - %8.3f秒 -> %d",
-			elapsedTime(fromPTS), elapsedTime(dataPTS_.back()), outFileIndex_[prevFileId]);
+		auto from = elapsedTime(fromPTS);
+		auto to = elapsedTime(dataPTS_.back());
+		ctx.info("%3d分%05.3f秒 - %3d分%05.3f秒 -> %d",
+			from.first, from.second, to.first, to.second, outFileIndex_[prevFileId]);
 	}
 
 	// 以下デバッグ用 //
@@ -1117,8 +1124,9 @@ private:
 			if (state.lostPts != pts) {
 				state.lostPts = pts;
 				if (adiff) {
-					ctx.debug("%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
-						elapsedTime(pts), file.formatId, index);
+					auto elapsed = elapsedTime(pts);
+					ctx.debug("%d分%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
+						elapsed.first, elapsed.second, file.formatId, index);
 				}
 			}
 			state.lastFrame = (int)(it - frameList.begin() - 1);
@@ -1176,8 +1184,9 @@ private:
 
 			if (adiff) {
 				if (nframes > 1) {
-					ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
-						elapsedTime(modPTS), file.formatId, index, nframes - 1);
+					auto elapsed = elapsedTime(modPTS);
+					ctx.debug("%d分%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
+						elapsed.first, elapsed.second, file.formatId, index, nframes - 1);
 				}
 				if (nskipped > 0) {
 					if (state.lastFrame == -1) {
@@ -1185,8 +1194,9 @@ private:
 							file.formatId, index, nskipped);
 					}
 					else {
-						ctx.debug("%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
-							elapsedTime(modPTS), file.formatId, index, nskipped);
+						auto elapsed = elapsedTime(modPTS);
+						ctx.debug("%d分%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
+							elapsed.first, elapsed.second, file.formatId, index, nskipped);
 					}
 					nskipped = 0;
 				}
@@ -1222,8 +1232,11 @@ private:
 	}
 
 	// ファイル全体での時間
-	double elapsedTime(double modPTS) const {
-		return (double)(modPTS - dataPTS_[0]) / MPEG_CLOCK_HZ;
+	std::pair<int, double> elapsedTime(double modPTS) const {
+		double sec = (double)(modPTS - dataPTS_[0]) / MPEG_CLOCK_HZ;
+		int minutes = (int)(sec / 60);
+		sec -= minutes * 60;
+		return std::make_pair(minutes, sec);
 	}
 
 	void genCaptionStream()

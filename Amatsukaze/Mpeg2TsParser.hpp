@@ -1268,7 +1268,9 @@ private:
 		}
 		else {
 			double sec = (currentClock - startClock) / 27000000.0;
-			ctx.info("[PMT更新] ストリーム時刻: %.2f 秒", sec);
+			int minutes = (int)(sec / 60);
+			sec -= minutes * 60;
+			ctx.info("[PMT更新] ストリーム時刻: %d分%.2f秒", minutes, sec);
 		}
 
 		const char* content = NULL;

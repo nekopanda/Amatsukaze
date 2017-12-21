@@ -217,7 +217,7 @@ public:
 
 	virtual void onCaptionPesPacket(int64_t clock, std::vector<CaptionItem>& captions, PESPacket packet) = 0;
 
-	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
+	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) = 0;
 
 private:
 	class SpCaptionFormatter : public CaptionDLLParser {
@@ -226,8 +226,8 @@ private:
 		SpCaptionFormatter(CaptionParser& this_) 
 			: CaptionDLLParser(this_.ctx), this_(this_)
 		{ }
-		virtual std::string getDRCSOutPath(const std::string& md5) {
-			return this_.getDRCSOutPath(md5);
+		virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
+			return this_.getDRCSOutPath(PTS, md5);
 		}
 	};
 	std::vector<CaptionItem> captions;
@@ -529,8 +529,8 @@ protected:
 			this_.onCaptionPesPacket(clock, captions, packet);
 		}
 
-		virtual std::string getDRCSOutPath(const std::string& md5) {
-			return this_.getDRCSOutPath(md5);
+		virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
+			return this_.getDRCSOutPath(PTS, md5);
 		}
 	};
 
@@ -574,7 +574,7 @@ protected:
 		std::vector<CaptionItem>& captions,
 		PESPacket packet) = 0;
 
-	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
+	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) = 0;
 
 	// サービスを設定する場合はサービスのpids上でのインデックス
 	// なにもしない場合は負の値の返す

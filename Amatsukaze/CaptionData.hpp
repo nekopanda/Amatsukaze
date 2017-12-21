@@ -269,6 +269,11 @@ static int StrlenWoLoSurrogate(LPCWSTR str)
 	return len;
 }
 
+struct DRCSOutInfo {
+	std::string filename;
+	double elapsed;
+};
+
 class CaptionDLLParser : public AMTObject
 {
 public:
@@ -290,13 +295,13 @@ public:
 		if (caption.bClear) {
 		}
 		else {
-			item.line = ShowCaptionData(caption, pDrcsList, drcsCount);
+			item.line = ShowCaptionData(PTS, caption, pDrcsList, drcsCount);
 		}
 
 		return item;
 	}
 
-	virtual std::string getDRCSOutPath(const std::string& md5) = 0;
+	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) = 0;
 
 private:
 
@@ -353,7 +358,7 @@ private:
 	}
 
 	// 字幕本文を1行だけ処理する
-	std::unique_ptr<CaptionLine> ShowCaptionData(
+	std::unique_ptr<CaptionLine> ShowCaptionData(int64_t PTS,
 		const CAPTION_DATA_DLL &caption, const DRCS_PATTERN_DLL *pDrcsList, DWORD drcsCount)
 	{
 		auto line = std::unique_ptr<CaptionLine>(new CaptionLine());
@@ -412,11 +417,22 @@ private:
 									}
 									else {
 										// マッピングがないので画像を保存する
-										auto filename = getDRCSOutPath(std::string(md5.begin(), md5.end()));
-										SaveDRCSImage(filename, pDrcs);
+										auto info = getDRCSOutPath(PTS, std::string(md5.begin(), md5.end()));
+										SaveDRCSImage(info.filename, pDrcs);
 
 										ctx.incrementCounter("drcsnomap");
-										ctx.warn("[字幕] マッピングのないDRCS外字があります。追加してください -> %s", filename.c_str());
+
+										if (info.elapsed >= 0) {
+											double seconds = info.elapsed / MPEG_CLOCK_HZ;
+											int minutes = (int)(seconds / 60);
+											seconds -= minutes * 60;
+											ctx.warn("[字幕] 映像時刻%d分%d秒付近にマッピングのないDRCS外字があります。追加してください -> %s",
+												minutes, (int)seconds, info.filename.c_str());
+										}
+										else {
+											ctx.warn("[字幕] マッピングのないDRCS外字があります。追加してください -> %s",
+												info.filename.c_str());
+										}
 									}
 								}
 								showtext = srctext.substr(0, j);
