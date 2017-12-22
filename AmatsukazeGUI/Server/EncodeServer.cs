@@ -740,11 +740,11 @@ namespace Amatsukaze.Server
                         if (hashList != null)
                         {
                             log.SrcPath = src.Path;
+                            string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
                             string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
                             for (int i = 0; i < log.OutPath.Count; ++i)
                             {
-                                string outext = Path.GetExtension(log.OutPath[i]);
-                                string outpath = outbase + ((i == 0) ? outext : ("-" + i + outext));
+                                string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
                                 var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
                                 string name = Path.GetFileName(outpath);
                                 HashUtil.AppendHash(Path.Combine(encoded, "_mp4.hash"), name, hash);
