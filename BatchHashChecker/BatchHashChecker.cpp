@@ -187,16 +187,25 @@ using namespace hashchecker;
 
 void PrintHelp()
 {
-	wprintf(L"Batch Hash Checker version 1.1.0\n"
-		L"Command: bhc [m|c|hc|hu] [オプション] path\n"
+	wprintf(L"Batch Hash Checker version 1.2.0\n"
+		L"コマンド: BatchHashChecker.exe [m|c|hc|hu] [オプション] フォルダへのパス\n"
+		L"\n"
 		L"m : ハッシュリストを作成・更新します\n"
 		L"c : ファイルをチェックします\n"
 		L"b : Readベンチマークを走らせます\n"
 		L"hc: ハッシュリストのハッシュをチェックします\n"
 		L"hu: ハッシュリストのハッシュを更新します\n"
+		L"\n"
 		L"オプション\n"
 		L"-hl (filepath) : ハッシュリストのファイルを選択\n"
 		L"-rb ブロックサイズ : １回のReadFileで読み取るデータ量（G,M,Kサフィックス対応）\n"
+		L"\n"
+		L"例)\n"
+		L"BatchHashChecker.exe m D:\\MyFolder\n"
+		L" -> D:\\MyFolder 以下すべてのファイルのハッシュを計算し D:\\MyFolder.hash に保存\n"
+		L"\n"
+		L"BatchHashChecker.exe c D:\\MyFolder\n"
+		L" -> D:\\MyFolder.hash からハッシュを読み取り D:\\MyFolder 以下すべてのファイルが一致するかチェック\n"
 		);
 }
 
