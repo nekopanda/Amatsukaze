@@ -413,6 +413,7 @@ struct Config {
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
+	std::string joinLogoScpOptions;
 	int cmoutmask;
 	// デバッグ用設定
 	bool dumpStreamInfo;
@@ -546,6 +547,10 @@ public:
 
 	std::string getJoinLogoScpCmdPath() const {
 		return conf.joinLogoScpCmdPath;
+	}
+
+	std::string getJoinLogoScpOptions() const {
+		return conf.joinLogoScpOptions;
 	}
 
 	const std::vector<CMType>& getCMTypes() const {

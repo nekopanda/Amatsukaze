@@ -128,6 +128,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region JlsArgs変更通知プロパティ
+        public string JlsArgs {
+            get { return Data.JLSArgs; }
+            set { 
+                if (Data.JLSArgs == value)
+                    return;
+                Data.JLSArgs = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public override string ToString()
         {
             return Data.ServiceName + "(" + Data.ServiceId + ")";
@@ -1594,6 +1606,11 @@ namespace Amatsukaze.Models
 
         public Task OnServiceSetting(ServiceSettingUpdate update)
         {
+            if(update.Type == ServiceSettingUpdateType.Clear)
+            {
+                _ServiceSettings.Clear();
+                return Task.FromResult(0);
+            }
             for(int i = 0; i < _ServiceSettings.Count; ++i)
             {
                 if(_ServiceSettings[i].Data.ServiceId == update.ServiceId)

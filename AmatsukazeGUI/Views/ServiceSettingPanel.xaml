@@ -39,7 +39,12 @@
         </ListBox>
 
         <TextBlock x:Name="textBlock" Grid.Column="1" HorizontalAlignment="Left" Margin="9.333,2,0,0" TextWrapping="Wrap" Text="JoinLogoScpコマンドファイル" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" HorizontalAlignment="Left" Width="157" ItemsSource="{Binding Model.JlsCommandFiles}" Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Height="22" VerticalAlignment="Top"/>
+        <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" HorizontalAlignment="Left" Width="157"
+                  ItemsSource="{Binding Model.JlsCommandFiles}"
+                  Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                  Height="22" VerticalAlignment="Top"/>
+        <TextBlock Text="引数" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,52,5,5"/>
+        <TextBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="38,50,10,5" Height="20" Text="{Binding SelectedServiceItem.JlsArgs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
         <TextBlock x:Name="textBlock2" Grid.Column="1" HorizontalAlignment="Left" Margin="10.333,5,0,0" Grid.Row="1" TextWrapping="Wrap" Text="ロゴファイル" VerticalAlignment="Top"/>
         <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1"

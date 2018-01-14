@@ -194,11 +194,12 @@ private:
 		if (logopath.size() > 0) {
 			sb.append(" -inlogo \"%s\"", setting_.getTmpLogoFramePath(videoFileIndex));
 		}
-		sb.append(" -inscp \"%s\" -incmd \"%s\" -o \"%s\" -oscp \"%s\"",
+		sb.append(" -inscp \"%s\" -incmd \"%s\" -o \"%s\" -oscp \"%s\" %s",
 			setting_.getTmpChapterExePath(videoFileIndex),
 			setting_.getJoinLogoScpCmdPath(),
 			setting_.getTmpTrimAVSPath(videoFileIndex),
-			setting_.getTmpJlsPath(videoFileIndex));
+			setting_.getTmpJlsPath(videoFileIndex),
+			setting_.getJoinLogoScpOptions());
 		return sb.str();
 	}
 

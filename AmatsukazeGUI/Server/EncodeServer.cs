@@ -615,10 +615,12 @@ namespace Amatsukaze.Server
                         (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
                         server.appData.setting.DefaultJLSCommand :
                         serviceSetting.JLSCommand);
-                    
+                    string jlsopt = serviceSetting.DisableCMCheck ?
+                        null : serviceSetting.JLSArgs;
+
                     string args = server.MakeAmatsukazeArgs(isMp4,
                         srcpath, localdst, json,
-                        src.ServiceId, logopaths, ignoreNoLogo, jlscmd);
+                        src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt);
                     string exename = server.appData.setting.AmatsukazePath;
 
                     int outputMask = server.appData.setting.OutputMask;
@@ -1452,7 +1454,7 @@ namespace Amatsukaze.Server
         private string MakeAmatsukazeArgs(bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles,
-            bool ignoreNoLogo, string jlscommand)
+            bool ignoreNoLogo, string jlscommand, string jlsopt)
         {
             string encoderPath = GetEncoderPath(appData.setting);
 
@@ -1544,6 +1546,12 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --jls-cmd \"")
                     .Append(GetJLDirectoryPath() + "\\" + jlscommand)
+                    .Append("\"");
+            }
+            if (string.IsNullOrEmpty(jlsopt) == false)
+            {
+                sb.Append(" --jls-option \"")
+                    .Append(jlsopt)
                     .Append("\"");
             }
 
@@ -2694,7 +2702,11 @@ namespace Amatsukaze.Server
         public async Task RequestServiceSetting()
         {
             var serviceMap = appData.services.ServiceMap;
-            foreach(var service in serviceMap.Values)
+            await client.OnServiceSetting(new ServiceSettingUpdate()
+            {
+                Type = ServiceSettingUpdateType.Clear
+            });
+            foreach (var service in serviceMap.Values)
             {
                 await client.OnServiceSetting(new ServiceSettingUpdate() {
                     Type = ServiceSettingUpdateType.Update,

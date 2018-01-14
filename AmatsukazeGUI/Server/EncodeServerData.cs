@@ -185,6 +185,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string JLSCommand { get; set; }
         [DataMember]
+        public string JLSArgs { get; set; }
+        [DataMember]
         public List<LogoSetting> LogoSettings { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
@@ -598,6 +600,7 @@ namespace Amatsukaze.Server
         AddNoLogo,
         Remove,
         RemoveLogo,
+        Clear,
     }
 
     [DataContract]

@@ -61,7 +61,7 @@ static void printHelp(const tchar* bin) {
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
 		"                      対応エンコーダ: x264,x265,QSVEnc,NVEnc\n"
 		"  -e|--encoder <パス> エンコーダパス[x264.exe]\n"
-		"  -eo|--encoder-opotion <オプション> エンコーダへ渡すオプション[]\n"
+		"  -eo|--encoder-option <オプション> エンコーダへ渡すオプション[]\n"
 		"                      入力ファイルの解像度、アスペクト比、インタレースフラグ、\n"
 		"                      フレームレート、カラーマトリクス等は自動で追加されるので不要\n"
 		"  -b|--bitrate a:b:f  ビットレート計算式 映像ビットレートkbps = f*(a*s+b)\n"
@@ -91,6 +91,7 @@ static void printHelp(const tchar* bin) {
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
+		"  --jls-option <オプション>    join_logo_scpのコマンドファイルへのパス\n"
 		"  -om|--cmoutmask <数値> 出力マスク[1]\n"
 		"                      1 : 通常\n"
 		"                      2 : CMをカット\n"
@@ -349,6 +350,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--jls-cmd")) {
 			conf.joinLogoScpCmdPath = to_string(getParam(argc, argv, i++));
+		}
+		else if (key == _T("--jls-option")) {
+			conf.joinLogoScpOptions = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-om") || key == _T("--cmoutmask")) {
 			conf.cmoutmask = std::stol(getParam(argc, argv, i++));
