@@ -185,7 +185,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public string JLSCommand { get; set; }
         [DataMember]
-        public string JLSArgs { get; set; }
+        public string JLSOption { get; set; }
         [DataMember]
         public List<LogoSetting> LogoSettings { get; set; }
 

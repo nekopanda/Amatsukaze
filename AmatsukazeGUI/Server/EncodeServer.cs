@@ -616,7 +616,7 @@ namespace Amatsukaze.Server
                         server.appData.setting.DefaultJLSCommand :
                         serviceSetting.JLSCommand);
                     string jlsopt = serviceSetting.DisableCMCheck ?
-                        null : serviceSetting.JLSArgs;
+                        null : serviceSetting.JLSOption;
 
                     string args = server.MakeAmatsukazeArgs(isMp4,
                         srcpath, localdst, json,

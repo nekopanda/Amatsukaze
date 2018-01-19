@@ -29,7 +29,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="6,4,0,0" TextWrapping="Wrap" Text="サービス" VerticalAlignment="Top"/>
+        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="6,4,0,0" TextWrapping="Wrap" Text="サービス（チャンネル）" VerticalAlignment="Top"/>
         <ListBox x:Name="serviceListBox" Margin="0,25,0,0.333" Grid.RowSpan="2" ItemsSource="{Binding Model.ServiceSettings}" SelectedIndex="{Binding SelectedServiceIndex, Mode=TwoWay}">
             <ListBox.ContextMenu>
                 <ContextMenu>
@@ -43,8 +43,9 @@
                   ItemsSource="{Binding Model.JlsCommandFiles}"
                   Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                   Height="22" VerticalAlignment="Top"/>
-        <TextBlock Text="引数" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,52,5,5"/>
-        <TextBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="38,50,10,5" Height="20" Text="{Binding SelectedServiceItem.JlsArgs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock Text="オプション" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,52,5,5"/>
+        <TextBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="59,50,10,0" Height="20"
+                 Text="{Binding SelectedServiceItem.JLSOption, Mode=TwoWay}" />
 
         <TextBlock x:Name="textBlock2" Grid.Column="1" HorizontalAlignment="Left" Margin="10.333,5,0,0" Grid.Row="1" TextWrapping="Wrap" Text="ロゴファイル" VerticalAlignment="Top"/>
         <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1"

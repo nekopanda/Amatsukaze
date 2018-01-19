@@ -151,8 +151,12 @@ private:
 			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
 
 			if (logof.getLogoRatio() < 0.5f) {
+				// 7分以下は0.3fまで許容する
+				if (duration <= 60 * 7 && logof.getLogoRatio() >= 0.3f) {
+					ctx.info("ロゴ区間が短いですが、動画の長さが%d秒(420秒以下)なので続行します", duration);
+				}
 				// 3分以下のファイルはロゴが見つからなくても無視する
-				if (duration <= 180) {
+				else if (duration <= 60*3) {
 					ctx.info("マッチするロゴはありませんでしたが、動画の長さが%d秒(180秒以下)なので無視します", duration);
 				}
 				else if (!setting_.isIgnoreNoLogo()) {

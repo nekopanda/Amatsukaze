@@ -129,13 +129,14 @@ namespace Amatsukaze.Models
         #endregion
 
         #region JlsArgs変更通知プロパティ
-        public string JlsArgs {
-            get { return Data.JLSArgs; }
+        public string JLSOption {
+            get { return Data.JLSOption; }
             set { 
-                if (Data.JLSArgs == value)
+                if (Data.JLSOption == value)
                     return;
-                Data.JLSArgs = value;
+                Data.JLSOption = value;
                 RaisePropertyChanged();
+                Model.UpdateService(this);
             }
         }
         #endregion
