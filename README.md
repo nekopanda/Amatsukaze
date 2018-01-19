@@ -1,6 +1,8 @@
 # Amatsukaze
 Automated MPEG2-TS Transcoder
 
+## [ダウンロードはこちら](https://github.com/nekopanda/Amatsukaze/releases)
+
 # 概要
 
 ## これは何？
