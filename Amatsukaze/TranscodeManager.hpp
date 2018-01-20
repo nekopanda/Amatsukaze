@@ -1558,7 +1558,11 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	// ロゴ・CM解析
 	sw.start();
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
-		if (setting.isChapterEnabled()) {
+		// チャプター解析は300フレーム（約10秒）以上ある場合だけ
+		//（短すぎるとエラーになることがあるので）
+		if (setting.isChapterEnabled() &&
+			reformInfo.getFilterSourceFrames(videoFileIndex).size() >= 300)
+		{
 			// ファイル読み込み情報を保存
 			auto& fmt = reformInfo.getFormat(0, videoFileIndex);
 			auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);

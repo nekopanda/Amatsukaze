@@ -98,7 +98,7 @@
                 <TextBlock Grid.Row="3" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
                 <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Margin="100,5,0,0" VerticalAlignment="Top" Width="50" Height="23" Grid.RowSpan="2"
                      Text="{Binding Model.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"
-                     ToolTip="エンコーダがx264,x265のときのみ有効です。&#xA;zonesオプションによりCM区間のビットレートを指定倍率に設定します。&#xA;CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。"/>
+                     ToolTip="CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。&#xA;QSVEnc,NVEncで通常出力の場合は対応していません。"/>
 
                 <CheckBox x:Name="autoBitrateCheck" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="9.667,33,0,0"
                           IsChecked="{Binding Model.AutoBuffer, Mode=TwoWay}" Height="19" VerticalAlignment="Top">
