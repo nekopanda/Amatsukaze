@@ -1,6 +1,6 @@
 /**
 * Amtasukaze Command Line Interface
-* Copyright (c) 2017 Nekopanda
+* Copyright (c) 2017-2018 Nekopanda
 *
 * This software is released under the MIT License.
 * http://opensource.org/licenses/mit-license.php
@@ -47,7 +47,7 @@ static void printCopyright() {
 	PRINTF(
 		"Amatsukaze - Automated MPEG2-TS Transcoder\n"
 		"Built on %s %s\n"
-		"Copyright (c) 2017 Nekopanda\n", __DATE__, __TIME__);
+		"Copyright (c) 2017-2018 Nekopanda\n", __DATE__, __TIME__);
 }
 
 static void printHelp(const tchar* bin) {

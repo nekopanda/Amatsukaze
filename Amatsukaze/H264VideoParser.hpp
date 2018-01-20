@@ -1,6 +1,6 @@
 /**
 * H.264/AVC Elementary Stream parser
-* Copyright (c) 2017 Nekopanda
+* Copyright (c) 2017-2018 Nekopanda
 *
 * This software is released under the MIT License.
 * http://opensource.org/licenses/mit-license.php
