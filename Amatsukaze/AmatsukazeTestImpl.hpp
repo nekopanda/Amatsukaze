@@ -285,6 +285,8 @@ static int FileStreamInfo(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 	reformInfo.prepare(false);
+	auto audioDiffInfo = reformInfo.genAudio();
+	audioDiffInfo.printAudioPtsDiff(ctx);
 	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
 	return 0;
 }

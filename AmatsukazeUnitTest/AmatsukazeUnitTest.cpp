@@ -285,7 +285,7 @@ TEST_F(TestBase, fileStreamInfoTest)
 	std::wstring srcDir = TestDataDir + L"\\";
 	std::wstring dstDir = TestWorkDir + L"\\";
 	std::wstring srcPath = srcDir + LargeTsFile;
-	std::wstring dstPath = dstDir + L"Mpeg2Test";
+	std::wstring dstPath = dstDir + LargeTsFile;
 
 	const wchar_t* args[] = {
 		L"AmatsukazeTest.exe", L"--mode", L"test_streamreform",
@@ -475,7 +475,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*EncoderOptionTest*";
+	::testing::GTEST_FLAG(filter) = "*fileStreamInfoTest*";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

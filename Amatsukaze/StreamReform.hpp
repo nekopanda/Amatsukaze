@@ -568,6 +568,11 @@ private:
 
 		ctx.info("[フォーマット切り替え解析]");
 
+		// 現在の音声フォーマットを保持
+		// 音声ES数が変化しても前の音声フォーマットと変わらない場合は
+		// イベントが飛んでこないので、現在の音声ES数とは関係なく全音声フォーマットを保持する
+		std::vector<AudioFormat> curAudioFormats;
+
 		OutVideoFormat curFormat = OutVideoFormat();
 		double startPts = -1;
 		double curFromPTS = -1;
@@ -593,8 +598,14 @@ private:
 			// 変更を反映
 			switch (ev.type) {
 			case PID_TABLE_CHANGED:
+				if (curAudioFormats.size() < ev.numAudio) {
+					curAudioFormats.resize(ev.numAudio);
+				}
 				if (curFormat.audioFormat.size() != ev.numAudio) {
 					curFormat.audioFormat.resize(ev.numAudio);
+					for (int i = 0; i < ev.numAudio; ++i) {
+						curFormat.audioFormat[i] = curAudioFormats[i];
+					}
 					if (curFromPTS == -1) {
 						curFromPTS = pts;
 					}
@@ -613,6 +624,7 @@ private:
 					THROW(FormatException, "StreamEvent's audioIdx exceeds numAudio of the previous table change event");
 				}
 				curFormat.audioFormat[ev.audioIdx] = audioFrameList_[ev.frameIdx].format;
+				curAudioFormats[ev.audioIdx] = audioFrameList_[ev.frameIdx].format;
 				if (curFromPTS == -1) {
 					curFromPTS = pts;
 				}
