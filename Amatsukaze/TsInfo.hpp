@@ -324,25 +324,17 @@ public:
 	{ }
 
 	void ReadFile(const char* filepath) {
-			enum {
-				BUFSIZE = 4 * 1024 * 1024,
-				MAX_BYTES = 100 * 1024 * 1024
-			};
-			auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
-			MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
 			File srcfile(filepath, "rb");
 			// ファイルの真ん中を読む
 			srcfile.seek(srcfile.size() / 2, SEEK_SET);
-			size_t totalRead = 0;
-			size_t readBytes;
-			SpTsPacketParser packetParser(*this);
-			do {
-				readBytes = srcfile.read(buffer);
-				packetParser.inputTS(MemoryChunk(buffer.data, readBytes));
-				if (parser.isOK()) return;
-				totalRead += readBytes;
-			} while (readBytes == buffer.length && totalRead < MAX_BYTES);
-			if (parser.isProgramOK()) return;
+			if (ReadTS(srcfile)) {
+				return;
+			}
+			// ダメだったらファイルの先頭付近を読む
+			srcfile.seek(srcfile.size() / 30, SEEK_SET);
+			if (ReadTS(srcfile)) {
+				return;
+			}
 			THROW(FormatException, "TSファイルに情報がありません");
 	}
 
@@ -425,6 +417,26 @@ private:
 	};
 
 	TsInfoParser parser;
+
+	bool ReadTS(File& srcfile) {
+		enum {
+			BUFSIZE = 4 * 1024 * 1024,
+			MAX_BYTES = 100 * 1024 * 1024
+		};
+		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
+		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
+		size_t totalRead = 0;
+		size_t readBytes;
+		SpTsPacketParser packetParser(*this);
+		do {
+			readBytes = srcfile.read(buffer);
+			packetParser.inputTS(MemoryChunk(buffer.data, readBytes));
+			if (parser.isOK()) return true;
+			totalRead += readBytes;
+		} while (readBytes == buffer.length && totalRead < MAX_BYTES);
+		if (parser.isProgramOK()) return true;
+		return false;
+	}
 };
 
 // C API for P/Invoke

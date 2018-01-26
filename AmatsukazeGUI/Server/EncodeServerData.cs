@@ -269,6 +269,7 @@ namespace Amatsukaze.Server
         public bool IsError { get { return State == QueueState.Failed || State == QueueState.PreFailed; } }
         public bool IsPending { get { return State == QueueState.LogoPending; } }
         public bool IsPreFailed { get { return State == QueueState.PreFailed; } }
+        public bool IsTooSmall { get { return IsPreFailed && FailReason.Contains("映像が小さすぎます"); } }
         public string TsTimeString { get { return TsTime.ToString("yyyy年MM月dd日"); } }
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
 
