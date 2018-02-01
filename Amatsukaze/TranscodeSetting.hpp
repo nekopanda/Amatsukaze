@@ -188,6 +188,9 @@ static std::vector<std::string> makeMuxerArgs(
 	sb.append("\"%s\"", binpath);
 
 	if (format == FORMAT_MP4) {
+		bool needChapter = (chapterpath.size() > 0);
+		bool needTimecode = (timecodepath.size() > 0);
+		bool needSubs = (inSubs.size() > 0);
 
 		// まずはmuxerで映像、音声、チャプターをmux
 		if (videoFormat.fixedFrameRate) {
@@ -200,18 +203,20 @@ static std::vector<std::string> makeMuxerArgs(
 		for (const auto& inAudio : inAudios) {
 			sb.append(" -i \"%s\"", inAudio);
 		}
-		if (chapterpath.size() > 0) {
+		// timelineeditorがチャプターを消すのでtimecodeがある時はmp4boxで入れる
+		if (needChapter && !needTimecode) {
 			sb.append(" --chapter \"%s\"", chapterpath);
+			needChapter = false;
 		}
 		sb.append(" --optimize-pd");
 
-		std::string dst = (timecodepath.size() > 0) ? tmpoutpath : outpath;
+		std::string dst = needTimecode ? tmpoutpath : outpath;
 		sb.append(" -o \"%s\"", dst);
 
 		ret.push_back(sb.str());
 		sb.clear();
 
-		if (timecodepath.size() > 0) {
+		if (needTimecode) {
 			// 必要ならtimelineeditorでtimecodeを埋め込む
 			sb.append("\"%s\"", timelineeditorpath)
 				.append(" --track 1")
@@ -222,15 +227,22 @@ static std::vector<std::string> makeMuxerArgs(
 				.append(" \"%s\"", outpath);
 			ret.push_back(sb.str());
 			sb.clear();
+			needTimecode = false;
 		}
 
-		if (inSubs.size() > 0) {
-			// あれば字幕を埋め込む
+		if (needChapter || needSubs) {
+			// 字幕とチャプターを埋め込む
 			sb.append("\"%s\"", mp4boxpath);
 			for (int i = 0; i < (int)inSubs.size(); ++i) {
 				if (subsTitles[i] == "SRT") { // mp4はSRTのみ
 					sb.append(" -add \"%s#:name=%s\"", inSubs[i], subsTitles[i]);
 				}
+			}
+			needSubs = false;
+			// timecodeがある場合はこっちでチャプターを入れる
+			if (needChapter) {
+				sb.append(" -chap \"%s\"", chapterpath);
+				needChapter = false;
 			}
 			sb.append(" \"%s\"", outpath);
 			ret.push_back(sb.str());
