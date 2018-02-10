@@ -28,6 +28,8 @@ namespace Amatsukaze.Views
     /// </summary>
     public partial class LogoAnalyzeWindow : Window
     {
+        private Point dragStart;
+
         public LogoAnalyzeWindow()
         {
             InitializeComponent();
@@ -37,9 +39,10 @@ namespace Amatsukaze.Views
         {
             var vm = DataContext as LogoAnalyzeViewModel;
             if (vm != null)
-            { 
-                vm.RectPosition = Mouse.GetPosition(image);
-                vm.RectSize = new Size();
+            {
+                dragStart = Mouse.GetPosition(image);
+                vm.RectPosition = dragStart;
+                vm.RectSize = new Size(4, 4);
             }
         }
 
@@ -51,8 +54,11 @@ namespace Amatsukaze.Views
                 var vm = DataContext as LogoAnalyzeViewModel;
                 if (vm != null)
                 {
-                    var diff = curPos - vm.RectPosition;
-                    vm.RectSize = new Size(Math.Max(0, diff.X), Math.Max(0, diff.Y));
+                    var ptMin = new Point(Math.Min(dragStart.X, curPos.X), Math.Min(dragStart.Y, curPos.Y));
+                    var ptMax = new Point(Math.Max(dragStart.X, curPos.X), Math.Max(dragStart.Y, curPos.Y));
+                    var diff = ptMax - ptMin;
+                    vm.RectPosition = ptMin;
+                    vm.RectSize = new Size(Math.Max(4, diff.X), Math.Max(4, diff.Y));
                 }
             }
         }

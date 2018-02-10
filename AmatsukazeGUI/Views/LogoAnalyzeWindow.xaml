@@ -59,10 +59,13 @@
             <Grid>
                 <Image x:Name="image" MouseLeftButtonDown="image_MouseLeftButtonDown" MouseMove="image_MouseMove" MouseLeftButtonUp="image_MouseLeftButtonUp"
                        Source="{Binding Model.CurrentImage}" Stretch="None"/>
-                <Canvas Width="{Binding ActualWidth, ElementName=image, Mode=OneWay}" Height="{Binding ActualHeight, ElementName=image, Mode=OneWay}">
+                <Canvas Width="{Binding ActualWidth, ElementName=image, Mode=OneWay}"
+                        Height="{Binding ActualHeight, ElementName=image, Mode=OneWay}">
                     <Rectangle x:Name="rectangle"
-                           Width="{Binding RectSize.Width}" Height="{Binding RectSize.Height}"
-                           Stroke="#FF5F55FF" StrokeDashArray="1 2" StrokeDashCap="Triangle" StrokeThickness="2" HorizontalAlignment="Left" VerticalAlignment="Top" Canvas.Left="{Binding RectPosition.X}" Canvas.Top="{Binding RectPosition.Y}" />
+                               Width="{Binding RectSize.Width}" Height="{Binding RectSize.Height}"
+                               Stroke="#FF5F55FF" StrokeDashArray="1 2" StrokeDashCap="Triangle" StrokeThickness="2"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" 
+                               Canvas.Left="{Binding RectPosition.X}" Canvas.Top="{Binding RectPosition.Y}"/>
                 </Canvas>
                 <TextBlock Text="読み込み中・・・しばらくお待ち下さい。" FontSize="36">
                     <TextBlock.Style>
