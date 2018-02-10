@@ -42,10 +42,6 @@ x264, x265, QSVEnc, NVEnc
 Windows 7以降 (64bit)
 （Windows 10でしかテストしてないから他で動くか分からん）
 
-## 高品質インタレ解除を利用する場合の推奨環境
-
-GTX 970または1060以上のNVIDIA GPUを搭載したPC
-
 # 使い方
 
 ## インストール方法
@@ -215,11 +211,21 @@ SRTはレイアウト情報やルビがないため、情報を失いたくな�
 
 AviSynthによるフィルタ処理です。
 デフォルトで利用可能になっているメインフィルタ用スクリプトは
-QTGMCという激重のインタレ解除フィルタです。
+D3DVPかQTGMCによるインタレ解除フィルタです。
 
-CUDA版を使えばかなり速くなります(GTX1060でフルHDが110fpsくらい）。
+D3DVPは、GPUのインタレ解除機能を使ったインタレ解除です。
+PCで再生するときと同等の品質でインタレ解除します。
+Windows 8以降のみ対応しています。**Windows 7では使えません。**
+
+GPU指定なしの場合は、プライマリディスプレイに接続したGPUでインタレ解除します。
+インタレ解除に使用するGPUを指定したい場合は、"Intel","NVIDIA","Radeon"を用意したので、
+それを試してみてください。デバイス名の名前一致で探してくるので、
+PCが認識したGPUのデバイス名が微妙に違ったりすると見つからなくてエラーになるかもしれません。
+あと、当然ですが、PCにないGPUを指定したらエラーになります。
+
+QTGMCは、計算量が多く重いフィルタです。CUDA版を使えばかなり速くなります(GTX1060でフルHDが110fpsくらい）。
 が、Compute Capability 3.5以上と、比較的新しいそれなりのGPUが必要です。
-CUDA版が使えない場合は、CPU版は遅すぎるのでフィルタなしインタレ保持でのエンコードを推奨します。
+計算量が多い分、特に動いているところなどは綺麗になると思います。
 
 24fps部分の部分の画質を上げたい場合は、「24pありNR」が使えます。
 出力は60fpsですが、24fpsだと分かる部分は、24fps化した上で2項分布マージ版SMDegrainでノイズリダクションします。
@@ -272,8 +278,8 @@ AviSynthのクリップにはサンプルアスペクト比を保持する機能
 
 ### メインフィルタ
 
-メインフィルタはQTGMCによるインタレ解除がメインです。
-Preset="Faster"でインタレ解除します。CUDA版はKTGMCです。
+QTGMCによるインタレ解除フィルタは、Preset="Faster"で
+インタレ解除します。CUDA版はKTGMCで動いています。
 
 NNEDI3（Bob化）ベースのQTGMCなので、そのままだと細かい文字等が潰れます。
 KStaticAnalyze+KStaticMergeで止まっている細かい文字等をソースから補間しています。
@@ -285,6 +291,8 @@ KStaticAnalyze+KStaticMergeで止まっている細かい文字等をソース�
 これはQTGMCのMDegrainに相当する処理です。NRなしの「24pあり」は、24pクリップに
 QTGMCのMDegrain系処理が一切ないため、QTGMCで処理した場合に比べてノイズが目立つようになります。
 24pありにする場合は、NRが必須だと思います。
+
+D3DVPによるインタレ解除フィルタは、D3DVPをそのまま呼び出しているだけです。
 
 ### ポストフィルタ
 
@@ -385,11 +393,11 @@ GPLのライブラリを組み込んでいるので、全体にGPLが適用さ�
 - libfaad2: GPL
 
 # 同梱&依存ライブラリ
-- [FFmpeg](https://www.ffmpeg.org/)
+- [FFmpeg](https://github.com/nekopanda/FFmpeg)(MPEG2フィールドピクチャのバグ修正版です)
 - [FAAD2](http://www.audiocoding.com/faad2.html)
 - [L-SMASH](https://github.com/l-smash/l-smash)
 - [x264](https://www.videolan.org/developers/x264.html)
-- [x265](https://bitbucket.org/Nekopanda/x265)（本家版はzonesを多く指定すると落ちるバグがあるので改造しています）
+- [x265](http://x265.org/)（~~本家版はzonesを多く指定すると落ちるバグがあるので改造しています~~修正されたので今は本家版を入れてます）
 - [Ut Video Codec Suite](http://umezawa.dyndns.info/wordpress/)
 - [AviSynthPlus CUDA](https://github.com/nekopanda/AviSynthPlus)
 - [join_logo_scp ver 2.1](https://www.axfc.net/u/3458102.zip)
@@ -411,6 +419,7 @@ GPLのライブラリを組み込んでいるので、全体にGPLが適用さ�
 - [masktools](https://github.com/pinterf/masktools)
 - [KTGMC,KNNEDI3,KFM](https://github.com/nekopanda/AviSynthCUDAFilters)
 - [SMDegrain](http://avisynth.nl/index.php/SMDegrain)
+- [D3DVP](https://github.com/nekopanda/D3DVP)
 
 すべて64bitです。
 
