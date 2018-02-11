@@ -1603,6 +1603,10 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --ignore-no-drcsmap");
             }
+            if (appData.setting.NoDelogo)
+            {
+                sb.Append(" --no-delogo");
+            }
 
             if (logofiles != null)
             {

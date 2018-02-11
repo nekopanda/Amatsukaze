@@ -600,12 +600,13 @@ private:
 		
 		clip = prefetch(clip, 1);
 
-		if (logopath.size() > 0) {
+		if (setting_.isNoDelogo() == false && logopath.size() > 0) {
 			// キャッシュを間に入れるためにInvokeでフィルタをインスタンス化
 			AVSValue args_a[] = { clip, logopath.c_str() };
-			PClip analyzeclip = prefetch(env_->Invoke("AMTAnalyzeLogo", AVSValue(args_a, 2)).AsClip(), 1);
+			PClip analyzeclip = env_->Invoke("AMTAnalyzeLogo", AVSValue(args_a, 2)).AsClip();
 			AVSValue args_e[] = { clip, analyzeclip, logopath.c_str() };
 			clip = env_->Invoke("AMTEraseLogo2", AVSValue(args_e, 3)).AsClip();
+			clip = prefetch(clip, 1);
 		}
 
 		return trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);

@@ -114,11 +114,11 @@ namespace Amatsukaze.ViewModels
 
         public string[] Mpeg2DecoderList
         {
-            get { return new string[] { "デフォルト", "QSV" }; }
+            get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
         public string[] H264DecoderList
         {
-            get { return new string[] { "デフォルト", "QSV" }; }
+            get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
         public string[] OutputOptionList
         {

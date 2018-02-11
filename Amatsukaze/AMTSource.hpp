@@ -179,17 +179,34 @@ class AMTSource : public IClip, AMTObject
 		//avcodec_flush_buffers(codecCtx());
 	}
 
-	template <typename T, int step>
-	void Copy(T* dst, const T* top, const T* bottom, int w, int h, int dpitch, int tpitch, int bpitch)
+	template <typename T>
+	void Copy1(T* dst, const T* top, const T* bottom, int w, int h, int dpitch, int tpitch, int bpitch)
 	{
 		for (int y = 0; y < h; y += 2) {
 			T* dst0 = dst + dpitch * (y + 0);
 			T* dst1 = dst + dpitch * (y + 1);
 			const T* src0 = top + tpitch * (y + 0);
 			const T* src1 = bottom + bpitch * (y + 1);
+			memcpy(dst0, src0, sizeof(T) * w);
+			memcpy(dst1, src1, sizeof(T) * w);
+		}
+	}
+
+	template <typename T>
+	void Copy2(T* dstU, T* dstV, const T* top, const T* bottom, int w, int h, int dpitch, int tpitch, int bpitch)
+	{
+		for (int y = 0; y < h; y += 2) {
+			T* dstU0 = dstU + dpitch * (y + 0);
+			T* dstU1 = dstU + dpitch * (y + 1);
+			T* dstV0 = dstV + dpitch * (y + 0);
+			T* dstV1 = dstV + dpitch * (y + 1);
+			const T* src0 = top + tpitch * (y + 0);
+			const T* src1 = bottom + bpitch * (y + 1);
 			for (int x = 0; x < w; ++x) {
-				dst0[x] = src0[x * step];
-				dst1[x] = src1[x * step];
+				dstU0[x] = src0[x * 2 + 0];
+				dstV0[x] = src0[x * 2 + 1];
+				dstU1[x] = src1[x * 2 + 0];
+				dstV1[x] = src1[x * 2 + 1];
 			}
 		}
 	}
@@ -215,17 +232,16 @@ class AMTSource : public IClip, AMTObject
 		int dstPitchY = dst->GetPitch(PLANAR_Y);
 		int dstPitchUV = dst->GetPitch(PLANAR_U);
 
-		Copy<T, 1>(dstY, srctY, srcbY, vi.width, vi.height, dstPitchY, srctPitchY, srcbPitchY);
+		Copy1<T>(dstY, srctY, srcbY, vi.width, vi.height, dstPitchY, srctPitchY, srcbPitchY);
 
 		int widthUV = vi.width >> desc->log2_chroma_w;
 		int heightUV = vi.height >> desc->log2_chroma_h;
 		if (top->format != AV_PIX_FMT_NV12) {
-			Copy<T, 1>(dstU, srctU, srcbU, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
-			Copy<T, 1>(dstV, srctV, srcbV, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+			Copy1<T>(dstU, srctU, srcbU, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+			Copy1<T>(dstV, srctV, srcbV, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
 		}
 		else {
-			Copy<T, 2>(dstU, srctU, srcbU, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
-			Copy<T, 2>(dstV, srctV, srcbV, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
+			Copy2<T>(dstU, dstV, srctU, srcbU, widthUV, heightUV, dstPitchUV, srctPitchUV, srcbPitchUV);
 		}
 	}
 
@@ -427,6 +443,7 @@ public:
 		IScriptEnvironment* env)
 		: AMTObject(ctx)
 		, frames(frames)
+		, decoderSetting(decoderSetting)
 		, audioFrames(audioFrames)
 		, inputCtx(srcpath)
 		, vi()

@@ -422,6 +422,7 @@ struct Config {
 	std::vector<std::string> logoPath;
 	bool ignoreNoLogo;
 	bool ignoreNoDrcsMap;
+	bool noDelogo;
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
@@ -547,6 +548,10 @@ public:
 
 	bool isIgnoreNoDrcsMap() const {
 		return conf.ignoreNoDrcsMap;
+	}
+
+	bool isNoDelogo() const {
+		return conf.noDelogo;
 	}
 
 	std::string getChapterExePath() const {
@@ -762,6 +767,7 @@ public:
 			for (int i = 0; i < (int)conf.logoPath.size(); ++i) {
 				ctx.info("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
 			}
+			ctx.info("ƒƒSÁ‚µ: %s", conf.noDelogo ? "‚µ‚È‚¢" : "‚·‚é");
 		}
 		ctx.info("Žš–‹: %s", conf.subtitles ? "—LŒø" : "–³Œø");
 		if (conf.subtitles) {

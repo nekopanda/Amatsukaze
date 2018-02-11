@@ -125,6 +125,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool IgnoreNoDrcsMap { get; set; }
         [DataMember]
+        public bool NoDelogo { get; set; }
+        [DataMember]
         public bool ClearWorkDirOnStart { get; set; }
         [DataMember]
         public bool SystemAviSynthPlugin { get; set; }

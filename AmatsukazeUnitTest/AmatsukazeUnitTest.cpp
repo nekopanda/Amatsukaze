@@ -466,6 +466,19 @@ TEST(CLI, ArgumentTest)
 	EXPECT_ANY_THROW(AmatsukazeCLI(sizeof(argv) / sizeof(argv[0]), argv));
 }
 
+TEST_F(TestBase, DecodePerformance)
+{
+	std::wstring srcDir = TestDataDir + L"\\";
+
+	std::wstring srcfile = srcDir + LargeTsFile + L".ts";
+
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_perf",
+		L"-i", srcfile.c_str(),
+	};
+	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+}
+
 void my_purecall_handler() {
 	printf("It's pure virtual call !!!\n");
 }
@@ -475,7 +488,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*fileStreamInfoTest*";
+	::testing::GTEST_FLAG(filter) = "*DecodePerformance*";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

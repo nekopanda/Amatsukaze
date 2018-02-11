@@ -572,4 +572,63 @@ static int EncoderOptionParse(AMTContext& ctx, const ConfigWrapper& setting)
 	return 0;
 }
 
+static int DecodePerformance(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	using namespace av;
+
+	InputContext inputCtx(setting.getSrcFilePath());
+	if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
+		THROW(FormatException, "avformat_find_stream_info failed");
+	}
+	AVStream *videoStream = av::GetVideoStream(inputCtx());
+	if (videoStream == NULL) {
+		THROW(FormatException, "Could not find video stream ...");
+	}
+	AVCodecID vcodecId = videoStream->codecpar->codec_id;
+	AVCodec *pCodec = avcodec_find_decoder(vcodecId);
+	if (pCodec == NULL) {
+		THROW(FormatException, "Could not find decoder ...");
+	}
+	CodecContext codecCtx(pCodec);
+	if (avcodec_parameters_to_context(codecCtx(), videoStream->codecpar) != 0) {
+		THROW(FormatException, "avcodec_parameters_to_context failed");
+	}
+	codecCtx()->thread_count = std::max(1, GetProcessorCount() - 2);
+	if (avcodec_open2(codecCtx(), pCodec, NULL) != 0) {
+		THROW(FormatException, "avcodec_open2 failed");
+	}
+
+	Stopwatch sw;
+	sw.start();
+
+	int nframes = 0;
+	Frame frame;
+	AVPacket packet = AVPacket();
+	while (av_read_frame(inputCtx(), &packet) == 0) {
+		if (packet.stream_index == videoStream->index) {
+			if (avcodec_send_packet(codecCtx(), &packet) != 0) {
+				THROW(FormatException, "avcodec_send_packet failed");
+			}
+			while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
+				++nframes;
+			}
+		}
+		av_packet_unref(&packet);
+	}
+
+	// flush decoder
+	if (avcodec_send_packet(codecCtx(), NULL) != 0) {
+		THROW(FormatException, "avcodec_send_packet failed");
+	}
+	while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
+		++nframes;
+	}
+
+	sw.stop();
+	double sec = sw.getTotal();
+	printf("%f sec for %d frames ... %f fps\n", sec, nframes, nframes / sec);
+
+	return 0;
+}
+
 } // namespace test

@@ -987,6 +987,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region NoDelogo変更通知プロパティ
+        public bool NoDelogo {
+            get { return setting.NoDelogo; }
+            set { 
+                if (setting.NoDelogo == value)
+                    return;
+                setting.NoDelogo = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ClearWorkDirOnStart変更通知プロパティ
         public bool ClearWorkDirOnStart {
             get { return setting.ClearWorkDirOnStart; }
@@ -1444,6 +1456,7 @@ namespace Amatsukaze.Models
             DisableChapter = setting.DisableChapter;
             DisableSubs = setting.DisableSubs;
             IgnoreNoDrcsMap = setting.IgnoreNoDrcsMap;
+            NoDelogo = setting.NoDelogo;
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
             DisableHashCheck = setting.DisableHashCheck;

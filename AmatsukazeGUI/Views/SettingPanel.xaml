@@ -75,10 +75,10 @@
 
                 <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" 
                       ItemsSource="{Binding Mpeg2DecoderList}" SelectedIndex="{Binding Model.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       ToolTip="デフォルト(CPU)が一番速いと思います。&#xA;QSVにするとCPU負荷が減るのでトータルでは速くなるかもしれません。"/>
+                       ToolTip="デフォルト(CPU)が一番速いと思います。&#xA;CUVIDにするとCPU負荷が減るのでトータルでは速くなるかもしれません。&#xA;QSVは現バージョンのFFmpegが壊れてて使えません。"/>
                 <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,31,0,0" VerticalAlignment="Top" Width="120"
                       ItemsSource="{Binding H264DecoderList}" SelectedIndex="{Binding Model.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       ToolTip="QSVの方が速いです。"/>
+                       ToolTip="CUVIDの方が速いです。&#xA;QSVは現バージョンのFFmpegが壊れてて使えません。"/>
 
                 <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力フォーマット" VerticalAlignment="Top" Margin="0,8,1,0"/>
                 <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5.667,0,0" VerticalAlignment="Top" Width="78"
@@ -154,7 +154,7 @@
                 </Grid>
 
                 <StackPanel Grid.Row="5" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,69" Text="その他の設定"/>
+                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,80" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
@@ -173,6 +173,7 @@
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="字幕を無効にする" IsChecked="{Binding Model.DisableSubs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS外字は無視する" IsChecked="{Binding Model.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="ロゴ消ししない" IsChecked="{Binding Model.NoDelogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない" IsChecked="{Binding Model.SplitSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" IsChecked="{Binding Model.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする" IsChecked="{Binding Model.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

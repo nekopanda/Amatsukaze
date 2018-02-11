@@ -88,6 +88,7 @@ static void printHelp(const tchar* bin) {
 		"  --drcs <パス>       DRCSマッピングファイルパス\n"
 		"  --ignore-no-drcsmap マッピングにないDRCS外字があっても処理を続行する\n"
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
+		"  --no-delogo         ロゴ消しをしない（デフォルトはロゴがある場合は消します）\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
@@ -331,6 +332,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--ignore-no-drcsmap")) {
 			conf.ignoreNoDrcsMap = true;
 		}
+		else if (key == _T("--no-delogo")) {
+			conf.noDelogo = true;
+		}
 		else if (key == _T("--logo")) {
 			conf.logoPath.push_back(to_string(getParam(argc, argv, i++)));
 		}
@@ -516,6 +520,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			test::CaptionASS(ctx, setting);
 		else if (mode == "test_eo")
 			test::EncoderOptionParse(ctx, setting);
+		else if (mode == "test_perf")
+			test::DecodePerformance(ctx, setting);
 
 		else
 			PRINTF("--modeの指定が間違っています: %s\n", mode.c_str());
