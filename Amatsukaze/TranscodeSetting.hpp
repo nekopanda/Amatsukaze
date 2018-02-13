@@ -711,18 +711,19 @@ public:
 		sb.append("%s", conf.encoderOptions);
 		if (conf.autoBitrate) {
 			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
+			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
 			if (cmtype == CMTYPE_CM) {
 				targetBitrate *= conf.bitrateCM;
 			}
 			if (conf.encoder == ENCODER_QSVENC) {
-				sb.append(" --la %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
+				sb.append(" --la %d --maxbitrate %d", (int)targetBitrate, (int)maxBitrate);
 			}
 			else if (conf.encoder == ENCODER_NVENC) {
-				sb.append(" --vbrhq %d --maxbitrate %d", (int)targetBitrate, (int)(targetBitrate * 2));
+				sb.append(" --vbrhq %d --maxbitrate %d", (int)targetBitrate, (int)maxBitrate);
 			}
 			else {
 				sb.append(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d", 
-					(int)targetBitrate, (int)(targetBitrate * 2), (int)(targetBitrate * 2));
+					(int)targetBitrate, (int)maxBitrate, (int)maxBitrate);
 			}
 		}
 		if (pass >= 0) {
