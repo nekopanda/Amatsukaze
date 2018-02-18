@@ -26,7 +26,8 @@ x264, x265, QSVEnc, NVEnc
 - 各出力mp4(mkv)が単一フォーマットになるように必要に応じて分割
 - タイムスタンプを元にAAC音声を無劣化で再構築
 - デュアルモノAACを２つのモノラルAACに無劣化分離
-- 字幕をSRTやASSに変換（mp4はSRTのみ）
+- 字幕をSRTやASSに変換
+- ニコニコ実況コメントをASS字幕として追加（NicoConvAssが必要）
 - 独自Avisynthソースクリップによる安定したチャプター・CM解析
 - CMと本編の分離出力
 - CMに本編とは別のビットレートを適用（一部エンコーダで制限あり）
@@ -212,7 +213,7 @@ MP4はASSに対応していないためSRTのみが組み込まれ、ASSは別�
 [NicoConvAss](http://vb45wb5b.seesaa.net/)を使ってニコニコ実況コメントをASS字幕として追加できます。
 
 [NicoConvAss](http://vb45wb5b.seesaa.net/)をセットアップして、使える状態にし、
-NicoConvASSパスにNicoConvAss.exeへのパスをセットして、
+AmatsukazeGUIの設定で、NicoConvASSパスにNicoConvAss.exeへのパスをセットして、
 「ニコニコ実況コメントを追加する」をチェックすれば、
 ニコニコ実況コメントをASS字幕として追加します。
 
