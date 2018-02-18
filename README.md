@@ -204,8 +204,22 @@ ASS字幕はMPC-BEでレイアウトが正しく表示されることを確認�
 SRT字幕はレイアウト情報はなく、文字だけです。ルビなどの小さい文字も省略されています。
 こちらはサロゲートペアも表示されるようです。
 
-MKVで出力すればSRTとASS両方が出力されます。MP4はASSに対応していないためSRTのみが出力されます。
-SRTはレイアウト情報やルビがないため、情報を失いたくない場合はMKVで出力してください。
+MKVで出力すればSRTとASS両方がMKVファイルに組み込まれます。
+MP4はASSに対応していないためSRTのみが組み込まれ、ASSは別ファイルとして出力されます。
+
+## ニコニコ実況
+
+[NicoConvAss](http://vb45wb5b.seesaa.net/)を使ってニコニコ実況コメントをASS字幕として追加できます。
+
+[NicoConvAss](http://vb45wb5b.seesaa.net/)をセットアップして、使える状態にし、
+NicoConvASSパスにNicoConvAss.exeへのパスをセットして、
+「ニコニコ実況コメントを追加する」をチェックすれば、
+ニコニコ実況コメントをASS字幕として追加します。
+
+NicoConvAssのセットアップで、[JKCommentGetter](https://github.com/ACUVE/JKCommentGetter)のセットアップが必要になりますが、
+これはちょっとハマるかもしれません。Win10環境のChromeだと、
+クッキーが暗号化されていて、sqlite3.exeを使ったクッキーの取得ができませんでした。
+Firefoxを使うか、user_sessionの値を直接書き込むかすれば使えると思います。
 
 ## メイン/ポストフィルタ
 
