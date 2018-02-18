@@ -89,6 +89,8 @@ namespace Amatsukaze.Server
         public string ChapterExePath { get; set; }
         [DataMember]
         public string JoinLogoScpPath { get; set; }
+        [DataMember]
+        public string NicoConvASSPath { get; set; }
 
         [DataMember]
         public string FilterPath { get; set; }
@@ -134,6 +136,10 @@ namespace Amatsukaze.Server
         public bool DisableHashCheck { get; set; }
         [DataMember]
         public bool HideOneSeg { get; set; }
+        [DataMember]
+        public bool EnableNicoJK { get; set; }
+        [DataMember]
+        public bool IgnoreNicoJKError { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -413,6 +419,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool Chapter { get; set; }
         [DataMember]
+        public bool NicoJK { get; set; }
+        [DataMember]
         public int OutputMask { get; set; }
         [DataMember]
         public string ServiceName { get; set; }
@@ -491,6 +499,7 @@ namespace Amatsukaze.Server
         }
         public string DisplayLogo { get { return (LogoFiles != null && LogoFiles.Count > 0) ? LogoFiles[0] : "なし"; } }
         public string DisplayChapter { get { return Chapter ? "○" : "☓"; } }
+        public string DisplayNicoJK { get { return NicoJK ? "○" : "☓"; } }
         public string DisplayOutputMask {
             get {
                 switch(OutputMask)

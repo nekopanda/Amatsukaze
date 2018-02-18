@@ -46,7 +46,7 @@ public:
 		psWriter.setHandler(&writeHandler);
 	}
 
-	StreamReformInfo split()
+	StreamReformInfo split(std::vector<NicoJKLine>& nicoJKList)
 	{
 		readAll();
 
@@ -54,7 +54,7 @@ public:
 		printInteraceCount();
 
 		return StreamReformInfo(ctx, videoFileCount_,
-			videoFrameList_, audioFrameList_, captionTextList_, streamEventList_);
+			videoFrameList_, audioFrameList_, captionTextList_, streamEventList_, nicoJKList);
 	}
 
 	int64_t getSrcFileSize() const {
@@ -743,6 +743,7 @@ private:
 
 struct EncodeFileInfo {
 	std::string outPath;
+	std::vector<std::string> outSubs; // 外部ファイルで出力された字幕
 	int64_t fileSize;
 	double srcBitrate;
 	double targetBitrate;
@@ -1288,10 +1289,12 @@ public:
 		, audioCache_(ctx, setting.getAudioFilePath(), reformInfo.getAudioFileOffsets(), 12, 4)
 	{ }
 
-	int64_t mux(int videoFileIndex, int encoderIndex, CMType cmtype,
+	void mux(int videoFileIndex, int encoderIndex, CMType cmtype,
 		const VideoFormat& fvfmt, // フィルタ出力フォーマット
 		const EncoderOptionInfo& eoInfo, // エンコーダオプション情報
-		const std::string& outFilePath)
+		const OutPathGenerator& pathgen, // パス生成器
+		bool nicoOK,
+		EncodeFileInfo& outFilePath) // 出力情報
 	{
 		auto fmt = reformInfo_.getFormat(encoderIndex, videoFileIndex);
 		auto vfmt = fvfmt;
@@ -1370,12 +1373,36 @@ public:
 		// 字幕ファイル
 		std::vector<std::string> subsFiles;
 		std::vector<std::string> subsTitles;
+		if (nicoOK) {
+			auto srcsub = setting_.getTmpNicoJKASSPath(
+				videoFileIndex, encoderIndex, (CMType)cmtype);
+			if(setting_.getFormat() == FORMAT_MKV) {
+				subsFiles.push_back(srcsub);
+				subsTitles.push_back("NicoJK");
+			}
+			else { // MP4の場合は別ファイルとしてコピー
+				auto dstsub = pathgen.getOutASSPath(-1);
+				File::copy(srcsub, dstsub);
+				outFilePath.outSubs.push_back(dstsub);
+			}
+		}
+		if (nicoOK && setting_.getFormat() == FORMAT_MKV) {
+			subsFiles.push_back(setting_.getTmpNicoJKASSPath(
+				videoFileIndex, encoderIndex, (CMType)cmtype));
+			subsTitles.push_back("NicoJK");
+		}
 		auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
 		for (int lang = 0; lang < capList.size(); ++lang) {
+			auto srcsub = setting_.getTmpASSFilePath(
+				videoFileIndex, encoderIndex, lang, (CMType)cmtype);
 			if (setting_.getFormat() == FORMAT_MKV) {
-				subsFiles.push_back(setting_.getTmpASSFilePath(
-					videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+				subsFiles.push_back(srcsub);
 				subsTitles.push_back("ASS");
+			}
+			else { // MP4の場合は別ファイルとしてコピー
+				auto dstsub = pathgen.getOutASSPath(lang);
+				File::copy(srcsub, dstsub);
+				outFilePath.outSubs.push_back(dstsub);
 			}
 			subsFiles.push_back(setting_.getTmpSRTFilePath(
 				videoFileIndex, encoderIndex, lang, (CMType)cmtype));
@@ -1392,17 +1419,18 @@ public:
 		}
 
 		std::string tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
+		outFilePath.outPath = pathgen.getOutFilePath();
 
 		auto args = makeMuxerArgs(
 			setting_.getFormat(),
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, vfmt, audioFiles, 
-			outFilePath, tmpOutPath, chapterFile,
+			outFilePath.outPath, tmpOutPath, chapterFile,
 			timecodeFile, timebase, subsFiles, subsTitles);
 
 		for (int i = 0; i < (int)args.size(); ++i) {
-			ctx.info(args[i].c_str());
-			MySubProcess muxer(args[i]);
+			ctx.info(args[i].first.c_str());
+			StdRedirectedSubProcess muxer(args[i].first, args[i].second);
 			int ret = muxer.join();
 			if (ret != 0) {
 				THROWF(RuntimeException, "mux failed (exit code: %d)", ret);
@@ -1411,22 +1439,11 @@ public:
 			ctx.setDefaultCP();
 		}
 
-		File outfile(outFilePath, "rb");
-		return outfile.size();
+		File outfile(outFilePath.outPath, "rb");
+		outFilePath.fileSize = outfile.size();
 	}
 
 private:
-	class MySubProcess : public EventBaseSubProcess {
-	public:
-		MySubProcess(const std::string& args) : EventBaseSubProcess(args) { }
-	protected:
-		virtual void onOut(bool isErr, MemoryChunk mc) {
-			// これはマルチスレッドで呼ばれるの注意
-			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
-			fflush(isErr ? stderr : stdout);
-		}
-	};
-
 	class SpDualMonoSplitter : public DualMonoSplitter
 	{
 		std::unique_ptr<File> file[2];
@@ -1471,10 +1488,10 @@ public:
 			std::string(), std::string(), std::string(), std::pair<int, int>(), 
 			std::vector<std::string>(), std::vector<std::string>());
 		ctx.info("[Mux開始]");
-		ctx.info(args[0].c_str());
+		ctx.info(args[0].first.c_str());
 
 		{
-			MySubProcess muxer(args[0]);
+			MySubProcess muxer(args[0].first);
 			int ret = muxer.join();
 			if (ret != 0) {
 				THROWF(RuntimeException, "mux failed (muxer exit code: %d)", ret);
@@ -1514,13 +1531,28 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
 	PrintEncoderInfo(ctx, eoInfo);
 
+	NicoJK nicoJK(ctx, setting);
+	bool nicoOK = false;
+	if (setting.isNicoJKEnabled()) {
+		ctx.info("[ニコニコ実況コメント取得]");
+		nicoOK = nicoJK.makeASS();
+		if (nicoOK == false) {
+			if (nicoJK.isFail() == false) {
+				ctx.info("対応チャンネルがありません");
+			}
+			else if (setting.isIgnoreNicoJKError() == false) {
+				THROW(RuntimeException, "ニコニコ実況コメント取得に失敗");
+			}
+		}
+	}
+
 	Stopwatch sw;
 	sw.start();
 	auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
 	if (setting.getServiceId() > 0) {
 		splitter->setServiceId(setting.getServiceId());
 	}
-	StreamReformInfo reformInfo = splitter->split();
+	StreamReformInfo reformInfo = splitter->split(nicoJK.getDialogues());
 	ctx.info("TS解析完了: %.2f秒", sw.getAndReset());
 	int64_t numTotalPackets = splitter->getNumTotalPackets();
 	int64_t numScramblePackets = splitter->getNumScramblePackets();
@@ -1608,6 +1640,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		videoFileIndex < numVideoFiles; ++videoFileIndex) {
 		CaptionASSFormatter formatterASS(ctx);
 		CaptionSRTFormatter formatterSRT(ctx);
+		NicoJKFormatter formatterNicoJK(ctx);
 		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
 		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentEncoderFile) {
 			for (CMType cmtype : setting.getCMTypes()) {
@@ -1619,6 +1652,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 					WriteUTF8File(
 						setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, (CMType)cmtype),
 						formatterSRT.generate(capList[lang]));
+				}
+				if (nicoOK) {
+					File file(setting.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, (CMType)cmtype), "w");
+					auto text = formatterNicoJK.generate(nicoJK.getHeaderLines(),
+						reformInfo.getOutNicoJKList(encoderIndex, videoFileIndex, (CMType)cmtype));
+					file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
 				}
 			}
 		}
@@ -1710,13 +1749,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 					continue;
 
 				auto& info = outFileInfo[currentOutFile++];
-				info.outPath = setting.getOutFilePath(
-					outFileMapping[outIndex], (i == 0) ? CMTYPE_BOTH : cmtype);
 
 				ctx.info("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
-				info.fileSize = muxer->mux(
+				muxer->mux(
 					videoFileIndex, encoderIndex, cmtype,
-					outfiles[outIndex], eoInfo, info.outPath);
+					outfiles[outIndex], eoInfo, OutPathGenerator(setting,
+						outFileMapping[outIndex], (i == 0) ? CMTYPE_BOTH : cmtype), nicoOK, info);
 
 				totalOutSize += info.fileSize;
 			}
@@ -1738,9 +1776,15 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		for (int i = 0; i < (int)outFileInfo.size(); ++i) {
 			if (i > 0) sb.append(", ");
 			const auto& info = outFileInfo[i];
-			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d, \"outfilesize\": %lld }",
+			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d, \"outfilesize\": %lld, ",
 				toJsonString(info.outPath), (int)info.srcBitrate, 
 				std::isnan(info.targetBitrate) ? -1 : (int)info.targetBitrate, info.fileSize);
+			sb.append("\"subs\": [");
+			for (int s = 0; s < (int)info.outSubs.size(); ++s) {
+				if (s > 0) sb.append(", ");
+				sb.append("\"%s\"", toJsonString(info.outSubs[s]));
+			}
+			sb.append("] }");
 		}
 		sb.append("]")
 			.append(", \"logofiles\": [");
@@ -1760,6 +1804,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			sb.append(", \"%s\": %d", pair.first, pair.second);
 		}
 		sb.append(", \"cmanalyze\": %s", (setting.isChapterEnabled() ? "true" : "false"))
+			.append(", \"nicojk\": %s", (nicoOK ? "true" : "false"))
 			.append(" }");
 
 		std::string str = sb.str();

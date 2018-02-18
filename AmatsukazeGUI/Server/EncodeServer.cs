@@ -501,6 +501,10 @@ namespace Amatsukaze.Server
                 foreach (var file in json.outfiles)
                 {
                     outpath.Add(file.path);
+                    foreach (var sub in file.subs)
+                    {
+                        outpath.Add(sub);
+                    }
                 }
                 var logofiles = new List<string>();
                 foreach (var logo in json.logofiles)
@@ -534,6 +538,7 @@ namespace Amatsukaze.Server
                         MaxDiffPos = json.audiodiff.maxdiffpos
                     },
                     Chapter = json.cmanalyze,
+                    NicoJK = json.nicojk,
                     OutputMask = outputMask,
                     ServiceName = src.ServiceName,
                     ServiceId = src.ServiceId,
@@ -1541,6 +1546,17 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --subtitles");
             }
+            if (appData.setting.EnableNicoJK)
+            {
+                sb.Append(" --nicojk");
+                if(appData.setting.IgnoreNicoJKError)
+                {
+                    sb.Append(" --ignore-nicojk-error");
+                }
+                sb.Append(" --nicoass \"")
+                    .Append(appData.setting.NicoConvASSPath)
+                    .Append("\"");
+            }
 
             if (string.IsNullOrEmpty(jlscommand) == false)
             {
@@ -1679,7 +1695,7 @@ namespace Amatsukaze.Server
             string encoderPath = GetEncoderPath(setting);
             if (string.IsNullOrEmpty(encoderPath))
             {
-                throw new ArgumentException("エンコーダパスが指定されていません");
+                throw new ArgumentException("エンコーダパスが設定されていません");
             }
             if (!File.Exists(encoderPath))
             {
@@ -1691,7 +1707,7 @@ namespace Amatsukaze.Server
             {
                 if (string.IsNullOrEmpty(setting.MuxerPath))
                 {
-                    throw new ArgumentException("L-SMASH Muxerパスが指定されていません");
+                    throw new ArgumentException("L-SMASH Muxerパスが設定されていません");
                 }
                 if (!File.Exists(setting.MuxerPath))
                 {
@@ -1709,7 +1725,7 @@ namespace Amatsukaze.Server
                 }
                 if (string.IsNullOrEmpty(setting.TimelineEditorPath))
                 {
-                    throw new ArgumentException("Timelineeditorパスが指定されていません");
+                    throw new ArgumentException("Timelineeditorパスが設定されていません");
                 }
                 if (!File.Exists(setting.TimelineEditorPath))
                 {
@@ -1721,7 +1737,7 @@ namespace Amatsukaze.Server
             {
                 if (string.IsNullOrEmpty(setting.MKVMergePath))
                 {
-                    throw new ArgumentException("MKVMergeパスが指定されていません");
+                    throw new ArgumentException("MKVMergeパスが設定されていません");
                 }
                 if (!File.Exists(setting.MKVMergePath))
                 {
@@ -1734,7 +1750,7 @@ namespace Amatsukaze.Server
             {
                 if (string.IsNullOrEmpty(setting.ChapterExePath))
                 {
-                    throw new ArgumentException("ChapterExeパスが指定されていません");
+                    throw new ArgumentException("ChapterExeパスが設定されていません");
                 }
                 if (!File.Exists(setting.ChapterExePath))
                 {
@@ -1743,12 +1759,25 @@ namespace Amatsukaze.Server
                 }
                 if (string.IsNullOrEmpty(setting.JoinLogoScpPath))
                 {
-                    throw new ArgumentException("JoinLogoScpパスが指定されていません");
+                    throw new ArgumentException("JoinLogoScpパスが設定されていません");
                 }
                 if (!File.Exists(setting.JoinLogoScpPath))
                 {
                     throw new InvalidOperationException(
                         "JoinLogoScpパスが無効です: " + setting.JoinLogoScpPath);
+                }
+            }
+
+            if(setting.EnableNicoJK)
+            {
+                if (string.IsNullOrEmpty(setting.NicoConvASSPath))
+                {
+                    throw new ArgumentException("NicoConvASSパスが設定されていません");
+                }
+                if (!File.Exists(setting.NicoConvASSPath))
+                {
+                    throw new InvalidOperationException(
+                        "NicoConvASSパスが無効です: " + setting.NicoConvASSPath);
                 }
             }
         }

@@ -906,15 +906,19 @@ void ConcatFiles(const std::vector<std::string>& srcpaths, const std::string& ds
 	}
 }
 
-void WriteUTF8File(const std::string& filename, const std::wstring& text)
+// BOMÇ†ÇËUTF8Ç≈èëÇ´çûÇﬁ
+void WriteUTF8File(const std::string& filename, const std::string& utf8text)
 {
-	// BOMÇ†ÇËUTF8Ç≈èëÇ´çûÇﬁ
-	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	auto utf8text = converter.to_bytes(text);
 	File file(filename, "w");
 	uint8_t bom[] = { 0xEF, 0xBB, 0xBF };
 	file.write(MemoryChunk(bom, sizeof(bom)));
 	file.write(MemoryChunk((uint8_t*)utf8text.data(), utf8text.size()));
+}
+
+void WriteUTF8File(const std::string& filename, const std::wstring& text)
+{
+	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+	WriteUTF8File(filename, converter.to_bytes(text));
 }
 
 // C API for P/Invoke

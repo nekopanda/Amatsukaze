@@ -161,22 +161,6 @@ struct CaptionItem {
 	}
 };
 
-void WriteCaptions(const File& file, const std::vector<CaptionItem>& captions) {
-	file.writeValue((int)captions.size());
-	for (int i = 0; i < (int)captions.size(); ++i) {
-		captions[i].Write(file);
-	}
-}
-
-std::vector<CaptionItem> ReadCaptions(const File& file) {
-	int num = file.readValue<int>();
-	std::vector<CaptionItem> ret(num);
-	for (int i = 0; i < num; ++i) {
-		ret[i] = CaptionItem::Read(file);
-	}
-	return ret;
-}
-
 // ”¼Šp’uŠ·‰Â”\•¶ŽšƒŠƒXƒg
 // ‹L†‚ÍJISX0213 1–Ê1‹æ‚Ì‚¤‚¿ƒOƒŠƒt‚ª—pˆÓ‚³‚ê‚Ä‚¢‚é‰Â”\«‚ª\•ª‚‚»‚¤‚È‚à‚Ì‚¾‚¯
 static const LPCWSTR HALF_F_LIST = L"@ABCDEFGHIOQ^bimnopu{|ƒ„“”•–—‚O‚`‚";

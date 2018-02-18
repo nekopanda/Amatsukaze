@@ -84,15 +84,18 @@ static void printHelp(const tchar* bin) {
 		"                      使用可能デコーダ: default,QSV,CUVID\n"
 		"  --chapter           チャプター・CM解析を行う\n"
 		"  --subtitles         字幕を処理する\n"
+		"  --nicojk            ニコニコ実況コメントを追加する\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
 		"  --drcs <パス>       DRCSマッピングファイルパス\n"
 		"  --ignore-no-drcsmap マッピングにないDRCS外字があっても処理を続行する\n"
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
+		"  --ignore-nicojk-error ニコニコ実況取得でエラーが発生しても処理を続行する\n"
 		"  --no-delogo         ロゴ消しをしない（デフォルトはロゴがある場合は消します）\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
 		"  --jls-option <オプション>    join_logo_scpのコマンドファイルへのパス\n"
+		"  --nicoass <パス>     NicoConvASSへのパス\n"
 		"  -om|--cmoutmask <数値> 出力マスク[1]\n"
 		"                      1 : 通常\n"
 		"                      2 : CMをカット\n"
@@ -197,6 +200,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.mp4boxPath = "mp4box.exe";
 	conf.chapterExePath = "chapter_exe.exe";
 	conf.joinLogoScpPath = "join_logo_scp.exe";
+	conf.nicoConvAssPath = "NicoConvASS.exe";
 	conf.drcsOutPath = moduleDir + "\\..\\drcs";
 	conf.drcsMapPath = conf.drcsOutPath + "\\drcs_map.txt";
 	conf.joinLogoScpCmdPath = moduleDir + "\\..\\JL\\JL_標準.txt";
@@ -283,6 +287,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--subtitles")) {
 			conf.subtitles = true;
 		}
+		else if (key == _T("--nicojk")) {
+			conf.nicojk = true;
+		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
 			conf.muxerPath = to_string(getParam(argc, argv, i++));
 		}
@@ -332,6 +339,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--ignore-no-drcsmap")) {
 			conf.ignoreNoDrcsMap = true;
 		}
+		else if (key == _T("--ignore-nicojk-error")) {
+			conf.ignoreNicoJKError = true;
+		}
 		else if (key == _T("--no-delogo")) {
 			conf.noDelogo = true;
 		}
@@ -357,6 +367,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--jls-option")) {
 			conf.joinLogoScpOptions = to_string(getParam(argc, argv, i++));
+		}
+		else if (key == _T("--nicoass")) {
+			conf.nicoConvAssPath = to_string(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-om") || key == _T("--cmoutmask")) {
 			conf.cmoutmask = std::stol(getParam(argc, argv, i++));
@@ -420,6 +433,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.chapterExePath = SearchExe(conf.chapterExePath);
 	conf.encoderPath = SearchExe(conf.encoderPath);
 	conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
+	conf.nicoConvAssPath = SearchExe(conf.nicoConvAssPath);
 	conf.mp4boxPath = SearchExe(conf.mp4boxPath);
 	conf.muxerPath = SearchExe(conf.muxerPath);
 	conf.timelineditorPath = SearchExe(conf.timelineditorPath);

@@ -147,3 +147,57 @@ public:
 			reinterpret_cast<const wchar_t*>(mc.data + mc.length));
 	}
 };
+
+class UTF8Converter
+{
+public:
+	UTF8Converter() : searchIdx(0) { }
+
+	void AddBytes(MemoryChunk utf8) {
+		buffer.add(utf8);
+		while (SearchLineBreak());
+	}
+
+	void Flush() {
+		if (buffer.size() > 0) {
+			OnTextLine(Utf8ToWstring(buffer.ptr(), (int)buffer.size()));
+			buffer.clear();
+		}
+	}
+
+protected:
+	AutoBuffer buffer;
+	int searchIdx;
+
+	virtual void OnTextLine(const std::vector<char>& line) = 0;
+
+	std::vector<char> Utf8ToWstring(const uint8_t* ptr, int sz) {
+		int dstlen = MultiByteToWideChar(
+			CP_UTF8, 0, (const char*)ptr, sz, nullptr, 0);
+		std::vector<wchar_t> w(dstlen);
+		MultiByteToWideChar(
+			CP_UTF8, 0, (const char*)ptr, sz, w.data(), (int)w.size());
+		dstlen = WideCharToMultiByte(
+			CP_ACP, 0, w.data(), (int)w.size(), nullptr, 0, nullptr, nullptr);
+		std::vector<char> ret(dstlen);
+		WideCharToMultiByte(CP_ACP, 0,
+			w.data(), (int)w.size(), ret.data(), (int)ret.size(), nullptr, nullptr);
+		return ret;
+	}
+
+	bool SearchLineBreak() {
+		const uint8_t* ptr = buffer.ptr();
+		for (int i = searchIdx; i < buffer.size(); ++i) {
+			if (ptr[i] == '\n') {
+				int len = i;
+				if (len > 0 && ptr[len - 1] == '\r') --len;
+				OnTextLine(Utf8ToWstring(ptr, len));
+				buffer.trimHead(i + 1);
+				searchIdx = 0;
+				return true;
+			}
+		}
+		searchIdx = (int)buffer.size();
+		return false;
+	}
+};

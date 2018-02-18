@@ -143,7 +143,7 @@ private:
 		int h = (int)(totalMin / 60);
 		int m = (int)totalMin % 60;
 		double sec = totalSec - (int)totalMin * 60;
-		sb.append(L"%d:%02d:%02.2f", h, m, sec);
+		sb.append(L"%d:%02d:%05.2f", h, m, sec);
 	}
 
 	void setPos(int x, int y) {

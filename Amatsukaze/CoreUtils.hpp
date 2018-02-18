@@ -428,6 +428,27 @@ public:
 		}
 		return false;
 	}
+	static void copy(const std::string& srcpath, const std::string& dstpath) {
+		CopyFileA(srcpath.c_str(), dstpath.c_str(), FALSE);
+	}
 private:
 	FILE* fp_;
 };
+
+template <typename T>
+void WriteArray(const File& file, const std::vector<T>& arr) {
+	file.writeValue((int)arr.size());
+	for (int i = 0; i < (int)arr.size(); ++i) {
+		arr[i].Write(file);
+	}
+}
+
+template <typename T>
+std::vector<T> ReadArray(const File& file) {
+	int num = file.readValue<int>();
+	std::vector<T> ret(num);
+	for (int i = 0; i < num; ++i) {
+		ret[i] = T::Read(file);
+	}
+	return ret;
+}

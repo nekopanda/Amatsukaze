@@ -71,6 +71,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="録画日"/>
                     <TextBlock HorizontalAlignment="Left" Text="チャンネル"/>
                     <TextBlock HorizontalAlignment="Left" Text="チャプター・CM解析"/>
+                    <TextBlock HorizontalAlignment="Left" Text="ニコニコ実況コメント"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力"/>
                     <TextBlock HorizontalAlignment="Left" Text="ロゴファイル"/>
                     <TextBlock HorizontalAlignment="Left" Text="開始"/>
@@ -87,6 +88,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTsTime}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayNicoJK}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutputMask}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayLogo}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeStart}"/>

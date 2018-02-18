@@ -166,7 +166,7 @@ static std::string makeEncoderArgs(
 	return sb.str();
 }
 
-static std::vector<std::string> makeMuxerArgs(
+static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 	ENUM_FORMAT format,
 	const std::string& binpath,
 	const std::string& timelineeditorpath,
@@ -182,7 +182,7 @@ static std::vector<std::string> makeMuxerArgs(
 	const std::vector<std::string>& inSubs,
 	const std::vector<std::string>& subsTitles)
 {
-	std::vector<std::string> ret;
+	std::vector<std::pair<std::string, bool>> ret;
 
 	StringBuilder sb;
 	sb.append("\"%s\"", binpath);
@@ -213,7 +213,7 @@ static std::vector<std::string> makeMuxerArgs(
 		std::string dst = needTimecode ? tmpoutpath : outpath;
 		sb.append(" -o \"%s\"", dst);
 
-		ret.push_back(sb.str());
+		ret.push_back(std::make_pair(sb.str(), false));
 		sb.clear();
 
 		if (needTimecode) {
@@ -225,7 +225,7 @@ static std::vector<std::string> makeMuxerArgs(
 				.append(" --media-timebase %d", timebase.second)
 				.append(" \"%s\"", dst)
 				.append(" \"%s\"", outpath);
-			ret.push_back(sb.str());
+			ret.push_back(std::make_pair(sb.str(), false));
 			sb.clear();
 			needTimecode = false;
 		}
@@ -245,7 +245,7 @@ static std::vector<std::string> makeMuxerArgs(
 				needChapter = false;
 			}
 			sb.append(" \"%s\"", outpath);
-			ret.push_back(sb.str());
+			ret.push_back(std::make_pair(sb.str(), true));
 			sb.clear();
 		}
 	}
@@ -269,7 +269,7 @@ static std::vector<std::string> makeMuxerArgs(
 			sb.append(" --track-name \"0:%s\" \"%s\"", subsTitles[i], inSubs[i]);
 		}
 
-		ret.push_back(sb.str());
+		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
 	}
 
@@ -408,12 +408,14 @@ struct Config {
 	std::string muxerPath;
 	std::string timelineditorPath;
 	std::string mp4boxPath;
+	std::string nicoConvAssPath;
 	ENUM_FORMAT format;
 	bool splitSub;
 	bool twoPass;
 	bool autoBitrate;
 	bool chapter;
 	bool subtitles;
+	bool nicojk;
 	BitrateSetting bitrate;
 	double bitrateCM;
 	int serviceId;
@@ -422,6 +424,7 @@ struct Config {
 	std::vector<std::string> logoPath;
 	bool ignoreNoLogo;
 	bool ignoreNoDrcsMap;
+	bool ignoreNicoJKError;
 	bool noDelogo;
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
@@ -502,6 +505,10 @@ public:
 		return conf.mp4boxPath;
 	}
 
+	std::string getNicoConvAssPath() const {
+		return conf.nicoConvAssPath;
+	}
+
 	bool isSplitSub() const {
 		return conf.splitSub;
 	}
@@ -520,6 +527,10 @@ public:
 
 	bool isSubtitlesEnabled() const {
 		return conf.subtitles;
+	}
+
+	bool isNicoJKEnabled() const {
+		return conf.nicojk;
 	}
 
 	BitrateSetting getBitrate() const {
@@ -548,6 +559,10 @@ public:
 
 	bool isIgnoreNoDrcsMap() const {
 		return conf.ignoreNoDrcsMap;
+	}
+
+	bool isIgnoreNicoJKError() const {
+		return conf.ignoreNicoJKError;
 	}
 
 	bool isNoDelogo() const {
@@ -669,6 +684,15 @@ public:
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
+	std::string getTmpNicoJKASSPath() const {
+		return regtmp(StringFormat("%s/nicojk.ass", tmpDir.path()));
+	}
+
+	std::string getTmpNicoJKASSPath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/nicojk%d-%d%s.ass",
+			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	}
+
 	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat("%s/t%d-%d%s.mp4", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
@@ -688,6 +712,23 @@ public:
 			sb.append("-%d", index);
 		}
 		sb.append("%s.%s", GetCMSuffix(cmtype), getOutputExtention());
+		return sb.str();
+	}
+
+	std::string getOutASSPath(int index, int langidx, CMType cmtype) const {
+		StringBuilder sb;
+		sb.append("%s", conf.outVideoPath);
+		if (index != 0) {
+			sb.append("-%d", index);
+		}
+		sb.append("%s", GetCMSuffix(cmtype));
+		if (langidx < 0) {
+			sb.append("-nicojk");
+		}
+		else if (langidx > 0) {
+			sb.append("-%d", langidx);
+		}
+		sb.append(".ass");
 		return sb.str();
 	}
 
@@ -812,3 +853,21 @@ private:
 	}
 };
 
+class OutPathGenerator {
+public:
+	OutPathGenerator(const ConfigWrapper& setting, int index, CMType cmtype)
+		: setting_(setting)
+		, index_(index)
+		, cmtype_(cmtype)
+	{ }
+	std::string getOutFilePath() const {
+		return setting_.getOutFilePath(index_, cmtype_);
+	}
+	std::string getOutASSPath(int langidx) const {
+		return setting_.getOutASSPath(index_, langidx, cmtype_);
+	}
+private:
+	const ConfigWrapper& setting_;
+	int index_;
+	CMType cmtype_;
+};

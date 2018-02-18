@@ -172,6 +172,27 @@ struct OutCaptionLine {
 
 typedef std::vector<std::vector<OutCaptionLine>> OutCaptionList;
 
+struct NicoJKLine {
+	double start, end;
+	std::string line;
+
+	void Write(const File& file) const {
+		file.writeValue(start);
+		file.writeValue(end);
+		file.writeString(line);
+	}
+
+	static NicoJKLine Read(const File& file) {
+		NicoJKLine item;
+		item.start = file.readValue<double>();
+		item.end = file.readValue<double>();
+		item.line = file.readString();
+		return item;
+	}
+};
+
+typedef std::vector<NicoJKLine> NicoJKList;
+
 class StreamReformInfo : public AMTObject {
 public:
 	StreamReformInfo(
@@ -180,13 +201,15 @@ public:
 		std::vector<FileVideoFrameInfo>& videoFrameList,
 		std::vector<FileAudioFrameInfo>& audioFrameList,
 		std::vector<CaptionItem>& captionList,
-		std::vector<StreamEvent>& streamEventList)
+		std::vector<StreamEvent>& streamEventList,
+		std::vector<NicoJKLine>& nicoJKList)
 		: AMTObject(ctx)
 		, numVideoFile_(numVideoFile)
 		, videoFrameList_(std::move(videoFrameList))
 		, audioFrameList_(std::move(audioFrameList))
 		, captionItemList_(std::move(captionList))
 		, streamEventList_(std::move(streamEventList))
+		, nicoJKList_(std::move(nicoJKList))
 		, isVFR_(false)
 		, hasRFF_(false)
 		, srcTotalDuration_()
@@ -292,7 +315,14 @@ public:
 		int encoderIndex, int videoFileIndex, CMType cmtype) const
 	{
 		int fileId = videoFileStartIndex_[videoFileIndex] + encoderIndex;
-		return *reformedCationLinst_[fileId][cmtype].get();
+		return *reformedCationList_[fileId][cmtype].get();
+	}
+
+	const NicoJKList& getOutNicoJKList(
+		int encoderIndex, int videoFileIndex, CMType cmtype) const
+	{
+		int fileId = videoFileStartIndex_[videoFileIndex] + encoderIndex;
+		return *reformedNicoJKList_[fileId][cmtype].get();
 	}
 
 	// TODO: VFR用タイムコード取得
@@ -370,8 +400,9 @@ public:
 		file.writeValue(numVideoFile_);
 		file.writeArray(videoFrameList_);
 		file.writeArray(audioFrameList_);
-		WriteCaptions(file, captionItemList_);
+		WriteArray(file, captionItemList_);
 		file.writeArray(streamEventList_);
+		WriteArray(file, nicoJKList_);
 	}
 
 	static StreamReformInfo deserialize(AMTContext& ctx, const std::string& path) {
@@ -382,10 +413,11 @@ public:
 		int numVideoFile = file.readValue<int>();
 		auto videoFrameList = file.readArray<FileVideoFrameInfo>();
 		auto audioFrameList = file.readArray<FileAudioFrameInfo>();
-		auto captionList = ReadCaptions(file);
+		auto captionList = ReadArray<CaptionItem>(file);
 		auto streamEventList = file.readArray<StreamEvent>();
+		auto nicoJKList = ReadArray<NicoJKLine>(file);
 		return StreamReformInfo(ctx,
-			numVideoFile, videoFrameList, audioFrameList, captionList, streamEventList);
+			numVideoFile, videoFrameList, audioFrameList, captionList, streamEventList, nicoJKList);
 	}
 
 private:
@@ -400,6 +432,7 @@ private:
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<CaptionItem> captionItemList_;
 	std::vector<StreamEvent> streamEventList_;
+	std::vector<NicoJKLine> nicoJKList_;
 
 	// 計算データ
 	bool isVFR_;
@@ -450,7 +483,8 @@ private:
 	double outTotalDuration_;
 
 	// 字幕構築用
-	std::vector<std::array<std::unique_ptr<OutCaptionList>, CMTYPE_MAX>> reformedCationLinst_;
+	std::vector<std::array<std::unique_ptr<OutCaptionList>, CMTYPE_MAX>> reformedCationList_;
+	std::vector<std::array<std::unique_ptr<NicoJKList>, CMTYPE_MAX>> reformedNicoJKList_;
 
 	void reformMain(bool splitSub)
 	{
@@ -484,10 +518,33 @@ private:
 			THROW(FormatException, "このバージョンはVFRに対応していません");
 		}
 
-		// ラップアラウンドしないPTSを生成
-		makeModifiedPTS(modifiedPTS_, videoFrameList_);
-		makeModifiedPTS(modifiedAudioPTS_, audioFrameList_);
-		makeModifiedPTS(modifiedCaptionPTS_, captionItemList_);
+		// 各コンポーネント開始PTSを映像フレーム基準のラップアラウンドしないPTSに変換
+		//（これをやらないと開始フレーム同士が間にラップアラウンドを挟んでると比較できなくなる）
+		std::vector<int64_t> startPTSs;
+		startPTSs.push_back(videoFrameList_[0].PTS);
+		startPTSs.push_back(audioFrameList_[0].PTS);
+		if (captionItemList_.size() > 0) {
+			startPTSs.push_back(captionItemList_[0].PTS);
+		}
+		int64_t modifiedStartPTS[3];
+		int64_t prevPTS = startPTSs[0];
+		for (int i = 0; i < int(startPTSs.size()); ++i) {
+			int64_t PTS = startPTSs[i];
+			int64_t modPTS = prevPTS + int64_t((int32_t(PTS) - int32_t(prevPTS)));
+			modifiedStartPTS[i] = modPTS;
+			prevPTS = modPTS;
+		}
+
+		// 各コンポーネントのラップアラウンドしないPTSを生成
+		makeModifiedPTS(modifiedStartPTS[0], modifiedPTS_, videoFrameList_);
+		makeModifiedPTS(modifiedStartPTS[1], modifiedAudioPTS_, audioFrameList_);
+		makeModifiedPTS(modifiedStartPTS[2], modifiedCaptionPTS_, captionItemList_);
+
+		// ニコニコ実況コメントに開始映像オフセットを加算
+		for (auto& elem : nicoJKList_) {
+			elem.start += modifiedStartPTS[0];
+			elem.end += modifiedStartPTS[0];
+		}
 
 		// audioFrameDuration_を生成
 		audioFrameDuration_.resize(audioFrameList_.size());
@@ -858,14 +915,14 @@ private:
 	}
 
 	template<typename I>
-	void makeModifiedPTS(std::vector<double>& modifiedPTS, const std::vector<I>& frames)
+	void makeModifiedPTS(int64_t modifiedFirstPTS, std::vector<double>& modifiedPTS, const std::vector<I>& frames)
 	{
 		// 前後のフレームのPTSに6時間以上のずれがあると正しく処理できない
 		if (frames.size() == 0) return;
 
 		// ラップアラウンドしないPTSを生成
 		modifiedPTS.resize(frames.size());
-		int64_t prevPTS = frames[0].PTS;
+		int64_t prevPTS = modifiedFirstPTS;
 		for (int i = 0; i < int(frames.size()); ++i) {
 			int64_t PTS = frames[i].PTS;
 			if (PTS == -1) {
@@ -1254,7 +1311,9 @@ private:
 	void genCaptionStream()
 	{
 		ctx.info("[字幕構築]");
-		reformedCationLinst_.clear();
+		reformedCationList_.clear();
+		reformedNicoJKList_.clear();
+
 		for (int fileId = 0; fileId < (int)fileFormatId_.size(); ++fileId) {
 			int videoId = outFormat_[fileFormatId_[fileId]].videoFileId;
 			auto& frames = filterFrameList_[videoId];
@@ -1277,10 +1336,10 @@ private:
 			}
 
 			// 出力字幕を生成
-			reformedCationLinst_.emplace_back();
-			auto& listItem = reformedCationLinst_.back();
+			reformedCationList_.emplace_back();
+			auto& clistItem = reformedCationList_.back();
 			for (int c = 0; c < CMTYPE_MAX; ++c) {
-				listItem[c] = std::unique_ptr<OutCaptionList>(new OutCaptionList());
+				clistItem[c] = std::unique_ptr<OutCaptionList>(new OutCaptionList());
 			}
 			for (int i = 0; i < (int)captionItemList_.size(); ++i) {
 				if (captionItemList_[i].line) { // クリア以外
@@ -1295,12 +1354,38 @@ private:
 							double startTime = frameTimes[c][start];
 							double endTime = frameTimes[c][end];
 							if (startTime < endTime) { // 表示時間のある場合のみ
-								if (langIndex >= listItem[c]->size()) { // 言語が足りない場合は広げる
-									listItem[c]->resize(langIndex + 1);
+								if (langIndex >= clistItem[c]->size()) { // 言語が足りない場合は広げる
+									clistItem[c]->resize(langIndex + 1);
 								}
 								OutCaptionLine outcap = { startTime, endTime, captionItemList_[i].line.get() };
-								listItem[c]->at(langIndex).push_back(outcap);
+								clistItem[c]->at(langIndex).push_back(outcap);
 							}
+						}
+					}
+				}
+			}
+
+			// ニコニコ実況コメントを生成
+			reformedNicoJKList_.emplace_back();
+			auto& nlistItem = reformedNicoJKList_.back();
+			for (int c = 0; c < CMTYPE_MAX; ++c) {
+				nlistItem[c] = std::unique_ptr<NicoJKList>(new NicoJKList());
+			}
+			double tick = MPEG_CLOCK_HZ / 10;
+			for (int i = 0; i < (int)nicoJKList_.size(); ++i) {
+				auto item = nicoJKList_[i];
+				auto start = std::lower_bound(frames.begin(), frames.end(), item.start,
+					[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
+				auto end = std::lower_bound(frames.begin(), frames.end(), item.end,
+					[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
+				if (start < end) { // 1フレーム以上表示時間のある場合のみ
+					for (int c = 0; c < CMTYPE_MAX; ++c) {
+						// 開始が含まれているか
+						if (c == 0 || frames[start].cmType == c) {
+							double startTime = frameTimes[c][start];
+							double endTime = frameTimes[c][end];
+							NicoJKLine outcomment = { startTime, endTime, item.line };
+							nlistItem[c]->push_back(outcomment);
 						}
 					}
 				}

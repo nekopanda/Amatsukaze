@@ -375,3 +375,49 @@ private:
 		}
 	}
 };
+
+class StdRedirectedSubProcess : public EventBaseSubProcess
+{
+public:
+	StdRedirectedSubProcess(const std::string& args, bool isUtf8 = false)
+		: EventBaseSubProcess(args)
+		, isUtf8(isUtf8)
+		, outConv(false)
+		, errConv(true)
+	{ }
+
+	~StdRedirectedSubProcess() {
+		if (isUtf8) {
+			outConv.Flush();
+			errConv.Flush();
+		}
+	}
+
+private:
+	class OutConv : public UTF8Converter
+	{
+	public:
+		OutConv(bool isErr) : isErr(isErr) { }
+	protected:
+		bool isErr;
+		virtual void OnTextLine(const std::vector<char>& line) {
+			auto out = isErr ? stderr : stdout;
+			fwrite(line.data(), line.size(), 1, out);
+			fprintf(out, "\n");
+			fflush(out);
+		}
+	};
+
+	bool isUtf8;
+	OutConv outConv, errConv;
+
+	virtual void onOut(bool isErr, MemoryChunk mc) {
+		if (isUtf8) {
+			(isErr ? errConv : outConv).AddBytes(mc);
+		}
+		else {
+			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
+			fflush(isErr ? stderr : stdout);
+		}
+	}
+};

@@ -716,6 +716,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region NicoConvASSPath変更通知プロパティ
+        public string NicoConvASSPath {
+            get { return setting.NicoConvASSPath; }
+            set { 
+                if (setting.NicoConvASSPath == value)
+                    return;
+                setting.NicoConvASSPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region FilterPath変更通知プロパティ
         public string FilterPath {
             get { return string.IsNullOrEmpty(setting.FilterPath) ? "フィルタなし" : setting.FilterPath; }
@@ -982,6 +994,30 @@ namespace Amatsukaze.Models
                 if (setting.IgnoreNoDrcsMap == value)
                     return;
                 setting.IgnoreNoDrcsMap = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableNicoJK変更通知プロパティ
+        public bool EnableNicoJK {
+            get { return setting.EnableNicoJK; }
+            set { 
+                if (setting.EnableNicoJK == value)
+                    return;
+                setting.EnableNicoJK = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IgnoreNicoJKError変更通知プロパティ
+        public bool IgnoreNicoJKError {
+            get { return setting.IgnoreNicoJKError; }
+            set { 
+                if (setting.IgnoreNicoJKError == value)
+                    return;
+                setting.IgnoreNicoJKError = value;
                 RaisePropertyChanged();
             }
         }
@@ -1439,6 +1475,7 @@ namespace Amatsukaze.Models
 
             ChapterExePath = setting.ChapterExePath;
             JoinLogoScpPath = setting.JoinLogoScpPath;
+            NicoConvASSPath = setting.NicoConvASSPath;
             FilterPath = setting.FilterPath;
             PostFilterPath = setting.PostFilterPath;
 
@@ -1457,6 +1494,8 @@ namespace Amatsukaze.Models
             DisableSubs = setting.DisableSubs;
             IgnoreNoDrcsMap = setting.IgnoreNoDrcsMap;
             NoDelogo = setting.NoDelogo;
+            EnableNicoJK = setting.EnableNicoJK;
+            IgnoreNicoJKError = setting.IgnoreNicoJKError;
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
             DisableHashCheck = setting.DisableHashCheck;
@@ -1515,7 +1554,7 @@ namespace Amatsukaze.Models
 
         public Task OnOperationResult(string result)
         {
-            CurrentOperationResult = result;
+            CurrentOperationResult = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + result;
             AddLog(result);
             return Task.FromResult(0);
         }
