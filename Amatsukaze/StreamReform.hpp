@@ -775,7 +775,7 @@ private:
 			int keyFrame = -1;
 			std::vector<FilterSourceFrame>& list = filterFrameList_[videoId];
 
-			auto& format = outFormat_[videoFormatStartIndex_[videoId]].videoFormat;
+			const auto& format = outFormat_[videoFormatStartIndex_[videoId]].videoFormat;
 			double timePerFrame = format.frameRateDenom * MPEG_CLOCK_HZ / (double)format.frameRateNum;
 
 			for (int i = 0; i < (int)videoFrameList_.size(); ++i) {
@@ -1014,7 +1014,6 @@ private:
 		ctx.info("[‰¹º\’z]");
 		for (int videoId = 0; videoId < numVideoFile_; ++videoId) {
 			auto& frames = filterFrameList_[videoId];
-			auto& format = outFormat_[videoFormatStartIndex_[videoId]].videoFormat;
 			for (int i = 0; i < (int)frames.size(); ++i) {
 				int ordered = ordredVideoFrame_[frames[i].frameIndex];
 				int fileId = frameFileId_[ordered];

@@ -1748,12 +1748,14 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) < MPEG_CLOCK_HZ)
 					continue;
 
-				auto& info = outFileInfo[currentOutFile++];
+				auto& info = outFileInfo[currentOutFile];
+				const auto& vfmt = outfiles[currentOutFile];
+				++currentOutFile;
 
 				ctx.info("[MuxŠJŽn] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
 				muxer->mux(
 					videoFileIndex, encoderIndex, cmtype,
-					outfiles[outIndex], eoInfo, OutPathGenerator(setting,
+					vfmt, eoInfo, OutPathGenerator(setting,
 						outFileMapping[outIndex], (i == 0) ? CMTYPE_BOTH : cmtype), nicoOK, info);
 
 				totalOutSize += info.fileSize;
