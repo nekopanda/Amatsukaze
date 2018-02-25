@@ -149,7 +149,7 @@ namespace NicoJK18Client
 
         private List<string> GetData(int slot, int num)
         {
-            var url = "http://nicojk18.sakura.ne.jp/v1/getcomment.rb?jknum=" + jknum + "&slot=" + slot + "&num=" + num;
+            var url = "http://nicojk18.sakura.ne.jp/api/v1/getcomment?jknum=" + jknum + "&slot=" + slot + "&num=" + num;
             var res = client.GetAsync(url).Result;
             if(res.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
@@ -198,6 +198,10 @@ namespace NicoJK18Client
         public void Exec()
         {
             var recvData = new List<string>();
+
+            var startDate = UNIX_EPOCH.AddSeconds(startTime).ToLocalTime();
+            var duration = UNIX_EPOCH.AddSeconds(endTime).ToLocalTime() - startDate;
+            Console.WriteLine(startDate.ToString("yyyy年MM月dd日 HH:mm:ss") + "から" + duration.ToString() + "取得します");
 
             // データ取得
             var startSlot = (int)(startTime / SLOT_DURATION);

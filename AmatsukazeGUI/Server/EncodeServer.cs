@@ -1291,6 +1291,7 @@ namespace Amatsukaze.Server
                         Bitrate = new BitrateSetting(),
                         BitrateCM = 0.5,
                         OutputMask = 1,
+                        NicoJKFormats = new bool[4] { true, false, false, false }
                     },
                     services = new ServiceSetting() {
                         ServiceMap = new Dictionary<int, ServiceSettingElement>()
@@ -1317,6 +1318,10 @@ namespace Amatsukaze.Server
                 if (appData.services.ServiceMap == null)
                 {
                     appData.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
+                }
+                if (appData.setting.NicoJKFormats == null)
+                {
+                    appData.setting.NicoJKFormats = new bool[4] { true, false, false, false };
                 }
             }
         }
@@ -1553,6 +1558,12 @@ namespace Amatsukaze.Server
                 {
                     sb.Append(" --ignore-nicojk-error");
                 }
+                if (appData.setting.NicoJK18)
+                {
+                    sb.Append(" --nicojk18");
+                }
+                sb.Append(" --nicojkmask ")
+                    .Append(appData.setting.NicoJKFormatMask);
                 sb.Append(" --nicoass \"")
                     .Append(appData.setting.NicoConvASSPath)
                     .Append("\"");

@@ -137,7 +137,7 @@ static int ReadTS(AMTContext& ctx, const ConfigWrapper& setting)
 		if (setting.getServiceId() > 0) {
 			splitter->setServiceId(setting.getServiceId());
 		}
-		StreamReformInfo reformInfo = splitter->split(std::vector<NicoJKLine>());
+		StreamReformInfo reformInfo = splitter->split();
 		reformInfo.serialize(setting.getStreamInfoPath());
 	}
 	catch (const Exception& e) {

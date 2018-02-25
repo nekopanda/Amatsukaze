@@ -7,6 +7,8 @@
 */
 #pragma once
 
+#include <time.h>
+
 #include <vector>
 #include <map>
 #include <memory>
@@ -191,7 +193,9 @@ struct NicoJKLine {
 	}
 };
 
-typedef std::vector<NicoJKLine> NicoJKList;
+typedef std::array<std::vector<NicoJKLine>, NICOJK_MAX> NicoJKList;
+
+typedef std::pair<int64_t, JSTTime> TimeInfo;
 
 class StreamReformInfo : public AMTObject {
 public:
@@ -202,18 +206,19 @@ public:
 		std::vector<FileAudioFrameInfo>& audioFrameList,
 		std::vector<CaptionItem>& captionList,
 		std::vector<StreamEvent>& streamEventList,
-		std::vector<NicoJKLine>& nicoJKList)
+		std::vector<TimeInfo>& timeList)
 		: AMTObject(ctx)
 		, numVideoFile_(numVideoFile)
 		, videoFrameList_(std::move(videoFrameList))
 		, audioFrameList_(std::move(audioFrameList))
 		, captionItemList_(std::move(captionList))
 		, streamEventList_(std::move(streamEventList))
-		, nicoJKList_(std::move(nicoJKList))
+		, timeList_(std::move(timeList))
 		, isVFR_(false)
 		, hasRFF_(false)
 		, srcTotalDuration_()
 		, outTotalDuration_()
+		, firstFrameTime_()
 	{ }
 
 	// 1.
@@ -228,6 +233,25 @@ public:
 		for (auto zone : cmzones) {
 			for (int i = zone.startFrame; i < zone.endFrame; ++i) {
 				frames[i].cmType = CMTYPE_CM;
+			}
+		}
+	}
+
+	time_t getFirstFrameTime() const {
+		return firstFrameTime_;
+	}
+
+	void SetNicoJKList(const std::array<std::vector<NicoJKLine>, NICOJK_MAX>& nicoJKList) {
+		for (int t = 0; t < NICOJK_MAX; ++t) {
+			nicoJKList_[t].resize(nicoJKList[t].size());
+			double startTime = dataPTS_.front();
+			for (int i = 0; i < (int)nicoJKList[t].size(); ++i) {
+				auto& src = nicoJKList[t][i];
+				auto& dst = nicoJKList_[t][i];
+				// 開始映像オフセットを加算
+				dst.start = src.start + startTime;
+				dst.end = src.end + startTime;
+				dst.line = src.line;
 			}
 		}
 	}
@@ -356,6 +380,10 @@ public:
 		return hasRFF_;
 	}
 
+	double getInDuration() const {
+		return srcTotalDuration_;
+	}
+
 	std::pair<double, double> getInOutDuration() const {
 		return std::make_pair(srcTotalDuration_, outTotalDuration_);
 	}
@@ -402,7 +430,7 @@ public:
 		file.writeArray(audioFrameList_);
 		WriteArray(file, captionItemList_);
 		file.writeArray(streamEventList_);
-		WriteArray(file, nicoJKList_);
+		file.writeArray(timeList_);
 	}
 
 	static StreamReformInfo deserialize(AMTContext& ctx, const std::string& path) {
@@ -415,9 +443,9 @@ public:
 		auto audioFrameList = file.readArray<FileAudioFrameInfo>();
 		auto captionList = ReadArray<CaptionItem>(file);
 		auto streamEventList = file.readArray<StreamEvent>();
-		auto nicoJKList = ReadArray<NicoJKLine>(file);
+		auto timeList = file.readArray<TimeInfo>();
 		return StreamReformInfo(ctx,
-			numVideoFile, videoFrameList, audioFrameList, captionList, streamEventList, nicoJKList);
+			numVideoFile, videoFrameList, audioFrameList, captionList, streamEventList, timeList);
 	}
 
 private:
@@ -432,7 +460,9 @@ private:
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<CaptionItem> captionItemList_;
 	std::vector<StreamEvent> streamEventList_;
-	std::vector<NicoJKLine> nicoJKList_;
+	std::vector<TimeInfo> timeList_;
+
+	std::array<std::vector<NicoJKLine>, NICOJK_MAX> nicoJKList_;
 
 	// 計算データ
 	bool isVFR_;
@@ -469,6 +499,9 @@ private:
 	std::vector<int64_t> fileSrcSize_;
 	std::vector<double> fileSrcDuration_;
 	std::vector<std::array<double, CMTYPE_MAX>> fileDuration_; // 各ファイルの再生時間
+
+	// 最初の映像フレームの時刻(UNIX時間)
+	time_t firstFrameTime_;
 
 	// 2nd phase 出力
 	//std::vector<bool> encodedFrames_;
@@ -539,12 +572,6 @@ private:
 		makeModifiedPTS(modifiedStartPTS[0], modifiedPTS_, videoFrameList_);
 		makeModifiedPTS(modifiedStartPTS[1], modifiedAudioPTS_, audioFrameList_);
 		makeModifiedPTS(modifiedStartPTS[2], modifiedCaptionPTS_, captionItemList_);
-
-		// ニコニコ実況コメントに開始映像オフセットを加算
-		for (auto& elem : nicoJKList_) {
-			elem.start += modifiedStartPTS[0];
-			elem.end += modifiedStartPTS[0];
-		}
 
 		// audioFrameDuration_を生成
 		audioFrameDuration_.resize(audioFrameList_.size());
@@ -855,6 +882,23 @@ private:
 		}
 		const auto& lastFrame = audioFrameList_.back();
 		audioFileOffsets_.back() = lastFrame.fileOffset + lastFrame.codedDataSize;
+
+		// 時間情報
+		srcTotalDuration_ = dataPTS_.back() - dataPTS_.front();
+		if (timeList_.size() > 0) {
+			auto ti = timeList_[0];
+			// ラップアラウンドしてる可能性があるので上位ビットは捨てて計算
+			double diff = (double)(int32_t(ti.first / 300 - dataPTS_.front())) / MPEG_CLOCK_HZ;
+			tm t = tm();
+			ti.second.getDay(t.tm_year, t.tm_mon, t.tm_mday);
+			ti.second.getTime(t.tm_hour, t.tm_min, t.tm_sec);
+			// 調整
+			t.tm_mon -= 1; // 月は0始まりなので
+			t.tm_year -= 1900; // 年は1900を引く
+			t.tm_hour -= 9; // 日本なのでGMT+9
+			t.tm_sec -= (int)std::round(diff); // 最初のフレームまで戻す
+			firstFrameTime_ = _mkgmtime(&t);
+		}
 	}
 
 	void calcSizeAndTime()
@@ -901,7 +945,6 @@ private:
 				maxId = i;
 			}
 		}
-		srcTotalDuration_ = dataPTS_.back() - dataPTS_.front();
 		outTotalDuration_ = sumDuration;
 
 		// 出力ファイル番号生成
@@ -1371,20 +1414,24 @@ private:
 				nlistItem[c] = std::unique_ptr<NicoJKList>(new NicoJKList());
 			}
 			double tick = MPEG_CLOCK_HZ / 10;
-			for (int i = 0; i < (int)nicoJKList_.size(); ++i) {
-				auto item = nicoJKList_[i];
-				auto start = std::lower_bound(frames.begin(), frames.end(), item.start,
-					[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
-				auto end = std::lower_bound(frames.begin(), frames.end(), item.end,
-					[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
-				if (start < end) { // 1フレーム以上表示時間のある場合のみ
-					for (int c = 0; c < CMTYPE_MAX; ++c) {
-						// 開始が含まれているか
-						if (c == 0 || frames[start].cmType == c) {
-							double startTime = frameTimes[c][start];
-							double endTime = frameTimes[c][end];
-							NicoJKLine outcomment = { startTime, endTime, item.line };
-							nlistItem[c]->push_back(outcomment);
+			for (int t = 0; t < NICOJK_MAX; ++t) {
+				auto& srcList = nicoJKList_[t];
+				for (int i = 0; i < (int)srcList.size(); ++i) {
+					auto item = srcList[i];
+					auto start = std::lower_bound(frames.begin(), frames.end(), item.start,
+						[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
+					auto end = std::lower_bound(frames.begin(), frames.end(), item.end,
+						[](const FilterSourceFrame& frame, double mid) { return frame.pts < mid; }) - frames.begin();
+					// 開始がこのファイルに含まれているか
+					if (start < end && frameFileId_[frames[start].frameIndex] == fileId) {
+						for (int c = 0; c < CMTYPE_MAX; ++c) {
+							// 開始がこのCMタイプに含まれているか
+							if (c == 0 || frames[start].cmType == c) {
+								double startTime = frameTimes[c][start];
+								double endTime = frameTimes[c][end];
+								NicoJKLine outcomment = { startTime, endTime, item.line };
+								nlistItem[c]->at(t).push_back(outcomment);
+							}
 						}
 					}
 				}

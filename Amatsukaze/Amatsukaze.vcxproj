@@ -167,6 +167,7 @@
     <ClInclude Include="List.hpp" />
     <ClInclude Include="LogoGUISupport.hpp" />
     <ClInclude Include="LogoScan.hpp" />
+    <ClInclude Include="NicoJK.hpp" />
     <ClInclude Include="OSUtil.hpp" />
     <ClInclude Include="PacketCache.hpp" />
     <ClInclude Include="PerformanceUtil.hpp" />

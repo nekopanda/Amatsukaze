@@ -95,7 +95,7 @@ private:
 		TsInfoParser& this_;
 	public:
 		PSIDelegator(AMTContext&ctx, TsInfoParser& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
-		virtual void onTableUpdated(PsiSection section) {
+		virtual void onTableUpdated(int64_t clock, PsiSection section) {
 			this_.onPsiUpdated(section);
 		}
 	};

@@ -140,6 +140,10 @@ namespace Amatsukaze.Server
         public bool EnableNicoJK { get; set; }
         [DataMember]
         public bool IgnoreNicoJKError { get; set; }
+        [DataMember]
+        public bool NicoJK18 { get; set; }
+        [DataMember]
+        public bool[] NicoJKFormats { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -148,6 +152,18 @@ namespace Amatsukaze.Server
             get
             {
                 return string.IsNullOrEmpty(WorkPath) ? "./" : WorkPath;
+            }
+        }
+
+        public int NicoJKFormatMask {
+            get {
+                int mask = 0;
+                for(int i = NicoJKFormats.Length - 1; i >= 0; --i)
+                {
+                    mask <<= 1;
+                    mask |= NicoJKFormats[i] ? 1 : 0;
+                }
+                return mask;
             }
         }
     }

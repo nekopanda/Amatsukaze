@@ -35,6 +35,13 @@ std::string SearchExe(const std::string& name) {
 	return buf;
 }
 
+std::string GetDirectoryPath(const std::string& name) {
+	char buf[MAX_PATH] = { 0 };
+	std::copy(name.begin(), name.end(), buf);
+	PathRemoveFileSpecA(buf);
+	return buf;
+}
+
 // プロセスに設定されているコア数を取得
 int GetProcessorCount()
 {

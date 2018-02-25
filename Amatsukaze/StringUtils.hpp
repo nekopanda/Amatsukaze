@@ -201,3 +201,18 @@ protected:
 		return false;
 	}
 };
+
+std::vector<std::string> split(const std::string& text, const char* delimiters)
+{
+	std::vector<std::string> ret;
+	std::vector<char> text_(text.begin(), text.end());
+	text_.push_back(0); // null terminate
+	char* ctx;
+	ret.emplace_back(strtok_s(text_.data(), delimiters, &ctx));
+	while(1) {
+		const char* tp = strtok_s(NULL, delimiters, &ctx);
+		if (tp == nullptr) break;
+		ret.emplace_back(tp);
+	}
+	return ret;
+}

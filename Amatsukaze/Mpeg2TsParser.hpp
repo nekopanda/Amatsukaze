@@ -708,9 +708,9 @@ struct JSTTime {
 		int m0 = ((bcd >>  8) & 0xF);
 		int s1 = ((bcd >>  4) & 0xF);
 		int s0 = ((bcd >>  0) & 0xF);
-		h = h1 * 10 + h1;
-		m = m1 * 10 + m1;
-		s = s1 * 10 + s1;
+		h = h1 * 10 + h0;
+		m = m1 * 10 + m0;
+		s = s1 * 10 + s0;
 	}
 
 	static void MJDtoYMD(uint16_t mjd16, int& y, int& m, int& d)
@@ -765,7 +765,7 @@ private:
 class PsiParser : public AMTObject, public TsPacketHandler {
 public:
 	PsiParser(AMTContext& ctx)
-		: AMTObject(ctx)
+		: AMTObject(ctx), packetClock(-1)
 	{}
 
 	/** 状態リセット */
@@ -793,6 +793,7 @@ public:
 					checkAndOutSection();
 				}
 				buffer.clear();
+				packetClock = clock;
 
 				buffer.add(MemoryChunk(&payload.data[startPos], payload.length - startPos));
 				checkAndOutSection();
@@ -805,10 +806,11 @@ public:
 	}
 
 protected:
-	virtual void onPsiSection(PsiSection section) = 0;
+	virtual void onPsiSection(int64_t clock, PsiSection section) = 0;
 
 private:
 	AutoBuffer buffer;
+	int64_t packetClock;
 
 	// パケットをチェックして出力
 	void checkAndOutSection() {
@@ -822,7 +824,7 @@ private:
 				// フォーマットチェック
 				if (section.parse() && section.check()) {
 					// OK
-					onPsiSection(section);
+					onPsiSection(packetClock, section);
 				}
 				buffer.trimHead(lengthIncludeHeader);
 			}
@@ -838,15 +840,15 @@ public:
 	{ }
 
 protected:
-	virtual void onPsiSection(PsiSection section) {
+	virtual void onPsiSection(int64_t clock, PsiSection section) {
 		if (section != curSection.get()) {
 			curSection.clear();
 			curSection.add(section);
-			onTableUpdated(section);
+			onTableUpdated(clock, section);
 		}
 	}
 
-	virtual void onTableUpdated(PsiSection section) = 0;
+	virtual void onTableUpdated(int64_t clock, PsiSection section) = 0;
 
 private:
 	AutoBuffer curSection;
@@ -954,6 +956,8 @@ public:
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) = 0;
 
 	virtual void onCaptionPacket(int64_t clock, TsPacket packet) = 0;
+
+	virtual void onTime(int64_t clock, JSTTime time) = 0;
 };
 
 class TsPacketSelector : public AMTObject {
@@ -966,6 +970,7 @@ public:
 		, videoEs(-1, -1)
 		, PsiParserPAT(ctx, *this)
 		, PsiParserPMT(ctx, *this)
+		, PsiParserTDT(ctx, *this)
 		, pmtPid(-1)
 		, videoDelegator(*this)
 		, captionDelegator(*this)
@@ -1021,7 +1026,7 @@ private:
 		TsPacketSelector& this_;
 	public:
 		PATDelegator(AMTContext&ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
-		virtual void onTableUpdated(PsiSection section) {
+		virtual void onTableUpdated(int64_t clock, PsiSection section) {
 			this_.onPatUpdated(section);
 		}
 	};
@@ -1029,8 +1034,16 @@ private:
 		TsPacketSelector& this_;
 	public:
 		PMTDelegator(AMTContext&ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
-		virtual void onTableUpdated(PsiSection section) {
+		virtual void onTableUpdated(int64_t clock, PsiSection section) {
 			this_.onPmtUpdated(section);
+		}
+	};
+	class TDTDelegator : public PsiUpdatedDetector {
+		TsPacketSelector& this_;
+	public:
+		TDTDelegator(AMTContext&ctx, TsPacketSelector& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		virtual void onTableUpdated(int64_t clock, PsiSection section) {
+			this_.onTdtUpdated(clock, section);
 		}
 	};
 	class VideoDelegator : public TsPacketHandler {
@@ -1071,6 +1084,7 @@ private:
 
 	PATDelegator PsiParserPAT;
 	PMTDelegator PsiParserPMT;
+	TDTDelegator PsiParserTDT;
 	int pmtPid;
 	VideoDelegator videoDelegator;
 	std::vector<AudioDelegator*> audioDelegators;
@@ -1086,7 +1100,8 @@ private:
 	int64_t currentClock;
 
 	void initHandlerTable(PidHandlerTable* table) {
-		table->addConstant(0, &PsiParserPAT);
+		table->addConstant(0x0000, &PsiParserPAT);
+		table->addConstant(0x0014, &PsiParserTDT);
 	}
 
 	void onPatUpdated(PsiSection section) {
@@ -1207,6 +1222,30 @@ private:
 			if (table == curHandlerTable) {
 				selectorHandler->onPidTableChanged(videoEs, audioEs, captionEs);
 			}
+		}
+	}
+
+	void onTdtUpdated(int64_t clock, PsiSection section) {
+		if (selectorHandler == NULL || clock == -1) {
+			return;
+		}
+		switch (section.table_id()) {
+		case 0x70: // TDT
+			{
+				TDT tdt(section);
+				if (tdt.parse() && tdt.check()) {
+					selectorHandler->onTime(clock, tdt.JST_time());
+				}
+			}
+			break;
+		case 0x73: // TOT
+			{
+				TOT tot(section);
+				if (tot.parse() && tot.check()) {
+					selectorHandler->onTime(clock, tot.JST_time());
+				}
+			}
+			break;
 		}
 	}
 

@@ -317,7 +317,10 @@ namespace Amatsukaze.Models
         private ClientData appData;
         public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
-        private Setting setting = new Setting() { Bitrate = new BitrateSetting() };
+        private Setting setting = new Setting() {
+            Bitrate = new BitrateSetting(),
+            NicoJKFormats = new bool[4] { true, false, false, false }
+        };
         private State state = new State();
 
         public Func<object, string, Task> ServerAddressRequired;
@@ -1006,6 +1009,7 @@ namespace Amatsukaze.Models
                 if (setting.EnableNicoJK == value)
                     return;
                 setting.EnableNicoJK = value;
+                UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -1018,6 +1022,70 @@ namespace Amatsukaze.Models
                 if (setting.IgnoreNicoJKError == value)
                     return;
                 setting.IgnoreNicoJKError = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJK18変更通知プロパティ
+        public bool NicoJK18 {
+            get { return setting.NicoJK18; }
+            set { 
+                if (setting.NicoJK18 == value)
+                    return;
+                setting.NicoJK18 = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat720S変更通知プロパティ
+        public bool NicoJKFormat720S {
+            get { return setting.NicoJKFormats[0]; }
+            set { 
+                if (setting.NicoJKFormats[0] == value)
+                    return;
+                setting.NicoJKFormats[0] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat720T変更通知プロパティ
+        public bool NicoJKFormat720T {
+            get { return setting.NicoJKFormats[1]; }
+            set {
+                if (setting.NicoJKFormats[1] == value)
+                    return;
+                setting.NicoJKFormats[1] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat1080S変更通知プロパティ
+        public bool NicoJKFormat1080S {
+            get { return setting.NicoJKFormats[2]; }
+            set {
+                if (setting.NicoJKFormats[2] == value)
+                    return;
+                setting.NicoJKFormats[2] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat1080T変更通知プロパティ
+        public bool NicoJKFormat1080T {
+            get { return setting.NicoJKFormats[3]; }
+            set {
+                if (setting.NicoJKFormats[3] == value)
+                    return;
+                setting.NicoJKFormats[3] = value;
+                UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -1233,6 +1301,10 @@ namespace Amatsukaze.Models
             if (setting.EncoderType == EncoderType.NVEnc && setting.TwoPass)
             {
                 sb.Append("NVEncは2パスに対応していません\r\n");
+            }
+            if (setting.EnableNicoJK && setting.NicoJKFormats.Any(s => s) == false)
+            {
+                sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
             }
             SettingWarningText = sb.ToString();
         }
@@ -1496,6 +1568,11 @@ namespace Amatsukaze.Models
             NoDelogo = setting.NoDelogo;
             EnableNicoJK = setting.EnableNicoJK;
             IgnoreNicoJKError = setting.IgnoreNicoJKError;
+            NicoJK18 = setting.NicoJK18;
+            NicoJKFormat720S = setting.NicoJKFormats[0];
+            NicoJKFormat720T = setting.NicoJKFormats[1];
+            NicoJKFormat1080S = setting.NicoJKFormats[2];
+            NicoJKFormat1080T = setting.NicoJKFormats[3];
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
             DisableHashCheck = setting.DisableHashCheck;

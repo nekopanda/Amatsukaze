@@ -26,6 +26,7 @@
 #include "CaptionData.hpp"
 #include "CaptionFormatter.hpp"
 #include "EncoderOptionParser.hpp"
+#include "NicoJK.hpp"
 
 class AMTSplitter : public TsSplitter {
 public:
@@ -46,7 +47,7 @@ public:
 		psWriter.setHandler(&writeHandler);
 	}
 
-	StreamReformInfo split(std::vector<NicoJKLine>& nicoJKList)
+	StreamReformInfo split()
 	{
 		readAll();
 
@@ -54,7 +55,7 @@ public:
 		printInteraceCount();
 
 		return StreamReformInfo(ctx, videoFileCount_,
-			videoFrameList_, audioFrameList_, captionTextList_, streamEventList_, nicoJKList);
+			videoFrameList_, audioFrameList_, captionTextList_, streamEventList_, timeList_);
 	}
 
 	int64_t getSrcFileSize() const {
@@ -109,6 +110,7 @@ protected:
 	std::vector<FileAudioFrameInfo> audioFrameList_;
 	std::vector<StreamEvent> streamEventList_;
 	std::vector<CaptionItem> captionTextList_;
+	std::vector<std::pair<int64_t, JSTTime>> timeList_;
 
 	void readAll() {
 		enum { BUFSIZE = 4 * 1024 * 1024 };
@@ -321,6 +323,10 @@ protected:
 		ev.frameIdx = (int)videoFrameList_.size();
 		streamEventList_.push_back(ev);
 	}
+
+	virtual void onTime(int64_t clock, JSTTime time) {
+		timeList_.push_back(std::make_pair(clock, time));
+	}
 };
 
 class DrcsSearchSplitter : public TsSplitter {
@@ -378,6 +384,9 @@ protected:
 		return info;
 	}
 
+	virtual void onTime(int64_t clock, JSTTime time) {
+		//
+	}
 };
 
 class RFFExtractor
@@ -1374,38 +1383,34 @@ public:
 		std::vector<std::string> subsFiles;
 		std::vector<std::string> subsTitles;
 		if (nicoOK) {
-			auto srcsub = setting_.getTmpNicoJKASSPath(
-				videoFileIndex, encoderIndex, (CMType)cmtype);
-			if(setting_.getFormat() == FORMAT_MKV) {
-				subsFiles.push_back(srcsub);
-				subsTitles.push_back("NicoJK");
-			}
-			else { // MP4の場合は別ファイルとしてコピー
-				auto dstsub = pathgen.getOutASSPath(-1);
-				File::copy(srcsub, dstsub);
-				outFilePath.outSubs.push_back(dstsub);
+			for (NicoJKType jktype : setting_.getNicoJKTypes()) {
+				auto srcsub = setting_.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype);
+				if (setting_.getFormat() == FORMAT_MKV) {
+					subsFiles.push_back(srcsub);
+					subsTitles.push_back(StringFormat("NicoJK%s", GetNicoJKSuffix(jktype)));
+				}
+				else { // MP4の場合は別ファイルとしてコピー
+					auto dstsub = pathgen.getOutASSPath(-1, jktype);
+					File::copy(srcsub, dstsub);
+					outFilePath.outSubs.push_back(dstsub);
+				}
 			}
 		}
-		if (nicoOK && setting_.getFormat() == FORMAT_MKV) {
-			subsFiles.push_back(setting_.getTmpNicoJKASSPath(
-				videoFileIndex, encoderIndex, (CMType)cmtype));
-			subsTitles.push_back("NicoJK");
-		}
-		auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
+		auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, cmtype);
 		for (int lang = 0; lang < capList.size(); ++lang) {
 			auto srcsub = setting_.getTmpASSFilePath(
-				videoFileIndex, encoderIndex, lang, (CMType)cmtype);
+				videoFileIndex, encoderIndex, lang, cmtype);
 			if (setting_.getFormat() == FORMAT_MKV) {
 				subsFiles.push_back(srcsub);
 				subsTitles.push_back("ASS");
 			}
 			else { // MP4の場合は別ファイルとしてコピー
-				auto dstsub = pathgen.getOutASSPath(lang);
+				auto dstsub = pathgen.getOutASSPath(lang, (NicoJKType)0);
 				File::copy(srcsub, dstsub);
 				outFilePath.outSubs.push_back(dstsub);
 			}
 			subsFiles.push_back(setting_.getTmpSRTFilePath(
-				videoFileIndex, encoderIndex, lang, (CMType)cmtype));
+				videoFileIndex, encoderIndex, lang, cmtype));
 			subsTitles.push_back("SRT");
 		}
 
@@ -1531,29 +1536,15 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
 	PrintEncoderInfo(ctx, eoInfo);
 
-	NicoJK nicoJK(ctx, setting);
-	bool nicoOK = false;
-	if (setting.isNicoJKEnabled()) {
-		ctx.info("[ニコニコ実況コメント取得]");
-		nicoOK = nicoJK.makeASS();
-		if (nicoOK == false) {
-			if (nicoJK.isFail() == false) {
-				ctx.info("対応チャンネルがありません");
-			}
-			else if (setting.isIgnoreNicoJKError() == false) {
-				THROW(RuntimeException, "ニコニコ実況コメント取得に失敗");
-			}
-		}
-	}
-
 	Stopwatch sw;
 	sw.start();
 	auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
 	if (setting.getServiceId() > 0) {
 		splitter->setServiceId(setting.getServiceId());
 	}
-	StreamReformInfo reformInfo = splitter->split(nicoJK.getDialogues());
+	StreamReformInfo reformInfo = splitter->split();
 	ctx.info("TS解析完了: %.2f秒", sw.getAndReset());
+	int serviceId = splitter->getActualServiceId();
 	int64_t numTotalPackets = splitter->getNumTotalPackets();
 	int64_t numScramblePackets = splitter->getNumScramblePackets();
 	int64_t totalIntVideoSize = splitter->getTotalIntVideoSize();
@@ -1583,6 +1574,27 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	reformInfo.prepare(setting.isSplitSub());
+
+	time_t startTime = reformInfo.getFirstFrameTime();
+
+	NicoJK nicoJK(ctx, setting);
+	bool nicoOK = false;
+	if (setting.isNicoJKEnabled()) {
+		ctx.info("[ニコニコ実況コメント取得]");
+		auto srcDuration = reformInfo.getInDuration() / MPEG_CLOCK_HZ;
+		nicoOK = nicoJK.makeASS(serviceId, startTime, (int)srcDuration);
+		if (nicoOK) {
+			reformInfo.SetNicoJKList(nicoJK.getDialogues());
+		}
+		else {
+			if (nicoJK.isFail() == false) {
+				ctx.info("対応チャンネルがありません");
+			}
+			else if (setting.isIgnoreNicoJKError() == false) {
+				THROW(RuntimeException, "ニコニコ実況コメント取得に失敗");
+			}
+		}
+	}
 
 	int numVideoFiles = reformInfo.getNumVideoFile();
 	int numOutFiles = reformInfo.getNumOutFiles();
@@ -1635,7 +1647,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	auto audioDiffInfo = reformInfo.genAudio();
 	audioDiffInfo.printAudioPtsDiff(ctx);
 
-	// 字幕ファイルを生成
+	ctx.info("[字幕ファイル生成]");
 	for (int videoFileIndex = 0, currentEncoderFile = 0;
 		videoFileIndex < numVideoFiles; ++videoFileIndex) {
 		CaptionASSFormatter formatterASS(ctx);
@@ -1644,24 +1656,28 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
 		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentEncoderFile) {
 			for (CMType cmtype : setting.getCMTypes()) {
-				auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)cmtype);
+				auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, cmtype);
 				for (int lang = 0; lang < capList.size(); ++lang) {
 					WriteUTF8File(
-						setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)cmtype),
+						setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, cmtype),
 						formatterASS.generate(capList[lang]));
 					WriteUTF8File(
-						setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, (CMType)cmtype),
+						setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, cmtype),
 						formatterSRT.generate(capList[lang]));
 				}
 				if (nicoOK) {
-					File file(setting.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, (CMType)cmtype), "w");
-					auto text = formatterNicoJK.generate(nicoJK.getHeaderLines(),
-						reformInfo.getOutNicoJKList(encoderIndex, videoFileIndex, (CMType)cmtype));
-					file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
+					const auto& headerLines = nicoJK.getHeaderLines();
+					const auto& dialogues = reformInfo.getOutNicoJKList(encoderIndex, videoFileIndex, cmtype);
+					for (NicoJKType jktype : setting.getNicoJKTypes()) {
+						File file(setting.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype), "w");
+						auto text = formatterNicoJK.generate(headerLines[(int)jktype], dialogues[(int)jktype]);
+						file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
+					}
 				}
 			}
 		}
 	}
+	ctx.info("字幕ファイル生成完了: %.2f秒", sw.getAndReset());
 
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
 	std::vector<EncodeFileInfo> outFileInfo;

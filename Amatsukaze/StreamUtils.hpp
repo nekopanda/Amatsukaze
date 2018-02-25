@@ -706,6 +706,14 @@ public:
 	virtual bool inputFrame(MemoryChunk frame, std::vector<VideoFrameInfo>& info, int64_t PTS, int64_t DTS) = 0;
 };
 
+enum NicoJKType {
+	NICOJK_720S = 0,
+	NICOJK_720T = 1,
+	NICOJK_1080S = 2,
+	NICOJK_1080T = 3,
+	NICOJK_MAX
+};
+
 #include "avisynth.h"
 #include "utvideo/utvideo.h"
 #include "utvideo/Codec.h"

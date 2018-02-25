@@ -153,8 +153,47 @@
                     <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Bitrate7H264}" HorizontalAlignment="Center" />
                 </Grid>
 
+                <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ニコニコ実況コメント" VerticalAlignment="Top" Margin="0,45.667,0,0"/>
+                <StackPanel Grid.Row="4" Grid.Column="1" Margin="10,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox x:Name="nicoJKCheck" Grid.Row="0" Content="ニコニコ実況コメントを有効にする" Margin="0,3"
+                                  IsChecked="{Binding Model.EnableNicoJK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ToolTip="ニコニコ実況コメントをASS字幕で追加します"/>
+                        <CheckBox Grid.Column="1" VerticalAlignment="Center" Content="エラーを無視" Margin="6,3"
+                                  IsChecked="{Binding Model.IgnoreNicoJKError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}"/>
+                    </Grid>
+                    <CheckBox Grid.Row="1" Content="NicoJK18サーバからコメントを取得する（テスト版）" Margin="0,3"
+                                  IsChecked="{Binding Model.NicoJK18, Mode=TwoWay}"
+                                  IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}" 
+                                  ToolTip="セットアップ不要で取得できるサーバです"/>
+                    <Grid Width="240" HorizontalAlignment="Left" IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="コメント字幕出力フォーマット" HorizontalAlignment="Center" ToolTip="複数選択すると複数出力します" />
+                        <TextBlock Grid.Row="1" HorizontalAlignment="Center" Text="1280x720サイズ" Margin="3,3"/>
+                        <TextBlock Grid.Row="2" HorizontalAlignment="Center" Text="1920x1080サイズ" Margin="3,3"/>
+                        <CheckBox Grid.Row="1" Grid.Column="1" Content="通常" Margin="3,3" IsChecked="{Binding Model.NicoJKFormat720S, Mode=TwoWay}"/>
+                        <CheckBox Grid.Row="1" Grid.Column="2" Content="半透明" Margin="3,3" IsChecked="{Binding Model.NicoJKFormat720T, Mode=TwoWay}"/>
+                        <CheckBox Grid.Row="2" Grid.Column="1" Content="通常" Margin="3,3" IsChecked="{Binding Model.NicoJKFormat1080S, Mode=TwoWay}"/>
+                        <CheckBox Grid.Row="2" Grid.Column="2" Content="半透明" Margin="3,3" IsChecked="{Binding Model.NicoJKFormat1080T, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+
                 <StackPanel Grid.Row="5" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,91" Text="その他の設定"/>
+                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,80" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
@@ -171,16 +210,6 @@
                 </StackPanel>
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
                     <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" IsChecked="{Binding Model.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
-                        <CheckBox Height="16" Margin="0,3"  Content="ニコニコ実況コメントを追加する ←" IsChecked="{Binding Model.EnableNicoJK, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                        <CheckBox Height="16" Margin="0,3" Grid.Column="1" Content="エラーを無視" IsChecked="{Binding Model.IgnoreNicoJKError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    </Grid>
-                    
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" IsChecked="{Binding Model.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="字幕を無効にする" IsChecked="{Binding Model.DisableSubs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS外字は無視する" IsChecked="{Binding Model.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

@@ -418,7 +418,7 @@ public:
 		preferedServiceId = sid;
 	}
 
-	int getActualServiceId(int sid) {
+	int getActualServiceId() {
 		return selectedServiceId;
 	}
 

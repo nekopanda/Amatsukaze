@@ -420,6 +420,35 @@ public:
 		}
 		return last;
 	}
+	bool getline(std::string& line) {
+		enum { BUF_SIZE = 200 };
+		char buf[BUF_SIZE];
+		line.clear();
+		while(1) {
+			buf[BUF_SIZE - 2] = 0;
+			if (fgets(buf, BUF_SIZE, fp_) == nullptr) {
+				return line.size() > 0;
+			}
+			if (buf[BUF_SIZE - 2] != 0 && buf[BUF_SIZE - 2] != '\n') {
+				// ‚Ü‚¾‚ ‚é
+				line.append(buf);
+				continue;
+			}
+			else {
+				// ‰üs•¶š‚ğæ‚èœ‚­
+				size_t len = strlen(buf);
+				if (buf[len - 1] == '\n') buf[--len] = 0;
+				if (buf[len - 1] == '\r') buf[--len] = 0;
+				line.append(buf);
+				break;
+			}
+		}
+		return true;
+	}
+	void writeline(std::string& line) {
+		fputs(line.c_str(), fp_);
+		fputs("\n", fp_);
+	}
 	static bool exists(const std::string& path) {
 		FILE* fp_ = _fsopen(path.c_str(), "rb", _SH_DENYNO);
 		if (fp_) {

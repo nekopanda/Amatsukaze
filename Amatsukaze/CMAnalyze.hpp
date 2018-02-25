@@ -217,9 +217,9 @@ private:
 
 	void readTrimAVS(int videoFileIndex, int numFrames)
 	{
-		std::ifstream file(setting_.getTmpTrimAVSPath(videoFileIndex));
+		File file(setting_.getTmpTrimAVSPath(videoFileIndex), "r");
 		std::string str;
-		if (!std::getline(file, str)) {
+		if (!file.getline(str)) {
 			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
 		}
 
@@ -291,9 +291,9 @@ private:
 
 	std::vector<int> readTrimAVS(const std::string& trimpath)
 	{
-		std::ifstream file(trimpath);
+		File file(trimpath, "r");
 		std::string str;
-		if (!std::getline(file, str)) {
+		if (!file.getline(str)) {
 			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
 		}
 
@@ -311,11 +311,11 @@ private:
 
 	std::vector<JlsElement> readJls(const std::string& jlspath)
 	{
-		std::ifstream file(jlspath);
+		File file(jlspath, "r");
 		std::regex re("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+).*:(\\S+)");
 		std::string str;
 		std::vector<JlsElement> elements;
-		while(std::getline(file, str)) {
+		while(file.getline(str)) {
 			std::smatch m;
 			if (std::regex_search(str, m, re)) {
 				JlsElement elem = {
@@ -485,179 +485,5 @@ private:
 
 		File file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype), "w");
 		file.write(sb.getMC());
-	}
-};
-
-class NicoJK : public AMTObject
-{
-public:
-	NicoJK(AMTContext& ctx,
-		const ConfigWrapper& setting)
-		: AMTObject(ctx)
-		, setting_(setting)
-	{	}
-
-	bool makeASS() {
-		if (!nicoConvASS()) return false;
-		readASS();
-		return true;
-	}
-
-	bool isFail() const {
-		return isFail_;
-	}
-
-	std::vector<std::string> getHeaderLines() const {
-		return headerlines;
-	}
-
-	std::vector<NicoJKLine> getDialogues() const {
-		return dislogues;
-	}
-
-private:
-	class MySubProcess : public EventBaseSubProcess
-	{
-	public:
-		MySubProcess(const std::string& args)
-			: EventBaseSubProcess(args)
-			, outConv(false)
-			, errConv(true)
-		{ }
-
-		~MySubProcess() {
-			outConv.Flush();
-			errConv.Flush();
-		}
-
-		bool isFail() const {
-			// 対応チャンネルがない場合はエラーにしたくない
-			// 何も言わない場合は、対応するチャンネルがないと判断する
-			// 他にうまく判別する方法が分からない
-			return errConv.nlines > 0;
-		}
-
-	private:
-		class OutConv : public UTF8Converter
-		{
-		public:
-			OutConv(bool isErr) : nlines(0), isErr(isErr) { }
-			int nlines;
-		protected:
-			bool isErr;
-			virtual void OnTextLine(const std::vector<char>& line) {
-				auto out = isErr ? stderr : stdout;
-				fwrite(line.data(), line.size(), 1, out);
-				fprintf(out, "\n");
-				fflush(out);
-				++nlines;
-			}
-		};
-
-		OutConv outConv, errConv;
-		virtual void onOut(bool isErr, MemoryChunk mc) {
-			(isErr ? errConv : outConv).AddBytes(mc);
-		}
-	};
-
-	const ConfigWrapper& setting_;
-
-	bool isFail_;
-	std::vector<std::string> headerlines;
-	std::vector<NicoJKLine> dislogues;
-
-	std::string MakeNicoConvASSArgs()
-	{
-		return StringFormat("\"%s\" -width 1280 -height 720 -wfilename \"%s\" -chapter 0 \"%s\"",
-			setting_.getNicoConvAssPath(),
-			setting_.getTmpNicoJKASSPath(),
-			setting_.getSrcFilePath());
-	}
-
-	bool nicoConvASS()
-	{
-		auto args = MakeNicoConvASSArgs();
-		ctx.info(args.c_str());
-		MySubProcess process(args);
-		int exitCode = process.join();
-		if (exitCode == 0 && File::exists(setting_.getTmpNicoJKASSPath())) {
-			return true;
-		}
-		isFail_ = process.isFail();
-		return false;
-	}
-
-	static double toClock(int h, int m, int s, int ss) {
-		return (((((h * 60.0) + m) * 60.0) + s) * 100.0 + ss) * 900.0;
-	}
-
-	void readASS()
-	{
-		std::ifstream file(setting_.getTmpNicoJKASSPath());
-		std::string str;
-		while (std::getline(file, str)) {
-			headerlines.push_back(str);
-			if (str == "[Events]") break;
-		}
-
-		// Format ...
-		std::getline(file, str);
-		headerlines.push_back(str);
-
-		std::regex re("Dialogue: 0,(\\d):(\\d\\d):(\\d\\d)\\.(\\d\\d),(\\d):(\\d\\d):(\\d\\d)\\.(\\d\\d)(.*)");
-
-		while (std::getline(file, str)) {
-			std::smatch m;
-			if (std::regex_search(str, m, re)) {
-				NicoJKLine elem = {
-					toClock(
-						std::stoi(m[1].str()), std::stoi(m[2].str()),
-						std::stoi(m[3].str()), std::stoi(m[4].str())),
-					toClock(
-						std::stoi(m[5].str()), std::stoi(m[6].str()),
-						std::stoi(m[7].str()), std::stoi(m[8].str())),
-					m[9].str()
-				};
-				dislogues.push_back(elem);
-			}
-		}
-	}
-};
-
-class NicoJKFormatter : public AMTObject
-{
-public:
-	NicoJKFormatter(AMTContext& ctx)
-		: AMTObject(ctx)
-	{ }
-
-	std::string generate(
-		const std::vector<std::string>& headers,
-		const std::vector<NicoJKLine>& dialogues)
-	{
-		sb.clear();
-		for (auto& header : headers) {
-			sb.append("%s\n", header);
-		}
-		for (auto& dialogue : dialogues) {
-			sb.append("Dialogue: 0,");
-			time(dialogue.start);
-			sb.append(",");
-			time(dialogue.end);
-			sb.append("%s\n", dialogue.line);
-		}
-		return sb.str();
-	}
-
-private:
-	StringBuilder sb;
-
-	void time(double t) {
-		double totalSec = t / MPEG_CLOCK_HZ;
-		double totalMin = totalSec / 60;
-		int h = (int)(totalMin / 60);
-		int m = (int)totalMin % 60;
-		double sec = totalSec - (int)totalMin * 60;
-		sb.append("%d:%02d:%05.2f", h, m, sec);
 	}
 };

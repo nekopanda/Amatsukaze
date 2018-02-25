@@ -384,6 +384,16 @@ static const char* GetCMSuffix(CMType cmtype) {
 	return "";
 }
 
+static const char* GetNicoJKSuffix(NicoJKType type) {
+	switch (type) {
+	case NICOJK_720S: return "-720S";
+	case NICOJK_720T: return "-720T";
+	case NICOJK_1080S: return "-1080S";
+	case NICOJK_1080T: return "-1080T";
+	}
+	return "";
+}
+
 struct Config {
 	// ˆêŽžƒtƒHƒ‹ƒ_
 	std::string workDir;
@@ -409,13 +419,15 @@ struct Config {
 	std::string timelineditorPath;
 	std::string mp4boxPath;
 	std::string nicoConvAssPath;
+	std::string nicoConvChSidPath;
 	ENUM_FORMAT format;
 	bool splitSub;
 	bool twoPass;
 	bool autoBitrate;
 	bool chapter;
 	bool subtitles;
-	bool nicojk;
+	int nicojkmask;
+	bool nicojk18;
 	BitrateSetting bitrate;
 	double bitrateCM;
 	int serviceId;
@@ -449,6 +461,11 @@ public:
 		for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
 			if (conf.cmoutmask & (1 << cmtypei)) {
 				cmtypes.push_back((CMType)cmtypei);
+			}
+		}
+		for (int nicotypei = 0; nicotypei < NICOJK_MAX; ++nicotypei) {
+			if (conf.nicojkmask & (1 << nicotypei)) {
+				nicojktypes.push_back((NicoJKType)nicotypei);
 			}
 		}
 	}
@@ -509,6 +526,10 @@ public:
 		return conf.nicoConvAssPath;
 	}
 
+	std::string getNicoConvChSidPath() const {
+		return conf.nicoConvChSidPath;
+	}
+
 	bool isSplitSub() const {
 		return conf.splitSub;
 	}
@@ -530,7 +551,15 @@ public:
 	}
 
 	bool isNicoJKEnabled() const {
-		return conf.nicojk;
+		return conf.nicojkmask != 0;
+	}
+
+	bool isNicoJK18Enabled() const {
+		return conf.nicojk18;
+	}
+
+	int getNicoJKMask() const {
+		return conf.nicojkmask;
 	}
 
 	BitrateSetting getBitrate() const {
@@ -587,6 +616,10 @@ public:
 
 	const std::vector<CMType>& getCMTypes() const {
 		return cmtypes;
+	}
+
+	const std::vector<NicoJKType>& getNicoJKTypes() const {
+		return nicojktypes;
 	}
 
 	bool isDumpStreamInfo() const {
@@ -684,13 +717,17 @@ public:
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTmpNicoJKASSPath() const {
-		return regtmp(StringFormat("%s/nicojk.ass", tmpDir.path()));
+	std::string getTmpNicoJKXMLPath() const {
+		return regtmp(StringFormat("%s/nicojk.xml", tmpDir.path()));
 	}
 
-	std::string getTmpNicoJKASSPath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/nicojk%d-%d%s.ass",
-			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	std::string getTmpNicoJKASSPath(NicoJKType type) const {
+		return regtmp(StringFormat("%s/nicojk%s.ass", tmpDir.path(), GetNicoJKSuffix(type)));
+	}
+
+	std::string getTmpNicoJKASSPath(int vindex, int index, CMType cmtype, NicoJKType type) const {
+		return regtmp(StringFormat("%s/nicojk%d-%d%s%s.ass",
+			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), GetNicoJKSuffix(type)));
 	}
 
 	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
@@ -715,7 +752,7 @@ public:
 		return sb.str();
 	}
 
-	std::string getOutASSPath(int index, int langidx, CMType cmtype) const {
+	std::string getOutASSPath(int index, int langidx, CMType cmtype, NicoJKType jktype) const {
 		StringBuilder sb;
 		sb.append("%s", conf.outVideoPath);
 		if (index != 0) {
@@ -723,7 +760,7 @@ public:
 		}
 		sb.append("%s", GetCMSuffix(cmtype));
 		if (langidx < 0) {
-			sb.append("-nicojk");
+			sb.append("-nicojk%s", GetNicoJKSuffix(jktype));
 		}
 		else if (langidx > 0) {
 			sb.append("-%d", langidx);
@@ -830,6 +867,7 @@ private:
 	Config conf;
 	TempDirectory tmpDir;
 	std::vector<CMType> cmtypes;
+	std::vector<NicoJKType> nicojktypes;
 
 	const char* decoderToString(DECODER_TYPE decoder) const {
 		switch (decoder) {
@@ -863,8 +901,8 @@ public:
 	std::string getOutFilePath() const {
 		return setting_.getOutFilePath(index_, cmtype_);
 	}
-	std::string getOutASSPath(int langidx) const {
-		return setting_.getOutASSPath(index_, langidx, cmtype_);
+	std::string getOutASSPath(int langidx, NicoJKType jktype) const {
+		return setting_.getOutASSPath(index_, langidx, cmtype_, jktype);
 	}
 private:
 	const ConfigWrapper& setting_;

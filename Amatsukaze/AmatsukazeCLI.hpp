@@ -101,6 +101,13 @@ static void printHelp(const tchar* bin) {
 		"                      2 : CMをカット\n"
 		"                      4 : CMのみ出力\n"
 		"                      ORも可 例) 6: 本編とCMを分離\n"
+		"  --nicojk18           ニコニコ実況コメントをnicojk18サーバから取得\n"
+		"  --nicojkmask <数値> ニコニコ実況コメントマスク[1]\n"
+		"                      1 : 1280x720不透明\n"
+		"                      2 : 1280x720半透明\n"
+		"                      4 : 1920x1080不透明\n"
+		"                      8 : 1920x1080半透明\n"
+		"                      ORも可 例) 15: すべて出力\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
 		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
@@ -201,6 +208,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.chapterExePath = "chapter_exe.exe";
 	conf.joinLogoScpPath = "join_logo_scp.exe";
 	conf.nicoConvAssPath = "NicoConvASS.exe";
+	conf.nicoConvChSidPath = "ch_sid.txt";
 	conf.drcsOutPath = moduleDir + "\\..\\drcs";
 	conf.drcsMapPath = conf.drcsOutPath + "\\drcs_map.txt";
 	conf.joinLogoScpCmdPath = moduleDir + "\\..\\JL\\JL_標準.txt";
@@ -209,6 +217,8 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.bitrateCM = 1.0;
 	conf.serviceId = -1;
 	conf.cmoutmask = 1;
+	conf.nicojkmask = 1;
+	bool nicojk = false;
 
 	for (int i = 1; i < argc; ++i) {
 		std::tstring key = argv[i];
@@ -288,7 +298,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			conf.subtitles = true;
 		}
 		else if (key == _T("--nicojk")) {
-			conf.nicojk = true;
+			nicojk = true;
 		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
 			conf.muxerPath = to_string(getParam(argc, argv, i++));
@@ -371,8 +381,14 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--nicoass")) {
 			conf.nicoConvAssPath = to_string(getParam(argc, argv, i++));
 		}
+		else if (key == _T("--nicojk18")) {
+			conf.nicojk18 = true;
+		}
 		else if (key == _T("-om") || key == _T("--cmoutmask")) {
 			conf.cmoutmask = std::stol(getParam(argc, argv, i++));
+		}
+		else if (key == _T("--nicojkmask")) {
+			conf.nicojkmask = std::stol(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--dump")) {
 			conf.dumpStreamInfo = true;
@@ -387,6 +403,10 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			// なぜか%lsで長い文字列食わすと落ちるので%sで表示
 			THROWF(FormatException, "不明なオプション: %s", to_string(argv[i]).c_str());
 		}
+	}
+
+	if (!nicojk) {
+		conf.nicojkmask = 0;
 	}
 
 	// muxerのデフォルト値
@@ -434,6 +454,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.encoderPath = SearchExe(conf.encoderPath);
 	conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
 	conf.nicoConvAssPath = SearchExe(conf.nicoConvAssPath);
+	conf.nicoConvChSidPath = GetDirectoryPath(conf.nicoConvAssPath) + "\\ch_sid.txt";
 	conf.mp4boxPath = SearchExe(conf.mp4boxPath);
 	conf.muxerPath = SearchExe(conf.muxerPath);
 	conf.timelineditorPath = SearchExe(conf.timelineditorPath);
