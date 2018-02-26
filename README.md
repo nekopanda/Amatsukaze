@@ -210,17 +210,23 @@ MP4はASSに対応していないためSRTのみが組み込まれ、ASSは別�
 
 ## ニコニコ実況
 
-[NicoConvAss](http://vb45wb5b.seesaa.net/)を使ってニコニコ実況コメントをASS字幕として追加できます。
+[NicoConvAss](http://vb45wb5b.seesaa.net/)を使って[ニコニコ実況](http://jk.nicovideo.jp/)コメントの過去ログをASS字幕として追加できます。
 
-[NicoConvAss](http://vb45wb5b.seesaa.net/)をセットアップして、使える状態にし、
-AmatsukazeGUIの設定で、NicoConvASSパスにNicoConvAss.exeへのパスをセットして、
-「ニコニコ実況コメントを追加する」をチェックすれば、
-ニコニコ実況コメントをASS字幕として追加します。
+### 設定方法
 
-NicoConvAssのセットアップで、[JKCommentGetter](https://github.com/ACUVE/JKCommentGetter)のセットアップが必要になりますが、
-これはちょっとハマるかもしれません。Win10環境のChromeだと、
-クッキーが暗号化されていて、sqlite3.exeを使ったクッキーの取得ができませんでした。
-Firefoxを使うか、user_sessionの値を直接書き込むかすれば使えると思います。
+1. [NicoConvAss](http://vb45wb5b.seesaa.net/)を入手
+
+2. NicoConvAss.exeへのパスを設定
+
+<img src="https://i.imgur.com/uL4TJm9.png" width="405">
+
+3. ニコニコ実況コメントを有効化
+
+<img src="https://i.imgur.com/ZFyOn5l.png" width="445">
+
+「NocoJK18サーバからコメントを取得する」場合は、これだけでOKです。NocoJK18サーバを使わない場合は、[JKCommentGetter](https://github.com/ACUVE/JKCommentGetter)のセットアップが必要になります。
+
+NicoConvAssのパラメータを設定したい場合は、NicoConvAss.exeを起動して設定してください。
 
 ## メイン/ポストフィルタ
 
