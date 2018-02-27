@@ -267,9 +267,9 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.RequestLogoData, fileName);
         }
 
-        public Task RetryItem(string itemPath)
+        public Task ChangeItem(ChangeItemData data)
         {
-            return Send(RPCMethodId.RetryItem, itemPath);
+            return Send(RPCMethodId.ChangeItem, data);
         }
 
         public Task AddDrcsMap(DrcsImage drcsMap)

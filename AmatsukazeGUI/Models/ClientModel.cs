@@ -1683,7 +1683,7 @@ namespace Amatsukaze.Models
                     }
                     else
                     {
-                        var file = dir.Items.FirstOrDefault(f => f.DstName == update.Item.DstName);
+                        var file = dir.Items.FirstOrDefault(f => f.Id == update.Item.Id);
                         if (file != null)
                         {
                             if (update.Type == UpdateType.Remove)

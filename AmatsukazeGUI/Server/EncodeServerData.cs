@@ -236,6 +236,11 @@ namespace Amatsukaze.Server
         public bool Running { get; set; }
     }
 
+    public enum ProcMode
+    {
+        Batch, Test, DrcsSearch
+    }
+
     [DataContract]
     public class AddQueueDirectory
     {
@@ -246,7 +251,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public string DstPath { get; set; }
         [DataMember]
-        public bool IsSearch { get; set; }
+        public ProcMode Mode { get; set; }
     }
 
     public enum QueueState
@@ -257,16 +262,18 @@ namespace Amatsukaze.Server
         Failed,         // 失敗
         PreFailed,      // エンコード始める前に失敗
         LogoPending,    // ペンディング
-        Canceled        // キャンセルされた
+        Canceled,       // キャンセルされた
     }
 
     [DataContract]
     public class QueueItem
     {
         [DataMember]
+        public int Id { get; set; }
+        [DataMember]
         public string Path { get; set; }
         [DataMember]
-        public bool IsDrcsSearch { get; set; }
+        public ProcMode Mode { get; set; }
         [DataMember]
         public QueueState State { get; set; }
 
@@ -287,26 +294,53 @@ namespace Amatsukaze.Server
         public string JlsCommand { get; set; }
         [DataMember]
         public string DstName { get; set; }
+        [DataMember]
+        public bool HasSetting { get; set; }
+
+        public byte[] SettingData;
 
         public bool IsComplete { get { return State == QueueState.Complete; } }
         public bool IsEncoding { get { return State == QueueState.Encoding; } }
         public bool IsError { get { return State == QueueState.Failed || State == QueueState.PreFailed; } }
         public bool IsPending { get { return State == QueueState.LogoPending; } }
         public bool IsPreFailed { get { return State == QueueState.PreFailed; } }
+        public bool IsCanceled { get { return State == QueueState.Canceled; } }
         public bool IsTooSmall { get { return IsPreFailed && FailReason.Contains("映像が小さすぎます"); } }
         public string TsTimeString { get { return TsTime.ToString("yyyy年MM月dd日"); } }
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
 
+        public string FixParamString
+        {
+            get
+            {
+                return HasSetting ? "（設定固定済み）" : "";
+            }
+        }
+
+        public string ModeString
+        {
+            get
+            {
+                switch(Mode)
+                {
+                    case ProcMode.Batch:
+                        return "通常";
+                    case ProcMode.Test:
+                        return "テスト";
+                    case ProcMode.DrcsSearch:
+                        return "DRCSサーチ";
+                }
+                return "??";
+            }
+        }
+
         public string StateString {
             get {
-                if(IsDrcsSearch)
+                if(Mode == ProcMode.DrcsSearch)
                 {
                     switch (State)
                     {
-                        case QueueState.Queue: return "サーチ待ち";
                         case QueueState.Encoding: return "サーチ中";
-                        case QueueState.Failed: return "サーチ失敗";
-                        case QueueState.Complete: return "サーチ完了";
                     }
                 }
                 switch (State)
@@ -316,6 +350,7 @@ namespace Amatsukaze.Server
                     case QueueState.Failed: return "失敗";
                     case QueueState.PreFailed: return "失敗";
                     case QueueState.LogoPending: return "ペンディング";
+                    case QueueState.Canceled: return "キャンセル";
                     case QueueState.Complete: return "完了";
                 }
                 return "不明";
@@ -335,6 +370,13 @@ namespace Amatsukaze.Server
                 return ImageWidth <= 320 || ImageHeight <= 260;
             }
         }
+    }
+
+    [DataContract]
+    public class ItemSetting
+    {
+        public Setting setting;
+        public ServiceSettingElement service;
     }
 
     [DataContract]
@@ -379,6 +421,20 @@ namespace Amatsukaze.Server
         public int DirId { get; set; }
         [DataMember]
         public QueueItem Item { get; set; }
+    }
+
+    public enum ChangeItemType
+    {
+        Retry, FixParam, Cancel
+    }
+
+    [DataContract]
+    public class ChangeItemData
+    {
+        [DataMember]
+        public int ItemId { get; set; }
+        [DataMember]
+        public ChangeItemType ChangeType { get; set; }
     }
 
     [DataContract]

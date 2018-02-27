@@ -66,6 +66,7 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
+            Item.Mode = ProcMode.Batch;
             OutPath = DefaultPath = Path.Combine(Item.DirPath, "encoded");
         }
 
@@ -135,7 +136,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Search()
         {
-            Item.IsSearch = true;
+            Item.Mode = ProcMode.DrcsSearch;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
         }

@@ -16,7 +16,7 @@ namespace Amatsukaze.Server
         Task SetSetting(Setting setting);
         Task AddQueue(AddQueueDirectory dir);
         Task RemoveQueue(int id);
-        Task RetryItem(string itemPath);
+        Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
 
         Task SetServiceSetting(ServiceSettingUpdate update);
@@ -66,7 +66,7 @@ namespace Amatsukaze.Server
         SetSetting = 100,
         AddQueue,
         RemoveQueue,
-        RetryItem,
+        ChangeItem,
         PauseEncode,
         SetServiceSetting,
         AddDrcsMap,
@@ -111,7 +111,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.SetSetting, typeof(Setting) },
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.RemoveQueue, typeof(int) },
-            { RPCMethodId.RetryItem, typeof(string) },
+            { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },

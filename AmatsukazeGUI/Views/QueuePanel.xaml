@@ -54,7 +54,7 @@
                     </Setter>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsComplete}" Value="True">
-                            <Setter Property="Foreground" Value="Gray"/>
+                            <Setter Property="Background" Value="Cyan"/>
                         </DataTrigger>
                         <DataTrigger Binding="{Binding IsEncoding}" Value="True">
                             <Setter Property="Background" Value="Green"/>
@@ -64,6 +64,9 @@
                         </DataTrigger>
                         <DataTrigger Binding="{Binding IsPending}" Value="True">
                             <Setter Property="Background" Value="Yellow"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsCanceled}" Value="True">
+                            <Setter Property="Foreground" Value="Gray"/>
                         </DataTrigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Background" Value="Plum" />
@@ -86,7 +89,7 @@
                 <DataTemplate>
                     <TextBlock>
                         <Run Text="{Binding TsTimeString, Mode=OneWay}" /> <Run Text="{Binding ServiceName, Mode=OneWay}" />(<Run Text="{Binding ServiceId, Mode=OneWay}" />): <Run Text="{Binding FileName, Mode=OneWay}" />
-                            <LineBreak />状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding FailReason, Mode=OneWay}" />
+                            <LineBreak /><Run Text="{Binding ModeString, Mode=OneWay}"/><Run Text="{Binding FixParamString, Mode=OneWay}"/> 状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding FailReason, Mode=OneWay}" />
                     </TextBlock>
                 </DataTemplate>
             </ListBox.ItemTemplate>

@@ -264,6 +264,35 @@ namespace Amatsukaze.Server
             }
             throw new IOException("一時ファイル作成に失敗");
         }
+
+        public static string CreateSuffix(int n)
+        {
+            if (n == 0) return "";
+            var suffix = "-";
+            while(n > 0)
+            {
+                suffix += ('A' + (n % 27) - 1);
+                n /= 27;
+            }
+            return suffix;
+        }
+
+        public static string CreateDstFile(string baseName, string ext)
+        {
+            for (int i = 0; i < 0x1000; ++i)
+            {
+                string path = baseName + CreateSuffix(i) + ext;
+                try
+                {
+                    using (FileStream fs = new FileStream(path, FileMode.CreateNew))
+                    {
+                        return path;
+                    }
+                }
+                catch (IOException) { }
+            }
+            throw new IOException("出力ファイル作成に失敗");
+        }
     }
 
     public abstract class ConsoleTextBase : NotificationObject

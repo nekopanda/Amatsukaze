@@ -358,7 +358,9 @@ namespace Amatsukaze.ViewModels
             {
                 return;
             }
-            Model.Server.RetryItem(file.Path);
+            Model.Server.ChangeItem(new ChangeItemData() {
+                ItemId = file.Id, ChangeType = ChangeItemType.Retry
+            });
         }
         #endregion
 
