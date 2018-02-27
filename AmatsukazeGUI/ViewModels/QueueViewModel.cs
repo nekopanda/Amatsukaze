@@ -134,13 +134,25 @@ namespace Amatsukaze.ViewModels
             }
         }
 
+        private IEnumerable<DisplayQueueItem> SelectedQueueFiles {
+            get {
+                var dir = SetectedQueueItem;
+                if(dir == null)
+                {
+                    return Enumerable.Empty<DisplayQueueItem>();
+                }
+                return dir.Items.Where(s => s.IsSelected);
+            }
+        }
+
         private void LaunchLogoAnalyze(bool slimts)
         {
-            var file = SetectedQueueFile;
-            if (file == null)
+            var item = SelectedQueueFiles.FirstOrDefault();
+            if (item == null)
             {
                 return;
             }
+            var file = item.Model;
             var workpath = Model.WorkPath;
             if (Directory.Exists(workpath) == false)
             {
@@ -229,6 +241,10 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        public bool IsQueueFileSelected {
+            get { return SelectedQueueFiles.FirstOrDefault() != null; }
+        }
+
         #region UpperRowLength変更通知プロパティ
         private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
 
@@ -259,43 +275,6 @@ namespace Amatsukaze.ViewModels
                     return;
                 _LowerRowLength = value;
                 RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region QueueFileSelectedIndex変更通知プロパティ
-        private int _QueueFileSelectedIndex = -1;
-
-        public int QueueFileSelectedIndex {
-            get { return _QueueFileSelectedIndex; }
-            set { 
-                if (_QueueFileSelectedIndex == value)
-                    return;
-                _QueueFileSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("SetectedQueueFile");
-                RaisePropertyChanged("IsQueueFileSelected");
-            }
-        }
-
-        public QueueItem SetectedQueueFile {
-            get {
-                var queueItem = SetectedQueueItem;
-                if(queueItem == null)
-                {
-                    return null;
-                }
-                if (_QueueFileSelectedIndex >= 0 && _QueueFileSelectedIndex < queueItem.Items.Count)
-                {
-                    return queueItem.Items[_QueueFileSelectedIndex];
-                }
-                return null;
-            }
-        }
-
-        public bool IsQueueFileSelected {
-            get {
-                return SetectedQueueFile != null;
             }
         }
         #endregion
@@ -353,14 +332,42 @@ namespace Amatsukaze.ViewModels
 
         public void Retry()
         {
-            var file = SetectedQueueFile;
-            if (file == null)
+            foreach(var item in SelectedQueueFiles.ToArray())
             {
-                return;
+                var file = item.Model;
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.Retry
+                });
             }
-            Model.Server.ChangeItem(new ChangeItemData() {
-                ItemId = file.Id, ChangeType = ChangeItemType.Retry
-            });
+        }
+        #endregion
+
+        #region CancelCommand
+        private ViewModelCommand _CancelCommand;
+
+        public ViewModelCommand CancelCommand {
+            get {
+                if (_CancelCommand == null)
+                {
+                    _CancelCommand = new ViewModelCommand(Cancel);
+                }
+                return _CancelCommand;
+            }
+        }
+
+        public void Cancel()
+        {
+            foreach (var item in SelectedQueueFiles.ToArray())
+            {
+                var file = item.Model;
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.Cancel
+                });
+            }
         }
         #endregion
 
@@ -379,11 +386,12 @@ namespace Amatsukaze.ViewModels
 
         public void OpenFileInExplorer()
         {
-            var file = SetectedQueueFile;
-            if (file == null)
+            var item = SelectedQueueFiles.FirstOrDefault();
+            if (item == null)
             {
                 return;
             }
+            var file = item.Model;
             if (File.Exists(file.Path) == false)
             {
                 MessageBox.Show("ファイルが見つかりません");

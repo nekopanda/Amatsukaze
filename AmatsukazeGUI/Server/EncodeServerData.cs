@@ -297,65 +297,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool HasSetting { get; set; }
 
-        public byte[] SettingData;
-
-        public bool IsComplete { get { return State == QueueState.Complete; } }
-        public bool IsEncoding { get { return State == QueueState.Encoding; } }
-        public bool IsError { get { return State == QueueState.Failed || State == QueueState.PreFailed; } }
-        public bool IsPending { get { return State == QueueState.LogoPending; } }
-        public bool IsPreFailed { get { return State == QueueState.PreFailed; } }
-        public bool IsCanceled { get { return State == QueueState.Canceled; } }
-        public bool IsTooSmall { get { return IsPreFailed && FailReason.Contains("映像が小さすぎます"); } }
-        public string TsTimeString { get { return TsTime.ToString("yyyy年MM月dd日"); } }
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
-
-        public string FixParamString
-        {
-            get
-            {
-                return HasSetting ? "（設定固定済み）" : "";
-            }
-        }
-
-        public string ModeString
-        {
-            get
-            {
-                switch(Mode)
-                {
-                    case ProcMode.Batch:
-                        return "通常";
-                    case ProcMode.Test:
-                        return "テスト";
-                    case ProcMode.DrcsSearch:
-                        return "DRCSサーチ";
-                }
-                return "??";
-            }
-        }
-
-        public string StateString {
-            get {
-                if(Mode == ProcMode.DrcsSearch)
-                {
-                    switch (State)
-                    {
-                        case QueueState.Encoding: return "サーチ中";
-                    }
-                }
-                switch (State)
-                {
-                    case QueueState.Queue: return "待ち";
-                    case QueueState.Encoding: return "エンコード中";
-                    case QueueState.Failed: return "失敗";
-                    case QueueState.PreFailed: return "失敗";
-                    case QueueState.LogoPending: return "ペンディング";
-                    case QueueState.Canceled: return "キャンセル";
-                    case QueueState.Complete: return "完了";
-                }
-                return "不明";
-            }
-        }
 
         public bool IsActive {
             get {
@@ -373,13 +315,6 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class ItemSetting
-    {
-        public Setting setting;
-        public ServiceSettingElement service;
-    }
-
-    [DataContract]
     public class QueueDirectory
     {
         [DataMember]
@@ -393,6 +328,7 @@ namespace Amatsukaze.Server
 
         // サーバで使う
         public Dictionary<string, byte[]> HashList;
+        public Setting Setting { get; set; }
         public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(Path, "encoded"); } }
         public string Succeeded { get { return System.IO.Path.Combine(Path, "succeeded"); } }
         public string Failed { get { return System.IO.Path.Combine(Path, "failed"); } }
@@ -425,7 +361,7 @@ namespace Amatsukaze.Server
 
     public enum ChangeItemType
     {
-        Retry, FixParam, Cancel
+        Retry, Cancel
     }
 
     [DataContract]

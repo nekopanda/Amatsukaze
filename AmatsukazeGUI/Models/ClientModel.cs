@@ -38,9 +38,9 @@ namespace Amatsukaze.Models
         #endregion
 
         #region Items変更通知プロパティ
-        private ObservableCollection<QueueItem> _Items;
+        private ObservableCollection<DisplayQueueItem> _Items;
 
-        public ObservableCollection<QueueItem> Items {
+        public ObservableCollection<DisplayQueueItem> Items {
             get { return _Items; }
             set { 
                 if (_Items == value)
@@ -55,7 +55,68 @@ namespace Amatsukaze.Models
         {
             Id = dir.Id;
             Path = dir.Path;
-            Items = new ObservableCollection<QueueItem>(dir.Items);
+            Items = new ObservableCollection<DisplayQueueItem>(
+                dir.Items.Select(s => new DisplayQueueItem() { Model = s }));
+        }
+    }
+
+    public class DisplayQueueItem : NotificationObject
+    {
+        public QueueItem Model { get; set; }
+
+        public bool IsSelected { get; set; }
+
+        public bool IsComplete { get { return Model.State == QueueState.Complete; } }
+        public bool IsEncoding { get { return Model.State == QueueState.Encoding; } }
+        public bool IsError { get { return Model.State == QueueState.Failed || Model.State == QueueState.PreFailed; } }
+        public bool IsPending { get { return Model.State == QueueState.LogoPending; } }
+        public bool IsPreFailed { get { return Model.State == QueueState.PreFailed; } }
+        public bool IsCanceled { get { return Model.State == QueueState.Canceled; } }
+        public bool IsTooSmall { get { return IsPreFailed && Model.FailReason.Contains("映像が小さすぎます"); } }
+        public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
+
+        public string FixParamString {
+            get {
+                return Model.HasSetting ? "（設定固定済み）" : "";
+            }
+        }
+
+        public string ModeString {
+            get {
+                switch (Model.Mode)
+                {
+                    case ProcMode.Batch:
+                        return "通常";
+                    case ProcMode.Test:
+                        return "テスト";
+                    case ProcMode.DrcsSearch:
+                        return "DRCSサーチ";
+                }
+                return "??";
+            }
+        }
+
+        public string StateString {
+            get {
+                if (Model.Mode == ProcMode.DrcsSearch)
+                {
+                    switch (Model.State)
+                    {
+                        case QueueState.Encoding: return "サーチ中";
+                    }
+                }
+                switch (Model.State)
+                {
+                    case QueueState.Queue: return "待ち";
+                    case QueueState.Encoding: return "エンコード中";
+                    case QueueState.Failed: return "失敗";
+                    case QueueState.PreFailed: return "失敗";
+                    case QueueState.LogoPending: return "ペンディング";
+                    case QueueState.Canceled: return "キャンセル";
+                    case QueueState.Complete: return "完了";
+                }
+                return "不明";
+            }
         }
     }
 
@@ -1679,11 +1740,11 @@ namespace Amatsukaze.Models
                 {
                     if (update.Type == UpdateType.Add)
                     {
-                        dir.Items.Add(update.Item);
+                        dir.Items.Add(new DisplayQueueItem() { Model = update.Item });
                     }
                     else
                     {
-                        var file = dir.Items.FirstOrDefault(f => f.Id == update.Item.Id);
+                        var file = dir.Items.FirstOrDefault(f => f.Model.Id == update.Item.Id);
                         if (file != null)
                         {
                             if (update.Type == UpdateType.Remove)
@@ -1692,7 +1753,11 @@ namespace Amatsukaze.Models
                             }
                             else // Update
                             {
-                                dir.Items[dir.Items.IndexOf(file)] = update.Item;
+                                var index = dir.Items.IndexOf(file);
+                                dir.Items[index] = new DisplayQueueItem() {
+                                    Model = update.Item,
+                                    IsSelected = dir.Items[index].IsSelected
+                                };
                             }
                         }
                     }

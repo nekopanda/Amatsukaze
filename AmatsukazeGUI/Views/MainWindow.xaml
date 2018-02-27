@@ -12,6 +12,20 @@
         <vm:MainWindowViewModel/>
     </Window.DataContext>
 
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="CommonResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Storyboard x:Key="resultChangedAnimation">
+                <ColorAnimation  From="Blue" To="White" Duration="0:0:0.2" 
+                            Storyboard.TargetName="resultText" 
+                            Storyboard.TargetProperty="(TextBlock.Background).(SolidColorBrush.Color)" 
+                            FillBehavior="Stop" />
+            </Storyboard>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <i:Interaction.Triggers>
 
         <!--Viewに特別な要件が存在しない限りは、トリガーやアクションの自作にこだわらず積極的にコードビハインドを使いましょう -->
@@ -39,10 +53,6 @@
         </l:InteractionMessageTrigger>
 
     </i:Interaction.Triggers>
-    
-    <Window.Resources>
-        <ResourceDictionary Source="CommonResources.xaml"/>
-    </Window.Resources>
     
     <Grid>
         <Grid.Resources>
@@ -129,7 +139,14 @@
             </Grid.ColumnDefinitions>
             <Button Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
             <Button Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" Margin="50,0,0,0" />
-            <TextBlock Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center"/>
+            <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center" Background="White">
+                <i:Interaction.Triggers>
+                    <ei:PropertyChangedTrigger Binding="{Binding Path=Model.CurrentOperationResult}"> 
+                        <ei:ControlStoryboardAction Storyboard="{StaticResource resultChangedAnimation}"     
+                                                ControlStoryboardOption="Play"/>
+                    </ei:PropertyChangedTrigger> 
+                </i:Interaction.Triggers>
+            </TextBlock>
             <TextBlock Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
             <Button Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">
                 <Button.Style>

@@ -39,9 +39,12 @@
         
         <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
         
-        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.Items}" SelectedIndex="{Binding QueueFileSelectedIndex, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueItem.Items}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 SelectionMode="Extended">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
+                    <Setter Property="IsSelected" Value="{Binding Path=IsSelected}"/>
                     <Setter Property="OverridesDefaultStyle" Value="True" />
                     <Setter Property="Template">
                         <Setter.Value>
@@ -88,8 +91,8 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <TextBlock>
-                        <Run Text="{Binding TsTimeString, Mode=OneWay}" /> <Run Text="{Binding ServiceName, Mode=OneWay}" />(<Run Text="{Binding ServiceId, Mode=OneWay}" />): <Run Text="{Binding FileName, Mode=OneWay}" />
-                            <LineBreak /><Run Text="{Binding ModeString, Mode=OneWay}"/><Run Text="{Binding FixParamString, Mode=OneWay}"/> 状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding FailReason, Mode=OneWay}" />
+                        <Run Text="{Binding TsTimeString, Mode=OneWay}" /> <Run Text="{Binding Model.ServiceName, Mode=OneWay}" />(<Run Text="{Binding Model.ServiceId, Mode=OneWay}" />): <Run Text="{Binding Model.FileName, Mode=OneWay}" />
+                            <LineBreak />モード: <Run Text="{Binding ModeString, Mode=OneWay}"/> 状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding Model.FailReason, Mode=OneWay}" />
                     </TextBlock>
                 </DataTemplate>
             </ListBox.ItemTemplate>
@@ -97,7 +100,8 @@
                 <ContextMenu>
                     <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
-                    <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
+                    <MenuItem Header="リトライ/再エンコード" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
+                    <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
                     <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                 </ContextMenu>

@@ -6,7 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="Amatsukaze 出力先選択" Height="180" Width="370" Loaded="Window_Loaded">
+        Title="Amatsukaze ファイル追加" Height="380" Width="440" Loaded="Window_Loaded">
 
     <Window.DataContext>
         <vm:SelectOutPathViewModel/>
@@ -39,17 +39,31 @@
 
     </i:Interaction.Triggers>
 
-    <Grid>
-        <TextBlock x:Name="textBlock" Margin="10,4,10.333,0" TextWrapping="Wrap" VerticalAlignment="Top">
-            <Run Text="{Binding InputInfoText, Mode=OneWay}" /><Run Text="&#10;"/>
-            <Run Text="出力先フォルダを入力してください"/>
-        </TextBlock>
-        <TextBox x:Name="textBox" Height="23" Margin="10,40,9.333,0" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
-        <TextBlock x:Name="textBlock1" Margin="10,68,10.333,0" TextWrapping="Wrap" Text="{Binding Description}" VerticalAlignment="Top" Foreground="Red"/>
-        <Button x:Name="button2" Content="OK" Margin="0,90,167.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Command="{Binding OkCommand, Mode=OneWay}"/>
-        <Button x:Name="button1" Content="デフォルト" Margin="0,90,87.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75" Command="{Binding DefualtCommand, Mode=OneWay}"/>
-        <Button x:Name="button3" Content="DRCS外字をサーチ" Margin="0,115,7.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="115" Command="{Binding SearchCommand, Mode=OneWay}"/>
-        <Button x:Name="button" Content="キャンセル" Margin="0,90,7.333,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="75">
+    <StackPanel Margin="5">
+        <TextBlock Margin="2" Text="{Binding InputInfoText, Mode=OneWay}" TextWrapping="Wrap" />
+        <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
+        <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
+        
+        <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>
+        
+        <Button Margin="2" Height="Auto" Command="{Binding OkCommand, Mode=OneWay}">
+            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+                <Run FontSize="20" Text="通常モード"/><LineBreak/><Run Text="指定した出力フォルダに出力します。入力ファイルは、エンコード後 succeeded（成功時）、failed（失敗時）フォルダに移動します。同名ファイルは上書きします。"/>
+            </TextBlock>
+        </Button>
+
+        <Button Margin="2" Height="Auto" Command="{Binding DefualtCommand, Mode=OneWay}">
+            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+                <Run FontSize="20" Text="テストモード"/><LineBreak/><Run Text="上の指定と関係なく、入力ファイルと同じフォルダに出力します。エンコード後、入力ファイルの移動はしません。同名ファイルがある場合は上書きせず、別名で出力します。"/>
+            </TextBlock>
+        </Button>
+
+        <Button Margin="2" Height="Auto" Command="{Binding SearchCommand, Mode=OneWay}">
+            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+                <Run FontSize="20" Text="DRCS外字サーチ"/><LineBreak/><Run Text="入力ファイルを読んで未登録のDRCS外字を見つけます。エンコードはしません。DRCS外字登録をまとめて処理したいときに使ってください。"/>
+            </TextBlock>
+        </Button>
+        <Button Margin="2" Height="50" >
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="Click">
                     <l:WindowInteractionMessageAction>
@@ -59,6 +73,9 @@
                     </l:WindowInteractionMessageAction>
                 </i:EventTrigger>
             </i:Interaction.Triggers>
+            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+                <Run FontSize="20" Text="キャンセル"/>
+            </TextBlock>
         </Button>
-    </Grid>
+    </StackPanel>
 </Window>

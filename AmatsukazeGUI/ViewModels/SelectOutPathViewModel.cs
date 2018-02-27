@@ -66,7 +66,6 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
-            Item.Mode = ProcMode.Batch;
             OutPath = DefaultPath = Path.Combine(Item.DirPath, "encoded");
         }
 
@@ -96,6 +95,7 @@ namespace Amatsukaze.ViewModels
                 }
                 Item.DstPath = OutPath;
             }
+            Item.Mode = ProcMode.Batch;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
         }
@@ -116,6 +116,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Defualt()
         {
+            Item.Mode = ProcMode.Test;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
         }

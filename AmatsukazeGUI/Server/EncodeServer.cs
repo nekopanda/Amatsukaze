@@ -548,7 +548,7 @@ namespace Amatsukaze.Server
                 };
             }
 
-            private async Task<LogItem> ProcessItem(EncodeServer server, QueueItem src, string encoded, Dictionary<string, byte[]> hashList)
+            private async Task<LogItem> ProcessItem(EncodeServer server, QueueItem src, QueueDirectory dir)
             {
                 DateTime now = DateTime.Now;
 
@@ -557,22 +557,9 @@ namespace Amatsukaze.Server
                     return FailLogItem(src.Path, "入力ファイルが見つかりません", now, now);
                 }
 
-                Setting setting;
-                ServiceSettingElement serviceSetting;
-
-                if(src.SettingData != null)
-                {
-                    var ms = new MemoryStream(src.SettingData);
-                    var s = new DataContractSerializer(typeof(ItemSetting));
-                    var data = (ItemSetting)s.ReadObject(ms);
-                    setting = data.setting;
-                    serviceSetting = data.service;
-                }
-                else
-                {
-                    setting = server.appData.setting;
-                    serviceSetting = server.appData.services.ServiceMap[src.ServiceId];
-                }
+                Setting setting = dir.Setting;
+                ServiceSettingElement serviceSetting = 
+                    server.appData.services.ServiceMap[src.ServiceId];
 
                 bool ignoreNoLogo = true;
                 string[] logopaths = null;
@@ -602,7 +589,7 @@ namespace Amatsukaze.Server
                 }
                 else
                 {
-                    dstpath = Path.Combine(encoded, src.DstName);
+                    dstpath = Path.Combine(dir.Encoded, src.DstName);
                 }
 
                 bool isMp4 = src.Path.ToLower().EndsWith(".mp4");
@@ -614,18 +601,18 @@ namespace Amatsukaze.Server
                 try
                 {
                     // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
-                    if (hashList != null)
+                    if (dir.HashList != null)
                     {
                         tmpBase = Util.CreateTmpFile(setting.WorkPath);
                         localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
                         string name = Path.GetFileName(srcpath);
-                        if (hashList.ContainsKey(name) == false)
+                        if (dir.HashList.ContainsKey(name) == false)
                         {
                             return FailLogItem(src.Path, "入力ファイルのハッシュがありません", now, now);
                         }
 
                         byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
-                        var refhash = hashList[name];
+                        var refhash = dir.HashList[name];
                         if (hash.SequenceEqual(refhash) == false)
                         {
                             File.Delete(localsrc);
@@ -746,7 +733,7 @@ namespace Amatsukaze.Server
 
                     DateTime finish = DateTime.Now;
 
-                    if (hashList != null)
+                    if (dir.HashList != null)
                     {
                         File.Delete(localsrc);
                     }
@@ -787,7 +774,7 @@ namespace Amatsukaze.Server
                         var log = LogFromJson(isMp4, json, start, finish, src, outputMask);
 
                         // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
-                        if (hashList != null)
+                        if (dir.HashList != null)
                         {
                             log.SrcPath = src.Path;
                             string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
@@ -797,7 +784,7 @@ namespace Amatsukaze.Server
                                 string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
                                 var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
                                 string name = Path.GetFileName(outpath);
-                                HashUtil.AppendHash(Path.Combine(encoded, "_mp4.hash"), name, hash);
+                                HashUtil.AppendHash(Path.Combine(dir.Encoded, "_mp4.hash"), name, hash);
                                 File.Delete(log.OutPath[i]);
                                 log.OutPath[i] = outpath;
                             }
@@ -863,7 +850,7 @@ namespace Amatsukaze.Server
                     {
                         src.State = QueueState.Encoding;
                         waitList.Add(server.NotifyQueueItemUpdate(src, dir));
-                        logItem = await ProcessItem(server, src, dir.Encoded, dir.HashList);
+                        logItem = await ProcessItem(server, src, dir);
                     }
 
                     if (logItem == null)
@@ -1861,6 +1848,14 @@ namespace Amatsukaze.Server
             }
         }
 
+        private static T DeepCopy<T>(T src)
+        {
+            var ms = new MemoryStream();
+            var s = new DataContractSerializer(typeof(T));
+            s.WriteObject(ms, src);
+            return (T)s.ReadObject(new MemoryStream(ms.ToArray()));
+        }
+
         private async Task QueueThread()
         {
             try
@@ -1871,7 +1866,7 @@ namespace Amatsukaze.Server
 
                     List<Task> waitItems = new List<Task>();
 
-                    // 設定をチェックしてダメならポーズしておく
+                    // 設定をチェック
                     try
                     {
                         CheckSetting(appData.setting);
@@ -1879,7 +1874,7 @@ namespace Amatsukaze.Server
                     catch (Exception e)
                     {
                         waitItems.Add(client.OnOperationResult(e.Message));
-                        waitItems.Add(PauseEncode(true));
+                        continue;
                     }
 
                     waitItems.Add(RemoveAllCompleted());
@@ -1917,7 +1912,8 @@ namespace Amatsukaze.Server
                         Id = nextDirId++,
                         Path = dir.DirPath,
                         Items = new List<QueueItem>(),
-                        DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded")
+                        DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded"),
+                        Setting = DeepCopy(appData.setting)
                     };
 
                     if (dir.Mode == ProcMode.Batch && appData.setting.DisableHashCheck == false && target.Path.StartsWith("\\\\"))
@@ -2887,30 +2883,6 @@ namespace Amatsukaze.Server
                     if(target.IsActive)
                     {
                         target.State = QueueState.Canceled;
-                        return NotifyQueueItemUpdate(target, dir);
-                    }
-                }
-                else if(data.ChangeType == ChangeItemType.FixParam)
-                {
-                    if (target.State == QueueState.LogoPending || target.State == QueueState.Queue)
-                    {
-                        if (target.SettingData == null)
-                        {
-                            var ms = new MemoryStream();
-                            var s = new DataContractSerializer(typeof(ItemSetting));
-                            s.WriteObject(ms, new ItemSetting()
-                            {
-                                setting = appData.setting,
-                                service = appData.services.ServiceMap[target.ServiceId]
-                            });
-                            target.SettingData = ms.GetBuffer();
-                            target.HasSetting = true;
-                        }
-                        else
-                        {
-                            target.SettingData = null;
-                            target.HasSetting = false;
-                        }
                         return NotifyQueueItemUpdate(target, dir);
                     }
                 }
