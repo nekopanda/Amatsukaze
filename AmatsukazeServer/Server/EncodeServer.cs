@@ -1,6 +1,6 @@
-﻿using Amatsukaze.Models;
+﻿using Livet;
+using Amatsukaze.Lib;
 using Codeplex.Data;
-using Livet;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

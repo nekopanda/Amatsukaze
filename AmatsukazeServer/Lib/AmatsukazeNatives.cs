@@ -1,16 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-
-using Livet;
 using System.Runtime.InteropServices;
 using System.IO;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
-using System.Threading.Tasks;
 
-namespace Amatsukaze.Models
+namespace Amatsukaze.Lib
 {
     public static class AmatsukazeNatives
     {

@@ -94,9 +94,7 @@
   <ItemGroup>
     <Compile Include="Components\IsNullConverter.cs" />
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
-    <Compile Include="Models\AmatsukazeNatives.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
-    <Compile Include="Server\Scheduler.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageListViewModel.cs" />
@@ -212,7 +210,6 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DynamicJson.cs" />
     <Compile Include="ViewModels\ConsoleViewModel.cs" />
     <Compile Include="ViewModels\LogViewModel.cs" />
     <Compile Include="ViewModels\QueueViewModel.cs" />
@@ -223,11 +220,6 @@
       <DependentUpon>LogFilePanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Models\ClientModel.cs" />
-    <Compile Include="Server\EncodeServer.cs" />
-    <Compile Include="Server\EncodeServerData.cs" />
-    <Compile Include="Server\ServerInterface.cs" />
-    <Compile Include="Server\Misc.cs" />
-    <Compile Include="Server\ServerConnection.cs" />
     <Compile Include="ViewModels\ConfigWindowViewModel.cs" />
     <Compile Include="ViewModels\LogFileViewModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
@@ -294,6 +286,12 @@
     <Content Include="InfrastructureAssemblies\Livet.XML" />
     <Content Include="InfrastructureAssemblies\Microsoft.Expression.Interactions.dll" />
     <Content Include="InfrastructureAssemblies\System.Windows.Interactivity.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AmatsukazeServer\AmatsukazeServer.csproj">
+      <Project>{5bac25f7-ead0-4b4c-84a7-6edc9c4c8cd6}</Project>
+      <Name>AmatsukazeServer</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
