@@ -882,12 +882,30 @@ namespace Amatsukaze.Server
                                 if (sameItems.Any(s => s.State == QueueState.Failed))
                                 {
                                     // 失敗がある
-                                    File.Move(src.Path, dir.Failed + "\\" + Path.GetFileName(src.Path));
+                                    EncodeServer.MoveTSFile(src.Path, dir.Failed, dir.Setting.MoveEDCBFiles);
                                 }
                                 else
                                 {
                                     // 全て成功
-                                    File.Move(src.Path, dir.Succeeded + "\\" + Path.GetFileName(src.Path));
+                                    EncodeServer.MoveTSFile(src.Path, dir.Succeeded, dir.Setting.MoveEDCBFiles);
+                                }
+
+                                // 関連ファイルをコピー
+                                if(dir.Setting.MoveEDCBFiles)
+                                {
+                                    var commonName = Path.GetFileNameWithoutExtension(src.Path);
+                                    var srcBody = Path.GetDirectoryName(src.Path) + "\\" + commonName;
+                                    var dstBody = dir.Succeeded + "\\" + commonName;
+                                    foreach (var ext in EncodeServer
+                                        .GetFileExtentions(null, dir.Setting.MoveEDCBFiles))
+                                    {
+                                        var srcPath = srcBody + ext;
+                                        var dstPath = dstBody + ext;
+                                        if(File.Exists(srcPath) && !File.Exists(dstPath))
+                                        {
+                                            File.Copy(srcPath, dstPath);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1829,6 +1847,15 @@ namespace Amatsukaze.Server
                         "NicoConvASSパスが無効です: " + setting.NicoConvASSPath);
                 }
             }
+
+            if(!string.IsNullOrEmpty(setting.DefaultOutPath))
+            {
+                if(!Directory.Exists(setting.DefaultOutPath))
+                {
+                    throw new InvalidOperationException(
+                        "デフォルト出力パスが無効です: " + setting.DefaultOutPath);
+                }
+            }
         }
 
         private async Task RemoveAllCompleted()
@@ -1908,11 +1935,23 @@ namespace Amatsukaze.Server
                         continue;
                     }
 
+                    string dstPath = dir.DstPath;
+                    if(dir.DstPath == null)
+                    {
+                        if(string.IsNullOrEmpty(appData.setting.DefaultOutPath) == false)
+                        {
+                            dstPath = appData.setting.DefaultOutPath;
+                        }
+                        else
+                        {
+                            dstPath = Path.Combine(dir.DirPath, "encoded");
+                        }
+                    }
                     var target = new QueueDirectory() {
                         Id = nextDirId++,
                         Path = dir.DirPath,
                         Items = new List<QueueItem>(),
-                        DstPath = (dir.DstPath != null) ? dir.DstPath : Path.Combine(dir.DirPath, "encoded"),
+                        DstPath = dstPath,
                         Setting = DeepCopy(appData.setting)
                     };
 
@@ -2851,6 +2890,35 @@ namespace Amatsukaze.Server
             return NotifyQueueItemUpdate(item, dir);
         }
 
+        private static IEnumerable<string> GetFileExtentions(string tsext, bool withEDCB)
+        {
+            if(tsext != null)
+            {
+                yield return tsext;
+            }
+            if(withEDCB)
+            {
+                yield return ".ts.err";
+                yield return ".ts.program.txt";
+            }
+        }
+
+        private static void MoveTSFile(string file, string dstDir, bool withEDCB)
+        {
+            string body = Path.GetFileNameWithoutExtension(file);
+            string tsext = Path.GetExtension(file);
+            string srcDir = Path.GetDirectoryName(file);
+            foreach (var ext in GetFileExtentions(tsext, withEDCB))
+            {
+                string srcPath = srcDir + "\\" + body + ext;
+                string dstPath = dstDir + "\\" + body + ext;
+                if (File.Exists(srcPath))
+                {
+                    File.Move(srcPath, dstPath);
+                }
+            }
+        }
+
         public Task ChangeItem(ChangeItemData data)
         {
             var all = queue.SelectMany(d => d.Items);
@@ -2871,7 +2939,8 @@ namespace Amatsukaze.Server
                                 var failedPath = dir.Failed + "\\" + Path.GetFileName(target.FileName);
                                 if (File.Exists(failedPath))
                                 {
-                                    File.Move(failedPath, target.FileName);
+                                    // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
+                                    MoveTSFile(failedPath, Path.GetDirectoryName(target.FileName), true);
                                 }
                             }
                         }

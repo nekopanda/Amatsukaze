@@ -100,6 +100,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string WorkPath { get; set; }
         [DataMember]
+        public string DefaultOutPath { get; set; }
+        [DataMember]
         public string AlwaysShowDisk { get; set; }
 
         [DataMember]
@@ -144,6 +146,8 @@ namespace Amatsukaze.Server
         public bool NicoJK18 { get; set; }
         [DataMember]
         public bool[] NicoJKFormats { get; set; }
+        [DataMember]
+        public bool MoveEDCBFiles { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

@@ -101,20 +101,21 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region DefualtCommand
-        private ViewModelCommand _DefualtCommand;
+        #region TestCommand
+        private ViewModelCommand _TestCommand;
 
-        public ViewModelCommand DefualtCommand {
+        public ViewModelCommand TestCommand
+        {
             get {
-                if (_DefualtCommand == null)
+                if (_TestCommand == null)
                 {
-                    _DefualtCommand = new ViewModelCommand(Defualt);
+                    _TestCommand = new ViewModelCommand(Test);
                 }
-                return _DefualtCommand;
+                return _TestCommand;
             }
         }
 
-        public async void Defualt()
+        public async void Test()
         {
             Item.Mode = ProcMode.Test;
             Succeeded = true;

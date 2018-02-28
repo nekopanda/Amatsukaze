@@ -52,7 +52,7 @@
             </TextBlock>
         </Button>
 
-        <Button Margin="2" Height="Auto" Command="{Binding DefualtCommand, Mode=OneWay}">
+        <Button Margin="2" Height="Auto" Command="{Binding TestCommand, Mode=OneWay}">
             <TextBlock TextAlignment="Center" TextWrapping="Wrap">
                 <Run FontSize="20" Text="テストモード"/><LineBreak/><Run Text="上の指定と関係なく、入力ファイルと同じフォルダに出力します。エンコード後、入力ファイルの移動はしません。同名ファイルがある場合は上書きせず、別名で出力します。"/>
             </TextBlock>

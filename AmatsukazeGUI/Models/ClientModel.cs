@@ -830,6 +830,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DefaultOutPath変更通知プロパティ
+        public string DefaultOutPath
+        {
+            get { return setting.DefaultOutPath; }
+            set
+            {
+                if (setting.DefaultOutPath == value)
+                    return;
+                setting.DefaultOutPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region AlwaysShowDisk変更通知プロパティ
         public string AlwaysShowDisk
         {
@@ -1171,6 +1185,20 @@ namespace Amatsukaze.Models
                 if (setting.ClearWorkDirOnStart == value)
                     return;
                 setting.ClearWorkDirOnStart = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MoveEDCBFiles変更通知プロパティ
+        public bool MoveEDCBFiles
+        {
+            get { return setting.MoveEDCBFiles; }
+            set
+            {
+                if (setting.MoveEDCBFiles == value)
+                    return;
+                setting.MoveEDCBFiles = value;
                 RaisePropertyChanged();
             }
         }
@@ -1635,6 +1663,7 @@ namespace Amatsukaze.Models
             NicoJKFormat1080S = setting.NicoJKFormats[2];
             NicoJKFormat1080T = setting.NicoJKFormats[3];
             ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
+            MoveEDCBFiles = setting.MoveEDCBFiles;
             SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
             DisableHashCheck = setting.DisableHashCheck;
             HideOneSeg = setting.HideOneSeg;

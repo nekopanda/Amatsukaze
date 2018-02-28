@@ -20,6 +20,7 @@ namespace Amatsukaze.Server
         Client,
         Debug,
         Logo,
+        Add
     };
 
     public class GUIOPtion
@@ -33,6 +34,9 @@ namespace Amatsukaze.Server
         public bool SlimTs;
         public int ServiceId;
 
+        // タスク追加用
+        public string ServerIP;
+
         public GUIOPtion(string[] args)
         {
             for (int i = 0; i < args.Length; ++i)
@@ -41,6 +45,11 @@ namespace Amatsukaze.Server
                 if (arg == "-p" || arg == "--port")
                 {
                     ServerPort = int.Parse(args[i + 1]);
+                    ++i;
+                }
+                else if(arg == "-ip" || arg == "--ip")
+                {
+                    ServerIP = args[i + 1];
                     ++i;
                 }
                 else if(arg == "-l" || arg == "--launch")
@@ -64,6 +73,10 @@ namespace Amatsukaze.Server
                     else if(opt == "logo")
                     {
                         LaunchType = LaunchType.Logo;
+                    }
+                    else if (opt == "add")
+                    {
+                        LaunchType = LaunchType.Add;
                     }
                 }
                 else if(arg == "--file")
