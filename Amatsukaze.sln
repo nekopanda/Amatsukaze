@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2027
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FileCutter", "FileCutter\FileCutter.vcxproj", "{62A88502-50BC-4045-A184-13C08DCC00E5}"
 EndProject
@@ -25,6 +25,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NicoJK18Client", "NicoJK18Client\NicoJK18Client.csproj", "{5A1E4CA1-C310-4E2C-AD88-100E7249396C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmatsukazeServer", "AmatsukazeServer\AmatsukazeServer.csproj", "{5BAC25F7-EAD0-4B4C-84A7-6EDC9C4C8CD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmatsukazeAddTask", "AmatsukazeAddTask\AmatsukazeAddTask.csproj", "{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -98,6 +100,14 @@ Global
 		{5BAC25F7-EAD0-4B4C-84A7-6EDC9C4C8CD6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5BAC25F7-EAD0-4B4C-84A7-6EDC9C4C8CD6}.Release|x64.ActiveCfg = Release|Any CPU
 		{5BAC25F7-EAD0-4B4C-84A7-6EDC9C4C8CD6}.Release|x64.Build.0 = Release|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Debug|x64.Build.0 = Debug|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Release|x64.ActiveCfg = Release|Any CPU
+		{FB72ECC9-FB61-420F-855B-33ABD6FD5F55}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

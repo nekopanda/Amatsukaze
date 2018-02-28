@@ -284,7 +284,7 @@ namespace Amatsukaze.Server
             var suffix = "-";
             while(n > 0)
             {
-                suffix += ('A' + (n % 27) - 1);
+                suffix += (char)('A' + (n % 27) - 1);
                 n /= 27;
             }
             return suffix;

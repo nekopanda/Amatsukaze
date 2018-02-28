@@ -44,6 +44,11 @@ namespace Amatsukaze.Server
         MKV
     }
 
+    public enum FinishAction
+    {
+        None, Suspend, Hibernate
+    }
+
     [DataContract]
     public class Setting : IExtensibleDataObject
     {
@@ -148,6 +153,8 @@ namespace Amatsukaze.Server
         public bool[] NicoJKFormats { get; set; }
         [DataMember]
         public bool MoveEDCBFiles { get; set; }
+        [DataMember]
+        public FinishAction FinishAction { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -242,7 +249,7 @@ namespace Amatsukaze.Server
 
     public enum ProcMode
     {
-        Batch, Test, DrcsSearch
+        Batch, AutoBatch, Test, DrcsSearch
     }
 
     [DataContract]
@@ -253,9 +260,15 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<string> Targets { get; set; }
         [DataMember]
+        public List<string> Hashes { get; set; }
+        [DataMember]
         public string DstPath { get; set; }
         [DataMember]
         public ProcMode Mode { get; set; }
+        [DataMember]
+        public string RequestId { get; set; }
+
+        public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
     }
 
     public enum QueueState
@@ -277,8 +290,6 @@ namespace Amatsukaze.Server
         [DataMember]
         public string Path { get; set; }
         [DataMember]
-        public ProcMode Mode { get; set; }
-        [DataMember]
         public QueueState State { get; set; }
 
         [DataMember]
@@ -298,8 +309,6 @@ namespace Amatsukaze.Server
         public string JlsCommand { get; set; }
         [DataMember]
         public string DstName { get; set; }
-        [DataMember]
-        public bool HasSetting { get; set; }
 
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
 
@@ -324,18 +333,22 @@ namespace Amatsukaze.Server
         [DataMember]
         public int Id { get; set; }
         [DataMember]
-        public string Path { get; set; }
+        public string DirPath { get; set; }
         [DataMember]
         public List<QueueItem> Items { get; set; }
         [DataMember]
         public string DstPath;
+        [DataMember]
+        public ProcMode Mode { get; set; }
 
         // サーバで使う
         public Dictionary<string, byte[]> HashList;
         public Setting Setting { get; set; }
-        public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(Path, "encoded"); } }
-        public string Succeeded { get { return System.IO.Path.Combine(Path, "succeeded"); } }
-        public string Failed { get { return System.IO.Path.Combine(Path, "failed"); } }
+        public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(DirPath, "encoded"); } }
+        public string Succeeded { get { return System.IO.Path.Combine(DirPath, "succeeded"); } }
+        public string Failed { get { return System.IO.Path.Combine(DirPath, "failed"); } }
+        public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
+        public bool IsTest { get { return Mode == ProcMode.Test; } }
     }
 
     [DataContract]

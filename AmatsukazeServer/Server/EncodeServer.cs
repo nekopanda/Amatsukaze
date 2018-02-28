@@ -330,6 +330,11 @@ namespace Amatsukaze.Server
         {
             return Send(RPCMethodId.OnDrcsData, update);
         }
+
+        public Task OnAddResult(string requestId)
+        {
+            return Send(RPCMethodId.OnAddResult, requestId);
+        }
         #endregion
     }
 
@@ -582,10 +587,11 @@ namespace Amatsukaze.Server
 
                 // 出力パス生成
                 string dstpath;
-                if (src.Mode == ProcMode.Test)
+                if (dir.IsTest)
                 {
                     var ext = (setting.OutputFormat == FormatType.MP4) ? ".mp4" : ".mkv";
-                    dstpath = Util.CreateDstFile(Path.GetDirectoryName(src.Path) + "\\" + src.DstName, ext);
+                    var baseName = Path.Combine(dir.Encoded, Path.GetFileNameWithoutExtension(src.DstName));
+                    dstpath = Util.CreateDstFile(baseName, ext);
                 }
                 else
                 {
@@ -763,12 +769,7 @@ namespace Amatsukaze.Server
                         }
                     }
 
-                    if(isCanceled)
-                    {
-                        // キャンセルされた
-                        return FailLogItem(src.Path, "キャンセルされました", start, finish);
-                    }
-                    else if (exitCode == 0)
+                    if(exitCode == 0 && isCanceled == false)
                     {
                         // 成功
                         var log = LogFromJson(isMp4, json, start, finish, src, outputMask);
@@ -792,6 +793,20 @@ namespace Amatsukaze.Server
 
                         return log;
                     }
+
+                    // 失敗 //
+
+                    if (dir.IsTest)
+                    {
+                        // 出力ファイルを削除
+                        File.Delete(dstpath);
+                    }
+
+                    if(isCanceled)
+                    {
+                        // キャンセルされた
+                        return FailLogItem(src.Path, "キャンセルされました", start, finish);
+                    }
                     else if (exitCode == 100)
                     {
                         // マッチするロゴがなかった
@@ -804,7 +819,7 @@ namespace Amatsukaze.Server
                     }
                     else
                     {
-                        // 失敗
+                        // その他
                         return FailLogItem(src.Path,
                             "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
                     }
@@ -832,7 +847,7 @@ namespace Amatsukaze.Server
                         return true;
                     }
 
-                    if(src.Mode == ProcMode.Batch)
+                    if(dir.IsBatch)
                     {
                         Directory.CreateDirectory(dir.Succeeded);
                         Directory.CreateDirectory(dir.Failed);
@@ -873,7 +888,7 @@ namespace Amatsukaze.Server
                             result = false;
                         }
 
-                        if (src.Mode == ProcMode.Batch)
+                        if (dir.IsBatch)
                         {
                             var sameItems = dir.Items.Where(s => s.Path == src.Path);
                             if (sameItems.Any(s => s.IsActive) == false)
@@ -1044,7 +1059,7 @@ namespace Amatsukaze.Server
 
             public Task<bool> RunItem(WorkerQueueItem workerItem)
             {
-                if(workerItem.Item.Mode == ProcMode.DrcsSearch)
+                if(workerItem.Dir.Mode == ProcMode.DrcsSearch)
                 {
                     return RunSearchItem(workerItem);
                 }
@@ -1095,6 +1110,8 @@ namespace Amatsukaze.Server
         private Task saveSettingThread;
         private BufferBlock<int> saveSettingQ = new BufferBlock<int>();
         private bool settingUpdated;
+
+        private PreventSuspendContext preventSuspend;
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -1169,7 +1186,24 @@ namespace Amatsukaze.Server
                 },
                 OnFinish = ()=> {
                     NowEncoding = false;
-                    return RequestState();
+                    var task = RequestState();
+                    if (preventSuspend != null)
+                    {
+                        preventSuspend.Dispose();
+                        preventSuspend = null;
+                        if(appData.setting.FinishAction != FinishAction.None)
+                        {
+                            if (WinAPI.GetLastInputTime().Minutes >= 3)
+                            {
+                                // ユーザ操作が3分以上なかったらPCをサスペンド
+                                var state = (appData.setting.FinishAction == FinishAction.Suspend)
+                                        ? System.Windows.Forms.PowerState.Suspend
+                                        : System.Windows.Forms.PowerState.Hibernate;
+                                System.Windows.Forms.Application.SetSuspendState(state, false, false);
+                            }
+                        }
+                    }
+                    return task;
                 },
                 OnError = message => AddEncodeLog(message)
             };
@@ -1308,6 +1342,15 @@ namespace Amatsukaze.Server
                 client.Finish();
                 client = null;
             }
+        }
+
+        private Task NotifyMessage(string message, bool log)
+        {
+            if(log)
+            {
+                Util.AddLog(message);
+            }
+            return client.OnOperationResult(message);
         }
 
         private static string GetExePath(string basePath, string pattern)
@@ -1883,6 +1926,246 @@ namespace Amatsukaze.Server
             return (T)s.ReadObject(new MemoryStream(ms.ToArray()));
         }
 
+        private async Task InternalAddQueue(AddQueueDirectory dir)
+        {
+            List<Task> waitItems = new List<Task>();
+
+            // ユーザ操作でない場合はログを記録する
+            bool enableLog = (dir.Mode == ProcMode.AutoBatch);
+
+            // 設定をチェック
+            try
+            {
+                CheckSetting(appData.setting);
+            }
+            catch (Exception e)
+            {
+                waitItems.Add(NotifyMessage(e.Message, enableLog));
+                return;
+            }
+
+            waitItems.Add(RemoveAllCompleted());
+
+            // 既に追加されているファイルは除外する
+            var ignores = queue
+                .Where(t => t.DirPath == dir.DirPath);
+
+            // バッチのときは全ファイルが対象だが、バッチじゃなければバッチのみが対象
+            if (!dir.IsBatch)
+            {
+                ignores = ignores.Where(t => t.IsBatch);
+            }
+
+            var ignoreSet = new HashSet<string>(
+                ignores.SelectMany(t => t.Items).Select(item => item.Path));
+
+            var items = ((dir.Targets != null)
+                ? dir.Targets
+                : Directory.GetFiles(dir.DirPath)
+                    .Where(s => {
+                        string lower = s.ToLower();
+                        return lower.EndsWith(".ts") || lower.EndsWith(".m2t") || lower.EndsWith(".mp4");
+                    }))
+                    .Where(f => !ignoreSet.Contains(f));
+
+            if (dir.Mode != ProcMode.DrcsSearch && dir.DstPath != null && Directory.Exists(dir.DstPath) == false)
+            {
+                await NotifyMessage(
+                    "出力先フォルダが存在しません:" + dir.DstPath, enableLog);
+                return;
+            }
+
+            string dstPath = dir.DstPath;
+            if (dir.DstPath == null)
+            {
+                if (string.IsNullOrEmpty(appData.setting.DefaultOutPath) == false)
+                {
+                    dstPath = appData.setting.DefaultOutPath;
+                }
+                else
+                {
+                    dstPath = Path.Combine(dir.DirPath, "encoded");
+                }
+            }
+            var target = new QueueDirectory()
+            {
+                Id = nextDirId++,
+                DirPath = dir.DirPath,
+                Items = new List<QueueItem>(),
+                DstPath = dstPath,
+                Mode = dir.Mode,
+                Setting = DeepCopy(appData.setting)
+            };
+
+            if (dir.IsBatch && appData.setting.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
+            {
+                var hashpath = target.DirPath + ".hash";
+                if (File.Exists(hashpath) == false)
+                {
+                    await NotifyMessage("ハッシュファイルがありません: " + hashpath + "\r\n" +
+                        "必要ない場合はハッシュチェックを無効化して再度追加してください", enableLog);
+                    return;
+                }
+                try
+                {
+                    target.HashList = HashUtil.ReadHashFile(hashpath);
+                }
+                catch (IOException e)
+                {
+                    await NotifyMessage("ハッシュファイルの読み込みに失敗: " + e.Message, enableLog);
+                    return;
+                }
+            }
+
+            queue.Add(target);
+            waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+            {
+                Type = UpdateType.Add,
+                Directory = target
+            }));
+
+            var map = appData.services.ServiceMap;
+
+            // TSファイル情報を読む
+            foreach (var filepath in items)
+            {
+                using (var info = new TsInfo(amtcontext))
+                {
+                    var fileitems = new List<QueueItem>();
+                    var failReason = "";
+                    if (await Task.Run(() => info.ReadFile(filepath)) == false)
+                    {
+                        failReason = "TS情報取得に失敗: " + amtcontext.GetError();
+                    }
+                    else
+                    {
+                        failReason = "TSファイルに映像が見つかりませんでした";
+                        var list = info.GetProgramList();
+                        var videopids = new List<int>();
+                        int numFiles = 0;
+                        for (int i = 0; i < list.Length; ++i)
+                        {
+                            var prog = list[i];
+                            if (prog.HasVideo &&
+                                videopids.Contains(prog.VideoPid) == false)
+                            {
+                                videopids.Add(prog.VideoPid);
+
+                                var serviceName = "不明";
+                                var tsTime = DateTime.MinValue;
+                                if (info.HasServiceInfo)
+                                {
+                                    var service = info.GetServiceList().Where(s => s.ServiceId == prog.ServiceId).FirstOrDefault();
+                                    if (service.ServiceId != 0)
+                                    {
+                                        serviceName = service.ServiceName;
+                                    }
+                                    tsTime = info.GetTime();
+                                }
+
+                                var dstname = Path.GetFileName(filepath);
+                                if (numFiles > 0)
+                                {
+                                    dstname = Path.GetFileNameWithoutExtension(dstname) + "-マルチ" + numFiles;
+                                }
+
+                                var item = new QueueItem()
+                                {
+                                    Id = nextItemId++,
+                                    Path = filepath,
+                                    DstName = dstname,
+                                    ServiceId = prog.ServiceId,
+                                    ImageWidth = prog.Width,
+                                    ImageHeight = prog.Height,
+                                    TsTime = tsTime,
+                                    ServiceName = serviceName,
+                                    State = QueueState.LogoPending
+                                };
+
+                                Debug.Print("解析完了: " + filepath);
+
+                                if (item.IsOneSeg)
+                                {
+                                    item.State = QueueState.PreFailed;
+                                    item.FailReason = "映像が小さすぎます(" + prog.Width + "," + prog.Height + ")";
+                                }
+                                else
+                                {
+                                    // ロゴファイルを探す
+                                    if (dir.Mode != ProcMode.DrcsSearch && map.ContainsKey(item.ServiceId) == false)
+                                    {
+                                        // 新しいサービスを登録
+                                        var newElement = new ServiceSettingElement()
+                                        {
+                                            ServiceId = item.ServiceId,
+                                            ServiceName = item.ServiceName,
+                                            LogoSettings = new List<LogoSetting>()
+                                        };
+                                        map.Add(item.ServiceId, newElement);
+                                        serviceListUpdated = true;
+                                        waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate()
+                                        {
+                                            Type = ServiceSettingUpdateType.Update,
+                                            ServiceId = newElement.ServiceId,
+                                            Data = newElement
+                                        }));
+                                    }
+                                    UpdateQueueItem(item, target, true);
+                                    ++numFiles;
+                                }
+
+                                fileitems.Add(item);
+
+                            }
+                        }
+
+                    }
+
+                    if (fileitems.Count == 0)
+                    {
+                        fileitems.Add(new QueueItem()
+                        {
+                            Id = nextItemId++,
+                            Path = filepath,
+                            DstName = "",
+                            ServiceId = -1,
+                            ImageWidth = -1,
+                            ImageHeight = -1,
+                            TsTime = DateTime.MinValue,
+                            ServiceName = "不明",
+                            State = QueueState.PreFailed,
+                            FailReason = failReason
+                        });
+                    }
+
+                    target.Items.AddRange(fileitems);
+                    foreach (var item in fileitems)
+                    {
+                        waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+                        {
+                            Type = UpdateType.Add,
+                            Item = item,
+                            DirId = target.Id
+                        }));
+                    }
+                }
+            }
+
+            if (target.Items.Count == 0)
+            {
+                waitItems.Add(NotifyMessage(
+                    "エンコード対象ファイルが見つかりません。パス:" + dir.DirPath, enableLog));
+
+                await Task.WhenAll(waitItems.ToArray());
+
+                return;
+            }
+
+            waitItems.Add(RequestFreeSpace());
+
+            await Task.WhenAll(waitItems.ToArray());
+        }
+
         private async Task QueueThread()
         {
             try
@@ -1890,244 +2173,13 @@ namespace Amatsukaze.Server
                 while (await queueQ.OutputAvailableAsync())
                 {
                     AddQueueDirectory dir = await queueQ.ReceiveAsync();
-
-                    List<Task> waitItems = new List<Task>();
-
-                    // 設定をチェック
-                    try
-                    {
-                        CheckSetting(appData.setting);
-                    }
-                    catch (Exception e)
-                    {
-                        waitItems.Add(client.OnOperationResult(e.Message));
-                        continue;
-                    }
-
-                    waitItems.Add(RemoveAllCompleted());
-
-                    // 既に追加されているファイルは除外する
-                    var ignores = queue
-                        .Where(t => t.Path == dir.DirPath)
-                        .SelectMany(t => t.Items);
-
-                    // バッチのときは全ファイルが対象だが、バッチじゃなければバッチのみが対象
-                    if(dir.Mode != ProcMode.Batch)
-                    {
-                        ignores = ignores.Where(t => t.Mode == ProcMode.Batch);
-                    }
-
-                    var ignoreSet = new HashSet<string>(ignores.Select(item => item.Path));
-
-                    var items = ((dir.Targets != null)
-                        ? dir.Targets
-                        : Directory.GetFiles(dir.DirPath)
-                            .Where(s => {
-                                string lower = s.ToLower();
-                                return lower.EndsWith(".ts") || lower.EndsWith(".m2t") || lower.EndsWith(".mp4");
-                            }))
-                            .Where(f => !ignoreSet.Contains(f));
-
-                    if (dir.Mode == ProcMode.Batch && dir.DstPath != null && Directory.Exists(dir.DstPath) == false)
-                    {
-                        await client.OnOperationResult(
-                            "出力先フォルダが存在しません:" + dir.DstPath);
-                        continue;
-                    }
-
-                    string dstPath = dir.DstPath;
-                    if(dir.DstPath == null)
-                    {
-                        if(string.IsNullOrEmpty(appData.setting.DefaultOutPath) == false)
-                        {
-                            dstPath = appData.setting.DefaultOutPath;
-                        }
-                        else
-                        {
-                            dstPath = Path.Combine(dir.DirPath, "encoded");
-                        }
-                    }
-                    var target = new QueueDirectory() {
-                        Id = nextDirId++,
-                        Path = dir.DirPath,
-                        Items = new List<QueueItem>(),
-                        DstPath = dstPath,
-                        Setting = DeepCopy(appData.setting)
-                    };
-
-                    if (dir.Mode == ProcMode.Batch && appData.setting.DisableHashCheck == false && target.Path.StartsWith("\\\\"))
-                    {
-                        var hashpath = target.Path + ".hash";
-                        if (File.Exists(hashpath) == false)
-                        {
-                            await client.OnOperationResult("ハッシュファイルがありません: " + hashpath + "\r\n" +
-                                "必要ない場合はハッシュチェックを無効化して再度追加してください");
-                            continue;
-                        }
-                        try
-                        {
-                            target.HashList = HashUtil.ReadHashFile(hashpath);
-                        }
-                        catch(IOException e)
-                        {
-                            await client.OnOperationResult("ハッシュファイルの読み込みに失敗: " + e.Message);
-                            continue;
-                        }
-                    }
-
-                    queue.Add(target);
-                    waitItems.Add(client.OnQueueUpdate(new QueueUpdate() {
-                        Type = UpdateType.Add,
-                        Directory = target
-                    }));
-
-                    var map = appData.services.ServiceMap;
-
-                    // TSファイル情報を読む
-                    foreach (var filepath in items)
-                    {
-                        using (var info = new TsInfo(amtcontext))
-                        {
-                            var fileitems = new List<QueueItem>();
-                            var failReason = "";
-                            if (await Task.Run(() => info.ReadFile(filepath)) == false)
-                            {
-                                failReason = "TS情報取得に失敗: " + amtcontext.GetError();
-                            }
-                            else
-                            {
-                                failReason = "TSファイルに映像が見つかりませんでした";
-                                var list = info.GetProgramList();
-                                var videopids = new List<int>();
-                                int numFiles = 0;
-                                for (int i = 0; i < list.Length; ++i)
-                                {
-                                    var prog = list[i];
-                                    if (prog.HasVideo &&
-                                        videopids.Contains(prog.VideoPid) == false)
-                                    {
-                                        videopids.Add(prog.VideoPid);
-
-                                        var serviceName = "不明";
-                                        var tsTime = DateTime.MinValue;
-                                        if (info.HasServiceInfo)
-                                        {
-                                            var service = info.GetServiceList().Where(s => s.ServiceId == prog.ServiceId).FirstOrDefault();
-                                            if (service.ServiceId != 0)
-                                            {
-                                                serviceName = service.ServiceName;
-                                            }
-                                            tsTime = info.GetTime();
-                                        }
-
-                                        var dstname = Path.GetFileName(filepath);
-                                        if (numFiles > 0)
-                                        {
-                                            dstname = Path.GetFileNameWithoutExtension(dstname) + "-マルチ" + numFiles;
-                                        }
-
-                                        var item = new QueueItem()
-                                        {
-                                            Id = nextItemId++,
-                                            Path = filepath,
-                                            Mode = dir.Mode,
-                                            DstName = dstname,
-                                            ServiceId = prog.ServiceId,
-                                            ImageWidth = prog.Width,
-                                            ImageHeight = prog.Height,
-                                            TsTime = tsTime,
-                                            ServiceName = serviceName,
-                                            State = QueueState.LogoPending
-                                        };
-
-                                        Debug.Print("解析完了: " + filepath);
-
-                                        if (item.IsOneSeg)
-                                        {
-                                            item.State = QueueState.PreFailed;
-                                            item.FailReason = "映像が小さすぎます(" + prog.Width + "," + prog.Height + ")";
-                                        }
-                                        else
-                                        {
-                                            // ロゴファイルを探す
-                                            if (dir.Mode != ProcMode.DrcsSearch && map.ContainsKey(item.ServiceId) == false)
-                                            {
-                                                // 新しいサービスを登録
-                                                var newElement = new ServiceSettingElement()
-                                                {
-                                                    ServiceId = item.ServiceId,
-                                                    ServiceName = item.ServiceName,
-                                                    LogoSettings = new List<LogoSetting>()
-                                                };
-                                                map.Add(item.ServiceId, newElement);
-                                                serviceListUpdated = true;
-                                                waitItems.Add(client.OnServiceSetting(new ServiceSettingUpdate()
-                                                {
-                                                    Type = ServiceSettingUpdateType.Update,
-                                                    ServiceId = newElement.ServiceId,
-                                                    Data = newElement
-                                                }));
-                                            }
-                                            UpdateQueueItem(item, target, true);
-                                            ++numFiles;
-                                        }
-
-                                        fileitems.Add(item);
-
-                                    }
-                                }
-
-                            }
-
-                            if (fileitems.Count == 0)
-                            {
-                                fileitems.Add(new QueueItem()
-                                {
-                                    Id = nextItemId++,
-                                    Path = filepath,
-                                    Mode = dir.Mode,
-                                    DstName = "",
-                                    ServiceId = -1,
-                                    ImageWidth = -1,
-                                    ImageHeight = -1,
-                                    TsTime = DateTime.MinValue,
-                                    ServiceName = "不明",
-                                    State = QueueState.PreFailed,
-                                    FailReason = failReason
-                                });
-                            }
-
-                            target.Items.AddRange(fileitems);
-                            foreach (var item in fileitems)
-                            {
-                                waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
-                                {
-                                    Type = UpdateType.Add,
-                                    Item = item,
-                                    DirId = target.Id
-                                }));
-                            }
-                        }
-                    }
-
-                    if (target.Items.Count == 0)
-                    {
-                        waitItems.Add(client.OnOperationResult(
-                            "エンコード対象ファイルが見つかりません。パス:" + dir.DirPath));
-
-                        await Task.WhenAll(waitItems.ToArray());
-
-                        continue;
-                    }
-
-                    waitItems.Add(RequestFreeSpace());
-
-                    await Task.WhenAll(waitItems.ToArray());
+                    await InternalAddQueue(dir);
+                    await client.OnAddResult(dir.RequestId);
                 }
             }
             catch (Exception exception)
             {
-                await client.OnOperationResult("QueueThreadがエラー終了しました: " + exception.Message);
+                await NotifyMessage("QueueThreadがエラー終了しました: " + exception.Message, true);
             }
         }
 
@@ -2139,7 +2191,7 @@ namespace Amatsukaze.Server
             if(item.State == QueueState.LogoPending || item.State == QueueState.Queue)
             {
                 var prevState = item.State;
-                if (item.Mode == ProcMode.DrcsSearch && item.State == QueueState.LogoPending)
+                if (dir.Mode == ProcMode.DrcsSearch && item.State == QueueState.LogoPending)
                 {
                     item.FailReason = "";
                     item.State = QueueState.Queue;
@@ -2188,6 +2240,15 @@ namespace Amatsukaze.Server
                             else
                             {
                                 scheduler.StackItem(workerItem);
+                            }
+
+                            if(dir.Mode == ProcMode.AutoBatch)
+                            {
+                                // ユーザ操作以外で追加された場合は、サスペンドを抑止
+                                if(preventSuspend == null)
+                                {
+                                    preventSuspend = new PreventSuspendContext();
+                                }
                             }
                         }
                     }
@@ -2588,7 +2649,7 @@ namespace Amatsukaze.Server
             }
             catch (Exception exception)
             {
-                await client.OnOperationResult("WatchFileThreadがエラー終了しました: " + exception.Message);
+                await NotifyMessage("WatchFileThreadがエラー終了しました: " + exception.Message, true);
             }
         }
 
@@ -2615,7 +2676,7 @@ namespace Amatsukaze.Server
             }
             catch (Exception exception)
             {
-                await client.OnOperationResult("WatchFileThreadがエラー終了しました: " + exception.Message);
+                await NotifyMessage("WatchFileThreadがエラー終了しました: " + exception.Message, true);
             }
         }
 
@@ -2696,7 +2757,7 @@ namespace Amatsukaze.Server
             }
             catch(Exception e)
             {
-                return client.OnOperationResult(e.Message);
+                return NotifyMessage(e.Message, false);
             }
         }
 
@@ -2711,8 +2772,8 @@ namespace Amatsukaze.Server
             var target = queue.Find(t => t.Id == id);
             if (target == null)
             {
-                await client.OnOperationResult(
-                    "指定されたキューディレクトリが見つかりません");
+                await NotifyMessage(
+                    "指定されたキューディレクトリが見つかりません", false);
                 return;
             }
             queue.Remove(target);
@@ -2862,7 +2923,7 @@ namespace Amatsukaze.Server
         {
             if(fileName == LogoSetting.NO_LOGO)
             {
-                return client.OnOperationResult("[RequestLogoData] 不正な操作です");
+                return NotifyMessage("[RequestLogoData] 不正な操作です", false);
             }
             string logopath = GetLogoFilePath(fileName);
             try
@@ -2878,8 +2939,8 @@ namespace Amatsukaze.Server
             }
             catch(IOException exception)
             {
-                return client.OnOperationResult(
-                    "ロゴファイルを開けません。パス:" + logopath + "メッセージ: " + exception.Message);
+                return NotifyMessage(
+                    "ロゴファイルを開けません。パス:" + logopath + "メッセージ: " + exception.Message, false);
             }
         }
 
@@ -2929,10 +2990,12 @@ namespace Amatsukaze.Server
 
                 if(data.ChangeType == ChangeItemType.Retry)
                 {
-                    if(target.State == QueueState.Complete || target.State == QueueState.Failed)
+                    if(target.State == QueueState.Complete ||
+                        target.State == QueueState.Failed ||
+                        target.State == QueueState.Canceled)
                     {
                         // バッチモードでfailedフォルダに移動されていたら戻す
-                        if (target.State == QueueState.Failed && target.Mode == ProcMode.Batch)
+                        if (target.State == QueueState.Failed && dir.IsBatch)
                         {
                             if (all.Where(s => s.DstName == target.DstName).Any(s => s.IsActive) == false)
                             {
@@ -2940,7 +3003,7 @@ namespace Amatsukaze.Server
                                 if (File.Exists(failedPath))
                                 {
                                     // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
-                                    MoveTSFile(failedPath, Path.GetDirectoryName(target.FileName), true);
+                                    MoveTSFile(failedPath, dir.DirPath, true);
                                 }
                             }
                         }
@@ -2988,8 +3051,8 @@ namespace Amatsukaze.Server
                             }
                         }
                         catch (Exception e) {
-                            await client.OnOperationResult(
-                                "DRCSマッピングファイル書き込みに失敗: " + e.Message);
+                            await NotifyMessage(
+                                "DRCSマッピングファイル書き込みに失敗: " + e.Message, false);
                         }
                     }
                     else
@@ -3007,8 +3070,8 @@ namespace Amatsukaze.Server
                             }
                             catch(Exception e)
                             {
-                                await client.OnOperationResult(
-                                    "DRCS画像ファイル削除に失敗: " + e.Message);
+                                await NotifyMessage(
+                                    "DRCS画像ファイル削除に失敗: " + e.Message, false);
                             }
                         }
 

@@ -71,6 +71,20 @@ namespace Amatsukaze.ViewModels
 
         public bool Succeeded { get; private set; }
 
+        private bool GetOutPath()
+        {
+            if (DefaultPath != OutPath && string.IsNullOrEmpty(OutPath) == false)
+            {
+                if (System.IO.Directory.Exists(OutPath) == false)
+                {
+                    Description = "出力先フォルダが存在しません";
+                    return false;
+                }
+                Item.DstPath = OutPath;
+            }
+            return true;
+        }
+
         #region OkCommand
         private ViewModelCommand _OkCommand;
 
@@ -86,15 +100,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Ok()
         {
-            if (DefaultPath != OutPath && string.IsNullOrEmpty(OutPath) == false)
-            {
-                if (System.IO.Directory.Exists(OutPath) == false)
-                {
-                    Description = "出力先フォルダが存在しません";
-                    return;
-                }
-                Item.DstPath = OutPath;
-            }
+            if (!GetOutPath()) return;
             Item.Mode = ProcMode.Batch;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -117,6 +123,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Test()
         {
+            if (!GetOutPath()) return;
             Item.Mode = ProcMode.Test;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));

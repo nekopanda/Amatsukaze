@@ -7,7 +7,6 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
-             xmlns:s="clr-namespace:Amatsukaze.Server" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:QueueViewModel}}">
@@ -26,7 +25,7 @@
         </Grid.RowDefinitions>
         <Grid.Resources>
             <DataTemplate DataType="{x:Type m:DisplayQueueDirectory}">
-                <TextBlock><Run Text="{Binding Path, Mode=OneWay}"/>(<Run Text="{Binding Items.Count, Mode=OneWay}"/>)</TextBlock>
+                <TextBlock><Run Text="{Binding ModeString}"/>: <Run Text="{Binding Path, Mode=OneWay}"/>(<Run Text="{Binding Items.Count, Mode=OneWay}"/>)</TextBlock>
             </DataTemplate>
         </Grid.Resources>
         <ListBox Grid.Row="0" Margin="0" ItemsSource="{Binding Model.QueueItems}" SelectedIndex="{Binding QueueItemSelectedIndex, Mode=TwoWay}" PreviewDragOver="ListBox_PreviewDragOver" Drop="ListBox_Drop" AllowDrop="True" ToolTip="ここにフォルダorファイルをD&amp;D">
@@ -92,7 +91,7 @@
                 <DataTemplate>
                     <TextBlock>
                         <Run Text="{Binding TsTimeString, Mode=OneWay}" /> <Run Text="{Binding Model.ServiceName, Mode=OneWay}" />(<Run Text="{Binding Model.ServiceId, Mode=OneWay}" />): <Run Text="{Binding Model.FileName, Mode=OneWay}" />
-                            <LineBreak />モード: <Run Text="{Binding ModeString, Mode=OneWay}"/> 状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding Model.FailReason, Mode=OneWay}" />
+                            <LineBreak />状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding Model.FailReason, Mode=OneWay}" />
                     </TextBlock>
                 </DataTemplate>
             </ListBox.ItemTemplate>

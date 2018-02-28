@@ -50,11 +50,42 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-        
+
+        #region ModeString変更通知プロパティ
+        private string _ModeString;
+
+        public string ModeString {
+            get { return _ModeString; }
+            set { 
+                if (_ModeString == value)
+                    return;
+                _ModeString = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        private static string ModeToString(ProcMode mode)
+        {
+            switch(mode)
+            {
+                case ProcMode.AutoBatch:
+                    return "自動追加";
+                case ProcMode.Batch:
+                    return "通常";
+                case ProcMode.Test:
+                    return "テスト";
+                case ProcMode.DrcsSearch:
+                    return "DRCSサーチ";
+            }
+            return "不明モード";
+        }
+
         public DisplayQueueDirectory(QueueDirectory dir)
         {
             Id = dir.Id;
-            Path = dir.Path;
+            Path = dir.DirPath;
+            ModeString = ModeToString(dir.Mode);
             Items = new ObservableCollection<DisplayQueueItem>(
                 dir.Items.Select(s => new DisplayQueueItem() { Model = s }));
         }
@@ -75,36 +106,8 @@ namespace Amatsukaze.Models
         public bool IsTooSmall { get { return IsPreFailed && Model.FailReason.Contains("映像が小さすぎます"); } }
         public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
 
-        public string FixParamString {
-            get {
-                return Model.HasSetting ? "（設定固定済み）" : "";
-            }
-        }
-
-        public string ModeString {
-            get {
-                switch (Model.Mode)
-                {
-                    case ProcMode.Batch:
-                        return "通常";
-                    case ProcMode.Test:
-                        return "テスト";
-                    case ProcMode.DrcsSearch:
-                        return "DRCSサーチ";
-                }
-                return "??";
-            }
-        }
-
         public string StateString {
             get {
-                if (Model.Mode == ProcMode.DrcsSearch)
-                {
-                    switch (Model.State)
-                    {
-                        case QueueState.Encoding: return "サーチ中";
-                    }
-                }
                 switch (Model.State)
                 {
                     case QueueState.Queue: return "待ち";
@@ -1920,6 +1923,12 @@ namespace Amatsukaze.Models
         {
             MainScriptFiles = new string[] { "フィルタなし" }.Concat(files.Main).ToList();
             PostScriptFiles = new string[] { "フィルタなし" }.Concat(files.Post).ToList();
+            return Task.FromResult(0);
+        }
+
+        public Task OnAddResult(string requestId)
+        {
+            // 何もしなくていい
             return Task.FromResult(0);
         }
     }

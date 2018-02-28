@@ -6,7 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="Amatsukaze ファイル追加" Height="380" Width="440" Loaded="Window_Loaded">
+        Title="Amatsukaze ファイル追加" Height="380" Width="400" Loaded="Window_Loaded">
 
     <Window.DataContext>
         <vm:SelectOutPathViewModel/>
@@ -48,13 +48,13 @@
         
         <Button Margin="2" Height="Auto" Command="{Binding OkCommand, Mode=OneWay}">
             <TextBlock TextAlignment="Center" TextWrapping="Wrap">
-                <Run FontSize="20" Text="通常モード"/><LineBreak/><Run Text="指定した出力フォルダに出力します。入力ファイルは、エンコード後 succeeded（成功時）、failed（失敗時）フォルダに移動します。同名ファイルは上書きします。"/>
+                <Run FontSize="20" Text="通常モード"/><LineBreak/><Run Text="入力ファイルは、エンコード後 succeededフォルダ（成功時）、failedフォルダ（失敗時）に移動します。同名出力ファイルは上書きします。"/>
             </TextBlock>
         </Button>
 
         <Button Margin="2" Height="Auto" Command="{Binding TestCommand, Mode=OneWay}">
             <TextBlock TextAlignment="Center" TextWrapping="Wrap">
-                <Run FontSize="20" Text="テストモード"/><LineBreak/><Run Text="上の指定と関係なく、入力ファイルと同じフォルダに出力します。エンコード後、入力ファイルの移動はしません。同名ファイルがある場合は上書きせず、別名で出力します。"/>
+                <Run FontSize="20" Text="テストモード"/><LineBreak/><Run Text="エンコード後、入力ファイルは移動しません。"/><LineBreak/><Run Text="同名ファイルがある場合は上書きせず、別名で出力します。"/>
             </TextBlock>
         </Button>
 

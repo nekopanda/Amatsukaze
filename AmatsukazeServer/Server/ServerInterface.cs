@@ -56,6 +56,7 @@ namespace Amatsukaze.Server
         Task OnAvsScriptFiles(AvsScriptFiles files);
         Task OnLogoData(LogoData logoData);
         Task OnDrcsData(DrcsImageUpdate update);
+        Task OnAddResult(string requestId);
 
         Task OnOperationResult(string result);
         void Finish();
@@ -96,6 +97,7 @@ namespace Amatsukaze.Server
         OnAvsScriptFiles,
         OnLogoData,
         OnDrcsData,
+        OnAddResult,
         OnOperationResult,
     }
 
@@ -141,6 +143,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnAvsScriptFiles, typeof(AvsScriptFiles) },
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnDrcsData, typeof(DrcsImageUpdate) },
+            { RPCMethodId.OnAddResult, typeof(string) },
             { RPCMethodId.OnOperationResult, typeof(string) }
         };
 
@@ -460,6 +463,11 @@ namespace Amatsukaze.Server
         public Task OnDrcsData(DrcsImageUpdate update)
         {
             return client.OnDrcsData((DrcsImageUpdate)Copy(typeof(DrcsImageUpdate), update));
+        }
+
+        public Task OnAddResult(string requestId)
+        {
+            return client.OnAddResult((string)Copy(typeof(string), requestId));
         }
     }
 }
