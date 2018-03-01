@@ -99,13 +99,14 @@ namespace Amatsukaze.ViewModels
                     }
                     else if (File.Exists(path))
                     {
-                        var dirPath = System.IO.Path.GetDirectoryName(path);
+                        var dirPath = Path.GetDirectoryName(path);
+                        var fileitem = new AddQueueItem() { Path = path };
                         AddQueueDirectory item;
                         if (dirList.TryGetValue(dirPath, out item))
                         {
                             if (item.Targets != null)
                             {
-                                item.Targets.Add(path);
+                                item.Targets.Add(fileitem);
                             }
                         }
                         else
@@ -113,7 +114,7 @@ namespace Amatsukaze.ViewModels
                             dirList.Add(dirPath, new AddQueueDirectory()
                             {
                                 DirPath = dirPath,
-                                Targets = new List<string>() { path }
+                                Targets = new List<AddQueueItem>() { fileitem }
                             });
                         }
                     }
@@ -123,7 +124,9 @@ namespace Amatsukaze.ViewModels
             foreach (var item in dirList.Values)
             {
                 // 出力先フォルダ選択
-                var selectPathVM = new SelectOutPathViewModel() { Item = item };
+                var selectPathVM = new SelectOutPathViewModel() {
+                    Item = item, DefaultPath = Model.DefaultOutPath
+                };
                 await Messenger.RaiseAsync(new TransitionMessage(
                     typeof(Views.SelectOutPath), selectPathVM, TransitionMode.Modal, "FromMain"));
 

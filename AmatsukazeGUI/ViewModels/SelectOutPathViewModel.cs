@@ -62,11 +62,11 @@ namespace Amatsukaze.ViewModels
          */
         public AddQueueDirectory Item { get; set; }
 
-        private string DefaultPath;
+        public string DefaultPath;
 
         public void Initialize()
         {
-            OutPath = DefaultPath = Path.Combine(Item.DirPath, "encoded");
+            OutPath = Path.Combine(Item.DirPath, "encoded");
         }
 
         public bool Succeeded { get; private set; }
@@ -84,6 +84,34 @@ namespace Amatsukaze.ViewModels
             }
             return true;
         }
+
+        #region SetDefaultCommand
+        private ViewModelCommand _SetDefaultCommand;
+
+        public ViewModelCommand SetDefaultCommand
+        {
+            get
+            {
+                if (_SetDefaultCommand == null)
+                {
+                    _SetDefaultCommand = new ViewModelCommand(SetDefault);
+                }
+                return _SetDefaultCommand;
+            }
+        }
+
+        public void SetDefault()
+        {
+            if (string.IsNullOrEmpty(DefaultPath))
+            {
+                Description = "デフォルト出力パスが設定されていません";
+            }
+            else
+            {
+                OutPath = DefaultPath;
+            }
+        }
+        #endregion
 
         #region OkCommand
         private ViewModelCommand _OkCommand;

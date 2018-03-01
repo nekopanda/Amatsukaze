@@ -253,14 +253,21 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class AddQueueItem
+    {
+        [DataMember]
+        public string Path; // フルパス
+        [DataMember]
+        public byte[] Hash; // null可
+    }
+
+    [DataContract]
     public class AddQueueDirectory
     {
         [DataMember]
         public string DirPath { get; set; }
         [DataMember]
-        public List<string> Targets { get; set; }
-        [DataMember]
-        public List<string> Hashes { get; set; }
+        public List<AddQueueItem> Targets { get; set; }
         [DataMember]
         public string DstPath { get; set; }
         [DataMember]
@@ -289,6 +296,8 @@ namespace Amatsukaze.Server
         public int Id { get; set; }
         [DataMember]
         public string Path { get; set; }
+        [DataMember]
+        public byte[] Hash { get; set; }
         [DataMember]
         public QueueState State { get; set; }
 

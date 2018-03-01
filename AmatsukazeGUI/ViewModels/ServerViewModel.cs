@@ -18,6 +18,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Reflection;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace Amatsukaze.ViewModels
 {
@@ -66,17 +67,22 @@ namespace Amatsukaze.ViewModels
          */
         public EncodeServer Server { get; set; }
 
+        private FileStream lockFile;
         private StreamWriter file;
 
         private bool disposed = false;
 
-        public void Initialize()
+        public async void Initialize()
         {
-            var logpath = GetServerLogPath();
-            Directory.CreateDirectory(Path.GetDirectoryName(logpath));
+            await GetGlobalLock();
+
+            var logpath = ServerSupport.GetServerLogPath();
             file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
             Util.LogHandlers.Add(AddLog);
-            Server = new EncodeServer(App.Option.ServerPort, null);
+            Server = new EncodeServer(App.Option.ServerPort, null, async () =>
+            {
+                await RealCloseWindow();
+            });
             RaisePropertyChanged("Server");
             WindowCaption = "AmatsukazeServer@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
 
@@ -90,6 +96,37 @@ namespace Amatsukaze.ViewModels
             }
         }
 
+        private async Task<bool> GetGlobalLock()
+        {
+            try
+            {
+                lockFile = ServerSupport.GetLock(App.Option.ServerPort);
+            }
+            catch(Exception)
+            {
+                var message = new InformationMessage(
+                    "多重起動を検知しました",
+                    "AmatsukazeServer",
+                    "Message");
+
+                await Messenger.RaiseAsync(message);
+
+                await RealCloseWindow();
+
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task RealCloseWindow()
+        {
+            CanCloseWindow = true;
+            await DispatcherHelper.UIDispatcher.BeginInvoke((Action)(() => {
+                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "WindowAction"));
+            }));
+        }
+
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
@@ -101,11 +138,6 @@ namespace Amatsukaze.ViewModels
                 }
                 disposed = true;
             }
-        }
-
-        private string GetServerLogPath()
-        {
-            return "data\\Server.log";
         }
 
         private void AddLog(string text)
@@ -169,10 +201,7 @@ namespace Amatsukaze.ViewModels
 
             if (message.Response == true)
             {
-                CanCloseWindow = true;
-                await DispatcherHelper.UIDispatcher.BeginInvoke((Action)(() => {
-                    Messenger.Raise(new WindowActionMessage(WindowAction.Close, "WindowAction"));
-                }));
+                await RealCloseWindow();
             }
         }
 

@@ -1464,7 +1464,7 @@ namespace Amatsukaze.Models
         {
             if (App.Option.LaunchType == LaunchType.Standalone)
             {
-                Server = new EncodeServer(0, new ClientAdapter(this));
+                Server = new EncodeServer(0, new ClientAdapter(this), null);
                 Server.RefreshRequest();
             }
             else

@@ -21,6 +21,7 @@ namespace Amatsukaze.Server
 
         Task SetServiceSetting(ServiceSettingUpdate update);
         Task AddDrcsMap(DrcsImage drcsMap);
+        Task EndServer();
 
         // 情報取得系
         Task RequestSetting();
@@ -71,6 +72,7 @@ namespace Amatsukaze.Server
         PauseEncode,
         SetServiceSetting,
         AddDrcsMap,
+        EndServer,
         RequestSetting,
         RequestQueue,
         RequestLog,
@@ -117,6 +119,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
+            { RPCMethodId.EndServer, null },
             { RPCMethodId.RequestSetting, null },
             { RPCMethodId.RequestQueue, null },
             { RPCMethodId.RequestLog, null },

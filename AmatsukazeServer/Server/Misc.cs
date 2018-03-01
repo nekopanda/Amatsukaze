@@ -34,9 +34,6 @@ namespace Amatsukaze.Server
         public bool SlimTs;
         public int ServiceId;
 
-        // タスク追加用
-        public string ServerIP;
-
         public GUIOPtion(string[] args)
         {
             for (int i = 0; i < args.Length; ++i)
@@ -45,11 +42,6 @@ namespace Amatsukaze.Server
                 if (arg == "-p" || arg == "--port")
                 {
                     ServerPort = int.Parse(args[i + 1]);
-                    ++i;
-                }
-                else if(arg == "-ip" || arg == "--ip")
-                {
-                    ServerIP = args[i + 1];
                     ++i;
                 }
                 else if(arg == "-l" || arg == "--launch")
@@ -644,6 +636,77 @@ namespace Amatsukaze.Server
             {
                 fs.WriteLine(WriteHex(hash) + "  " + name);
             }
+        }
+    }
+
+    public static class ServerSupport
+    {
+        static ServerSupport()
+        {
+            Directory.CreateDirectory("data");
+        }
+
+        public static string GetServerLogPath()
+        {
+            return "data\\Server.log";
+        }
+
+        public static FileStream GetLock(int port)
+        {
+            return new FileStream("data\\Server-" + port + ".lock",
+                FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+        }
+    }
+
+    public static class TaskSupport
+    {
+        class TaskItem
+        {
+            public SendOrPostCallback d;
+            public object state;
+            public bool end;
+        }
+
+        class MySynchronizationContext : SynchronizationContext
+        {
+            BlockingCollection<TaskItem> queue = new BlockingCollection<TaskItem>();
+
+            public override void Post(SendOrPostCallback d, object state)
+            {
+                queue.Add(new TaskItem() { d = d, state = state });
+            }
+
+            public void Finish()
+            {
+                queue.Add(new TaskItem() { end = true });
+            }
+
+            public void MessageLoop()
+            {
+                while (true)
+                {
+                    var item = queue.Take();
+                    if (item.end) return;
+                    item.d(item.state);
+                }
+            }
+        }
+
+        private static MySynchronizationContext _Context = new MySynchronizationContext();
+
+        public static void SetSynchronizationContext()
+        {
+            SynchronizationContext.SetSynchronizationContext(_Context);
+        }
+
+        public static void EnterMessageLoop()
+        {
+            _Context.MessageLoop();
+        }
+
+        public static void Finish()
+        {
+            _Context.Finish();
         }
     }
 }

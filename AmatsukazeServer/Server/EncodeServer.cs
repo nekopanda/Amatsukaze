@@ -138,25 +138,42 @@ namespace Amatsukaze.Server
 
         public async Task Listen(int port)
         {
-            listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
-            Util.AddLog("サーバ開始しました。ポート: " + port);
+            int errorCount = 0;
 
-            try
+            while(finished == false)
             {
-                while (true)
+                listener = new TcpListener(IPAddress.Any, port);
+                listener.Start();
+                Util.AddLog("サーバ開始しました。ポート: " + port);
+
+                try
                 {
-                    var client = new Client(await listener.AcceptTcpClientAsync(), this);
-                    receiveTask.Add(client.Start());
-                    ClientList.Add(client);
+                    while (true)
+                    {
+                        var client = new Client(await listener.AcceptTcpClientAsync(), this);
+                        receiveTask.Add(client.Start());
+                        ClientList.Add(client);
+                        errorCount = 0;
+                    }
                 }
-            }
-            catch (Exception e)
-            {
-                if (finished == false)
+                catch (Exception e)
                 {
-                    Util.AddLog("Listen中にエラーが発生");
-                    Util.AddLog(e.Message);
+                    if (finished == false)
+                    {
+                        Util.AddLog("Listen中にエラーが発生");
+                        Util.AddLog(e.Message);
+
+                        // 一定時間待つ
+                        await Task.Delay((++errorCount) * 5 * 1000);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        listener.Stop();
+                    }
+                    catch { }
                 }
             }
         }
@@ -206,6 +223,9 @@ namespace Amatsukaze.Server
                     break;
                 case RPCMethodId.AddDrcsMap:
                     server.AddDrcsMap((DrcsImage)arg);
+                    break;
+                case RPCMethodId.EndServer:
+                    server.EndServer();
                     break;
                 case RPCMethodId.RequestSetting:
                     server.RequestSetting();
@@ -606,9 +626,12 @@ namespace Amatsukaze.Server
 
                 try
                 {
-                    // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
-                    if (dir.HashList != null)
+                    if (dir.HashList != null || src.Hash != null)
                     {
+                        // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
+                        // NASとエンコードPCが同じ場合はローカルでのコピーとなってしまうが
+                        // そこだけ特別処理するのは大変なので、全部同じようにコピーする
+
                         tmpBase = Util.CreateTmpFile(setting.WorkPath);
                         localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
                         string name = Path.GetFileName(srcpath);
@@ -618,7 +641,7 @@ namespace Amatsukaze.Server
                         }
 
                         byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
-                        var refhash = dir.HashList[name];
+                        var refhash = (dir.HashList != null) ? dir.HashList[name] : src.Hash;
                         if (hash.SequenceEqual(refhash) == false)
                         {
                             File.Delete(localsrc);
@@ -739,7 +762,7 @@ namespace Amatsukaze.Server
 
                     DateTime finish = DateTime.Now;
 
-                    if (dir.HashList != null)
+                    if (dir.HashList != null || src.Hash != null)
                     {
                         File.Delete(localsrc);
                     }
@@ -775,7 +798,7 @@ namespace Amatsukaze.Server
                         var log = LogFromJson(isMp4, json, start, finish, src, outputMask);
 
                         // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
-                        if (dir.HashList != null)
+                        if (dir.HashList != null || src.Hash != null)
                         {
                             log.SrcPath = src.Path;
                             string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
@@ -785,7 +808,7 @@ namespace Amatsukaze.Server
                                 string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
                                 var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
                                 string name = Path.GetFileName(outpath);
-                                HashUtil.AppendHash(Path.Combine(dir.Encoded, "_mp4.hash"), name, hash);
+                                HashUtil.AppendHash(Path.Combine(dir.Encoded, "_encoded.hash"), name, hash);
                                 File.Delete(log.OutPath[i]);
                                 log.OutPath[i] = outpath;
                             }
@@ -1082,6 +1105,8 @@ namespace Amatsukaze.Server
         public Task ServerTask { get; private set; }
         private AppData appData;
 
+        private Action finishRequested;
+
         private EncodeScheduler<WorkerQueueItem> scheduler = null;
 
         private List<QueueDirectory> queue = new List<QueueDirectory>();
@@ -1145,8 +1170,9 @@ namespace Amatsukaze.Server
             get { return client as ClientManager; }
         }
 
-        public EncodeServer(int port, IUserClient client)
+        public EncodeServer(int port, IUserClient client, Action finishRequested)
         {
+            this.finishRequested = finishRequested;
             LoadAppData();
             if (client != null)
             {
@@ -1962,11 +1988,13 @@ namespace Amatsukaze.Server
             var items = ((dir.Targets != null)
                 ? dir.Targets
                 : Directory.GetFiles(dir.DirPath)
-                    .Where(s => {
+                    .Where(s =>
+                    {
                         string lower = s.ToLower();
-                        return lower.EndsWith(".ts") || lower.EndsWith(".m2t") || lower.EndsWith(".mp4");
-                    }))
-                    .Where(f => !ignoreSet.Contains(f));
+                        return lower.EndsWith(".ts") || lower.EndsWith(".m2t");
+                    })
+                    .Select(f => new AddQueueItem() { Path = f }))
+                    .Where(f => !ignoreSet.Contains(f.Path));
 
             if (dir.Mode != ProcMode.DrcsSearch && dir.DstPath != null && Directory.Exists(dir.DstPath) == false)
             {
@@ -2027,13 +2055,13 @@ namespace Amatsukaze.Server
             var map = appData.services.ServiceMap;
 
             // TSファイル情報を読む
-            foreach (var filepath in items)
+            foreach (var additem in items)
             {
                 using (var info = new TsInfo(amtcontext))
                 {
                     var fileitems = new List<QueueItem>();
                     var failReason = "";
-                    if (await Task.Run(() => info.ReadFile(filepath)) == false)
+                    if (await Task.Run(() => info.ReadFile(additem.Path)) == false)
                     {
                         failReason = "TS情報取得に失敗: " + amtcontext.GetError();
                     }
@@ -2063,7 +2091,7 @@ namespace Amatsukaze.Server
                                     tsTime = info.GetTime();
                                 }
 
-                                var dstname = Path.GetFileName(filepath);
+                                var dstname = Path.GetFileName(additem.Path);
                                 if (numFiles > 0)
                                 {
                                     dstname = Path.GetFileNameWithoutExtension(dstname) + "-マルチ" + numFiles;
@@ -2072,7 +2100,8 @@ namespace Amatsukaze.Server
                                 var item = new QueueItem()
                                 {
                                     Id = nextItemId++,
-                                    Path = filepath,
+                                    Path = additem.Path,
+                                    Hash = additem.Hash,
                                     DstName = dstname,
                                     ServiceId = prog.ServiceId,
                                     ImageWidth = prog.Width,
@@ -2082,7 +2111,7 @@ namespace Amatsukaze.Server
                                     State = QueueState.LogoPending
                                 };
 
-                                Debug.Print("解析完了: " + filepath);
+                                Debug.Print("解析完了: " + additem.Path);
 
                                 if (item.IsOneSeg)
                                 {
@@ -2126,7 +2155,8 @@ namespace Amatsukaze.Server
                         fileitems.Add(new QueueItem()
                         {
                             Id = nextItemId++,
-                            Path = filepath,
+                            Path = additem.Path,
+                            Hash = additem.Hash,
                             DstName = "",
                             ServiceId = -1,
                             ImageWidth = -1,
@@ -3103,6 +3133,12 @@ namespace Amatsukaze.Server
                     });
                 }
             }
+        }
+
+        public Task EndServer()
+        {
+            finishRequested?.Invoke();
+            return Task.FromResult(0);
         }
     }
 }
