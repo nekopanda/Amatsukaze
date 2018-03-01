@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -655,6 +656,39 @@ namespace Amatsukaze.Server
         {
             return new FileStream("data\\Server-" + port + ".lock",
                 FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+        }
+
+        public static void LaunchLocalServer(int port)
+        {
+            var exename = Path.GetDirectoryName(typeof(ServerSupport).Assembly.Location) + "\\" +
+                (Environment.UserInteractive ? "AmatsukazeGUI.exe" : "AmatsukazeServerCLI.exe");
+            var args = "-l server -p " + port;
+            Process.Start(new ProcessStartInfo(exename, args)
+            {
+                WorkingDirectory = Directory.GetCurrentDirectory(),
+            });
+        }
+
+        public static bool IsLocalIP(string ip)
+        {
+            IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
+            IPHostEntry other = null;
+            try
+            {
+                other = Dns.GetHostEntry(ip);
+            }
+            catch
+            {
+                return false;
+            }
+            foreach (IPAddress addr in other.AddressList)
+            {
+                if (IPAddress.IsLoopback(addr) || Array.IndexOf(iphostentry.AddressList, addr) != -1)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

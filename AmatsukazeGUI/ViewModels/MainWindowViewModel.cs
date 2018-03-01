@@ -194,7 +194,7 @@ namespace Amatsukaze.ViewModels
                 var hostName = Model.ServerHostName;
                 if (hostName == null)
                 {
-                    return "AmatsukazeGUI";
+                    return "AmatsukazeGUI(未接続)";
                 }
                 return "AmatsukazeClient@" + hostName;
             }
@@ -214,6 +214,7 @@ namespace Amatsukaze.ViewModels
             InfoPanelMenu.Add(new DrcsImageListViewModel() { Name = "DRCS外字", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
             InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model });
+            InfoPanelMenu.Add(new ControlPanelViewModel() { Name = "操作", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 

@@ -44,7 +44,7 @@
         </l:InteractionMessageTrigger>
         
         <l:InteractionMessageTrigger MessageKey="WindowAction" Messenger="{Binding Messenger}">
-            <l:WindowInteractionMessageAction />
+            <l:WindowInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
         
     </i:Interaction.Triggers>

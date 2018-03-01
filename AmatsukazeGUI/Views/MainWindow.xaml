@@ -86,6 +86,9 @@
             <DataTemplate DataType="{x:Type vm:DrcsImageListViewModel}">
                 <v:DrcsImageListPanel />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ControlPanelViewModel}">
+                <v:ControlPanel />
+            </DataTemplate>
         </Grid.Resources>
         
         <Grid.ColumnDefinitions>

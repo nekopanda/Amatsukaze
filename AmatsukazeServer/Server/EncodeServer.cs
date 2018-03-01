@@ -2015,42 +2015,62 @@ namespace Amatsukaze.Server
                     dstPath = Path.Combine(dir.DirPath, "encoded");
                 }
             }
-            var target = new QueueDirectory()
-            {
-                Id = nextDirId++,
-                DirPath = dir.DirPath,
-                Items = new List<QueueItem>(),
-                DstPath = dstPath,
-                Mode = dir.Mode,
-                Setting = DeepCopy(appData.setting)
-            };
 
-            if (dir.IsBatch && appData.setting.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
+            QueueDirectory target = null;
+
+            // 最後のQueueDirectoryと同じならそこに追加する
+            if (queue.Count > 0)
             {
-                var hashpath = target.DirPath + ".hash";
-                if (File.Exists(hashpath) == false)
+                var last = queue.Last();
+                if (last.Items.Count < 100 &&
+                    last.DirPath == dir.DirPath &&
+                    last.DstPath == dstPath &&
+                    last.Mode == dir.Mode &&
+                    last.Setting.LastUpdate == appData.setting.LastUpdate)
                 {
-                    await NotifyMessage("ハッシュファイルがありません: " + hashpath + "\r\n" +
-                        "必要ない場合はハッシュチェックを無効化して再度追加してください", enableLog);
-                    return;
-                }
-                try
-                {
-                    target.HashList = HashUtil.ReadHashFile(hashpath);
-                }
-                catch (IOException e)
-                {
-                    await NotifyMessage("ハッシュファイルの読み込みに失敗: " + e.Message, enableLog);
-                    return;
+                    target = last;
                 }
             }
 
-            queue.Add(target);
-            waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+            if (target == null)
             {
-                Type = UpdateType.Add,
-                Directory = target
-            }));
+                target = new QueueDirectory()
+                {
+                    Id = nextDirId++,
+                    DirPath = dir.DirPath,
+                    Items = new List<QueueItem>(),
+                    DstPath = dstPath,
+                    Mode = dir.Mode,
+                    Setting = DeepCopy(appData.setting)
+                };
+
+                if (dir.IsBatch && appData.setting.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
+                {
+                    var hashpath = target.DirPath + ".hash";
+                    if (File.Exists(hashpath) == false)
+                    {
+                        await NotifyMessage("ハッシュファイルがありません: " + hashpath + "\r\n" +
+                            "必要ない場合はハッシュチェックを無効化して再度追加してください", enableLog);
+                        return;
+                    }
+                    try
+                    {
+                        target.HashList = HashUtil.ReadHashFile(hashpath);
+                    }
+                    catch (IOException e)
+                    {
+                        await NotifyMessage("ハッシュファイルの読み込みに失敗: " + e.Message, enableLog);
+                        return;
+                    }
+                }
+
+                queue.Add(target);
+                waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+                {
+                    Type = UpdateType.Add,
+                    Directory = target
+                }));
+            }
 
             var map = appData.services.ServiceMap;
 
@@ -2777,6 +2797,7 @@ namespace Amatsukaze.Server
             {
                 CheckSetting(setting);
                 appData.setting = setting;
+                appData.setting.LastUpdate = DateTime.Now;
                 scheduler.SetNumParallel(setting.NumParallel);
                 affinityCreator.NumProcess = setting.NumParallel;
                 settingUpdated = true;

@@ -122,7 +122,9 @@ namespace Amatsukaze.AddTask
             byte[] subnetMaskBytes = subnetMask.GetAddressBytes();
 
             if (ipAdressBytes.Length != subnetMaskBytes.Length)
+            {
                 throw new ArgumentException("Lengths of IP address and subnet mask do not match.");
+            }
 
             byte[] broadcastAddress = new byte[ipAdressBytes.Length];
             for (int i = 0; i < broadcastAddress.Length; i++)
@@ -170,10 +172,6 @@ namespace Amatsukaze.AddTask
 
         public async Task Exec()
         {
-            // カレントディレクトリを設定
-            Directory.SetCurrentDirectory(
-                Path.GetDirectoryName(Path.GetDirectoryName(GetType().Assembly.Location)));
-
             if (File.Exists(option.FilePath) == false)
             {
                 throw new Exception("入力ファイルが見つかりません");
@@ -202,7 +200,7 @@ namespace Amatsukaze.AddTask
             };
 
             server = new CUIServerConnection(this);
-            bool isLocal = IsLocal();
+            bool isLocal = ServerSupport.IsLocalIP(option.ServerIP);
             int maxRetry = isLocal ? 3 : 5;
 
             for (int i = 0; i < maxRetry; ++i)
@@ -224,13 +222,7 @@ namespace Amatsukaze.AddTask
                     // ローカルの場合は、起動を試みる
                     if(isLocal)
                     {
-                        var exename = Path.GetDirectoryName(GetType().Assembly.Location) + "\\" +
-                            (Environment.UserInteractive ? "AmatsukazeGUI.exe" : "AmatsukazeServerCLI.exe");
-                        var args = "-p " + option.ServerPort;
-                        Process.Start(new ProcessStartInfo(exename, args)
-                        {
-                            WorkingDirectory = Directory.GetCurrentDirectory(),
-                        });
+                        ServerSupport.LaunchLocalServer(option.ServerPort);
 
                         // 10秒待つ
                         await Task.Delay(10 * 1000);
@@ -390,10 +382,11 @@ namespace Amatsukaze.AddTask
         #endregion
     }
 
-    class Program
+    class AddTaskMain
     {
         static void Main(string[] args)
         {
+            // カレントディレクトリは正しくセットされていること前提 //
             try
             {
                 TaskSupport.SetSynchronizationContext();

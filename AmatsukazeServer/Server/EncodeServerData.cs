@@ -53,6 +53,8 @@ namespace Amatsukaze.Server
     public class Setting : IExtensibleDataObject
     {
         [DataMember]
+        public DateTime LastUpdate { get; set; }
+        [DataMember]
         public string AmatsukazePath { get; set; }
         [DataMember]
         public EncoderType EncoderType { get; set; }

@@ -7,7 +7,6 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:c="clr-namespace:Amatsukaze.Components" 
-        xmlns:s="clr-namespace:Amatsukaze.Server" 
         Title="{Binding WindowCaption}" Height="450" Width="685.104">
     
     <Window.DataContext>
@@ -37,12 +36,12 @@
         </i:EventTrigger>
 
         <l:InteractionMessageTrigger MessageKey="Confirm" Messenger="{Binding Messenger}">
-            <l:ConfirmationDialogInteractionMessageAction />
+            <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
 
         <!--WindowのCloseキャンセル処理に対応する場合は、WindowCloseCancelBehaviorの使用を検討してください-->
         <l:InteractionMessageTrigger MessageKey="WindowAction" Messenger="{Binding Messenger}">
-            <l:WindowInteractionMessageAction />
+            <l:WindowInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
          
     </i:Interaction.Triggers>

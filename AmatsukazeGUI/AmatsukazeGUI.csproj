@@ -17,25 +17,6 @@
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>..\x86\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>..\x86\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>..\x64\Debug\</OutputPath>
@@ -96,6 +77,7 @@
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
+    <Compile Include="ViewModels\ControlPanelViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageListViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageViewModel.cs" />
@@ -110,6 +92,9 @@
     <Compile Include="ViewModels\SummaryViewModel.cs" />
     <Compile Include="Views\ClientLogPanel.xaml.cs">
       <DependentUpon>ClientLogPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\ControlPanel.xaml.cs">
+      <DependentUpon>ControlPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\DiskFreeSpacePanel.xaml.cs">
       <DependentUpon>DiskFreeSpacePanel.xaml</DependentUpon>
@@ -163,6 +148,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ConsolePanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\ControlPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

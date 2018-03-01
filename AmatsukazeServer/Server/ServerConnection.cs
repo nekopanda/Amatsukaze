@@ -82,6 +82,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnDrcsData:
                     userClient.OnDrcsData((DrcsImageUpdate)arg);
                     break;
+                case RPCMethodId.OnAddResult:
+                    userClient.OnAddResult((string)arg);
+                    break;
                 case RPCMethodId.OnOperationResult:
                     userClient.OnOperationResult((string)arg);
                     break;
@@ -211,22 +214,27 @@ namespace Amatsukaze.Server
             Close();
         }
 
-        private Task Connect()
+        private async Task Connect()
         {
             Close();
-            client = new TcpClient(serverIp, port);
+            client = new TcpClient();
+            await client.ConnectAsync(serverIp, port);
             Util.AddLog("サーバ(" + serverIp + ":" + port + ")に接続しました");
             stream = client.GetStream();
 
             // 接続後一通りデータを要求する
-            return this.RefreshRequest();
+            await this.RefreshRequest();
         }
 
         private void Close()
         {
-            if(client != null)
+            if(stream != null)
             {
                 stream.Close();
+                stream = null;
+            }
+            if(client != null)
+            {
                 client.Close();
                 client = null;
             }

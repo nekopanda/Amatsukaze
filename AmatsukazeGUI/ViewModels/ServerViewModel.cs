@@ -1,23 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.ComponentModel;
-
+﻿using Amatsukaze.Server;
 using Livet;
-using Livet.Commands;
 using Livet.Messaging;
-using Livet.Messaging.IO;
-using Livet.EventListeners;
 using Livet.Messaging.Windows;
-
-using Amatsukaze.Models;
-using Amatsukaze.Server;
+using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Diagnostics;
-using System.Reflection;
+using System.IO;
+using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.ViewModels
