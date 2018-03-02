@@ -49,32 +49,16 @@ namespace Amatsukaze.Server
         None, Suspend, Hibernate
     }
 
-    [DataContract]
-    public class Setting : IExtensibleDataObject
+    public class ProfileSetting : IExtensibleDataObject
     {
+        [DataMember]
+        public string Name { get; set; }
         [DataMember]
         public DateTime LastUpdate { get; set; }
         [DataMember]
-        public string AmatsukazePath { get; set; }
-        [DataMember]
         public EncoderType EncoderType { get; set; }
-
         [DataMember]
-        public string X264Path { get; set; }
-        [DataMember]
-        public string X265Path { get; set; }
-        [DataMember]
-        public string QSVEncPath { get; set; }
-        [DataMember]
-        public string NVEncPath { get; set; }
-        [DataMember]
-        public string X264Option { get; set; }
-        [DataMember]
-        public string X265Option { get; set; }
-        [DataMember]
-        public string QSVEncOption { get; set; }
-        [DataMember]
-        public string NVEncOption { get; set; }
+        public string EncoderOption { get; set; }
 
         [DataMember]
         public DecoderType Mpeg2Decoder { get; set; }
@@ -84,32 +68,12 @@ namespace Amatsukaze.Server
         public FormatType OutputFormat { get; set; }
 
         [DataMember]
-        public string MuxerPath { get; set; }
-        [DataMember]
-        public string MKVMergePath { get; set; }
-        [DataMember]
-        public string MP4BoxPath { get; set; }
-        [DataMember]
-        public string TimelineEditorPath { get; set; }
-
-        [DataMember]
-        public string ChapterExePath { get; set; }
-        [DataMember]
-        public string JoinLogoScpPath { get; set; }
-        [DataMember]
-        public string NicoConvASSPath { get; set; }
-
-        [DataMember]
         public string FilterPath { get; set; }
         [DataMember]
         public string PostFilterPath { get; set; }
 
         [DataMember]
-        public string WorkPath { get; set; }
-        [DataMember]
         public string DefaultOutPath { get; set; }
-        [DataMember]
-        public string AlwaysShowDisk { get; set; }
 
         [DataMember]
         public bool TwoPass { get; set; }
@@ -125,9 +89,6 @@ namespace Amatsukaze.Server
         public double BitrateCM { get; set; }
 
         [DataMember]
-        public int NumParallel { get; set; }
-
-        [DataMember]
         public string DefaultJLSCommand { get; set; }
         [DataMember]
         public bool DisableChapter { get; set; }
@@ -138,13 +99,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool NoDelogo { get; set; }
         [DataMember]
-        public bool ClearWorkDirOnStart { get; set; }
-        [DataMember]
         public bool SystemAviSynthPlugin { get; set; }
         [DataMember]
         public bool DisableHashCheck { get; set; }
-        [DataMember]
-        public bool HideOneSeg { get; set; }
         [DataMember]
         public bool EnableNicoJK { get; set; }
         [DataMember]
@@ -155,6 +112,73 @@ namespace Amatsukaze.Server
         public bool[] NicoJKFormats { get; set; }
         [DataMember]
         public bool MoveEDCBFiles { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+
+        public int NicoJKFormatMask
+        {
+            get
+            {
+                int mask = 0;
+                for (int i = NicoJKFormats.Length - 1; i >= 0; --i)
+                {
+                    mask <<= 1;
+                    mask |= NicoJKFormats[i] ? 1 : 0;
+                }
+                return mask;
+            }
+        }
+    }
+
+    [DataContract]
+    public class ProfileUpdate
+    {
+        [DataMember]
+        public UpdateType Type { get; set; }
+        [DataMember]
+        public ProfileSetting Profile { get; set; }
+    }
+
+    [DataContract]
+    public class Setting : IExtensibleDataObject
+    {
+        [DataMember]
+        public string AmatsukazePath { get; set; }
+        [DataMember]
+        public string X264Path { get; set; }
+        [DataMember]
+        public string X265Path { get; set; }
+        [DataMember]
+        public string QSVEncPath { get; set; }
+        [DataMember]
+        public string NVEncPath { get; set; }
+        [DataMember]
+        public string MuxerPath { get; set; }
+        [DataMember]
+        public string MKVMergePath { get; set; }
+        [DataMember]
+        public string MP4BoxPath { get; set; }
+        [DataMember]
+        public string TimelineEditorPath { get; set; }
+        [DataMember]
+        public string ChapterExePath { get; set; }
+        [DataMember]
+        public string JoinLogoScpPath { get; set; }
+        [DataMember]
+        public string NicoConvASSPath { get; set; }
+
+        [DataMember]
+        public string WorkPath { get; set; }
+        [DataMember]
+        public string AlwaysShowDisk { get; set; }
+
+        [DataMember]
+        public int NumParallel { get; set; }
+
+        [DataMember]
+        public bool ClearWorkDirOnStart { get; set; }
+        [DataMember]
+        public bool HideOneSeg { get; set; }
         [DataMember]
         public FinishAction FinishAction { get; set; }
 
@@ -165,18 +189,6 @@ namespace Amatsukaze.Server
             get
             {
                 return string.IsNullOrEmpty(WorkPath) ? "./" : WorkPath;
-            }
-        }
-
-        public int NicoJKFormatMask {
-            get {
-                int mask = 0;
-                for(int i = NicoJKFormats.Length - 1; i >= 0; --i)
-                {
-                    mask <<= 1;
-                    mask |= NicoJKFormats[i] ? 1 : 0;
-                }
-                return mask;
             }
         }
     }
@@ -275,6 +287,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public ProcMode Mode { get; set; }
         [DataMember]
+        public string Profile { get; set; }
+        [DataMember]
         public string RequestId { get; set; }
 
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
@@ -354,7 +368,7 @@ namespace Amatsukaze.Server
 
         // サーバで使う
         public Dictionary<string, byte[]> HashList;
-        public Setting Setting { get; set; }
+        public ProfileSetting Profile { get; set; }
         public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(DirPath, "encoded"); } }
         public string Succeeded { get { return System.IO.Path.Combine(DirPath, "succeeded"); } }
         public string Failed { get { return System.IO.Path.Combine(DirPath, "failed"); } }

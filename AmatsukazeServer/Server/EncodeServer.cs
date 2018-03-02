@@ -366,6 +366,8 @@ namespace Amatsukaze.Server
             [DataMember]
             public Setting setting;
             [DataMember]
+            public Dictionary<string, ProfileSetting> profiles;
+            [DataMember]
             public ServiceSetting services;
 
             public ExtensionDataObject ExtensionData { get; set; }
@@ -582,13 +584,13 @@ namespace Amatsukaze.Server
                     return FailLogItem(src.Path, "入力ファイルが見つかりません", now, now);
                 }
 
-                Setting setting = dir.Setting;
+                ProfileSetting profile = dir.Profile;
                 ServiceSettingElement serviceSetting = 
                     server.appData.services.ServiceMap[src.ServiceId];
 
                 bool ignoreNoLogo = true;
                 string[] logopaths = null;
-                if (setting.DisableChapter == false)
+                if (profile.DisableChapter == false)
                 {
                     var logofiles = serviceSetting.LogoSettings
                         .Where(s => s.CanUse(src.TsTime))
@@ -609,7 +611,7 @@ namespace Amatsukaze.Server
                 string dstpath;
                 if (dir.IsTest)
                 {
-                    var ext = (setting.OutputFormat == FormatType.MP4) ? ".mp4" : ".mkv";
+                    var ext = (profile.OutputFormat == FormatType.MP4) ? ".mp4" : ".mkv";
                     var baseName = Path.Combine(dir.Encoded, Path.GetFileNameWithoutExtension(src.DstName));
                     dstpath = Util.CreateDstFile(baseName, ext);
                 }
@@ -632,7 +634,7 @@ namespace Amatsukaze.Server
                         // NASとエンコードPCが同じ場合はローカルでのコピーとなってしまうが
                         // そこだけ特別処理するのは大変なので、全部同じようにコピーする
 
-                        tmpBase = Util.CreateTmpFile(setting.WorkPath);
+                        tmpBase = Util.CreateTmpFile(server.appData.setting.WorkPath);
                         localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
                         string name = Path.GetFileName(srcpath);
                         if (dir.HashList.ContainsKey(name) == false)
@@ -661,18 +663,20 @@ namespace Amatsukaze.Server
                     string jlscmd = serviceSetting.DisableCMCheck ?
                         null :
                         (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
-                        setting.DefaultJLSCommand :
+                        profile.DefaultJLSCommand :
                         serviceSetting.JLSCommand);
                     string jlsopt = serviceSetting.DisableCMCheck ?
                         null : serviceSetting.JLSOption;
 
-                    string args = server.MakeAmatsukazeArgs(setting,
+                    string args = server.MakeAmatsukazeArgs(
+                        profile,
+                        server.appData.setting,
                         isMp4,
                         srcpath, localdst, json,
                         src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt);
-                    string exename = setting.AmatsukazePath;
+                    string exename = server.appData.setting.AmatsukazePath;
 
-                    int outputMask = setting.OutputMask;
+                    int outputMask = profile.OutputMask;
 
                     Util.AddLog(id, "エンコード開始: " + src.Path);
                     Util.AddLog(id, "Args: " + exename + " " + args);
@@ -920,22 +924,22 @@ namespace Amatsukaze.Server
                                 if (sameItems.Any(s => s.State == QueueState.Failed))
                                 {
                                     // 失敗がある
-                                    EncodeServer.MoveTSFile(src.Path, dir.Failed, dir.Setting.MoveEDCBFiles);
+                                    EncodeServer.MoveTSFile(src.Path, dir.Failed, dir.Profile.MoveEDCBFiles);
                                 }
                                 else
                                 {
                                     // 全て成功
-                                    EncodeServer.MoveTSFile(src.Path, dir.Succeeded, dir.Setting.MoveEDCBFiles);
+                                    EncodeServer.MoveTSFile(src.Path, dir.Succeeded, dir.Profile.MoveEDCBFiles);
                                 }
 
                                 // 関連ファイルをコピー
-                                if(dir.Setting.MoveEDCBFiles)
+                                if(dir.Profile.MoveEDCBFiles)
                                 {
                                     var commonName = Path.GetFileNameWithoutExtension(src.Path);
                                     var srcBody = Path.GetDirectoryName(src.Path) + "\\" + commonName;
                                     var dstBody = dir.Succeeded + "\\" + commonName;
                                     foreach (var ext in EncodeServer
-                                        .GetFileExtentions(null, dir.Setting.MoveEDCBFiles))
+                                        .GetFileExtentions(null, dir.Profile.MoveEDCBFiles))
                                     {
                                         var srcPath = srcBody + ext;
                                         var dstPath = dstBody + ext;
@@ -1392,31 +1396,44 @@ namespace Amatsukaze.Server
             return null;
         }
 
+        private Setting GetDefaultSetting()
+        {
+            string basePath = Path.GetDirectoryName(GetType().Assembly.Location);
+            return new Setting()
+            {
+                AmatsukazePath = Path.Combine(basePath, "AmatsukazeCLI.exe"),
+                X264Path = GetExePath(basePath, "x264"),
+                X265Path = GetExePath(basePath, "x265"),
+                MuxerPath = Path.Combine(basePath, "muxer.exe"),
+                MKVMergePath = Path.Combine(basePath, "mkvmerge.exe"),
+                MP4BoxPath = Path.Combine(basePath, "mp4box.exe"),
+                TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
+                ChapterExePath = GetExePath(basePath, "chapter_exe"),
+                JoinLogoScpPath = GetExePath(basePath, "join_logo_scp"),
+                NumParallel = 1,
+            };
+        }
+
+        private ProfileSetting GetDefaultProfile()
+        {
+            return new ProfileSetting()
+            {
+                EncoderType = EncoderType.x264,
+                DefaultJLSCommand = "JL_標準.txt",
+                Bitrate = new BitrateSetting(),
+                BitrateCM = 0.5,
+                OutputMask = 1,
+                NicoJKFormats = new bool[4] { true, false, false, false }
+            };
+        }
+
         private void LoadAppData()
         {
             string path = GetSettingFilePath();
             if (File.Exists(path) == false)
             {
-                string basePath = Path.GetDirectoryName(GetType().Assembly.Location);
                 appData = new AppData() {
-                    setting = new Setting() {
-                        EncoderType = EncoderType.x264,
-                        AmatsukazePath = Path.Combine(basePath, "AmatsukazeCLI.exe"),
-                        X264Path = GetExePath(basePath, "x264"),
-                        X265Path = GetExePath(basePath, "x265"),
-                        MuxerPath = Path.Combine(basePath, "muxer.exe"),
-                        MKVMergePath = Path.Combine(basePath, "mkvmerge.exe"),
-                        MP4BoxPath = Path.Combine(basePath, "mp4box.exe"),
-                        TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
-                        ChapterExePath = GetExePath(basePath, "chapter_exe"),
-                        JoinLogoScpPath = GetExePath(basePath, "join_logo_scp"),
-                        DefaultJLSCommand = "JL_標準.txt",
-                        NumParallel = 1,
-                        Bitrate = new BitrateSetting(),
-                        BitrateCM = 0.5,
-                        OutputMask = 1,
-                        NicoJKFormats = new bool[4] { true, false, false, false }
-                    },
+                    setting = GetDefaultSetting(),
                     services = new ServiceSetting() {
                         ServiceMap = new Dictionary<int, ServiceSettingElement>()
                     }
@@ -1429,11 +1446,26 @@ namespace Amatsukaze.Server
                 appData = (AppData)s.ReadObject(fs);
                 if (appData.setting == null)
                 {
-                    appData.setting = new Setting();
+                    appData.setting = GetDefaultSetting();
                 }
-                if (appData.setting.Bitrate == null)
+                if (appData.profiles == null)
                 {
-                    appData.setting.Bitrate = new BitrateSetting();
+                    appData.profiles = new Dictionary<string, ProfileSetting>();
+                }
+                if (appData.profiles.ContainsKey("デフォルト") == false)
+                {
+                    appData.profiles.Add("デフォルト", GetDefaultProfile());
+                }
+                foreach(var profile in appData.profiles.Values)
+                {
+                    if (profile.Bitrate == null)
+                    {
+                        profile.Bitrate = new BitrateSetting();
+                    }
+                    if (profile.NicoJKFormats == null)
+                    {
+                        profile.NicoJKFormats = new bool[4] { true, false, false, false };
+                    }
                 }
                 if (appData.services == null)
                 {
@@ -1442,10 +1474,6 @@ namespace Amatsukaze.Server
                 if (appData.services.ServiceMap == null)
                 {
                     appData.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
-                }
-                if (appData.setting.NicoJKFormats == null)
-                {
-                    appData.setting.NicoJKFormats = new bool[4] { true, false, false, false };
                 }
             }
         }
@@ -1507,17 +1535,17 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static string GetEncoderPath(Setting setting)
+        private static string GetEncoderPath(EncoderType encoderType, Setting setting)
         {
-            if (setting.EncoderType == EncoderType.x264)
+            if (encoderType == EncoderType.x264)
             {
                 return setting.X264Path;
             }
-            else if (setting.EncoderType == EncoderType.x265)
+            else if (encoderType == EncoderType.x265)
             {
                 return setting.X265Path;
             }
-            else if (setting.EncoderType == EncoderType.QSVEnc)
+            else if (encoderType == EncoderType.QSVEnc)
             {
                 return setting.QSVEncPath;
             }
@@ -1527,37 +1555,17 @@ namespace Amatsukaze.Server
             }
         }
 
-        private string GetEncoderOption()
+        private string GetEncoderName(EncoderType encoderType)
         {
-            if (appData.setting.EncoderType == EncoderType.x264)
-            {
-                return appData.setting.X264Option;
-            }
-            else if (appData.setting.EncoderType == EncoderType.x265)
-            {
-                return appData.setting.X265Option;
-            }
-            else if (appData.setting.EncoderType == EncoderType.QSVEnc)
-            {
-                return appData.setting.QSVEncOption;
-            }
-            else
-            {
-                return appData.setting.NVEncOption;
-            }
-        }
-
-        private string GetEncoderName()
-        {
-            if (appData.setting.EncoderType == EncoderType.x264)
+            if (encoderType == EncoderType.x264)
             {
                 return "x264";
             }
-            else if (appData.setting.EncoderType == EncoderType.x265)
+            else if (encoderType == EncoderType.x265)
             {
                 return "x265";
             }
-            else if (appData.setting.EncoderType == EncoderType.QSVEnc)
+            else if (encoderType == EncoderType.QSVEnc)
             {
                 return "QSVEnc";
             }
@@ -1569,8 +1577,6 @@ namespace Amatsukaze.Server
 
         private string MakeAmatsukazeSearchArgs(string src, int serviceId)
         {
-            string encoderPath = GetEncoderPath(appData.setting);
-
             StringBuilder sb = new StringBuilder();
             sb.Append("--mode drcs")
                 .Append(" --subtitles")
@@ -1585,21 +1591,23 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
-        private string MakeAmatsukazeArgs(Setting setting,
+        private string MakeAmatsukazeArgs(
+            ProfileSetting profile,
+            Setting setting,
             bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles,
             bool ignoreNoLogo, string jlscommand, string jlsopt)
         {
-            string encoderPath = GetEncoderPath(setting);
+            string encoderPath = GetEncoderPath(profile.EncoderType, setting);
 
-            double bitrateCM = setting.BitrateCM;
+            double bitrateCM = profile.BitrateCM;
             if (bitrateCM == 0)
             {
                 bitrateCM = 1;
             }
 
-            int outputMask = setting.OutputMask;
+            int outputMask = profile.OutputMask;
             if(outputMask == 0)
             {
                 outputMask = 1;
@@ -1617,7 +1625,7 @@ namespace Amatsukaze.Server
                 .Append("\" -w \"")
                 .Append(setting.WorkPath)
                 .Append("\" -et ")
-                .Append(GetEncoderName())
+                .Append(GetEncoderName(profile.EncoderType))
                 .Append(" -e \"")
                 .Append(encoderPath)
                 .Append("\" -j \"")
@@ -1634,7 +1642,7 @@ namespace Amatsukaze.Server
                 .Append(GetDRCSMapPath())
                 .Append("\"");
 
-            if (setting.OutputFormat == FormatType.MP4)
+            if (profile.OutputFormat == FormatType.MP4)
             {
                 sb.Append(" --mp4box \"")
                     .Append(setting.MP4BoxPath)
@@ -1643,15 +1651,14 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
-            string option = GetEncoderOption();
-            if (string.IsNullOrEmpty(option) == false)
+            if (string.IsNullOrEmpty(profile.EncoderOption) == false)
             {
                 sb.Append(" -eo \"")
-                    .Append(option)
+                    .Append(profile.EncoderOption)
                     .Append("\"");
             }
 
-            if (setting.OutputFormat == FormatType.MP4)
+            if (profile.OutputFormat == FormatType.MP4)
             {
                 sb.Append(" -fmt mp4 -m \"" + setting.MuxerPath + "\"");
             }
@@ -1664,31 +1671,31 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" -bcm ").Append(bitrateCM);
             }
-            if(setting.SplitSub)
+            if(profile.SplitSub)
             {
                 sb.Append(" --splitsub");
             }
-            if (!setting.DisableChapter)
+            if (!profile.DisableChapter)
             {
                 sb.Append(" --chapter");
             }
-            if (!setting.DisableSubs)
+            if (!profile.DisableSubs)
             {
                 sb.Append(" --subtitles");
             }
-            if (setting.EnableNicoJK)
+            if (profile.EnableNicoJK)
             {
                 sb.Append(" --nicojk");
-                if(setting.IgnoreNicoJKError)
+                if(profile.IgnoreNicoJKError)
                 {
                     sb.Append(" --ignore-nicojk-error");
                 }
-                if (setting.NicoJK18)
+                if (profile.NicoJK18)
                 {
                     sb.Append(" --nicojk18");
                 }
                 sb.Append(" --nicojkmask ")
-                    .Append(setting.NicoJKFormatMask);
+                    .Append(profile.NicoJKFormatMask);
                 sb.Append(" --nicoass \"")
                     .Append(setting.NicoConvASSPath)
                     .Append("\"");
@@ -1707,43 +1714,43 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
-            if (string.IsNullOrEmpty(setting.FilterPath) == false)
+            if (string.IsNullOrEmpty(profile.FilterPath) == false)
             {
                 sb.Append(" -f \"")
-                    .Append(GetAvsDirectoryPath() + "\\" + setting.FilterPath)
+                    .Append(GetAvsDirectoryPath() + "\\" + profile.FilterPath)
                     .Append("\"");
             }
 
-            if (string.IsNullOrEmpty(setting.PostFilterPath) == false)
+            if (string.IsNullOrEmpty(profile.PostFilterPath) == false)
             {
                 sb.Append(" -pf \"")
-                    .Append(GetAvsDirectoryPath() + "\\" + setting.PostFilterPath)
+                    .Append(GetAvsDirectoryPath() + "\\" + profile.PostFilterPath)
                     .Append("\"");
             }
 
-            if (setting.AutoBuffer)
+            if (profile.AutoBuffer)
             {
                 sb.Append(" --bitrate ")
-                    .Append(setting.Bitrate.A)
+                    .Append(profile.Bitrate.A)
                     .Append(":")
-                    .Append(setting.Bitrate.B)
+                    .Append(profile.Bitrate.B)
                     .Append(":")
-                    .Append(setting.Bitrate.H264);
+                    .Append(profile.Bitrate.H264);
             }
 
             string[] decoderNames = new string[] { "default", "QSV", "CUVID" };
-            if (setting.Mpeg2Decoder != DecoderType.Default)
+            if (profile.Mpeg2Decoder != DecoderType.Default)
             {
                 sb.Append("  --mpeg2decoder ");
-                sb.Append(decoderNames[(int)setting.Mpeg2Decoder]);
+                sb.Append(decoderNames[(int)profile.Mpeg2Decoder]);
             }
-            if (setting.H264Deocder != DecoderType.Default)
+            if (profile.H264Deocder != DecoderType.Default)
             {
                 sb.Append("  --h264decoder ");
-                sb.Append(decoderNames[(int)setting.H264Deocder]);
+                sb.Append(decoderNames[(int)profile.H264Deocder]);
             }
 
-            if (setting.TwoPass)
+            if (profile.TwoPass)
             {
                 sb.Append(" --2pass");
             }
@@ -1751,11 +1758,11 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --ignore-no-logo");
             }
-            if (setting.IgnoreNoDrcsMap)
+            if (profile.IgnoreNoDrcsMap)
             {
                 sb.Append(" --ignore-no-drcsmap");
             }
-            if (setting.NoDelogo)
+            if (profile.NoDelogo)
             {
                 sb.Append(" --no-delogo");
             }
@@ -1767,7 +1774,7 @@ namespace Amatsukaze.Server
                     sb.Append(" --logo \"").Append(GetLogoFilePath(logo)).Append("\"");
                 }
             }
-            if (setting.SystemAviSynthPlugin)
+            if (profile.SystemAviSynthPlugin)
             {
                 sb.Append(" --systemavsplugin");
             }
@@ -1814,7 +1821,15 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static void CheckSetting(Setting setting)
+        private static void CheckPath(string name, string path)
+        {
+            if(!string.IsNullOrEmpty(path) && !File.Exists(path))
+            {
+                throw new InvalidOperationException(name + "パスが無効です: " + path);
+            }
+        }
+
+        private static void CheckSetting(ProfileSetting profile, Setting setting)
         {
             string workPath = setting.ActualWorkPath;
             if (!File.Exists(setting.AmatsukazePath))
@@ -1828,101 +1843,78 @@ namespace Amatsukaze.Server
                     "一時フォルダパスが無効です: " + workPath);
             }
 
-            string encoderPath = GetEncoderPath(setting);
-            if (string.IsNullOrEmpty(encoderPath))
-            {
-                throw new ArgumentException("エンコーダパスが設定されていません");
-            }
-            if (!File.Exists(encoderPath))
-            {
-                throw new InvalidOperationException(
-                    "エンコーダパスが無効です: " + encoderPath);
-            }
+            // パスが設定されていたらファイル存在チェック
+            CheckPath("x264", setting.X264Path);
+            CheckPath("x265", setting.X265Path);
+            CheckPath("QSVEnc", setting.QSVEncPath);
+            CheckPath("NVEnc", setting.NVEncPath);
 
-            if(setting.OutputFormat == FormatType.MP4)
-            {
-                if (string.IsNullOrEmpty(setting.MuxerPath))
-                {
-                    throw new ArgumentException("L-SMASH Muxerパスが設定されていません");
-                }
-                if (!File.Exists(setting.MuxerPath))
-                {
-                    throw new InvalidOperationException(
-                        "Muxerパスが無効です: " + setting.MuxerPath);
-                }
-                if (string.IsNullOrEmpty(setting.MP4BoxPath))
-                {
-                    throw new ArgumentException("MP4BoxPathパスが指定されていません");
-                }
-                if (!File.Exists(setting.MP4BoxPath))
-                {
-                    throw new InvalidOperationException(
-                        "Timelineeditorパスが無効です: " + setting.MP4BoxPath);
-                }
-                if (string.IsNullOrEmpty(setting.TimelineEditorPath))
-                {
-                    throw new ArgumentException("Timelineeditorパスが設定されていません");
-                }
-                if (!File.Exists(setting.TimelineEditorPath))
-                {
-                    throw new InvalidOperationException(
-                        "Timelineeditorパスが無効です: " + setting.TimelineEditorPath);
-                }
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(setting.MKVMergePath))
-                {
-                    throw new ArgumentException("MKVMergeパスが設定されていません");
-                }
-                if (!File.Exists(setting.MKVMergePath))
-                {
-                    throw new InvalidOperationException(
-                        "MKVMergePathパスが無効です: " + setting.MuxerPath);
-                }
-            }
+            CheckPath("L-SMASH Muxer", setting.MuxerPath);
+            CheckPath("MP4Box", setting.MP4BoxPath);
+            CheckPath("TimelineEditor", setting.TimelineEditorPath);
+            CheckPath("MKVMerge", setting.MKVMergePath);
+            CheckPath("ChapterExe", setting.ChapterExePath);
+            CheckPath("JoinLogoScp", setting.JoinLogoScpPath);
+            CheckPath("NicoConvAss", setting.NicoConvASSPath);
 
-            if (!setting.DisableChapter)
+            if (profile != null)
             {
-                if (string.IsNullOrEmpty(setting.ChapterExePath))
+                string encoderPath = GetEncoderPath(profile.EncoderType, setting);
+                if (string.IsNullOrEmpty(encoderPath))
                 {
-                    throw new ArgumentException("ChapterExeパスが設定されていません");
+                    throw new ArgumentException("エンコーダパスが設定されていません");
                 }
-                if (!File.Exists(setting.ChapterExePath))
-                {
-                    throw new InvalidOperationException(
-                        "ChapterExeパスが無効です: " + setting.ChapterExePath);
-                }
-                if (string.IsNullOrEmpty(setting.JoinLogoScpPath))
-                {
-                    throw new ArgumentException("JoinLogoScpパスが設定されていません");
-                }
-                if (!File.Exists(setting.JoinLogoScpPath))
-                {
-                    throw new InvalidOperationException(
-                        "JoinLogoScpパスが無効です: " + setting.JoinLogoScpPath);
-                }
-            }
 
-            if(setting.EnableNicoJK)
-            {
-                if (string.IsNullOrEmpty(setting.NicoConvASSPath))
+                if (profile.OutputFormat == FormatType.MP4)
                 {
-                    throw new ArgumentException("NicoConvASSパスが設定されていません");
+                    if (string.IsNullOrEmpty(setting.MuxerPath))
+                    {
+                        throw new ArgumentException("L-SMASH Muxerパスが設定されていません");
+                    }
+                    if (string.IsNullOrEmpty(setting.MP4BoxPath))
+                    {
+                        throw new ArgumentException("MP4Boxパスが指定されていません");
+                    }
+                    if (string.IsNullOrEmpty(setting.TimelineEditorPath))
+                    {
+                        throw new ArgumentException("Timelineeditorパスが設定されていません");
+                    }
                 }
-                if (!File.Exists(setting.NicoConvASSPath))
+                else
                 {
-                    throw new InvalidOperationException(
-                        "NicoConvASSパスが無効です: " + setting.NicoConvASSPath);
+                    if (string.IsNullOrEmpty(setting.MKVMergePath))
+                    {
+                        throw new ArgumentException("MKVMergeパスが設定されていません");
+                    }
                 }
-            }
 
-            if(!string.IsNullOrEmpty(setting.DefaultOutPath))
-            {
-                if(!Directory.Exists(setting.DefaultOutPath))
+                if (!profile.DisableChapter)
                 {
-                    throw new InvalidOperationException(
-                        "デフォルト出力パスが無効です: " + setting.DefaultOutPath);
+                    if (string.IsNullOrEmpty(setting.ChapterExePath))
+                    {
+                        throw new ArgumentException("ChapterExeパスが設定されていません");
+                    }
+                    if (string.IsNullOrEmpty(setting.JoinLogoScpPath))
+                    {
+                        throw new ArgumentException("JoinLogoScpパスが設定されていません");
+                    }
+                }
+
+                if (profile.EnableNicoJK)
+                {
+                    if (string.IsNullOrEmpty(setting.NicoConvASSPath))
+                    {
+                        throw new ArgumentException("NicoConvASSパスが設定されていません");
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(profile.DefaultOutPath))
+                {
+                    if (!Directory.Exists(profile.DefaultOutPath))
+                    {
+                        throw new InvalidOperationException(
+                            "デフォルト出力パスが無効です: " + profile.DefaultOutPath);
+                    }
                 }
             }
         }
@@ -1959,10 +1951,18 @@ namespace Amatsukaze.Server
             // ユーザ操作でない場合はログを記録する
             bool enableLog = (dir.Mode == ProcMode.AutoBatch);
 
-            // 設定をチェック
+            ProfileSetting profile = null;
+            if(!appData.profiles.TryGetValue(dir.Profile, out profile))
+            {
+                await NotifyMessage(
+                    "プロファイルが見つかりません:" + dir.Profile, enableLog);
+                return;
+            }
+
+            // プロファイル・設定をチェック
             try
             {
-                CheckSetting(appData.setting);
+                CheckSetting(profile, appData.setting);
             }
             catch (Exception e)
             {
@@ -2006,9 +2006,9 @@ namespace Amatsukaze.Server
             string dstPath = dir.DstPath;
             if (dir.DstPath == null)
             {
-                if (string.IsNullOrEmpty(appData.setting.DefaultOutPath) == false)
+                if (string.IsNullOrEmpty(profile.DefaultOutPath) == false)
                 {
-                    dstPath = appData.setting.DefaultOutPath;
+                    dstPath = profile.DefaultOutPath;
                 }
                 else
                 {
@@ -2026,7 +2026,8 @@ namespace Amatsukaze.Server
                     last.DirPath == dir.DirPath &&
                     last.DstPath == dstPath &&
                     last.Mode == dir.Mode &&
-                    last.Setting.LastUpdate == appData.setting.LastUpdate)
+                    last.Profile.Name == dir.Profile &&
+                    last.Profile.LastUpdate == profile.LastUpdate)
                 {
                     target = last;
                 }
@@ -2041,10 +2042,10 @@ namespace Amatsukaze.Server
                     Items = new List<QueueItem>(),
                     DstPath = dstPath,
                     Mode = dir.Mode,
-                    Setting = DeepCopy(appData.setting)
+                    Profile = DeepCopy(profile)
                 };
 
-                if (dir.IsBatch && appData.setting.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
+                if (dir.IsBatch && profile.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
                 {
                     var hashpath = target.DirPath + ".hash";
                     if (File.Exists(hashpath) == false)
@@ -2264,7 +2265,7 @@ namespace Amatsukaze.Server
                         item.FailReason = "このTSに対する設定がありません";
                         item.State = QueueState.LogoPending;
                     }
-                    else if (appData.setting.DisableChapter == false &&
+                    else if (dir.Profile.DisableChapter == false &&
                         map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
                     {
                         item.FailReason = "ロゴ設定がありません";
@@ -2791,13 +2792,46 @@ namespace Amatsukaze.Server
             };
         }
 
+        public Task SetProfile(ProfileUpdate data)
+        {
+            try
+            {
+                // 面倒だからAddもUpdateも同じ
+                if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
+                {
+                    CheckSetting(data.Profile, appData.setting);
+                    if (appData.profiles.ContainsKey(data.Profile.Name))
+                    {
+                        appData.profiles[data.Profile.Name] = data.Profile;
+                    }
+                    else
+                    {
+                        appData.profiles.Add(data.Profile.Name, data.Profile);
+                    }
+                }
+                else
+                {
+                    if(appData.profiles.ContainsKey(data.Profile.Name))
+                    {
+                        appData.profiles.Remove(data.Profile.Name);
+                    }
+                }
+                return Task.WhenAll(
+                    RequestSetting(),
+                    AddEncodeLog("プロファイルを更新しました"));
+            }
+            catch (Exception e)
+            {
+                return NotifyMessage(e.Message, false);
+            }
+        }
+
         public Task SetSetting(Setting setting)
         {
             try
             {
-                CheckSetting(setting);
+                CheckSetting(null, setting);
                 appData.setting = setting;
-                appData.setting.LastUpdate = DateTime.Now;
                 scheduler.SetNumParallel(setting.NumParallel);
                 affinityCreator.NumProcess = setting.NumParallel;
                 settingUpdated = true;

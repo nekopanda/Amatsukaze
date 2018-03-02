@@ -13,12 +13,13 @@ namespace Amatsukaze.Server
     public interface IEncodeServer
     {
         // 操作系
-        Task SetSetting(Setting setting);
+        Task SetProfile(ProfileUpdate data);
         Task AddQueue(AddQueueDirectory dir);
         Task RemoveQueue(int id);
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
 
+        Task SetSetting(Setting setting);
         Task SetServiceSetting(ServiceSettingUpdate update);
         Task AddDrcsMap(DrcsImage drcsMap);
         Task EndServer();
@@ -41,7 +42,7 @@ namespace Amatsukaze.Server
 
     public interface IUserClient
     {
-        Task OnSetting(Setting setting);
+        Task OnProfile(ProfileUpdate data);
         Task OnQueueData(QueueData data);
         Task OnQueueUpdate(QueueUpdate update);
         Task OnLogData(LogData data);
@@ -52,6 +53,7 @@ namespace Amatsukaze.Server
         Task OnState(State state);
         Task OnFreeSpace(DiskFreeSpace space);
 
+        Task OnSetting(Setting setting);
         Task OnServiceSetting(ServiceSettingUpdate update);
         Task OnJlsCommandFiles(JLSCommandFiles files);
         Task OnAvsScriptFiles(AvsScriptFiles files);
@@ -65,11 +67,12 @@ namespace Amatsukaze.Server
 
     public enum RPCMethodId
     {
-        SetSetting = 100,
+        SetProfile = 100,
         AddQueue,
         RemoveQueue,
         ChangeItem,
         PauseEncode,
+        SetSetting,
         SetServiceSetting,
         AddDrcsMap,
         EndServer,
@@ -84,7 +87,7 @@ namespace Amatsukaze.Server
         RequestLogoData,
         RequestDrcsImages,
 
-        OnSetting = 200,
+        OnProfile = 200,
         OnQueueData,
         OnQueueUpdate,
         OnLogData,
@@ -94,6 +97,7 @@ namespace Amatsukaze.Server
         OnLogFile,
         OnState,
         OnFreeSpace,
+        OnSetting,
         OnServiceSetting,
         OnLlsCommandFiles,
         OnAvsScriptFiles,
@@ -112,11 +116,12 @@ namespace Amatsukaze.Server
     public static class RPCTypes
     {
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
-            { RPCMethodId.SetSetting, typeof(Setting) },
+            { RPCMethodId.SetProfile, typeof(ProfileUpdate) },
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.RemoveQueue, typeof(int) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
+            { RPCMethodId.SetSetting, typeof(Setting) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
             { RPCMethodId.EndServer, null },
@@ -131,7 +136,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RequestLogoData, typeof(string) },
             { RPCMethodId.RequestDrcsImages, null },
 
-            { RPCMethodId.OnSetting, typeof(Setting) },
+            { RPCMethodId.OnProfile, typeof(ProfileUpdate) },
             { RPCMethodId.OnQueueData, typeof(QueueData) },
             { RPCMethodId.OnQueueUpdate, typeof(QueueUpdate) },
             { RPCMethodId.OnLogData, typeof(LogData) },
@@ -141,6 +146,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnState, typeof(State) },
             { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
+            { RPCMethodId.OnSetting, typeof(Setting) },
             { RPCMethodId.OnServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
             { RPCMethodId.OnAvsScriptFiles, typeof(AvsScriptFiles) },
@@ -471,6 +477,11 @@ namespace Amatsukaze.Server
         public Task OnAddResult(string requestId)
         {
             return client.OnAddResult((string)Copy(typeof(string), requestId));
+        }
+
+        public Task OnProfile(ProfileUpdate data)
+        {
+            throw new NotImplementedException();
         }
     }
 }
