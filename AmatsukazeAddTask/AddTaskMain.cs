@@ -379,6 +379,16 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
+        public Task OnProfile(ProfileUpdate data)
+        {
+            return Task.FromResult(0);
+        }
+
+        public Task OnServerInfo(ServerInfo setting)
+        {
+            return Task.FromResult(0);
+        }
+
         #endregion
     }
 

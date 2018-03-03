@@ -56,6 +56,7 @@
       <HintPath>..\packages\Microsoft.Tpl.Dataflow.4.5.24\lib\portable-net45+win8+wpa81\System.Threading.Tasks.Dataflow.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Windows.Interactivity">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>InfrastructureAssemblies\System.Windows.Interactivity.dll</HintPath>
@@ -77,13 +78,16 @@
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
-    <Compile Include="ViewModels\ControlPanelViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageListViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageViewModel.cs" />
     <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />
     <Compile Include="ViewModels\LogoImageViewModel.cs" />
+    <Compile Include="ViewModels\MakeBatchResultViewModel.cs" />
+    <Compile Include="ViewModels\MakeScriptViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
+    <Compile Include="ViewModels\NewProfileViewModel.cs" />
+    <Compile Include="ViewModels\ProfileSettingViewModel.cs" />
     <Compile Include="ViewModels\SelectOutPathViewModel.cs" />
     <Compile Include="ViewModels\ServerViewModel.cs" />
     <Compile Include="ViewModels\ServiceSettingViewModel.cs" />
@@ -92,9 +96,6 @@
     <Compile Include="ViewModels\SummaryViewModel.cs" />
     <Compile Include="Views\ClientLogPanel.xaml.cs">
       <DependentUpon>ClientLogPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\ControlPanel.xaml.cs">
-      <DependentUpon>ControlPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\DiskFreeSpacePanel.xaml.cs">
       <DependentUpon>DiskFreeSpacePanel.xaml</DependentUpon>
@@ -116,6 +117,18 @@
     </Compile>
     <Compile Include="Views\LogPanel.xaml.cs">
       <DependentUpon>LogPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\MakeBatchResultWindow.xaml.cs">
+      <DependentUpon>MakeBatchResultWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\MakeScriptPanel.xaml.cs">
+      <DependentUpon>MakeScriptPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\NewProfileWindow.xaml.cs">
+      <DependentUpon>NewProfileWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\ProfileSettingPanel.xaml.cs">
+      <DependentUpon>ProfileSettingPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\QueuePanel.xaml.cs">
       <DependentUpon>QueuePanel.xaml</DependentUpon>
@@ -148,10 +161,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ConsolePanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\ControlPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -219,6 +228,22 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Views\MakeBatchResultWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\MakeScriptPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\NewProfileWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\ProfileSettingPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\QueuePanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

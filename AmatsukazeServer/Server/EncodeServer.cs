@@ -30,6 +30,18 @@ namespace Amatsukaze.Server
         public string HostName { get; private set; }
         public int Port { get; private set; }
 
+        public IPEndPoint RemoteIP {
+            get {
+                return (IPEndPoint)client.Client.RemoteEndPoint;
+            }
+        }
+
+        public IPEndPoint LocalIP {
+            get {
+                return (IPEndPoint)client.Client.LocalEndPoint;
+            }
+        }
+
         #region TotalSendCount変更通知プロパティ
         private int _TotalSendCount;
 
@@ -203,8 +215,8 @@ namespace Amatsukaze.Server
         {
             switch (methodId)
             {
-                case RPCMethodId.SetSetting:
-                    server.SetSetting((Setting)arg);
+                case RPCMethodId.SetProfile:
+                    server.SetProfile((ProfileUpdate)arg);
                     break;
                 case RPCMethodId.AddQueue:
                     server.AddQueue((AddQueueDirectory)arg);
@@ -217,6 +229,9 @@ namespace Amatsukaze.Server
                     break;
                 case RPCMethodId.PauseEncode:
                     server.PauseEncode((bool)arg);
+                    break;
+                case RPCMethodId.SetSetting:
+                    server.SetSetting((Setting)arg);
                     break;
                 case RPCMethodId.SetServiceSetting:
                     server.SetServiceSetting((ServiceSettingUpdate)arg);
@@ -355,6 +370,16 @@ namespace Amatsukaze.Server
         {
             return Send(RPCMethodId.OnAddResult, requestId);
         }
+
+        public Task OnProfile(ProfileUpdate data)
+        {
+            return Send(RPCMethodId.OnProfile, data);
+        }
+
+        public Task OnServerInfo(ServerInfo info)
+        {
+            return Send(RPCMethodId.OnServerInfo, info);
+        }
         #endregion
     }
 
@@ -365,8 +390,6 @@ namespace Amatsukaze.Server
         {
             [DataMember]
             public Setting setting;
-            [DataMember]
-            public Dictionary<string, ProfileSetting> profiles;
             [DataMember]
             public ServiceSetting services;
 
@@ -1121,6 +1144,7 @@ namespace Amatsukaze.Server
 
         private AffinityCreator affinityCreator = new AffinityCreator();
 
+        private Dictionary<string, ProfileSetting> profiles = new Dictionary<string, ProfileSetting>();
         private JLSCommandFiles jlsFiles = new JLSCommandFiles() { Files = new List<string>() };
         private AvsScriptFiles avsFiles = new AvsScriptFiles() { Main = new List<string>(), Post = new List<string>() };
         private Dictionary<string, BitmapFrame> drcsImageCache = new Dictionary<string, BitmapFrame>();
@@ -1363,6 +1387,16 @@ namespace Amatsukaze.Server
         {
             return GetDRCSDirectoryPath() + "\\drcs_map.txt";
         }
+
+        private string GetProfileDirectoryPath()
+        {
+            return Path.GetFullPath("profile");
+        }
+
+        private string GetProfilePath(string dirpath, string name)
+        {
+            return dirpath + "\\" + name + ".profile";
+        }
         #endregion
 
         public void Finish()
@@ -1396,35 +1430,52 @@ namespace Amatsukaze.Server
             return null;
         }
 
+        private Setting SetDefaultPath(Setting setting)
+        {
+            string basePath = Path.GetDirectoryName(GetType().Assembly.Location);
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.AmatsukazePath = Path.Combine(basePath, "AmatsukazeCLI.exe");
+            }
+            if (string.IsNullOrEmpty(setting.X264Path))
+            {
+                setting.X264Path = GetExePath(basePath, "x264");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.X265Path = GetExePath(basePath, "x265");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.MuxerPath = Path.Combine(basePath, "muxer.exe");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.MKVMergePath = Path.Combine(basePath, "mkvmerge.exe");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.MP4BoxPath = Path.Combine(basePath, "mp4box.exe");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.ChapterExePath = GetExePath(basePath, "chapter_exe");
+            }
+            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            {
+                setting.JoinLogoScpPath = GetExePath(basePath, "join_logo_scp");
+            }
+            return setting;
+        }
+
         private Setting GetDefaultSetting()
         {
             string basePath = Path.GetDirectoryName(GetType().Assembly.Location);
-            return new Setting()
-            {
-                AmatsukazePath = Path.Combine(basePath, "AmatsukazeCLI.exe"),
-                X264Path = GetExePath(basePath, "x264"),
-                X265Path = GetExePath(basePath, "x265"),
-                MuxerPath = Path.Combine(basePath, "muxer.exe"),
-                MKVMergePath = Path.Combine(basePath, "mkvmerge.exe"),
-                MP4BoxPath = Path.Combine(basePath, "mp4box.exe"),
-                TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe"),
-                ChapterExePath = GetExePath(basePath, "chapter_exe"),
-                JoinLogoScpPath = GetExePath(basePath, "join_logo_scp"),
-                NumParallel = 1,
-            };
-        }
-
-        private ProfileSetting GetDefaultProfile()
-        {
-            return new ProfileSetting()
-            {
-                EncoderType = EncoderType.x264,
-                DefaultJLSCommand = "JL_標準.txt",
-                Bitrate = new BitrateSetting(),
-                BitrateCM = 0.5,
-                OutputMask = 1,
-                NicoJKFormats = new bool[4] { true, false, false, false }
-            };
+            return SetDefaultPath(new Setting() { NumParallel = 1 });
         }
 
         private void LoadAppData()
@@ -1448,25 +1499,6 @@ namespace Amatsukaze.Server
                 {
                     appData.setting = GetDefaultSetting();
                 }
-                if (appData.profiles == null)
-                {
-                    appData.profiles = new Dictionary<string, ProfileSetting>();
-                }
-                if (appData.profiles.ContainsKey("デフォルト") == false)
-                {
-                    appData.profiles.Add("デフォルト", GetDefaultProfile());
-                }
-                foreach(var profile in appData.profiles.Values)
-                {
-                    if (profile.Bitrate == null)
-                    {
-                        profile.Bitrate = new BitrateSetting();
-                    }
-                    if (profile.NicoJKFormats == null)
-                    {
-                        profile.NicoJKFormats = new bool[4] { true, false, false, false };
-                    }
-                }
                 if (appData.services == null)
                 {
                     appData.services = new ServiceSetting();
@@ -1486,6 +1518,34 @@ namespace Amatsukaze.Server
             {
                 var s = new DataContractSerializer(typeof(AppData));
                 s.WriteObject(fs, appData);
+            }
+        }
+
+        private ProfileSetting ReadProfile(string filepath)
+        {
+            using (FileStream fs = new FileStream(filepath, FileMode.Open))
+            {
+                var s = new DataContractSerializer(typeof(ProfileSetting));
+                var profile = (ProfileSetting)s.ReadObject(fs);
+                if (profile.Bitrate == null)
+                {
+                    profile.Bitrate = new BitrateSetting();
+                }
+                if (profile.NicoJKFormats == null)
+                {
+                    profile.NicoJKFormats = new bool[4] { true, false, false, false };
+                }
+                return profile;
+            }
+        }
+
+        private void SaveProfile(string filepath, ProfileSetting profile)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(filepath));
+            using (FileStream fs = new FileStream(filepath, FileMode.Create))
+            {
+                var s = new DataContractSerializer(typeof(ProfileSetting));
+                s.WriteObject(fs, profile);
             }
         }
 
@@ -1936,14 +1996,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static T DeepCopy<T>(T src)
-        {
-            var ms = new MemoryStream();
-            var s = new DataContractSerializer(typeof(T));
-            s.WriteObject(ms, src);
-            return (T)s.ReadObject(new MemoryStream(ms.ToArray()));
-        }
-
         private async Task InternalAddQueue(AddQueueDirectory dir)
         {
             List<Task> waitItems = new List<Task>();
@@ -1952,7 +2004,7 @@ namespace Amatsukaze.Server
             bool enableLog = (dir.Mode == ProcMode.AutoBatch);
 
             ProfileSetting profile = null;
-            if(!appData.profiles.TryGetValue(dir.Profile, out profile))
+            if(!profiles.TryGetValue(dir.Profile, out profile))
             {
                 await NotifyMessage(
                     "プロファイルが見つかりません:" + dir.Profile, enableLog);
@@ -2042,7 +2094,7 @@ namespace Amatsukaze.Server
                     Items = new List<QueueItem>(),
                     DstPath = dstPath,
                     Mode = dir.Mode,
-                    Profile = DeepCopy(profile)
+                    Profile = ServerSupport.DeepCopy(profile)
                 };
 
                 if (dir.IsBatch && profile.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
@@ -2429,6 +2481,7 @@ namespace Amatsukaze.Server
 
                 var jlsDirTime = DateTime.MinValue;
                 var avsDirTime = DateTime.MinValue;
+                var profileDirTime = DateTime.MinValue;
 
                 var drcsDirTime = DateTime.MinValue;
                 var drcsTime = DateTime.MinValue;
@@ -2691,6 +2744,81 @@ namespace Amatsukaze.Server
                         }
                     }
 
+                    string profilepath = GetProfileDirectoryPath();
+                    if (Directory.Exists(profilepath))
+                    {
+                        var lastModified = Directory.GetLastWriteTime(profilepath);
+                        if (profileDirTime != lastModified)
+                        {
+                            profileDirTime = lastModified;
+
+                            var newProfiles = Directory.GetFiles(profilepath)
+                                .Where(s => s.EndsWith(".profile", StringComparison.OrdinalIgnoreCase))
+                                .Select(s => Path.GetFileNameWithoutExtension(s))
+                                .ToArray();
+
+                            foreach (var name in newProfiles.Union(profiles.Keys))
+                            {
+                                var filepath = GetProfilePath(profilepath, name);
+                                if(profiles.ContainsKey(name) == false)
+                                {
+                                    // 追加された
+                                    var profile = ReadProfile(filepath);
+                                    profile.Name = name;
+                                    profile.LastUpdate = File.GetLastWriteTime(filepath);
+                                    profiles.Add(profile.Name, profile);
+                                    await client.OnProfile(new ProfileUpdate()
+                                    {
+                                        Type = UpdateType.Add,
+                                        Profile = profile
+                                    });
+                                }
+                                else if(newProfiles.Contains(name) == false)
+                                {
+                                    // 削除された
+                                    var profile = profiles[name];
+                                    await client.OnProfile(new ProfileUpdate()
+                                    {
+                                        Type = UpdateType.Remove,
+                                        Profile = profile
+                                    });
+                                }
+                                else
+                                {
+                                    var profile = profiles[name];
+                                    var lastUpdate = File.GetLastWriteTime(filepath);
+                                    if(profile.LastUpdate != lastUpdate)
+                                    {
+                                        // 変更された
+                                        profile = ReadProfile(filepath);
+                                        profile.Name = name;
+                                        profile.LastUpdate = lastUpdate;
+                                        await client.OnProfile(new ProfileUpdate()
+                                        {
+                                            Type = UpdateType.Update,
+                                            Profile = profile
+                                        });
+                                    }
+                                }
+                            }
+                            if (profiles.ContainsKey(ServerSupport.GetDefaultProfileName()) == false)
+                            {
+                                // デフォルトがない場合は追加しておく
+                                var profile = ServerSupport.GetDefaultProfile();
+                                profile.Name = ServerSupport.GetDefaultProfileName();
+                                var filepath = GetProfilePath(profilepath, profile.Name);
+                                SaveProfile(filepath, profile);
+                                profile.LastUpdate = File.GetLastWriteTime(filepath);
+                                profiles.Add(profile.Name, profile);
+                                await client.OnProfile(new ProfileUpdate()
+                                {
+                                    Type = UpdateType.Add,
+                                    Profile = profile
+                                });
+                            }
+                        }
+                    }
+
                     if (await Task.WhenAny(completion, Task.Delay(2000)) == completion)
                     {
                         // 終了
@@ -2797,27 +2925,33 @@ namespace Amatsukaze.Server
             try
             {
                 // 面倒だからAddもUpdateも同じ
+                var profilepath = GetProfileDirectoryPath();
+                var filepath = GetProfilePath(profilepath, data.Profile.Name);
+
                 if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
                 {
                     CheckSetting(data.Profile, appData.setting);
-                    if (appData.profiles.ContainsKey(data.Profile.Name))
+                    SaveProfile(filepath, data.Profile);
+                    data.Profile.LastUpdate = File.GetLastWriteTime(filepath);
+                    if (profiles.ContainsKey(data.Profile.Name))
                     {
-                        appData.profiles[data.Profile.Name] = data.Profile;
+                        profiles[data.Profile.Name] = data.Profile;
                     }
                     else
                     {
-                        appData.profiles.Add(data.Profile.Name, data.Profile);
+                        profiles.Add(data.Profile.Name, data.Profile);
                     }
                 }
                 else
                 {
-                    if(appData.profiles.ContainsKey(data.Profile.Name))
+                    if(profiles.ContainsKey(data.Profile.Name))
                     {
-                        appData.profiles.Remove(data.Profile.Name);
+                        File.Delete(filepath);
+                        profiles.Remove(data.Profile.Name);
                     }
                 }
                 return Task.WhenAll(
-                    RequestSetting(),
+                    client.OnProfile(data),
                     AddEncodeLog("プロファイルを更新しました"));
             }
             catch (Exception e)
@@ -2830,13 +2964,14 @@ namespace Amatsukaze.Server
         {
             try
             {
+                SetDefaultPath(setting);
                 CheckSetting(null, setting);
                 appData.setting = setting;
                 scheduler.SetNumParallel(setting.NumParallel);
                 affinityCreator.NumProcess = setting.NumParallel;
                 settingUpdated = true;
                 return Task.WhenAll(
-                    RequestSetting(),
+                    client.OnSetting(appData.setting),
                     RequestFreeSpace(),
                     AddEncodeLog("設定を更新しました"));
             }
@@ -2881,11 +3016,58 @@ namespace Amatsukaze.Server
             await task;
         }
 
-        public Task RequestSetting()
+        private bool IsRemoteHost(IPHostEntry iphostentry, IPAddress address)
         {
-            return Task.WhenAll(
-                client.OnSetting(appData.setting),
-                client.OnAvsScriptFiles(avsFiles));
+            IPHostEntry other = null;
+            try
+            {
+                other = Dns.GetHostEntry(address);
+            }
+            catch
+            {
+                return true;
+            }
+            foreach (IPAddress addr in other.AddressList)
+            {
+                if (IPAddress.IsLoopback(addr) || Array.IndexOf(iphostentry.AddressList, addr) != -1)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private byte[] GetMacAddress()
+        {
+            // リモートのクライアントを見つけて、
+            // 接続に使っているNICのMACアドレスを取得する
+            IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var client in ClientManager.ClientList)
+            {
+                if(IsRemoteHost(iphostentry, client.RemoteIP.Address))
+                {
+                    return ServerSupport.GetMacAddress(client.LocalIP.Address);
+                }
+            }
+            return null;
+        }
+
+        public async Task RequestSetting()
+        {
+            await client.OnSetting(appData.setting);
+            await client.OnAvsScriptFiles(avsFiles);
+            await client.OnServerInfo(new ServerInfo()
+            {
+                HostName = Dns.GetHostName(),
+                MacAddress = GetMacAddress()
+            });
+            foreach(var profile in profiles.Values)
+            {
+                await client.OnProfile(new ProfileUpdate() {
+                    Profile = profile,
+                    Type = UpdateType.Update
+                });
+            }
         }
 
         public Task RequestQueue()
@@ -2919,7 +3101,6 @@ namespace Amatsukaze.Server
         public Task RequestState()
         {
             var state = new State() {
-                HostName = Dns.GetHostName(),
                 Pause = encodePaused,
                 Running = nowEncoding
             };

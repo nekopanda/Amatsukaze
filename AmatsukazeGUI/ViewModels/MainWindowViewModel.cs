@@ -208,13 +208,14 @@ namespace Amatsukaze.ViewModels
             Model = new ClientModel();
             MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
+            MainPanelMenu.Add(new ProfileSettingViewModel() { Name = "エンコード設定", Model = Model });
+            MainPanelMenu.Add(new ServiceSettingViewModel() { Name = "チャンネル設定", Model = Model });
             MainPanelMenu.Add(new SettingViewModel() { Name = "基本設定", Model = Model });
-            MainPanelMenu.Add(new ServiceSettingViewModel() { Name = "チャンネルごとの設定", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
             InfoPanelMenu.Add(new DrcsImageListViewModel() { Name = "DRCS外字", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
             InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model });
-            InfoPanelMenu.Add(new ControlPanelViewModel() { Name = "操作", Model = Model });
+            InfoPanelMenu.Add(new MakeScriptViewModel() { Name = "その他", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
 

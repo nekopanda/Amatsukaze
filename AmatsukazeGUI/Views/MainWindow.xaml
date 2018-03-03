@@ -62,6 +62,9 @@
             <DataTemplate DataType="{x:Type vm:ConsoleViewModel}">
                 <v:ConsolePanel />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ProfileSettingViewModel}">
+                <v:ProfileSettingPanel />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SettingViewModel}">
                 <v:SettingPanel />
             </DataTemplate>
@@ -86,8 +89,8 @@
             <DataTemplate DataType="{x:Type vm:DrcsImageListViewModel}">
                 <v:DrcsImageListPanel />
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:ControlPanelViewModel}">
-                <v:ControlPanel />
+            <DataTemplate DataType="{x:Type vm:MainWindowViewModel}">
+                <v:MakeScriptPanel />
             </DataTemplate>
         </Grid.Resources>
         

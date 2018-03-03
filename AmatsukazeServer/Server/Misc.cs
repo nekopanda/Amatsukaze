@@ -6,7 +6,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -652,6 +655,11 @@ namespace Amatsukaze.Server
             return "data\\Server.log";
         }
 
+        public static string GetDefaultProfileName()
+        {
+            return "デフォルト";
+        }
+
         public static FileStream GetLock(int port)
         {
             return new FileStream("data\\Server-" + port + ".lock",
@@ -689,6 +697,63 @@ namespace Amatsukaze.Server
                 }
             }
             return false;
+        }
+
+        public static ProfileSetting GetDefaultProfile()
+        {
+            return new ProfileSetting()
+            {
+                EncoderType = EncoderType.x264,
+                DefaultJLSCommand = "JL_標準.txt",
+                Bitrate = new BitrateSetting(),
+                BitrateCM = 0.5,
+                OutputMask = 1,
+                NicoJKFormats = new bool[4] { true, false, false, false }
+            };
+        }
+
+        public static T DeepCopy<T>(T src)
+        {
+            var ms = new MemoryStream();
+            var s = new DataContractSerializer(typeof(T));
+            s.WriteObject(ms, src);
+            return (T)s.ReadObject(new MemoryStream(ms.ToArray()));
+        }
+
+        public static IPAddress GetSubnetMask(IPAddress address)
+        {
+            foreach (NetworkInterface adapter in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                foreach (UnicastIPAddressInformation unicastIPAddressInformation in adapter.GetIPProperties().UnicastAddresses)
+                {
+                    if (unicastIPAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        if (address.Equals(unicastIPAddressInformation.Address))
+                        {
+                            return unicastIPAddressInformation.IPv4Mask;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        public static byte[] GetMacAddress(IPAddress address)
+        {
+            foreach (NetworkInterface adapter in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                foreach (UnicastIPAddressInformation unicastIPAddressInformation in adapter.GetIPProperties().UnicastAddresses)
+                {
+                    if (unicastIPAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        if (address.Equals(unicastIPAddressInformation.Address))
+                        {
+                            return adapter.GetPhysicalAddress().GetAddressBytes();
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 

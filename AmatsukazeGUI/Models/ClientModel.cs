@@ -14,6 +14,8 @@ using System.Threading.Tasks.Dataflow;
 using System.Windows.Data;
 using Livet.Commands;
 using System.Windows;
+using System.ComponentModel;
+using System.Net;
 
 namespace Amatsukaze.Models
 {
@@ -65,6 +67,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region Profile変更通知プロパティ
+        private string _Profile;
+
+        public string Profile {
+            get { return _Profile; }
+            set { 
+                if (_Profile == value)
+                    return;
+                _Profile = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         private static string ModeToString(ProcMode mode)
         {
             switch(mode)
@@ -86,6 +102,7 @@ namespace Amatsukaze.Models
             Id = dir.Id;
             Path = dir.DirPath;
             ModeString = ModeToString(dir.Mode);
+            Profile = dir.Profile.Name;
             Items = new ObservableCollection<DisplayQueueItem>(
                 dir.Items.Select(s => new DisplayQueueItem() { Model = s }));
         }
@@ -120,6 +137,532 @@ namespace Amatsukaze.Models
                 }
                 return "不明";
             }
+        }
+    }
+
+    public class DisplayProfile : NotificationObject
+    {
+        public ProfileSetting Model { get; set; }
+
+        #region EncoderTypeInt変更通知プロパティ
+        public int EncoderTypeInt {
+            get { return (int)Model.EncoderType; }
+            set {
+                if ((int)Model.EncoderType == value)
+                    return;
+                Model.EncoderType = (EncoderType)value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+                RaisePropertyChanged("EncoderOption");
+            }
+        }
+        #endregion
+
+        #region EncoderOption変更通知プロパティ
+        public string EncoderOption {
+            get { return Model.EncoderOption; }
+            set {
+                if (Model.EncoderOption == value)
+                    return;
+                Model.EncoderOption = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region FilterPath変更通知プロパティ
+        public string FilterPath {
+            get { return string.IsNullOrEmpty(Model.FilterPath) ? "フィルタなし" : Model.FilterPath; }
+            set {
+                string val = (value == "フィルタなし") ? "" : value;
+                if (Model.FilterPath == val)
+                    return;
+                Model.FilterPath = val;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PostFilterPath変更通知プロパティ
+        public string PostFilterPath {
+            get { return string.IsNullOrEmpty(Model.PostFilterPath) ? "フィルタなし" : Model.PostFilterPath; }
+            set {
+                string val = (value == "フィルタなし") ? "" : value;
+                if (Model.PostFilterPath == val)
+                    return;
+                Model.PostFilterPath = val;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DefaultOutPath変更通知プロパティ
+        public string DefaultOutPath {
+            get { return Model.DefaultOutPath; }
+            set {
+                if (Model.DefaultOutPath == value)
+                    return;
+                Model.DefaultOutPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region AutoBuffer変更通知プロパティ
+        public bool AutoBuffer {
+            get { return Model.AutoBuffer; }
+            set {
+                if (Model.AutoBuffer == value)
+                    return;
+                Model.AutoBuffer = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region TwoPass変更通知プロパティ
+        public bool TwoPass {
+            get { return Model.TwoPass; }
+            set {
+                if (Model.TwoPass == value)
+                    return;
+                Model.TwoPass = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SplitSub変更通知プロパティ
+        public bool SplitSub {
+            get { return Model.SplitSub; }
+            set {
+                if (Model.SplitSub == value)
+                    return;
+                Model.SplitSub = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region OutputMask変更通知プロパティ
+        public int OutputMask {
+            get { return Model.OutputMask; }
+            set {
+                if (Model.OutputMask == value)
+                    return;
+                Model.OutputMask = value;
+                UpdateWarningText();
+                OutputOptionIndex = OutputMasklist.IndexOf(OutputMask);
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateA変更通知プロパティ
+        public double BitrateA {
+            get { return Model.Bitrate.A; }
+            set {
+                if (Model.Bitrate.A == value)
+                    return;
+                Model.Bitrate.A = value;
+                UpdateBitrate();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateB変更通知プロパティ
+        public double BitrateB {
+            get { return Model.Bitrate.B; }
+            set {
+                if (Model.Bitrate.B == value)
+                    return;
+                Model.Bitrate.B = value;
+                UpdateBitrate();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateH264変更通知プロパティ
+        public double BitrateH264 {
+            get { return Model.Bitrate.H264; }
+            set {
+                if (Model.Bitrate.H264 == value)
+                    return;
+                Model.Bitrate.H264 = value;
+                UpdateBitrate();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region BitrateCM変更通知プロパティ
+        public double BitrateCM {
+            get { return Model.BitrateCM; }
+            set {
+                if (Model.BitrateCM == value)
+                    return;
+                Model.BitrateCM = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DefaultJLSCommand変更通知プロパティ
+        public string DefaultJLSCommand {
+            get { return Model.DefaultJLSCommand; }
+            set {
+                if (Model.DefaultJLSCommand == value)
+                    return;
+                Model.DefaultJLSCommand = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DisableChapter変更通知プロパティ
+        public bool DisableChapter {
+            get { return Model.DisableChapter; }
+            set {
+                if (Model.DisableChapter == value)
+                    return;
+                Model.DisableChapter = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DisableSubs変更通知プロパティ
+        public bool DisableSubs {
+            get { return Model.DisableSubs; }
+            set {
+                if (Model.DisableSubs == value)
+                    return;
+                Model.DisableSubs = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IgnoreNoDrcsMap変更通知プロパティ
+        public bool IgnoreNoDrcsMap {
+            get { return Model.IgnoreNoDrcsMap; }
+            set {
+                if (Model.IgnoreNoDrcsMap == value)
+                    return;
+                Model.IgnoreNoDrcsMap = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableNicoJK変更通知プロパティ
+        public bool EnableNicoJK {
+            get { return Model.EnableNicoJK; }
+            set {
+                if (Model.EnableNicoJK == value)
+                    return;
+                Model.EnableNicoJK = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IgnoreNicoJKError変更通知プロパティ
+        public bool IgnoreNicoJKError {
+            get { return Model.IgnoreNicoJKError; }
+            set {
+                if (Model.IgnoreNicoJKError == value)
+                    return;
+                Model.IgnoreNicoJKError = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJK18変更通知プロパティ
+        public bool NicoJK18 {
+            get { return Model.NicoJK18; }
+            set {
+                if (Model.NicoJK18 == value)
+                    return;
+                Model.NicoJK18 = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat720S変更通知プロパティ
+        public bool NicoJKFormat720S {
+            get { return Model.NicoJKFormats[0]; }
+            set {
+                if (Model.NicoJKFormats[0] == value)
+                    return;
+                Model.NicoJKFormats[0] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat720T変更通知プロパティ
+        public bool NicoJKFormat720T {
+            get { return Model.NicoJKFormats[1]; }
+            set {
+                if (Model.NicoJKFormats[1] == value)
+                    return;
+                Model.NicoJKFormats[1] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat1080S変更通知プロパティ
+        public bool NicoJKFormat1080S {
+            get { return Model.NicoJKFormats[2]; }
+            set {
+                if (Model.NicoJKFormats[2] == value)
+                    return;
+                Model.NicoJKFormats[2] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NicoJKFormat1080T変更通知プロパティ
+        public bool NicoJKFormat1080T {
+            get { return Model.NicoJKFormats[3]; }
+            set {
+                if (Model.NicoJKFormats[3] == value)
+                    return;
+                Model.NicoJKFormats[3] = value;
+                UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NoDelogo変更通知プロパティ
+        public bool NoDelogo {
+            get { return Model.NoDelogo; }
+            set {
+                if (Model.NoDelogo == value)
+                    return;
+                Model.NoDelogo = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MoveEDCBFiles変更通知プロパティ
+        public bool MoveEDCBFiles {
+            get { return Model.MoveEDCBFiles; }
+            set {
+                if (Model.MoveEDCBFiles == value)
+                    return;
+                Model.MoveEDCBFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SystemAviSynthPlugin変更通知プロパティ
+        public bool SystemAviSynthPlugin {
+            get { return Model.SystemAviSynthPlugin; }
+            set {
+                if (Model.SystemAviSynthPlugin == value)
+                    return;
+                Model.SystemAviSynthPlugin = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DisableHashCheck変更通知プロパティ
+        public bool DisableHashCheck {
+            get { return Model.DisableHashCheck; }
+            set {
+                if (Model.DisableHashCheck == value)
+                    return;
+                Model.DisableHashCheck = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Mpeg2DecoderInt変更通知プロパティ
+        public int Mpeg2DecoderInt {
+            get { return (int)Model.Mpeg2Decoder; }
+            set {
+                if ((int)Model.Mpeg2Decoder == value)
+                    return;
+                Model.Mpeg2Decoder = (DecoderType)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region H264DecoderInt変更通知プロパティ
+        public int H264DecoderInt {
+            get { return (int)Model.H264Deocder; }
+            set {
+                if ((int)Model.H264Deocder == value)
+                    return;
+                Model.H264Deocder = (DecoderType)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region OutputFormatInt変更通知プロパティ
+        public int OutputFormatInt {
+            get { return (int)Model.OutputFormat; }
+            set {
+                if ((int)Model.OutputFormat == value)
+                    return;
+                Model.OutputFormat = (FormatType)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SettingWarningText変更通知プロパティ
+        private string _SettingWarningText;
+
+        public string SettingWarningText {
+            get { return _SettingWarningText; }
+            set {
+                if (_SettingWarningText == value)
+                    return;
+                _SettingWarningText = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region OutputOptionIndex変更通知プロパティ
+        private int _OutputOptionIndex;
+
+        public int OutputOptionIndex {
+            get { return _OutputOptionIndex; }
+            set {
+                if (_OutputOptionIndex == value)
+                    return;
+                _OutputOptionIndex = value;
+
+                if (value >= 0 && value < OutputMasklist.Count)
+                {
+                    OutputMask = OutputMasklist[value];
+                }
+
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        public string[] EncoderList {
+            get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc" }; }
+        }
+        public string[] Mpeg2DecoderList {
+            get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
+        }
+        public string[] H264DecoderList {
+            get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
+        }
+        public string[] OutputOptionList {
+            get { return new string[] { "通常", "CMをカット", "本編とCMを分離", "CMのみ" }; }
+        }
+        private List<int> OutputMasklist = new List<int> { 1, 2, 6, 4 };
+        public string[] FormatList {
+            get { return new string[] { "MP4", "MKV" }; }
+        }
+
+        #region IsModified変更通知プロパティ
+        private bool _IsModified;
+
+        public bool IsModified {
+            get { return _IsModified; }
+            set { 
+                if (_IsModified == value)
+                    return;
+                _IsModified = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        public DisplayProfile()
+        {
+            PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName != "IsModified")
+                {
+                    IsModified = true;
+                }
+            };
+        }
+
+        private void UpdateWarningText()
+        {
+            StringBuilder sb = new StringBuilder();
+            if (Model.EncoderType == EncoderType.QSVEnc && Model.TwoPass)
+            {
+                sb.Append("QSVEncは2パスに対応していません\r\n");
+            }
+            if (Model.EncoderType == EncoderType.NVEnc && Model.TwoPass)
+            {
+                sb.Append("NVEncは2パスに対応していません\r\n");
+            }
+            if (Model.EnableNicoJK && Model.NicoJKFormats.Any(s => s) == false)
+            {
+                sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
+            }
+            SettingWarningText = sb.ToString();
+        }
+
+        private void UpdateBitrate()
+        {
+            RaisePropertyChanged("Bitrate18MPEG2");
+            RaisePropertyChanged("Bitrate12MPEG2");
+            RaisePropertyChanged("Bitrate7MPEG2");
+            RaisePropertyChanged("Bitrate18H264");
+            RaisePropertyChanged("Bitrate12H264");
+            RaisePropertyChanged("Bitrate7H264");
+        }
+
+        private double CalcBitrate(double src, int encoder)
+        {
+            double baseBitRate = BitrateA * src + BitrateB;
+            switch (encoder)
+            {
+                case 0:
+                    return baseBitRate;
+                case 1:
+                    return baseBitRate * BitrateH264;
+            }
+            return 0;
+        }
+
+        private string BitrateString(double src, int encoder)
+        {
+            return ((int)CalcBitrate(src, encoder)).ToString() + "Kbps";
+        }
+
+        public string Bitrate18MPEG2 { get { return BitrateString(18000, 0); } }
+        public string Bitrate12MPEG2 { get { return BitrateString(12000, 0); } }
+        public string Bitrate7MPEG2 { get { return BitrateString(7000, 0); } }
+        public string Bitrate18H264 { get { return BitrateString(18000, 1); } }
+        public string Bitrate12H264 { get { return BitrateString(12000, 1); } }
+        public string Bitrate7H264 { get { return BitrateString(7000, 1); } }
+
+        public override string ToString()
+        {
+            return Model.Name;
         }
     }
 
@@ -381,10 +924,8 @@ namespace Amatsukaze.Models
         private ClientData appData;
         public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
-        private Setting setting = new Setting() {
-            Bitrate = new BitrateSetting(),
-            NicoJKFormats = new bool[4] { true, false, false, false }
-        };
+        private Setting setting = new Setting();
+        private ServerInfo serverInfo = new ServerInfo();
         private State state = new State();
 
         public Func<object, string, Task> ServerAddressRequired;
@@ -401,6 +942,28 @@ namespace Amatsukaze.Models
         {
             get { return appData.ServerPort; }
         }
+
+        public EndPoint LocalIP {
+            get {
+                return (Server as ServerConnection)?.LocalIP;
+            }
+        }
+
+        public byte[] MacAddress { get { return serverInfo.MacAddress; } }
+
+        #region ServerHostName変更通知プロパティ
+        private string _ServerHostName;
+
+        public string ServerHostName {
+            get { return _ServerHostName; }
+            set { 
+                if (_ServerHostName == value)
+                    return;
+                _ServerHostName = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         #region ConsoleTextLines変更通知プロパティ
         private ObservableCollection<ConsoleText> consoleList_ = new ObservableCollection<ConsoleText>();
@@ -463,6 +1026,34 @@ namespace Amatsukaze.Models
                 if (_QueueItems == value)
                     return;
                 _QueueItems = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ProfileList変更通知プロパティ
+        private ObservableCollection<DisplayProfile> _ProfileList;
+
+        public ObservableCollection<DisplayProfile> ProfileList {
+            get { return _ProfileList; }
+            set { 
+                if (_ProfileList == value)
+                    return;
+                _ProfileList = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SelectedProfile変更通知プロパティ
+        private DisplayProfile _SelectedProfile;
+
+        public DisplayProfile SelectedProfile {
+            get { return _SelectedProfile; }
+            set {
+                if (_SelectedProfile == value)
+                    return;
+                _SelectedProfile = value;
                 RaisePropertyChanged();
             }
         }
@@ -537,18 +1128,6 @@ namespace Amatsukaze.Models
                 if (_CurrentOperationResult == value)
                     return;
                 _CurrentOperationResult = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region ServerHostName変更通知プロパティ
-        public string ServerHostName {
-            get { return state.HostName; }
-            set { 
-                if (state.HostName == value)
-                    return;
-                state.HostName = value;
                 RaisePropertyChanged();
             }
         }
@@ -652,63 +1231,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region EncoderTypeInt変更通知プロパティ
-        public int EncoderTypeInt {
-            get { return (int)setting.EncoderType; }
-            set { 
-                if ((int)setting.EncoderType == value)
-                    return;
-                setting.EncoderType = (EncoderType)value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-                RaisePropertyChanged("EncoderOption");
-            }
-        }
-        #endregion
-
-        #region EncoderOption変更通知プロパティ
-        public string EncoderOption {
-            get {
-                switch (setting.EncoderType)
-                {
-                    case EncoderType.x264: return setting.X264Option;
-                    case EncoderType.x265: return setting.X265Option;
-                    case EncoderType.QSVEnc: return setting.QSVEncOption;
-                    case EncoderType.NVEnc: return setting.NVEncOption;
-                }
-                return null;
-            }
-            set {
-                switch (setting.EncoderType)
-                {
-                    case EncoderType.x264:
-                        if (setting.X264Option == value)
-                            return;
-                        setting.X264Option = value;
-                        break;
-                    case EncoderType.x265:
-                        if (setting.X265Option == value)
-                            return;
-                        setting.X265Option = value;
-                        break;
-                    case EncoderType.QSVEnc:
-                        if (setting.QSVEncOption == value)
-                            return;
-                        setting.QSVEncOption = value;
-                        break;
-                    case EncoderType.NVEnc:
-                        if (setting.NVEncOption == value)
-                            return;
-                        setting.NVEncOption = value;
-                        break;
-                    default:
-                        return;
-                }
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region MuxerPath変更通知プロパティ
         public string MuxerPath {
             get { return setting.MuxerPath; }
@@ -795,32 +1317,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region FilterPath変更通知プロパティ
-        public string FilterPath {
-            get { return string.IsNullOrEmpty(setting.FilterPath) ? "フィルタなし" : setting.FilterPath; }
-            set {
-                string val = (value == "フィルタなし") ? "" : value;
-                if (setting.FilterPath == val)
-                    return;
-                setting.FilterPath = val;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region PostFilterPath変更通知プロパティ
-        public string PostFilterPath {
-            get { return string.IsNullOrEmpty(setting.PostFilterPath) ? "フィルタなし" : setting.PostFilterPath; }
-            set {
-                string val = (value == "フィルタなし") ? "" : value;
-                if (setting.PostFilterPath == val)
-                    return;
-                setting.PostFilterPath = val;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region WorkPath変更通知プロパティ
         public string WorkPath {
             get { return setting.WorkPath; }
@@ -828,20 +1324,6 @@ namespace Amatsukaze.Models
                 if (setting.WorkPath == value)
                     return;
                 setting.WorkPath = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region DefaultOutPath変更通知プロパティ
-        public string DefaultOutPath
-        {
-            get { return setting.DefaultOutPath; }
-            set
-            {
-                if (setting.DefaultOutPath == value)
-                    return;
-                setting.DefaultOutPath = value;
                 RaisePropertyChanged();
             }
         }
@@ -892,125 +1374,6 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-
-        #region AutoBuffer変更通知プロパティ
-        public bool AutoBuffer
-        {
-            get
-            { return setting.AutoBuffer; }
-            set
-            { 
-                if (setting.AutoBuffer == value)
-                    return;
-                setting.AutoBuffer = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region TwoPass変更通知プロパティ
-        public bool TwoPass
-        {
-            get
-            { return setting.TwoPass; }
-            set
-            {
-                if (setting.TwoPass == value)
-                    return;
-                setting.TwoPass = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region SplitSub変更通知プロパティ
-        public bool SplitSub
-        {
-            get
-            { return setting.SplitSub; }
-            set
-            {
-                if (setting.SplitSub == value)
-                    return;
-                setting.SplitSub = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region OutputMask変更通知プロパティ
-        public int OutputMask
-        {
-            get
-            { return setting.OutputMask; }
-            set
-            {
-                if (setting.OutputMask == value)
-                    return;
-                setting.OutputMask = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region BitrateA変更通知プロパティ
-        public double BitrateA
-        {
-            get
-            { return setting.Bitrate.A; }
-            set
-            {
-                if (setting.Bitrate.A == value)
-                    return;
-                setting.Bitrate.A = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region BitrateB変更通知プロパティ
-        public double BitrateB
-        {
-            get
-            { return setting.Bitrate.B; }
-            set
-            {
-                if (setting.Bitrate.B == value)
-                    return;
-                setting.Bitrate.B = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region BitrateH264変更通知プロパティ
-        public double BitrateH264
-        {
-            get
-            { return setting.Bitrate.H264; }
-            set
-            {
-                if (setting.Bitrate.H264 == value)
-                    return;
-                setting.Bitrate.H264 = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region BitrateCM変更通知プロパティ
-        public double BitrateCM {
-            get { return setting.BitrateCM; }
-            set { 
-                if (setting.BitrateCM == value)
-                    return;
-                setting.BitrateCM = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
         
         #region TmpDiskSpaceGB変更通知プロパティ
         private int _TmpDiskSpaceGB = 500;
@@ -1026,161 +1389,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region DefaultJLSCommand変更通知プロパティ
-        public string DefaultJLSCommand {
-            get { return setting.DefaultJLSCommand; }
-            set {
-                if (setting.DefaultJLSCommand == value)
-                    return;
-                setting.DefaultJLSCommand = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region DisableChapter変更通知プロパティ
-        public bool DisableChapter
-        {
-            get { return setting.DisableChapter; }
-            set
-            {
-                if (setting.DisableChapter == value)
-                    return;
-                setting.DisableChapter = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region DisableSubs変更通知プロパティ
-        public bool DisableSubs
-        {
-            get { return setting.DisableSubs; }
-            set
-            {
-                if (setting.DisableSubs == value)
-                    return;
-                setting.DisableSubs = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region IgnoreNoDrcsMap変更通知プロパティ
-        public bool IgnoreNoDrcsMap
-        {
-            get { return setting.IgnoreNoDrcsMap; }
-            set
-            {
-                if (setting.IgnoreNoDrcsMap == value)
-                    return;
-                setting.IgnoreNoDrcsMap = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region EnableNicoJK変更通知プロパティ
-        public bool EnableNicoJK {
-            get { return setting.EnableNicoJK; }
-            set { 
-                if (setting.EnableNicoJK == value)
-                    return;
-                setting.EnableNicoJK = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region IgnoreNicoJKError変更通知プロパティ
-        public bool IgnoreNicoJKError {
-            get { return setting.IgnoreNicoJKError; }
-            set { 
-                if (setting.IgnoreNicoJKError == value)
-                    return;
-                setting.IgnoreNicoJKError = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region NicoJK18変更通知プロパティ
-        public bool NicoJK18 {
-            get { return setting.NicoJK18; }
-            set { 
-                if (setting.NicoJK18 == value)
-                    return;
-                setting.NicoJK18 = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region NicoJKFormat720S変更通知プロパティ
-        public bool NicoJKFormat720S {
-            get { return setting.NicoJKFormats[0]; }
-            set { 
-                if (setting.NicoJKFormats[0] == value)
-                    return;
-                setting.NicoJKFormats[0] = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region NicoJKFormat720T変更通知プロパティ
-        public bool NicoJKFormat720T {
-            get { return setting.NicoJKFormats[1]; }
-            set {
-                if (setting.NicoJKFormats[1] == value)
-                    return;
-                setting.NicoJKFormats[1] = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region NicoJKFormat1080S変更通知プロパティ
-        public bool NicoJKFormat1080S {
-            get { return setting.NicoJKFormats[2]; }
-            set {
-                if (setting.NicoJKFormats[2] == value)
-                    return;
-                setting.NicoJKFormats[2] = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region NicoJKFormat1080T変更通知プロパティ
-        public bool NicoJKFormat1080T {
-            get { return setting.NicoJKFormats[3]; }
-            set {
-                if (setting.NicoJKFormats[3] == value)
-                    return;
-                setting.NicoJKFormats[3] = value;
-                UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region NoDelogo変更通知プロパティ
-        public bool NoDelogo {
-            get { return setting.NoDelogo; }
-            set { 
-                if (setting.NoDelogo == value)
-                    return;
-                setting.NoDelogo = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region ClearWorkDirOnStart変更通知プロパティ
         public bool ClearWorkDirOnStart {
             get { return setting.ClearWorkDirOnStart; }
@@ -1188,96 +1396,6 @@ namespace Amatsukaze.Models
                 if (setting.ClearWorkDirOnStart == value)
                     return;
                 setting.ClearWorkDirOnStart = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region MoveEDCBFiles変更通知プロパティ
-        public bool MoveEDCBFiles
-        {
-            get { return setting.MoveEDCBFiles; }
-            set
-            {
-                if (setting.MoveEDCBFiles == value)
-                    return;
-                setting.MoveEDCBFiles = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region SystemAviSynthPlugin変更通知プロパティ
-        public bool SystemAviSynthPlugin {
-            get { return setting.SystemAviSynthPlugin; }
-            set {
-                if (setting.SystemAviSynthPlugin == value)
-                    return;
-                setting.SystemAviSynthPlugin = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region DisableHashCheck変更通知プロパティ
-        public bool DisableHashCheck {
-            get { return setting.DisableHashCheck; }
-            set {
-                if (setting.DisableHashCheck == value)
-                    return;
-                setting.DisableHashCheck = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region Mpeg2DecoderInt変更通知プロパティ
-        public int Mpeg2DecoderInt {
-            get { return (int)setting.Mpeg2Decoder; }
-            set { 
-                if ((int)setting.Mpeg2Decoder == value)
-                    return;
-                setting.Mpeg2Decoder = (DecoderType)value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region H264DecoderInt変更通知プロパティ
-        public int H264DecoderInt {
-            get { return (int)setting.H264Deocder; }
-            set {
-                if ((int)setting.H264Deocder == value)
-                    return;
-                setting.H264Deocder = (DecoderType)value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region OutputFormatInt変更通知プロパティ
-        public int OutputFormatInt
-        {
-            get { return (int)setting.OutputFormat; }
-            set
-            {
-                if ((int)setting.OutputFormat == value)
-                    return;
-                setting.OutputFormat = (FormatType)value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region SettingWarningText変更通知プロパティ
-        private string _SettingWarningText;
-
-        public string SettingWarningText {
-            get { return _SettingWarningText; }
-            set { 
-                if (_SettingWarningText == value)
-                    return;
-                _SettingWarningText = value;
                 RaisePropertyChanged();
             }
         }
@@ -1381,24 +1499,6 @@ namespace Amatsukaze.Models
         public void RequestLogoData(string file)
         {
             requestLogoQ.Post(file);
-        }
-
-        private void UpdateWarningText()
-        {
-            StringBuilder sb = new StringBuilder();
-            if(setting.EncoderType == EncoderType.QSVEnc && setting.TwoPass)
-            {
-                sb.Append("QSVEncは2パスに対応していません\r\n");
-            }
-            if (setting.EncoderType == EncoderType.NVEnc && setting.TwoPass)
-            {
-                sb.Append("NVEncは2パスに対応していません\r\n");
-            }
-            if (setting.EnableNicoJK && setting.NicoJKFormats.Any(s => s) == false)
-            {
-                sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
-            }
-            SettingWarningText = sb.ToString();
         }
 
         private Task UpdateService(int serviceId)
@@ -1558,6 +1658,22 @@ namespace Amatsukaze.Models
             return Server.SetSetting(setting);
         }
 
+        public Task SendProfile(ProfileSetting profile)
+        {
+            return Server.SetProfile(new ProfileUpdate() {
+                Type = UpdateType.Update, Profile = profile
+            });
+        }
+
+        public Task RemoveProfile(ProfileSetting profile)
+        {
+            return Server.SetProfile(new ProfileUpdate()
+            {
+                Type = UpdateType.Remove,
+                Profile = profile
+            });
+        }
+
         public void ExportLogCSV(Stream fs)
         {
             var sw = new StreamWriter(fs, Encoding.UTF8);
@@ -1624,14 +1740,9 @@ namespace Amatsukaze.Models
             NumParallel = setting.NumParallel;
             AmatsukazePath = setting.AmatsukazePath;
             X264Path = setting.X264Path;
-            this.setting.X264Option = setting.X264Option;
             X265Path = setting.X265Path;
-            this.setting.X265Option = setting.X265Option;
             QSVEncPath = setting.QSVEncPath;
-            this.setting.QSVEncOption = setting.QSVEncOption;
             NVEncPath = setting.NVEncPath;
-            this.setting.NVEncOption = setting.NVEncOption;
-            EncoderTypeInt = (int)setting.EncoderType;
             MuxerPath = setting.MuxerPath;
             MKVMergePath = setting.MKVMergePath;
             TimelineEditorPath = setting.TimelineEditorPath;
@@ -1640,40 +1751,12 @@ namespace Amatsukaze.Models
             ChapterExePath = setting.ChapterExePath;
             JoinLogoScpPath = setting.JoinLogoScpPath;
             NicoConvASSPath = setting.NicoConvASSPath;
-            FilterPath = setting.FilterPath;
-            PostFilterPath = setting.PostFilterPath;
 
+            ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
             WorkPath = setting.WorkPath;
             AlwaysShowDisk = setting.AlwaysShowDisk;
-            AutoBuffer = setting.AutoBuffer;
-            BitrateA = setting.Bitrate.A;
-            BitrateB = setting.Bitrate.B;
-            BitrateH264 = setting.Bitrate.H264;
-            BitrateCM = setting.BitrateCM;
-            TwoPass = setting.TwoPass;
-            SplitSub = setting.SplitSub;
-            OutputMask = setting.OutputMask;
-            DefaultJLSCommand = setting.DefaultJLSCommand;
-            DisableChapter = setting.DisableChapter;
-            DisableSubs = setting.DisableSubs;
-            IgnoreNoDrcsMap = setting.IgnoreNoDrcsMap;
-            NoDelogo = setting.NoDelogo;
-            EnableNicoJK = setting.EnableNicoJK;
-            IgnoreNicoJKError = setting.IgnoreNicoJKError;
-            NicoJK18 = setting.NicoJK18;
-            NicoJKFormat720S = setting.NicoJKFormats[0];
-            NicoJKFormat720T = setting.NicoJKFormats[1];
-            NicoJKFormat1080S = setting.NicoJKFormats[2];
-            NicoJKFormat1080T = setting.NicoJKFormats[3];
-            ClearWorkDirOnStart = setting.ClearWorkDirOnStart;
-            MoveEDCBFiles = setting.MoveEDCBFiles;
-            SystemAviSynthPlugin = setting.SystemAviSynthPlugin;
-            DisableHashCheck = setting.DisableHashCheck;
             HideOneSeg = setting.HideOneSeg;
 
-            Mpeg2DecoderInt = (int)setting.Mpeg2Decoder;
-            H264DecoderInt = (int)setting.H264Deocder;
-            OutputFormatInt = (int)setting.OutputFormat;
             return Task.FromResult(0);
         }
 
@@ -1801,9 +1884,9 @@ namespace Amatsukaze.Models
         private string GetDisplayServerNeme(State state)
         {
             if(Server is ServerConnection) {
-                return state.HostName + ":" + ServerPort;
+                return serverInfo.HostName + ":" + ServerPort;
             }
-            return state.HostName;
+            return serverInfo.HostName;
         }
 
         public Task OnState(State state)
@@ -1929,6 +2012,66 @@ namespace Amatsukaze.Models
         public Task OnAddResult(string requestId)
         {
             // 何もしなくていい
+            return Task.FromResult(0);
+        }
+
+        public Task OnProfile(ProfileUpdate data)
+        {
+            var profile = ProfileList.FirstOrDefault(s => s.Model.Name == data.Profile.Name);
+            if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
+            {
+                if(profile == null)
+                {
+                    profile = new DisplayProfile() { Model = data.Profile };
+                    ProfileList.Add(profile);
+                }
+
+                profile.EncoderOption = data.Profile.EncoderOption;
+                profile.EncoderTypeInt = (int)data.Profile.EncoderType;
+                profile.FilterPath = data.Profile.FilterPath;
+                profile.PostFilterPath = data.Profile.PostFilterPath;
+                profile.AutoBuffer = data.Profile.AutoBuffer;
+                profile.BitrateA = data.Profile.Bitrate.A;
+                profile.BitrateB = data.Profile.Bitrate.B;
+                profile.BitrateH264 = data.Profile.Bitrate.H264;
+                profile.BitrateCM = data.Profile.BitrateCM;
+                profile.TwoPass = data.Profile.TwoPass;
+                profile.SplitSub = data.Profile.SplitSub;
+                profile.OutputMask = data.Profile.OutputMask;
+                profile.DefaultJLSCommand = data.Profile.DefaultJLSCommand;
+                profile.DisableChapter = data.Profile.DisableChapter;
+                profile.DisableSubs = data.Profile.DisableSubs;
+                profile.IgnoreNoDrcsMap = data.Profile.IgnoreNoDrcsMap;
+                profile.NoDelogo = data.Profile.NoDelogo;
+                profile.EnableNicoJK = data.Profile.EnableNicoJK;
+                profile.IgnoreNicoJKError = data.Profile.IgnoreNicoJKError;
+                profile.NicoJK18 = data.Profile.NicoJK18;
+                profile.NicoJKFormat720S = data.Profile.NicoJKFormats[0];
+                profile.NicoJKFormat720T = data.Profile.NicoJKFormats[1];
+                profile.NicoJKFormat1080S = data.Profile.NicoJKFormats[2];
+                profile.NicoJKFormat1080T = data.Profile.NicoJKFormats[3];
+                profile.MoveEDCBFiles = data.Profile.MoveEDCBFiles;
+                profile.SystemAviSynthPlugin = data.Profile.SystemAviSynthPlugin;
+                profile.DisableHashCheck = data.Profile.DisableHashCheck;
+                profile.Mpeg2DecoderInt = (int)data.Profile.Mpeg2Decoder;
+                profile.H264DecoderInt = (int)data.Profile.H264Deocder;
+                profile.OutputFormatInt = (int)data.Profile.OutputFormat;
+
+                profile.IsModified = false;
+            }
+            else
+            {
+                if(profile != null)
+                {
+                    ProfileList.Remove(profile);
+                }
+            }
+            return Task.FromResult(0);
+        }
+
+        public Task OnServerInfo(ServerInfo info)
+        {
+            serverInfo = info;
             return Task.FromResult(0);
         }
     }

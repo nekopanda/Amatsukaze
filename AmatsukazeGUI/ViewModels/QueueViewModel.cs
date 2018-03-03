@@ -125,7 +125,7 @@ namespace Amatsukaze.ViewModels
             {
                 // 出力先フォルダ選択
                 var selectPathVM = new SelectOutPathViewModel() {
-                    Item = item, DefaultPath = Model.DefaultOutPath
+                    Model = Model, Item = item
                 };
                 await Messenger.RaiseAsync(new TransitionMessage(
                     typeof(Views.SelectOutPath), selectPathVM, TransitionMode.Modal, "FromMain"));

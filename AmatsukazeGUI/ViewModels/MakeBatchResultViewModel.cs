@@ -1,10 +1,22 @@
-﻿using Amatsukaze.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.ComponentModel;
+
+using Livet;
 using Livet.Commands;
+using Livet.Messaging;
+using Livet.Messaging.IO;
 using Livet.EventListeners;
+using Livet.Messaging.Windows;
+
+using Amatsukaze.Models;
+using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
-    public class SettingViewModel : NamedViewModel
+    public class MakeBatchResultViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -47,29 +59,31 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-        public ClientModel Model { get; set; }
+        public string Path { get; set; }
 
-        public void Initialize() { }
-
-        #region SendSettingCommand
-        private ViewModelCommand _SendSettingCommand;
-
-        public ViewModelCommand SendSettingCommand
+        public void Initialize()
         {
-            get
-            {
-                if (_SendSettingCommand == null)
+        }
+
+
+        #region CopyClipboardCommand
+        private ViewModelCommand _CopyClipboardCommand;
+
+        public ViewModelCommand CopyClipboardCommand {
+            get {
+                if (_CopyClipboardCommand == null)
                 {
-                    _SendSettingCommand = new ViewModelCommand(SendSetting);
+                    _CopyClipboardCommand = new ViewModelCommand(CopyClipboard);
                 }
-                return _SendSettingCommand;
+                return _CopyClipboardCommand;
             }
         }
 
-        public void SendSetting()
+        public void CopyClipboard()
         {
-            Model.SendSetting();
+            Clipboard.SetData(DataFormats.Text, Path);
         }
         #endregion
+
     }
 }

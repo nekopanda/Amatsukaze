@@ -1,0 +1,53 @@
+﻿<UserControl x:Class="Amatsukaze.Views.MakeScriptPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+             xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="500" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type vm:MakeScriptViewModel}}">
+
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
+    
+    <i:Interaction.Triggers>
+        <l:InteractionMessageTrigger Messenger="{Binding Messenger}" MessageKey="Key">
+            <l:TransitionInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+        </l:InteractionMessageTrigger>
+        
+        <l:InteractionMessageTrigger MessageKey="Confirm" Messenger="{Binding Messenger}">
+            <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+        </l:InteractionMessageTrigger>
+    </i:Interaction.Triggers>
+    
+    <StackPanel>
+        <GroupBox Header="EDCB用録画後実行バッチ">
+            <StackPanel Margin="5">
+                <DockPanel Margin="3">
+                    <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
+                    <ComboBox ItemsSource="{Binding Model.ProfileList}" />
+                </DockPanel>
+                <CheckBox Margin="3" Content="TSをNASに保存" IsChecked="{Binding IsNasEnabled, Mode=TwoWay}" />
+                <DockPanel Margin="3">
+                    <TextBlock Text="保存先:" />
+                    <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding IsNasEnabled}" Text="{Binding NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
+                <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" IsChecked="{Binding IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="3" Foreground="Red"/>
+                <Button Margin="3" Content="バッチファイル作成" Command="{Binding MakeBatchFileCommand}"/>
+            </StackPanel>
+        </GroupBox>
+        
+        <GroupBox Header="Amatsukazeサーバ操作">
+            <StackPanel Margin="5">
+                <Button Content="Amatsukazeサーバを停止" Height="25" Margin="5" IsEnabled="{Binding IsRemoteClient}" Command="{Binding StopServerCommand}"/>
+                <TextBlock Text="ローカルPCのサーバのみ停止できます。" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </GroupBox>
+    </StackPanel>
+</UserControl>

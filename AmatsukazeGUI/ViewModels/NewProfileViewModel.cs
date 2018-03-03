@@ -12,11 +12,10 @@ using Livet.EventListeners;
 using Livet.Messaging.Windows;
 
 using Amatsukaze.Models;
-using Amatsukaze.Server;
 
 namespace Amatsukaze.ViewModels
 {
-    public class ControlPanelViewModel : NamedViewModel
+    public class NewProfileViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -61,50 +60,85 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
+        public bool Success;
+
         public void Initialize()
         {
         }
 
-        public bool IsRemoteClient {
-            get {
-                return App.Option.LaunchType == LaunchType.Client;
-            }
-        }
-
-        #region StopServerCommand
-        private ViewModelCommand _StopServerCommand;
-
-        public ViewModelCommand StopServerCommand {
-            get {
-                if (_StopServerCommand == null)
-                {
-                    _StopServerCommand = new ViewModelCommand(StopServer);
-                }
-                return _StopServerCommand;
-            }
-        }
-
-        public async void StopServer()
+        private bool IsDuplicate()
         {
-            if (ServerSupport.IsLocalIP(Model.ServerIP))
-            {
-                var message = new ConfirmationMessage(
-                    "AmatsukazeServerを終了しますか？",
-                    "AmatsukazeServer",
-                    System.Windows.MessageBoxImage.Information,
-                    System.Windows.MessageBoxButton.OKCancel,
-                    "Confirm");
+            return Model.ProfileList.Any(s => s.Model.Name == _Name);
+        }
 
-                await Messenger.RaiseAsync(message);
+        #region OkCommand
+        private ViewModelCommand _OkCommand;
 
-                if (message.Response == true)
+        public ViewModelCommand OkCommand {
+            get {
+                if (_OkCommand == null)
                 {
-                    await Model.Server.EndServer();
+                    _OkCommand = new ViewModelCommand(Ok);
                 }
+                return _OkCommand;
             }
-            else
+        }
+
+        public async void Ok()
+        {
+            if(!IsDuplicate())
             {
-                //
+                Success = true;
+                await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+            }
+        }
+        #endregion
+
+        #region CancelCommand
+        private ViewModelCommand _CancelCommand;
+
+        public ViewModelCommand CancelCommand {
+            get {
+                if (_CancelCommand == null)
+                {
+                    _CancelCommand = new ViewModelCommand(Cancel);
+                }
+                return _CancelCommand;
+            }
+        }
+
+        public async void Cancel()
+        {
+            Success = false;
+            await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+        }
+        #endregion
+
+        #region Name変更通知プロパティ
+        private string _Name;
+
+        public string Name {
+            get { return _Name; }
+            set { 
+                if (_Name == value)
+                    return;
+                _Name = value;
+                Description = IsDuplicate() ? "名前が重複しています。" : "";
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Description変更通知プロパティ
+        private string _Description;
+
+        public string Description {
+            get { return _Description; }
+            set { 
+                if (_Description == value)
+                    return;
+                _Description = value;
+                RaisePropertyChanged();
             }
         }
         #endregion

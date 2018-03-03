@@ -251,10 +251,17 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class State
+    public class ServerInfo
     {
         [DataMember]
         public string HostName { get; set; }
+        [DataMember]
+        public byte[] MacAddress { get; set; }
+    }
+
+    [DataContract]
+    public class State
+    {
         [DataMember]
         public bool Pause { get; set; }
         [DataMember]
@@ -547,7 +554,7 @@ namespace Amatsukaze.Server
 : null;
             }
         }
-        public string DisplayLogo { get { return (LogoFiles != null && LogoFiles.Count > 0) ? LogoFiles[0] : "なし"; } }
+        public string DisplayLogo { get { return LogoFiles?.FirstOrDefault() ?? "なし"; } }
         public string DisplayChapter { get { return Chapter ? "○" : "☓"; } }
         public string DisplayNicoJK { get { return NicoJK ? "○" : "☓"; } }
         public string DisplayOutputMask {

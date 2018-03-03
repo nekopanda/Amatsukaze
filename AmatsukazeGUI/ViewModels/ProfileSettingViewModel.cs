@@ -1,10 +1,11 @@
 ﻿using Amatsukaze.Models;
+using Amatsukaze.Server;
 using Livet.Commands;
-using Livet.EventListeners;
+using Livet.Messaging;
 
 namespace Amatsukaze.ViewModels
 {
-    public class SettingViewModel : NamedViewModel
+    public class ProfileSettingViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -49,27 +50,103 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        public void Initialize() { }
-
-        #region SendSettingCommand
-        private ViewModelCommand _SendSettingCommand;
-
-        public ViewModelCommand SendSettingCommand
+        public void Initialize()
         {
-            get
-            {
-                if (_SendSettingCommand == null)
+        }
+
+        #region ApplyProfileCommand
+        private ViewModelCommand _ApplyProfileCommand;
+
+        public ViewModelCommand ApplyProfileCommand {
+            get {
+                if (_ApplyProfileCommand == null)
                 {
-                    _SendSettingCommand = new ViewModelCommand(SendSetting);
+                    _ApplyProfileCommand = new ViewModelCommand(ApplyProfile);
                 }
-                return _SendSettingCommand;
+                return _ApplyProfileCommand;
             }
         }
 
-        public void SendSetting()
+        public void ApplyProfile()
         {
-            Model.SendSetting();
+            if(Model.SelectedProfile != null)
+            {
+                Model.SendProfile(Model.SelectedProfile.Model);
+            }
         }
         #endregion
+
+        #region NewProfileCommand
+        private ViewModelCommand _NewProfileCommand;
+
+        public ViewModelCommand NewProfileCommand {
+            get {
+                if (_NewProfileCommand == null)
+                {
+                    _NewProfileCommand = new ViewModelCommand(NewProfile);
+                }
+                return _NewProfileCommand;
+            }
+        }
+
+        public async void NewProfile()
+        {
+            if (Model.SelectedProfile != null)
+            {
+                var profile = Model.SelectedProfile;
+                var newp = new NewProfileViewModel() {
+                    Model = Model,
+                    Name = profile.Model.Name + "のコピー"
+                };
+
+                await Messenger.RaiseAsync(new TransitionMessage(
+                    typeof(Views.NewProfileWindow), newp, TransitionMode.Modal, "FromProfile"));
+
+                if(newp.Success)
+                {
+                    var newprofile = ServerSupport.DeepCopy(profile.Model);
+                    newprofile.Name = newp.Name;
+                    await Model.SendProfile(newprofile);
+                }
+            }
+        }
+        #endregion
+
+        #region DeleteProfileCommand
+        private ViewModelCommand _DeleteProfileCommand;
+
+        public ViewModelCommand DeleteProfileCommand {
+            get {
+                if (_DeleteProfileCommand == null)
+                {
+                    _DeleteProfileCommand = new ViewModelCommand(DeleteProfile);
+                }
+                return _DeleteProfileCommand;
+            }
+        }
+
+        public async void DeleteProfile()
+        {
+            if (Model.SelectedProfile != null)
+            {
+                var profile = Model.SelectedProfile.Model;
+
+                var message = new ConfirmationMessage(
+                    "プロファイル「" + profile.Name + "」を削除しますか？",
+                    "Amatsukaze",
+                    System.Windows.MessageBoxImage.Information,
+                    System.Windows.MessageBoxButton.OKCancel,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+
+                if (message.Response == true)
+                {
+                    await Model.RemoveProfile(profile);
+                }
+            }
+        }
+        #endregion
+
     }
 }

@@ -42,7 +42,6 @@ namespace Amatsukaze.Server
 
     public interface IUserClient
     {
-        Task OnProfile(ProfileUpdate data);
         Task OnQueueData(QueueData data);
         Task OnQueueUpdate(QueueUpdate update);
         Task OnLogData(LogData data);
@@ -53,7 +52,9 @@ namespace Amatsukaze.Server
         Task OnState(State state);
         Task OnFreeSpace(DiskFreeSpace space);
 
+        Task OnServerInfo(ServerInfo setting);
         Task OnSetting(Setting setting);
+        Task OnProfile(ProfileUpdate data);
         Task OnServiceSetting(ServiceSettingUpdate update);
         Task OnJlsCommandFiles(JLSCommandFiles files);
         Task OnAvsScriptFiles(AvsScriptFiles files);
@@ -87,8 +88,7 @@ namespace Amatsukaze.Server
         RequestLogoData,
         RequestDrcsImages,
 
-        OnProfile = 200,
-        OnQueueData,
+        OnQueueData = 200,
         OnQueueUpdate,
         OnLogData,
         OnLogUpdate,
@@ -97,7 +97,9 @@ namespace Amatsukaze.Server
         OnLogFile,
         OnState,
         OnFreeSpace,
+        OnServerInfo,
         OnSetting,
+        OnProfile,
         OnServiceSetting,
         OnLlsCommandFiles,
         OnAvsScriptFiles,
@@ -136,7 +138,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RequestLogoData, typeof(string) },
             { RPCMethodId.RequestDrcsImages, null },
 
-            { RPCMethodId.OnProfile, typeof(ProfileUpdate) },
+            { RPCMethodId.OnServerInfo, typeof(ServerInfo) },
             { RPCMethodId.OnQueueData, typeof(QueueData) },
             { RPCMethodId.OnQueueUpdate, typeof(QueueUpdate) },
             { RPCMethodId.OnLogData, typeof(LogData) },
@@ -147,6 +149,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnState, typeof(State) },
             { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
             { RPCMethodId.OnSetting, typeof(Setting) },
+            { RPCMethodId.OnProfile, typeof(ProfileUpdate) },
             { RPCMethodId.OnServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
             { RPCMethodId.OnAvsScriptFiles, typeof(AvsScriptFiles) },
@@ -481,7 +484,12 @@ namespace Amatsukaze.Server
 
         public Task OnProfile(ProfileUpdate data)
         {
-            throw new NotImplementedException();
+            return client.OnProfile((ProfileUpdate)Copy(typeof(ProfileUpdate), data));
+        }
+
+        public Task OnServerInfo(ServerInfo setting)
+        {
+            return client.OnServerInfo((ServerInfo)Copy(typeof(ServerInfo), setting));
         }
     }
 }

@@ -60,20 +60,22 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-        public AddQueueDirectory Item { get; set; }
+        public ClientModel Model { get; set; }
 
-        public string DefaultPath;
+        public AddQueueDirectory Item { get; set; }
 
         public void Initialize()
         {
             OutPath = Path.Combine(Item.DirPath, "encoded");
+            SelectedProfile = Model.SelectedProfile;
         }
 
         public bool Succeeded { get; private set; }
 
         private bool GetOutPath()
         {
-            if (DefaultPath != OutPath && string.IsNullOrEmpty(OutPath) == false)
+            var defaultPath = SelectedProfile?.DefaultOutPath;
+            if (defaultPath != OutPath && string.IsNullOrEmpty(OutPath) == false)
             {
                 if (System.IO.Directory.Exists(OutPath) == false)
                 {
@@ -83,6 +85,11 @@ namespace Amatsukaze.ViewModels
                 Item.DstPath = OutPath;
             }
             return true;
+        }
+
+        private void GetProfileName()
+        {
+            Item.Profile = SelectedProfile?.Model?.Name ?? Server.ServerSupport.GetDefaultProfileName();
         }
 
         #region SetDefaultCommand
@@ -102,13 +109,14 @@ namespace Amatsukaze.ViewModels
 
         public void SetDefault()
         {
-            if (string.IsNullOrEmpty(DefaultPath))
+            if (_SelectedProfile != null &&
+                string.IsNullOrEmpty(_SelectedProfile.DefaultOutPath) == false)
             {
-                Description = "デフォルト出力パスが設定されていません";
+                OutPath = _SelectedProfile.DefaultOutPath;
             }
             else
             {
-                OutPath = DefaultPath;
+                Description = "デフォルト出力パスが設定されていません";
             }
         }
         #endregion
@@ -129,6 +137,7 @@ namespace Amatsukaze.ViewModels
         public async void Ok()
         {
             if (!GetOutPath()) return;
+            GetProfileName();
             Item.Mode = ProcMode.Batch;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -152,6 +161,7 @@ namespace Amatsukaze.ViewModels
         public async void Test()
         {
             if (!GetOutPath()) return;
+            GetProfileName();
             Item.Mode = ProcMode.Test;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -173,9 +183,30 @@ namespace Amatsukaze.ViewModels
 
         public async void Search()
         {
+            GetProfileName();
             Item.Mode = ProcMode.DrcsSearch;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+        }
+        #endregion
+
+        #region SelectedProfile変更通知プロパティ
+        private DisplayProfile _SelectedProfile;
+
+        public DisplayProfile SelectedProfile {
+            get { return _SelectedProfile; }
+            set { 
+                if (_SelectedProfile == value)
+                    return;
+                _SelectedProfile = value;
+                RaisePropertyChanged();
+
+                if(_SelectedProfile != null &&
+                    string.IsNullOrEmpty(_SelectedProfile.DefaultOutPath) == false)
+                {
+                    OutPath = _SelectedProfile.DefaultOutPath;
+                }
+            }
         }
         #endregion
 

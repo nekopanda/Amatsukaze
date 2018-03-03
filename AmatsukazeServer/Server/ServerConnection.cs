@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Text;
@@ -37,6 +38,9 @@ namespace Amatsukaze.Server
         {
             switch (methodId)
             {
+                case RPCMethodId.OnProfile:
+                    userClient.OnProfile((ProfileUpdate)arg);
+                    break;
                 case RPCMethodId.OnSetting:
                     userClient.OnSetting((Setting)arg);
                     break;
@@ -180,6 +184,11 @@ namespace Amatsukaze.Server
         {
             return Send(RPCMethodId.EndServer, null);
         }
+
+        public Task SetProfile(ProfileUpdate data)
+        {
+            return Send(RPCMethodId.SetProfile, data);
+        }
     }
 
     public class ServerConnection : AbstracrtServerConnection
@@ -189,6 +198,12 @@ namespace Amatsukaze.Server
         private int port;
         private bool finished = false;
         private bool reconnect = false;
+
+        public EndPoint LocalIP {
+            get {
+                return client?.Client?.LocalEndPoint;
+            }
+        }
 
         public ServerConnection(IUserClient userClient, Func<string, Task> askServerAddress)
             : base(userClient)
