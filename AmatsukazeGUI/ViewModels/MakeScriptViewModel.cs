@@ -1,24 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.ComponentModel;
-
-using Livet;
-using Livet.Commands;
-using Livet.Messaging;
-using Livet.Messaging.IO;
-using Livet.EventListeners;
-using Livet.Messaging.Windows;
-
-using Amatsukaze.Models;
-using System.IO;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
+﻿using Amatsukaze.Models;
 using Amatsukaze.Server;
+using Livet.Commands;
+using Livet.EventListeners;
+using Livet.Messaging;
 using Microsoft.Win32;
-using System.Windows;
+using System;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
 
 namespace Amatsukaze.ViewModels
 {
@@ -67,8 +57,9 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        public void Initialize()
-        {
+        private MakeScriptData scriptData = new MakeScriptData();
+
+        public void Initialize() {
         }
 
         public bool IsRemoteClient {
@@ -91,48 +82,6 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region NasDir変更通知プロパティ
-        private string _NasDir;
-
-        public string NasDir {
-            get { return _NasDir; }
-            set { 
-                if (_NasDir == value)
-                    return;
-                _NasDir = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region IsNasEnabled変更通知プロパティ
-        private bool _IsNasEnabled;
-
-        public bool IsNasEnabled {
-            get { return _IsNasEnabled; }
-            set { 
-                if (_IsNasEnabled == value)
-                    return;
-                _IsNasEnabled = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region IsWakeOnLan変更通知プロパティ
-        private bool _IsWakeOnLan;
-
-        public bool IsWakeOnLan {
-            get { return _IsWakeOnLan; }
-            set { 
-                if (_IsWakeOnLan == value)
-                    return;
-                _IsWakeOnLan = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region MakeBatchFileCommand
         private ViewModelCommand _MakeBatchFileCommand;
 
@@ -150,71 +99,103 @@ namespace Amatsukaze.ViewModels
         {
             string cur = Directory.GetCurrentDirectory();
             string exe = Path.GetDirectoryName(GetType().Assembly.Location);
+            string dst = Model.MakeScriptData.OutDir;
+            string prof = Model.MakeScriptData.SelectedProfile?.Model?.Name;
             string nas = null;
             string ip = "localhost";
             int port = Model.ServerPort;
             string subnet = null;
             string mac = null;
+            bool direct = Model.MakeScriptData.IsDirect;
+
+            if (prof == null)
+            {
+                Description = "プロファイルを選択してください";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(dst))
+            {
+                Description = "出力先が設定されていません";
+                return;
+            }
+            if (Directory.Exists(dst) == false)
+            {
+                Description = "出力先ディレクトリにアクセスできません";
+                return;
+            }
+
+            if (Model.MakeScriptData.IsNasEnabled)
+            {
+                if (string.IsNullOrEmpty(Model.MakeScriptData.NasDir))
+                {
+                    Description = "NAS保存先を指定してください。";
+                    return;
+                }
+                nas = Model.MakeScriptData.NasDir;
+            }
 
             if (IsRemoteClient)
             {
                 ip = Model.ServerIP;
-                if (IsNasEnabled)
-                {
-                    if(string.IsNullOrEmpty(_NasDir))
-                    {
-                        Description = "NAS保存先を指定してください。";
-                        return;
-                    }
-                    nas = _NasDir;
-                }
-                if(IsWakeOnLan)
+                if (Model.MakeScriptData.IsWakeOnLan)
                 {
                     var localIP = Model.LocalIP;
-                    if(localIP == null)
+                    if (localIP == null)
                     {
                         Description = "IPアドレス取得に失敗";
                         return;
                     }
-                    if(localIP.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                    if (localIP.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
                     {
                         Description = "IPv4以外の接続には対応していません";
                         return;
                     }
                     var subnetaddr = ServerSupport.GetSubnetMask(((IPEndPoint)localIP).Address);
-                    if(subnetaddr == null)
+                    if (subnetaddr == null)
                     {
                         Description = "サブネットマスク取得に失敗";
                         return;
                     }
                     subnet = subnetaddr.ToString();
                     var macbytes = Model.MacAddress;
-                    if(macbytes == null)
+                    if (macbytes == null)
                     {
                         Description = "MACアドレス取得に失敗";
                         return;
                     }
-                    mac = string.Join(":", macbytes);
+                    mac = string.Join(":", macbytes.Select(s => s.ToString("X")));
                 }
             }
 
             Description = "";
 
             var sb = new StringBuilder();
-            sb.Append("cd \"")
+            if(direct)
+            {
+                sb.Append("rem _EDCBX_DIRECT_\r\n");
+            }
+            sb.Append("cd /d \"")
                 .Append(cur)
-                .Append("\"\n")
-                .Append(" -f \"$FilePath$\" -ip \"")
+                .Append("\"\r\n\"")
+                .Append(exe)
+                .Append("\\AmatsukazeAddTask.exe\"")
+                .AppendFormat(" -f \"{0}FilePath{0}\" -ip \"", direct ? "%" : "$")
                 .Append(ip)
                 .Append("\" -p ")
-                .Append(port);
-            if(nas != null)
+                .Append(port)
+                .Append(" -o \"")
+                .Append(dst)
+                .Append("\" -s \"")
+                .Append(prof)
+                .Append("\"");
+            if (nas != null)
             {
                 sb.Append(" -d \"")
                     .Append(nas)
                     .Append("\"");
             }
-            if(mac != null)
+            if (mac != null)
             {
                 sb.Append(" --subnet \"")
                     .Append(subnet)
@@ -227,23 +208,27 @@ namespace Amatsukaze.ViewModels
             saveFileDialog.FilterIndex = 1;
             saveFileDialog.Filter = "バッチファイル(.bat)|*.bat|All Files (*.*)|*.*";
             bool? result = saveFileDialog.ShowDialog();
-            if (result == true)
+            if (result != true)
             {
-                try
-                {
-                    File.WriteAllText(saveFileDialog.SafeFileName, sb.ToString());
-                }
-                catch(Exception e)
-                {
-                    Description = "バッチファイル作成に失敗: " + e.Message;
-                    return;
-                }
+                return;
             }
 
-            var resvm = new MakeBatchResultViewModel() { Path = saveFileDialog.SafeFileName };
+            try
+            {
+                File.WriteAllText(saveFileDialog.FileName, sb.ToString(), Encoding.Default);
+            }
+            catch (Exception e)
+            {
+                Description = "バッチファイル作成に失敗: " + e.Message;
+                return;
+            }
+
+            var resvm = new MakeBatchResultViewModel() { Path = saveFileDialog.FileName };
 
             await Messenger.RaiseAsync(new TransitionMessage(
                 typeof(Views.MakeBatchResultWindow), resvm, TransitionMode.Modal, "Key"));
+
+            await Model.SendMakeScriptData();
         }
         #endregion
 

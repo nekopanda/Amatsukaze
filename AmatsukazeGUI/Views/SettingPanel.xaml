@@ -3,17 +3,23 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:clr="clr-namespace:System;assembly=mscorlib"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
 
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Bottom">
+            <Button DockPanel.Dock="Right" Content="適用" Margin="5" VerticalAlignment="Center" HorizontalAlignment="Right" Width="60" Command="{Binding SendSettingCommand}" Height="27"/>
+            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"><Run Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"/></TextBlock>
+        </DockPanel>
+       
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.Resources>
@@ -36,7 +42,7 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock HorizontalAlignment="Right" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,4"/>
                     <TextBlock HorizontalAlignment="Right" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
 
@@ -48,18 +54,21 @@
                         </Grid.ColumnDefinitions>
                         <Slider Margin="3"
                                 SmallChange="1" Maximum="8" Minimum="1"
-                                Value="{Binding Model.NumParallel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Value="{Binding Model.Setting.NumParallel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。"/>
                         <TextBlock Grid.Column="1" TextWrapping="Wrap" Width="7" VerticalAlignment="Center"
-                                   Text="{Binding Model.NumParallel}"/>
+                                   Text="{Binding Model.Setting.NumParallel}"/>
                     </Grid>
 
-                    <TextBox Margin="0,3" Height="23" Text="{Binding Model.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" 
+                    <TextBox Margin="0,3" Height="23" 
+                             Text="{Binding Model.Setting.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" 
                      ToolTip="重要です。なるべくSSDなどの高速なストレージを使ってください。&#xA;たまにゴミが残るので終了しても残っているファイルがあったら削除してください。"/>
+                    <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" 
+                              IsChecked="{Binding Model.Setting.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,3" Text="その他の設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AmatsukazeCLIパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x264パス"/>
@@ -74,29 +83,44 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NicoConvASSパス"/>
                 </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0">
-                    <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" IsChecked="{Binding Model.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBox Grid.Column="1" Height="22" Margin="0,3" Text="{Binding Model.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
-                     ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.MKVMergePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.MP4BoxPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                    <TextBox Height="22" Margin="0,3" Text="{Binding Model.NicoConvASSPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
-                </StackPanel>
-
+                <DockPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,0">
+                    <StackPanel DockPanel.Dock="Right">
+                        <StackPanel.Resources>
+                            <clr:String x:Key="tooltip">クリア後「適用」するとデフォルト値が入ります。</clr:String>
+                        </StackPanel.Resources>
+                        <Border Height="28"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearAmatsukazePathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX264PathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX265PathCommand}"/>
+                        <Border Height="28"/>
+                        <Border Height="28"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMuxerPathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMKVMergePathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMP4BoxPathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearTimelineEditorPathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearChapterExepathCommand}"/>
+                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearJoinLogoScpPathCommand}"/>
+                        <Border Height="28"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
+                            ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.MKVMergePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.MP4BoxPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.TimelineEditorPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.NicoConvASSPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                    </StackPanel>
+                </DockPanel>
 
             </Grid>
         </ScrollViewer>
-
-        <TextBlock Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,0.333,74,0"><Run Text="{Binding Model.SettingWarningText}" Foreground="Red" /><Run Text=" "/><Run Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"/></TextBlock>
-        <Button Content="適用" Grid.Row="1" Margin="0,5.333,9,0" VerticalAlignment="Top" HorizontalAlignment="Right" Width="60" Command="{Binding SendSettingCommand}" Height="27"/>
-    </Grid>
+    </DockPanel>
 </UserControl>

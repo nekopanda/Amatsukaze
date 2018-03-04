@@ -11,15 +11,16 @@
              mc:Ignorable="d" 
              Height="114.667" d:DesignWidth="400.608"
              d:DataContext="{d:DesignInstance {x:Type m:DisplayLogo}}">
-    <Grid>
-        <Image Margin="10,10,191.667,10" Source="{Binding Data.Image}" MinWidth="200" MinHeight="100"/>
-        <CheckBox Content="有効" Margin="0,10,9.667,0" VerticalAlignment="Top" IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Right" Width="177"/>
-        <TextBlock Margin="0,30,9.667,0" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Right" Width="177">
-            <Run Text="{Binding Setting.LogoName}" />
-            <LineBreak/>(<Run Text="{Binding Setting.FileName}"/>)
-            <LineBreak/>映像サイズ:(<Run Text="{Binding Data.ImageWith}" />x<Run Text="{Binding Data.ImageHeight}" />)
-            <LineBreak/>設定期間:<LineBreak/><Run Text="{Binding FromDateString, Mode=OneWay}" /> ～ <Run Text="{Binding ToDateString, Mode=OneWay}" />
-        </TextBlock>
-
-    </Grid>
+    <DockPanel Margin="0,5">
+        <DockPanel DockPanel.Dock="Right">
+            <CheckBox DockPanel.Dock="Top" Content="有効" VerticalAlignment="Top" IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Right" Width="177"/>
+            <TextBlock TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Right" Width="177">
+                <Run Text="{Binding Setting.LogoName}" />
+                <LineBreak/>(<Run Text="{Binding Setting.FileName}"/>)
+                <LineBreak/>映像サイズ:(<Run Text="{Binding Data.ImageWith}" />x<Run Text="{Binding Data.ImageHeight}" />)
+                <LineBreak/>設定期間:<LineBreak/><Run Text="{Binding FromDateString, Mode=OneWay}" /> ～ <Run Text="{Binding ToDateString, Mode=OneWay}" />
+            </TextBlock>
+        </DockPanel>
+        <Image Source="{Binding Data.Image}" MinWidth="200" MinHeight="100"/>
+    </DockPanel>
 </UserControl>

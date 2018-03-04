@@ -102,7 +102,7 @@
                     <MenuItem Header="リトライ/再エンコード" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
-                    <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
+                    <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                 </ContextMenu>
             </ListBox.ContextMenu>
         </ListBox>

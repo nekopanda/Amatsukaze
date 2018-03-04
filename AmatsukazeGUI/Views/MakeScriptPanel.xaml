@@ -30,16 +30,25 @@
             <StackPanel Margin="5">
                 <DockPanel Margin="3">
                     <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-                    <ComboBox ItemsSource="{Binding Model.ProfileList}" />
+                    <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding Model.MakeScriptData.SelectedProfile, Mode=TwoWay}" />
                 </DockPanel>
-                <CheckBox Margin="3" Content="TSをNASに保存" IsChecked="{Binding IsNasEnabled, Mode=TwoWay}" />
+                <DockPanel Margin="3">
+                    <TextBlock Text="出力先:" />
+                    <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver"
+                             Text="{Binding Model.MakeScriptData.OutDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
+                <CheckBox Margin="3" Content="TSをNASに保存" IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}" />
                 <DockPanel Margin="3">
                     <TextBlock Text="保存先:" />
-                    <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding IsNasEnabled}" Text="{Binding NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}"
+                             Text="{Binding Model.MakeScriptData.NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
-                <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" IsChecked="{Binding IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
+                <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" 
+                          IsChecked="{Binding Model.MakeScriptData.IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
+                <CheckBox Margin="3" Content="__EDCBX__DIRECT__" 
+                          IsChecked="{Binding Model.MakeScriptData.IsDirect, Mode=TwoWay}"/>
                 <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="3" Foreground="Red"/>
-                <Button Margin="3" Content="バッチファイル作成" Command="{Binding MakeBatchFileCommand}"/>
+                <Button Margin="3" Height="25" Content="バッチファイル作成" Command="{Binding MakeBatchFileCommand}"/>
             </StackPanel>
         </GroupBox>
         

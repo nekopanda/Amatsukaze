@@ -10,7 +10,7 @@
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         mc:Ignorable="d" 
         d:DataContext="{d:DesignInstance {x:Type vm:NewProfileViewModel}}"
-        Title="Amatsukaze プロファイル追加" Height="123.778" Width="300">
+        Title="Amatsukaze プロファイル追加" Height="138.445" Width="300">
 
     <Window.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
@@ -44,8 +44,8 @@
         <TextBox VerticalAlignment="Top" Margin="2" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
         <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>
         <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
-            <Button Content="キャンセル" Width="75" VerticalAlignment="Top" Margin="2" Command="{Binding OkCommand}"/>
-            <Button Content="OK" Width="75" VerticalAlignment="Top" Margin="2" Command="{Binding CancelCommand}"/>
+            <Button Content="キャンセル" Width="75" VerticalAlignment="Top" Margin="2" Command="{Binding CancelCommand}"/>
+            <Button Content="OK" Width="75" VerticalAlignment="Top" Margin="2" Command="{Binding OkCommand}"/>
         </StackPanel>
     </StackPanel>
 </Window>

@@ -230,8 +230,8 @@ namespace Amatsukaze.Server
                 case RPCMethodId.PauseEncode:
                     server.PauseEncode((bool)arg);
                     break;
-                case RPCMethodId.SetSetting:
-                    server.SetSetting((Setting)arg);
+                case RPCMethodId.SetCommonData:
+                    server.SetCommonData((CommonData)arg);
                     break;
                 case RPCMethodId.SetServiceSetting:
                     server.SetServiceSetting((ServiceSettingUpdate)arg);
@@ -263,14 +263,14 @@ namespace Amatsukaze.Server
                 case RPCMethodId.RequestFreeSpace:
                     server.RequestFreeSpace();
                     break;
-                case RPCMethodId.RequestDrcsImages:
-                    server.RequestDrcsImages();
-                    break;
                 case RPCMethodId.RequestServiceSetting:
                     server.RequestServiceSetting();
                     break;
                 case RPCMethodId.RequestLogoData:
                     server.RequestLogoData((string)arg);
+                    break;
+                case RPCMethodId.RequestDrcsImages:
+                    server.RequestDrcsImages();
                     break;
             }
         }
@@ -286,11 +286,6 @@ namespace Amatsukaze.Server
         }
 
         #region IUserClient
-        public Task OnSetting(Setting data)
-        {
-            return Send(RPCMethodId.OnSetting, data);
-        }
-
         public Task OnQueueData(QueueData data)
         {
             return Send(RPCMethodId.OnQueueData, data);
@@ -326,19 +321,14 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnLogFile, str);
         }
 
-        public Task OnState(State state)
+        public Task OnCommonData(CommonData data)
         {
-            return Send(RPCMethodId.OnState, state);
+            return Send(RPCMethodId.OnCommonData, data);
         }
 
-        public Task OnFreeSpace(DiskFreeSpace state)
+        public Task OnProfile(ProfileUpdate data)
         {
-            return Send(RPCMethodId.OnFreeSpace, state);
-        }
-
-        public Task OnOperationResult(string result)
-        {
-            return Send(RPCMethodId.OnOperationResult, result);
+            return Send(RPCMethodId.OnProfile, data);
         }
 
         public Task OnServiceSetting(ServiceSettingUpdate service)
@@ -346,19 +336,9 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnServiceSetting, service);
         }
 
-        public Task OnJlsCommandFiles(JLSCommandFiles files)
-        {
-            return Send(RPCMethodId.OnLlsCommandFiles, files);
-        }
-
         public Task OnLogoData(LogoData logoData)
         {
             return Send(RPCMethodId.OnLogoData, logoData);
-        }
-
-        public Task OnAvsScriptFiles(AvsScriptFiles files)
-        {
-            return Send(RPCMethodId.OnAvsScriptFiles, files);
         }
 
         public Task OnDrcsData(DrcsImageUpdate update)
@@ -371,14 +351,9 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnAddResult, requestId);
         }
 
-        public Task OnProfile(ProfileUpdate data)
+        public Task OnOperationResult(string result)
         {
-            return Send(RPCMethodId.OnProfile, data);
-        }
-
-        public Task OnServerInfo(ServerInfo info)
-        {
-            return Send(RPCMethodId.OnServerInfo, info);
+            return Send(RPCMethodId.OnOperationResult, result);
         }
         #endregion
     }
@@ -390,6 +365,8 @@ namespace Amatsukaze.Server
         {
             [DataMember]
             public Setting setting;
+            [DataMember]
+            public MakeScriptData scriptData;
             [DataMember]
             public ServiceSetting services;
 
@@ -660,7 +637,7 @@ namespace Amatsukaze.Server
                         tmpBase = Util.CreateTmpFile(server.appData.setting.WorkPath);
                         localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
                         string name = Path.GetFileName(srcpath);
-                        if (dir.HashList.ContainsKey(name) == false)
+                        if (dir.HashList != null && dir.HashList.ContainsKey(name) == false)
                         {
                             return FailLogItem(src.Path, "入力ファイルのハッシュがありません", now, now);
                         }
@@ -1145,8 +1122,9 @@ namespace Amatsukaze.Server
         private AffinityCreator affinityCreator = new AffinityCreator();
 
         private Dictionary<string, ProfileSetting> profiles = new Dictionary<string, ProfileSetting>();
-        private JLSCommandFiles jlsFiles = new JLSCommandFiles() { Files = new List<string>() };
-        private AvsScriptFiles avsFiles = new AvsScriptFiles() { Main = new List<string>(), Post = new List<string>() };
+        private List<string> JlsCommandFiles = new List<string>();
+        private List<string> MainScriptFiles = new List<string>();
+        private List<string> PostScriptFiles = new List<string>();
         private Dictionary<string, BitmapFrame> drcsImageCache = new Dictionary<string, BitmapFrame>();
         private Dictionary<string, DrcsImage> drcsMap = new Dictionary<string, DrcsImage>();
 
@@ -1441,31 +1419,31 @@ namespace Amatsukaze.Server
             {
                 setting.X264Path = GetExePath(basePath, "x264");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.X265Path))
             {
                 setting.X265Path = GetExePath(basePath, "x265");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.MuxerPath))
             {
                 setting.MuxerPath = Path.Combine(basePath, "muxer.exe");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.MKVMergePath))
             {
                 setting.MKVMergePath = Path.Combine(basePath, "mkvmerge.exe");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.MP4BoxPath))
             {
                 setting.MP4BoxPath = Path.Combine(basePath, "mp4box.exe");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.TimelineEditorPath))
             {
                 setting.TimelineEditorPath = Path.Combine(basePath, "timelineeditor.exe");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.ChapterExePath))
             {
                 setting.ChapterExePath = GetExePath(basePath, "chapter_exe");
             }
-            if (string.IsNullOrEmpty(setting.AmatsukazePath))
+            if (string.IsNullOrEmpty(setting.JoinLogoScpPath))
             {
                 setting.JoinLogoScpPath = GetExePath(basePath, "join_logo_scp");
             }
@@ -1485,6 +1463,7 @@ namespace Amatsukaze.Server
             {
                 appData = new AppData() {
                     setting = GetDefaultSetting(),
+                    scriptData = new MakeScriptData(),
                     services = new ServiceSetting() {
                         ServiceMap = new Dictionary<int, ServiceSettingElement>()
                     }
@@ -1498,6 +1477,10 @@ namespace Amatsukaze.Server
                 if (appData.setting == null)
                 {
                     appData.setting = GetDefaultSetting();
+                }
+                if (appData.scriptData == null)
+                {
+                    appData.scriptData = new MakeScriptData();
                 }
                 if (appData.services == null)
                 {
@@ -1967,15 +1950,6 @@ namespace Amatsukaze.Server
                         throw new ArgumentException("NicoConvASSパスが設定されていません");
                     }
                 }
-
-                if (!string.IsNullOrEmpty(profile.DefaultOutPath))
-                {
-                    if (!Directory.Exists(profile.DefaultOutPath))
-                    {
-                        throw new InvalidOperationException(
-                            "デフォルト出力パスが無効です: " + profile.DefaultOutPath);
-                    }
-                }
             }
         }
 
@@ -2055,19 +2029,7 @@ namespace Amatsukaze.Server
                 return;
             }
 
-            string dstPath = dir.DstPath;
-            if (dir.DstPath == null)
-            {
-                if (string.IsNullOrEmpty(profile.DefaultOutPath) == false)
-                {
-                    dstPath = profile.DefaultOutPath;
-                }
-                else
-                {
-                    dstPath = Path.Combine(dir.DirPath, "encoded");
-                }
-            }
-
+            string dstPath = dir.DstPath ?? Path.Combine(dir.DirPath, "encoded");
             QueueDirectory target = null;
 
             // 最後のQueueDirectoryと同じならそこに追加する
@@ -2636,9 +2598,12 @@ namespace Amatsukaze.Server
                         {
                             jlsDirTime = lastModified;
 
-                            jlsFiles.Files = Directory.GetFiles(jlspath)
+                            JlsCommandFiles = Directory.GetFiles(jlspath)
                                 .Select(s => Path.GetFileName(s)).ToList();
-                            await client.OnJlsCommandFiles(jlsFiles);
+                            await client.OnCommonData(new CommonData()
+                            {
+                                JlsCommandFiles = JlsCommandFiles
+                            });
                         }
                     }
 
@@ -2654,13 +2619,17 @@ namespace Amatsukaze.Server
                                 .Where(f => f.EndsWith(".avs", StringComparison.OrdinalIgnoreCase))
                                 .Select(f => Path.GetFileName(f));
 
-                            avsFiles.Main = files
+                            MainScriptFiles = files
                                 .Where(f => f.StartsWith("メイン_")).ToList();
 
-                            avsFiles.Post = files
+                            PostScriptFiles = files
                                 .Where(f => f.StartsWith("ポスト_")).ToList();
 
-                            await client.OnAvsScriptFiles(avsFiles);
+                            await client.OnCommonData(new CommonData()
+                            {
+                                MainScriptFiles = MainScriptFiles,
+                                PostScriptFiles = PostScriptFiles
+                            });
                         }
                     }
 
@@ -2745,7 +2714,10 @@ namespace Amatsukaze.Server
                     }
 
                     string profilepath = GetProfileDirectoryPath();
-                    if (Directory.Exists(profilepath))
+                    if(!Directory.Exists(profilepath))
+                    {
+                        Directory.CreateDirectory(profilepath);
+                    }
                     {
                         var lastModified = Directory.GetLastWriteTime(profilepath);
                         if (profileDirTime != lastModified)
@@ -2760,7 +2732,7 @@ namespace Amatsukaze.Server
                             foreach (var name in newProfiles.Union(profiles.Keys))
                             {
                                 var filepath = GetProfilePath(profilepath, name);
-                                if(profiles.ContainsKey(name) == false)
+                                if (profiles.ContainsKey(name) == false)
                                 {
                                     // 追加された
                                     var profile = ReadProfile(filepath);
@@ -2773,7 +2745,7 @@ namespace Amatsukaze.Server
                                         Profile = profile
                                     });
                                 }
-                                else if(newProfiles.Contains(name) == false)
+                                else if (newProfiles.Contains(name) == false)
                                 {
                                     // 削除された
                                     var profile = profiles[name];
@@ -2787,7 +2759,7 @@ namespace Amatsukaze.Server
                                 {
                                     var profile = profiles[name];
                                     var lastUpdate = File.GetLastWriteTime(filepath);
-                                    if(profile.LastUpdate != lastUpdate)
+                                    if (profile.LastUpdate != lastUpdate)
                                     {
                                         // 変更された
                                         profile = ReadProfile(filepath);
@@ -2960,20 +2932,32 @@ namespace Amatsukaze.Server
             }
         }
 
-        public Task SetSetting(Setting setting)
+        public Task SetCommonData(CommonData data)
         {
             try
             {
-                SetDefaultPath(setting);
-                CheckSetting(null, setting);
-                appData.setting = setting;
-                scheduler.SetNumParallel(setting.NumParallel);
-                affinityCreator.NumProcess = setting.NumParallel;
-                settingUpdated = true;
-                return Task.WhenAll(
-                    client.OnSetting(appData.setting),
-                    RequestFreeSpace(),
-                    AddEncodeLog("設定を更新しました"));
+                if(data.Setting != null)
+                {
+                    SetDefaultPath(data.Setting);
+                    CheckSetting(null, data.Setting);
+                    appData.setting = data.Setting;
+                    scheduler.SetNumParallel(data.Setting.NumParallel);
+                    affinityCreator.NumProcess = data.Setting.NumParallel;
+                    settingUpdated = true;
+                    return Task.WhenAll(
+                        client.OnCommonData(new CommonData() { Setting = appData.setting }),
+                        RequestFreeSpace(),
+                        AddEncodeLog("設定を更新しました"));
+                }
+                else if(data.MakeScriptData != null)
+                {
+                    appData.scriptData = data.MakeScriptData;
+                    settingUpdated = true;
+                    return client.OnCommonData(new CommonData() {
+                        MakeScriptData = data.MakeScriptData
+                    });
+                }
+                return Task.FromResult(0);
             }
             catch(Exception e)
             {
@@ -3039,6 +3023,8 @@ namespace Amatsukaze.Server
 
         private byte[] GetMacAddress()
         {
+            if (ClientManager == null) return null;
+
             // リモートのクライアントを見つけて、
             // 接続に使っているNICのMACアドレスを取得する
             IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
@@ -3054,12 +3040,16 @@ namespace Amatsukaze.Server
 
         public async Task RequestSetting()
         {
-            await client.OnSetting(appData.setting);
-            await client.OnAvsScriptFiles(avsFiles);
-            await client.OnServerInfo(new ServerInfo()
-            {
-                HostName = Dns.GetHostName(),
-                MacAddress = GetMacAddress()
+            await client.OnCommonData(new CommonData() {
+                Setting = appData.setting,
+                JlsCommandFiles = JlsCommandFiles,
+                MainScriptFiles = MainScriptFiles,
+                PostScriptFiles = PostScriptFiles,
+                ServerInfo = new ServerInfo()
+                {
+                    HostName = Dns.GetHostName(),
+                    MacAddress = GetMacAddress()
+                }
             });
             foreach(var profile in profiles.Values)
             {
@@ -3068,6 +3058,12 @@ namespace Amatsukaze.Server
                     Type = UpdateType.Update
                 });
             }
+            // プロファイルがないと関連付けできないため、
+            // プロファイルを送った後にこれを送る
+            await client.OnCommonData(new CommonData()
+            {
+                MakeScriptData = appData.scriptData,
+            });
         }
 
         public Task RequestQueue()
@@ -3104,13 +3100,16 @@ namespace Amatsukaze.Server
                 Pause = encodePaused,
                 Running = nowEncoding
             };
-            return client.OnState(state);
+            return client.OnCommonData(new CommonData()
+            {
+                State = state
+            });
         }
 
         public Task RequestFreeSpace()
         {
             RefrechDiskSpace();
-            return client.OnFreeSpace(new DiskFreeSpace() {
+            return client.OnCommonData(new CommonData() {
                 Disks = diskMap.Values.ToList()
             });
         }
@@ -3181,7 +3180,6 @@ namespace Amatsukaze.Server
                     Data = service
                 });
             }
-            await client.OnJlsCommandFiles(jlsFiles);
         }
 
         private AMTContext amtcontext = new AMTContext();

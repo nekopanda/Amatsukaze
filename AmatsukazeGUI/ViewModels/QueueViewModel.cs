@@ -156,7 +156,7 @@ namespace Amatsukaze.ViewModels
                 return;
             }
             var file = item.Model;
-            var workpath = Model.WorkPath;
+            var workpath = Model.Setting.WorkPath;
             if (Directory.Exists(workpath) == false)
             {
                 MessageBox.Show("一時ファイルフォルダがアクセスできる場所に設定されていないため起動できません");

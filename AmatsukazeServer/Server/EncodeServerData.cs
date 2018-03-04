@@ -73,9 +73,6 @@ namespace Amatsukaze.Server
         public string PostFilterPath { get; set; }
 
         [DataMember]
-        public string DefaultOutPath { get; set; }
-
-        [DataMember]
         public bool TwoPass { get; set; }
         [DataMember]
         public bool SplitSub { get; set; }
@@ -250,24 +247,6 @@ namespace Amatsukaze.Server
         public ExtensionDataObject ExtensionData { get; set; }
     }
 
-    [DataContract]
-    public class ServerInfo
-    {
-        [DataMember]
-        public string HostName { get; set; }
-        [DataMember]
-        public byte[] MacAddress { get; set; }
-    }
-
-    [DataContract]
-    public class State
-    {
-        [DataMember]
-        public bool Pause { get; set; }
-        [DataMember]
-        public bool Running { get; set; }
-    }
-
     public enum ProcMode
     {
         Batch, AutoBatch, Test, DrcsSearch
@@ -372,10 +351,11 @@ namespace Amatsukaze.Server
         public string DstPath;
         [DataMember]
         public ProcMode Mode { get; set; }
+        [DataMember]
+        public ProfileSetting Profile { get; set; }
 
         // サーバで使う
         public Dictionary<string, byte[]> HashList;
-        public ProfileSetting Profile { get; set; }
         public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(DirPath, "encoded"); } }
         public string Succeeded { get { return System.IO.Path.Combine(DirPath, "succeeded"); } }
         public string Failed { get { return System.IO.Path.Combine(DirPath, "failed"); } }
@@ -606,13 +586,6 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class DiskFreeSpace
-    {
-        [DataMember]
-        public List<DiskItem> Disks { get; set; }
-    }
-
-    [DataContract]
     public class ConsoleData
     {
         [DataMember]
@@ -628,23 +601,6 @@ namespace Amatsukaze.Server
         public int index { get; set; }
         [DataMember]
         public byte[] data { get; set; }
-    }
-
-    [DataContract]
-    public class JLSCommandFiles
-    {
-        [DataMember]
-        public List<string> Files { get; set; }
-    }
-
-    [DataContract]
-    public class AvsScriptFiles
-    {
-        [DataMember]
-        public List<string> Main { get; set; }
-        
-        [DataMember]
-        public List<string> Post { get; set; }
     }
 
     [DataContract]
@@ -717,5 +673,61 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public List<DrcsImage> ImageList;
+    }
+
+    [DataContract]
+    public class ServerInfo
+    {
+        [DataMember]
+        public string HostName { get; set; }
+        [DataMember]
+        public byte[] MacAddress { get; set; }
+    }
+
+    [DataContract]
+    public class State
+    {
+        [DataMember]
+        public bool Pause { get; set; }
+        [DataMember]
+        public bool Running { get; set; }
+    }
+
+    [DataContract]
+    public class MakeScriptData
+    {
+        [DataMember]
+        public string Profile { get; set; }
+        [DataMember]
+        public string OutDir { get; set; }
+        [DataMember]
+        public string NasDir { get; set; }
+        [DataMember]
+        public bool IsNasEnabled { get; set; }
+        [DataMember]
+        public bool IsWakeOnLan { get; set; }
+        [DataMember]
+        public bool IsDirect { get; set; }
+    }
+
+    [DataContract]
+    public class CommonData
+    {
+        [DataMember]
+        public Setting Setting { get; set; }
+        [DataMember]
+        public MakeScriptData MakeScriptData { get; set; }
+        [DataMember]
+        public List<string> JlsCommandFiles { get; set; }
+        [DataMember]
+        public List<string> MainScriptFiles { get; set; }
+        [DataMember]
+        public List<string> PostScriptFiles { get; set; }
+        [DataMember]
+        public List<DiskItem> Disks { get; set; }
+        [DataMember]
+        public ServerInfo ServerInfo { get; set; }
+        [DataMember]
+        public State State { get; set; }
     }
 }

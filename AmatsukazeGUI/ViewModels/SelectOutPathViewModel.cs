@@ -1,18 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.ComponentModel;
-
+﻿using Amatsukaze.Models;
+using Amatsukaze.Server;
 using Livet;
 using Livet.Commands;
-using Livet.Messaging;
-using Livet.Messaging.IO;
-using Livet.EventListeners;
 using Livet.Messaging.Windows;
-
-using Amatsukaze.Models;
-using Amatsukaze.Server;
 using System.IO;
 
 namespace Amatsukaze.ViewModels
@@ -74,16 +64,12 @@ namespace Amatsukaze.ViewModels
 
         private bool GetOutPath()
         {
-            var defaultPath = SelectedProfile?.DefaultOutPath;
-            if (defaultPath != OutPath && string.IsNullOrEmpty(OutPath) == false)
+            if (System.IO.Directory.Exists(OutPath) == false)
             {
-                if (System.IO.Directory.Exists(OutPath) == false)
-                {
-                    Description = "出力先フォルダが存在しません";
-                    return false;
-                }
-                Item.DstPath = OutPath;
+                Description = "出力先フォルダが存在しません";
+                return false;
             }
+            Item.DstPath = OutPath;
             return true;
         }
 
@@ -91,35 +77,6 @@ namespace Amatsukaze.ViewModels
         {
             Item.Profile = SelectedProfile?.Model?.Name ?? Server.ServerSupport.GetDefaultProfileName();
         }
-
-        #region SetDefaultCommand
-        private ViewModelCommand _SetDefaultCommand;
-
-        public ViewModelCommand SetDefaultCommand
-        {
-            get
-            {
-                if (_SetDefaultCommand == null)
-                {
-                    _SetDefaultCommand = new ViewModelCommand(SetDefault);
-                }
-                return _SetDefaultCommand;
-            }
-        }
-
-        public void SetDefault()
-        {
-            if (_SelectedProfile != null &&
-                string.IsNullOrEmpty(_SelectedProfile.DefaultOutPath) == false)
-            {
-                OutPath = _SelectedProfile.DefaultOutPath;
-            }
-            else
-            {
-                Description = "デフォルト出力パスが設定されていません";
-            }
-        }
-        #endregion
 
         #region OkCommand
         private ViewModelCommand _OkCommand;
@@ -200,12 +157,6 @@ namespace Amatsukaze.ViewModels
                     return;
                 _SelectedProfile = value;
                 RaisePropertyChanged();
-
-                if(_SelectedProfile != null &&
-                    string.IsNullOrEmpty(_SelectedProfile.DefaultOutPath) == false)
-                {
-                    OutPath = _SelectedProfile.DefaultOutPath;
-                }
             }
         }
         #endregion

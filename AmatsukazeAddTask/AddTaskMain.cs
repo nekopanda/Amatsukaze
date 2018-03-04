@@ -16,6 +16,8 @@ namespace Amatsukaze.AddTask
         public string ServerIP = "localhost";
 
         public string FilePath;
+        public string OutPath;
+        public string Profile;
 
         public string NasDir;
         public bool NoMove;
@@ -29,8 +31,10 @@ namespace Amatsukaze.AddTask
                 Environment.GetCommandLineArgs()[0] + " <オプション> -f <input.ts>\r\n" +
                 "オプション\r\n" +
                 "  -f|--file <パス>        入力ファイルパス\t\n" +
+                "  -s|--setting <プロファイル名> エンコード設定プロファイル\t\n" +
                 "  -ip|--ip <IPアドレス>   AmatsukazeServerアドレス\t\n" +
                 "  -p|--port <ボート番号>  AmatsukazeServerポート番号\t\n" +
+                "  -o|--outdir <パス>      出力先ディレクトリ\t\n" +
                 "  -d|--nasdir <パス>      NASのTSファイル置き場\t\n" +
                 "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\t\n" +
                 "  --subnet <サブネットマスク>  Wake On Lan用サブネットマスク\t\n" +
@@ -58,6 +62,16 @@ namespace Amatsukaze.AddTask
                     FilePath = args[i + 1];
                     ++i;
                 }
+                else if (arg == "-s" || arg == "--setting")
+                {
+                    Profile = args[i + 1];
+                    ++i;
+                }
+                else if (arg == "-o" || arg == "--outdir")
+                {
+                    OutPath = args[i + 1];
+                    ++i;
+                }
                 else if (arg == "-d" || arg == "--nasdir")
                 {
                     NasDir = args[i + 1];
@@ -77,7 +91,7 @@ namespace Amatsukaze.AddTask
                     var str = args[i + 1];
                     MacAddress = str
                         .Split(str.Contains(':') ? ':' : '-')
-                        .Select(s => byte.Parse(s)).ToArray();
+                        .Select(s => byte.Parse(s, System.Globalization.NumberStyles.HexNumber)).ToArray();
                     if(MacAddress.Length != 6)
                     {
                         throw new Exception("MACアドレスが不正です");
@@ -172,6 +186,12 @@ namespace Amatsukaze.AddTask
 
         public async Task Exec()
         {
+            // TODO:
+            // - EDCB関連ファイルを一般化 ts*
+            // - NAS保存先encodedフォルダを空にする機能
+            // - NAS保存のEDCB関連ファイル対応
+            // - ローカルパスからネットワークパスへの変換機能
+
             if (File.Exists(option.FilePath) == false)
             {
                 throw new Exception("入力ファイルが見つかりません");
@@ -192,6 +212,8 @@ namespace Amatsukaze.AddTask
             request = new AddQueueDirectory()
             {
                 DirPath = Path.GetDirectoryName(srcpath),
+                DstPath = option.OutPath,
+                Profile = option.Profile,
                 Targets = new List<AddQueueItem>() {
                     new AddQueueItem() { Path = srcpath, Hash = hash }
                 },
@@ -242,8 +264,8 @@ namespace Amatsukaze.AddTask
                             IPAddress.Parse(option.Subnet),
                             option.MacAddress);
 
-                        // 1分待つ
-                        await Task.Delay(60 * 1000);
+                        // 40秒待つ
+                        await Task.Delay(40 * 1000);
                     }
 
                     continue;
@@ -270,6 +292,15 @@ namespace Amatsukaze.AddTask
                 {
                     // なぜか失敗した
                     continue;
+                }
+
+                if (string.IsNullOrEmpty(option.NasDir) == false)
+                {
+                    // NASにコピーしたファイルはtransferredフォルダに移動
+                    string trsDir = Path.GetDirectoryName(option.FilePath) + "\\transferred";
+                    Directory.CreateDirectory(trsDir);
+                    string trsFile = trsDir + "\\" + Path.GetFileName(option.FilePath);
+                    File.Move(option.FilePath, trsDir);
                 }
 
                 break;
@@ -299,11 +330,6 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
-        public Task OnAvsScriptFiles(AvsScriptFiles files)
-        {
-            return Task.FromResult(0);
-        }
-
         public Task OnConsole(ConsoleData str)
         {
             return Task.FromResult(0);
@@ -315,16 +341,6 @@ namespace Amatsukaze.AddTask
         }
 
         public Task OnDrcsData(DrcsImageUpdate update)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnFreeSpace(DiskFreeSpace space)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnJlsCommandFiles(JLSCommandFiles files)
         {
             return Task.FromResult(0);
         }
@@ -351,6 +367,7 @@ namespace Amatsukaze.AddTask
 
         public Task OnOperationResult(string result)
         {
+            Console.WriteLine(result);
             return Task.FromResult(0);
         }
 
@@ -369,7 +386,7 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
-        public Task OnSetting(Setting setting)
+        public Task OnCommonData(CommonData setting)
         {
             return Task.FromResult(0);
         }

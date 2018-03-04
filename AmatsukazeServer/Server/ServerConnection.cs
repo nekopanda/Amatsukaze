@@ -38,12 +38,6 @@ namespace Amatsukaze.Server
         {
             switch (methodId)
             {
-                case RPCMethodId.OnProfile:
-                    userClient.OnProfile((ProfileUpdate)arg);
-                    break;
-                case RPCMethodId.OnSetting:
-                    userClient.OnSetting((Setting)arg);
-                    break;
                 case RPCMethodId.OnQueueData:
                     userClient.OnQueueData((QueueData)arg);
                     break;
@@ -65,20 +59,14 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnLogFile:
                     userClient.OnLogFile((string)arg);
                     break;
-                case RPCMethodId.OnState:
-                    userClient.OnState((State)arg);
+                case RPCMethodId.OnCommonData:
+                    userClient.OnCommonData((CommonData)arg);
                     break;
-                case RPCMethodId.OnFreeSpace:
-                    userClient.OnFreeSpace((DiskFreeSpace)arg);
+                case RPCMethodId.OnProfile:
+                    userClient.OnProfile((ProfileUpdate)arg);
                     break;
                 case RPCMethodId.OnServiceSetting:
                     userClient.OnServiceSetting((ServiceSettingUpdate)arg);
-                    break;
-                case RPCMethodId.OnLlsCommandFiles:
-                    userClient.OnJlsCommandFiles((JLSCommandFiles)arg);
-                    break;
-                case RPCMethodId.OnAvsScriptFiles:
-                    userClient.OnAvsScriptFiles((AvsScriptFiles)arg);
                     break;
                 case RPCMethodId.OnLogoData:
                     userClient.OnLogoData((LogoData)arg);
@@ -95,9 +83,24 @@ namespace Amatsukaze.Server
             }
         }
 
+        public Task SetProfile(ProfileUpdate data)
+        {
+            return Send(RPCMethodId.SetProfile, data);
+        }
+
         public Task AddQueue(AddQueueDirectory dir)
         {
             return Send(RPCMethodId.AddQueue, dir);
+        }
+
+        public Task RemoveQueue(int id)
+        {
+            return Send(RPCMethodId.RemoveQueue, id);
+        }
+
+        public Task ChangeItem(ChangeItemData data)
+        {
+            return Send(RPCMethodId.ChangeItem, data);
         }
 
         public Task PauseEncode(bool pause)
@@ -105,9 +108,24 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.PauseEncode, pause);
         }
 
-        public Task RemoveQueue(int id)
+        public Task SetCommonData(CommonData setting)
         {
-            return Send(RPCMethodId.RemoveQueue, id);
+            return Send(RPCMethodId.SetCommonData, setting);
+        }
+
+        public Task SetServiceSetting(ServiceSettingUpdate update)
+        {
+            return Send(RPCMethodId.SetServiceSetting, update);
+        }
+
+        public Task AddDrcsMap(DrcsImage drcsMap)
+        {
+            return Send(RPCMethodId.AddDrcsMap, drcsMap);
+        }
+
+        public Task EndServer()
+        {
+            return Send(RPCMethodId.EndServer, null);
         }
 
         public Task RequestSetting()
@@ -150,16 +168,6 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.RequestDrcsImages, null);
         }
 
-        public Task SetSetting(Setting setting)
-        {
-            return Send(RPCMethodId.SetSetting, setting);
-        }
-
-        public Task SetServiceSetting(ServiceSettingUpdate update)
-        {
-            return Send(RPCMethodId.SetServiceSetting, update);
-        }
-
         public Task RequestServiceSetting()
         {
             return Send(RPCMethodId.RequestServiceSetting, null);
@@ -168,26 +176,6 @@ namespace Amatsukaze.Server
         public Task RequestLogoData(string fileName)
         {
             return Send(RPCMethodId.RequestLogoData, fileName);
-        }
-
-        public Task ChangeItem(ChangeItemData data)
-        {
-            return Send(RPCMethodId.ChangeItem, data);
-        }
-
-        public Task AddDrcsMap(DrcsImage drcsMap)
-        {
-            return Send(RPCMethodId.AddDrcsMap, drcsMap);
-        }
-
-        public Task EndServer()
-        {
-            return Send(RPCMethodId.EndServer, null);
-        }
-
-        public Task SetProfile(ProfileUpdate data)
-        {
-            return Send(RPCMethodId.SetProfile, data);
         }
     }
 

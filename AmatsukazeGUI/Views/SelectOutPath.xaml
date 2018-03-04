@@ -41,14 +41,11 @@
 
     <StackPanel Margin="5">
         <TextBlock Margin="2" Text="{Binding InputInfoText, Mode=OneWay}" TextWrapping="Wrap" />
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
-            <Button Grid.Column="1" Content="デフォルト出力パスをセット" Width="150" Command="{Binding SetDefaultCommand}" />
-        </Grid>
+        <DockPanel>
+            <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
+            <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" />
+        </DockPanel>
+        <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
         <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
         
         <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>

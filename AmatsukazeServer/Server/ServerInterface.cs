@@ -19,7 +19,7 @@ namespace Amatsukaze.Server
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
 
-        Task SetSetting(Setting setting);
+        Task SetCommonData(CommonData data);
         Task SetServiceSetting(ServiceSettingUpdate update);
         Task AddDrcsMap(DrcsImage drcsMap);
         Task EndServer();
@@ -49,15 +49,10 @@ namespace Amatsukaze.Server
         Task OnConsole(ConsoleData str);
         Task OnConsoleUpdate(ConsoleUpdate str);
         Task OnLogFile(string str);
-        Task OnState(State state);
-        Task OnFreeSpace(DiskFreeSpace space);
 
-        Task OnServerInfo(ServerInfo setting);
-        Task OnSetting(Setting setting);
+        Task OnCommonData(CommonData data);
         Task OnProfile(ProfileUpdate data);
         Task OnServiceSetting(ServiceSettingUpdate update);
-        Task OnJlsCommandFiles(JLSCommandFiles files);
-        Task OnAvsScriptFiles(AvsScriptFiles files);
         Task OnLogoData(LogoData logoData);
         Task OnDrcsData(DrcsImageUpdate update);
         Task OnAddResult(string requestId);
@@ -73,7 +68,7 @@ namespace Amatsukaze.Server
         RemoveQueue,
         ChangeItem,
         PauseEncode,
-        SetSetting,
+        SetCommonData,
         SetServiceSetting,
         AddDrcsMap,
         EndServer,
@@ -95,14 +90,9 @@ namespace Amatsukaze.Server
         OnConsole,
         OnConsoleUpdate,
         OnLogFile,
-        OnState,
-        OnFreeSpace,
-        OnServerInfo,
-        OnSetting,
+        OnCommonData,
         OnProfile,
         OnServiceSetting,
-        OnLlsCommandFiles,
-        OnAvsScriptFiles,
         OnLogoData,
         OnDrcsData,
         OnAddResult,
@@ -123,7 +113,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.RemoveQueue, typeof(int) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
-            { RPCMethodId.SetSetting, typeof(Setting) },
+            { RPCMethodId.SetCommonData, typeof(CommonData) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
             { RPCMethodId.EndServer, null },
@@ -138,7 +128,6 @@ namespace Amatsukaze.Server
             { RPCMethodId.RequestLogoData, typeof(string) },
             { RPCMethodId.RequestDrcsImages, null },
 
-            { RPCMethodId.OnServerInfo, typeof(ServerInfo) },
             { RPCMethodId.OnQueueData, typeof(QueueData) },
             { RPCMethodId.OnQueueUpdate, typeof(QueueUpdate) },
             { RPCMethodId.OnLogData, typeof(LogData) },
@@ -146,13 +135,9 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnConsole, typeof(ConsoleData) },
             { RPCMethodId.OnConsoleUpdate, typeof(ConsoleUpdate) },
             { RPCMethodId.OnLogFile, typeof(string) },
-            { RPCMethodId.OnState, typeof(State) },
-            { RPCMethodId.OnFreeSpace, typeof(DiskFreeSpace) },
-            { RPCMethodId.OnSetting, typeof(Setting) },
+            { RPCMethodId.OnCommonData, typeof(CommonData) },
             { RPCMethodId.OnProfile, typeof(ProfileUpdate) },
             { RPCMethodId.OnServiceSetting, typeof(ServiceSettingUpdate) },
-            { RPCMethodId.OnLlsCommandFiles, typeof(JLSCommandFiles) },
-            { RPCMethodId.OnAvsScriptFiles, typeof(AvsScriptFiles) },
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnDrcsData, typeof(DrcsImageUpdate) },
             { RPCMethodId.OnAddResult, typeof(string) },
@@ -341,11 +326,12 @@ namespace Amatsukaze.Server
             var headerbytes = await ReadBytes(ns, HEADER_SIZE);
             var id = (RPCMethodId)BitConverter.ToInt16(headerbytes, 0);
             var csize = BitConverter.ToInt32(headerbytes, 2);
+            Debug.Print("Header: id=" + id + ", size=" + csize);
             object arg = null;
             if (csize > 0)
             {
                 var data = await RPCTypes.ReadBytes(ns, csize);
-                //Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
+                Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
                 arg = Deserialize(RPCTypes.ArgumentTypes[id], data);
             }
             return new RPCInfo() { id = id, arg = arg };
@@ -357,8 +343,13 @@ namespace Amatsukaze.Server
             int readBytes = 0;
             while (readBytes < size)
             {
-                readBytes += await ns.ReadAsync(
-                    bytes, readBytes, size - readBytes);
+                var ret = await ns.ReadAsync(
+                       bytes, readBytes, size - readBytes);
+                if(ret == 0)
+                {
+                    throw new EndOfStreamException();
+                }
+                readBytes += ret;
             }
             return bytes;
         }
@@ -382,9 +373,9 @@ namespace Amatsukaze.Server
     {
         private IUserClient client;
 
-        private static object Copy(Type type, object obj)
+        private static T Copy<T>(T obj)
         {
-            return RPCTypes.Deserialize(type, RPCTypes.Serialize(type, obj));
+            return (T)RPCTypes.Deserialize(typeof(T), RPCTypes.Serialize(typeof(T), obj));
         }
 
         public ClientAdapter(IUserClient client)
@@ -399,97 +390,187 @@ namespace Amatsukaze.Server
 
         public Task OnConsole(ConsoleData str)
         {
-            return client.OnConsole((ConsoleData)Copy(typeof(ConsoleData), str));
+            return client.OnConsole(Copy(str));
         }
 
         public Task OnConsoleUpdate(ConsoleUpdate str)
         {
-            return client.OnConsoleUpdate((ConsoleUpdate)Copy(typeof(ConsoleUpdate), str));
-        }
-
-        public Task OnFreeSpace(DiskFreeSpace space)
-        {
-            return client.OnFreeSpace((DiskFreeSpace)Copy(typeof(DiskFreeSpace), space));
-        }
-
-        public Task OnJlsCommandFiles(JLSCommandFiles files)
-        {
-            return client.OnJlsCommandFiles((JLSCommandFiles)Copy(typeof(JLSCommandFiles), files));
+            return client.OnConsoleUpdate(Copy(str));
         }
 
         public Task OnLogData(LogData data)
         {
-            return client.OnLogData((LogData)Copy(typeof(LogData), data));
+            return client.OnLogData(Copy(data));
         }
 
         public Task OnLogFile(string str)
         {
-            return client.OnLogFile((string)Copy(typeof(string), str));
+            return client.OnLogFile((string)Copy(str));
         }
 
         public Task OnLogoData(LogoData logoData)
         {
-            return client.OnLogoData((LogoData)Copy(typeof(LogoData), logoData));
+            return client.OnLogoData(Copy(logoData));
         }
 
         public Task OnLogUpdate(LogItem newLog)
         {
-            return client.OnLogUpdate((LogItem)Copy(typeof(LogItem), newLog));
+            return client.OnLogUpdate(Copy(newLog));
         }
 
         public Task OnOperationResult(string result)
         {
-            return client.OnOperationResult((string)Copy(typeof(string), result));
+            return client.OnOperationResult(Copy(result));
         }
 
         public Task OnQueueData(QueueData data)
         {
-            return client.OnQueueData((QueueData)Copy(typeof(QueueData), data));
+            return client.OnQueueData(Copy(data));
         }
 
         public Task OnQueueUpdate(QueueUpdate update)
         {
-            return client.OnQueueUpdate((QueueUpdate)Copy(typeof(QueueUpdate), update));
+            return client.OnQueueUpdate(Copy(update));
         }
 
         public Task OnServiceSetting(ServiceSettingUpdate service)
         {
-            return client.OnServiceSetting((ServiceSettingUpdate)Copy(typeof(ServiceSettingUpdate), service));
+            return client.OnServiceSetting(Copy(service));
         }
 
-        public Task OnSetting(Setting setting)
+        public Task OnCommonData(CommonData data)
         {
-            return client.OnSetting((Setting)Copy(typeof(Setting), setting));
-        }
-
-        public Task OnState(State state)
-        {
-            return client.OnState((State)Copy(typeof(State), state));
-        }
-
-        public Task OnAvsScriptFiles(AvsScriptFiles files)
-        {
-            return client.OnAvsScriptFiles((AvsScriptFiles)Copy(typeof(AvsScriptFiles), files));
+            return client.OnCommonData(Copy(data));
         }
 
         public Task OnDrcsData(DrcsImageUpdate update)
         {
-            return client.OnDrcsData((DrcsImageUpdate)Copy(typeof(DrcsImageUpdate), update));
+            return client.OnDrcsData(Copy(update));
         }
 
         public Task OnAddResult(string requestId)
         {
-            return client.OnAddResult((string)Copy(typeof(string), requestId));
+            return client.OnAddResult(Copy(requestId));
         }
 
         public Task OnProfile(ProfileUpdate data)
         {
-            return client.OnProfile((ProfileUpdate)Copy(typeof(ProfileUpdate), data));
+            return client.OnProfile(Copy(data));
+        }
+    }
+
+    public class ServerAdapter : IEncodeServer
+    {
+        private IEncodeServer server;
+
+        private static T Copy<T>(T obj)
+        {
+            return (T)RPCTypes.Deserialize(typeof(T), RPCTypes.Serialize(typeof(T), obj));
         }
 
-        public Task OnServerInfo(ServerInfo setting)
+        public ServerAdapter(IEncodeServer server)
         {
-            return client.OnServerInfo((ServerInfo)Copy(typeof(ServerInfo), setting));
+            this.server = server;
+        }
+
+        public Task AddDrcsMap(DrcsImage drcsMap)
+        {
+            return server.AddDrcsMap(Copy(drcsMap));
+        }
+
+        public Task AddQueue(AddQueueDirectory dir)
+        {
+            return server.AddQueue(Copy(dir));
+        }
+
+        public Task ChangeItem(ChangeItemData data)
+        {
+            return server.ChangeItem(Copy(data));
+        }
+
+        public Task EndServer()
+        {
+            return server.EndServer();
+        }
+
+        public void Finish()
+        {
+            server.Finish();
+        }
+
+        public Task PauseEncode(bool pause)
+        {
+            return server.PauseEncode(Copy(pause));
+        }
+
+        public Task RemoveQueue(int id)
+        {
+            return server.RemoveQueue(Copy(id));
+        }
+
+        public Task RequestConsole()
+        {
+            return server.RequestConsole();
+        }
+
+        public Task RequestDrcsImages()
+        {
+            return server.RequestDrcsImages();
+        }
+
+        public Task RequestFreeSpace()
+        {
+            return server.RequestFreeSpace();
+        }
+
+        public Task RequestLog()
+        {
+            return server.RequestLog();
+        }
+
+        public Task RequestLogFile(LogItem item)
+        {
+            return server.RequestLogFile(Copy(item));
+        }
+
+        public Task RequestLogoData(string fileName)
+        {
+            return server.RequestLogoData(Copy(fileName));
+        }
+
+        public Task RequestQueue()
+        {
+            return server.RequestQueue();
+        }
+
+        public Task RequestServiceSetting()
+        {
+            return server.RequestServiceSetting();
+        }
+
+        public Task RequestSetting()
+        {
+            return server.RequestSetting();
+        }
+
+        public Task RequestState()
+        {
+            return server.RequestState();
+        }
+
+        public Task SetProfile(ProfileUpdate data)
+        {
+            return server.SetProfile(Copy(data));
+        }
+
+        public Task SetServiceSetting(ServiceSettingUpdate update)
+        {
+            return server.SetServiceSetting(Copy(update));
+        }
+
+        public Task SetCommonData(CommonData data)
+        {
+            return server.SetCommonData(Copy(data));
         }
     }
 }

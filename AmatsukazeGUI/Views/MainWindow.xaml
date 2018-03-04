@@ -56,6 +56,9 @@
     
     <Grid>
         <Grid.Resources>
+            <DataTemplate DataType="{x:Type vm:MakeScriptViewModel}">
+                <v:MakeScriptPanel />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:LogFileViewModel}">
                 <v:LogFilePanel />
             </DataTemplate>
@@ -106,55 +109,28 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.RowSpan="3" >
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
-            <ContentControl Grid.Row="1" Content="{Binding MainPanel}" />
-        </Grid>
+        <DockPanel Grid.RowSpan="3" >
+            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
+            <ContentControl Content="{Binding MainPanel}" />
+        </DockPanel>
 
-        <Grid Grid.Column="2" >
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
+        <DockPanel Grid.Column="2" >
+            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
             <ContentControl Grid.Row="1" Content="{Binding ConsolePanel}" />
-        </Grid>
+        </DockPanel>
 
-        <Grid Grid.Column="2" Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <ListBox Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding InfoPanelMenu}" SelectedIndex="{Binding InfoPanelSelectedIndex, Mode=TwoWay}" />
+        <DockPanel Grid.Column="2" Grid.Row="2">
+            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding InfoPanelMenu}" SelectedIndex="{Binding InfoPanelSelectedIndex, Mode=TwoWay}" />
             <ContentControl Grid.Row="1" Content="{Binding InfoPanel}" />
-        </Grid>
+        </DockPanel>
 
         <GridSplitter HorizontalAlignment="Center" Grid.RowSpan="3" Grid.Column="1" Width="5" ResizeDirection="Columns"/>
         <GridSplitter VerticalAlignment="Center" Grid.Row="1" Grid.Column="2" Height="5" ResizeDirection="Rows" HorizontalAlignment="Stretch"/>
 
-        <Grid Grid.Row="4" Grid.ColumnSpan="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
-            <Button Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" Margin="50,0,0,0" />
-            <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center" Background="White">
-                <i:Interaction.Triggers>
-                    <ei:PropertyChangedTrigger Binding="{Binding Path=Model.CurrentOperationResult}"> 
-                        <ei:ControlStoryboardAction Storyboard="{StaticResource resultChangedAnimation}"     
-                                                ControlStoryboardOption="Play"/>
-                    </ei:PropertyChangedTrigger> 
-                </i:Interaction.Triggers>
-            </TextBlock>
-            <TextBlock Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
-            <Button Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">
+        <DockPanel Grid.Row="4" Grid.ColumnSpan="3">
+            <Button DockPanel.Dock="Left" Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
+            <Button DockPanel.Dock="Left" Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" />
+            <Button DockPanel.Dock="Right" Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                         <Setter Property="Foreground" Value="#FFA4A4A4"/>
@@ -169,6 +145,15 @@
                     </Style>
                 </Button.Style>
             </Button>
-        </Grid>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center" Background="White">
+                <i:Interaction.Triggers>
+                    <ei:PropertyChangedTrigger Binding="{Binding Path=Model.CurrentOperationResult}"> 
+                        <ei:ControlStoryboardAction Storyboard="{StaticResource resultChangedAnimation}"     
+                                                ControlStoryboardOption="Play"/>
+                    </ei:PropertyChangedTrigger> 
+                </i:Interaction.Triggers>
+            </TextBlock>
+        </DockPanel>
     </Grid>
 </Window>
