@@ -203,6 +203,18 @@ namespace Amatsukaze.ViewModels
                     .Append(mac)
                     .Append("\"");
             }
+            if (Model.MakeScriptData.MoveAfter == false)
+            {
+                sb.Append(" --no-move");
+            }
+            if (Model.MakeScriptData.ClearEncoded)
+            {
+                sb.Append(" --clear-encoded");
+            }
+            if (Model.MakeScriptData.WithRelated)
+            {
+                sb.Append(" --with-related");
+            }
 
             var saveFileDialog = new SaveFileDialog();
             saveFileDialog.FilterIndex = 1;

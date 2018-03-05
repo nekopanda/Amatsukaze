@@ -231,7 +231,7 @@
                     <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,80" Text="その他の設定"/>
                 </StackPanel>
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
-                    <CheckBox Height="16" Margin="0,3"  Content="EDCB用関連ファイル(*.err,*.program.txt)も処理" 
+                    <CheckBox Height="16" Margin="0,3"  Content="関連ファイル(*.err,*.program.txtなど)も処理" 
                               IsChecked="{Binding Model.SelectedProfile.MoveEDCBFiles, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="これらのファイルも一緒にコピー・移動されるようになります。" />
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" 

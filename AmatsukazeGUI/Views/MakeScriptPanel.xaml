@@ -37,12 +37,29 @@
                     <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver"
                              Text="{Binding Model.MakeScriptData.OutDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
-                <CheckBox Margin="3" Content="TSをNASに保存" IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}" />
-                <DockPanel Margin="3">
-                    <TextBlock Text="保存先:" />
-                    <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}"
+                
+                <GroupBox>
+                    <GroupBox.Header>
+                        <CheckBox Margin="3" Content="TSをNASにコピーしてそれをソース指定する" IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}" />
+                    </GroupBox.Header>
+                    <StackPanel IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}">
+                        <DockPanel Margin="3">
+                            <TextBlock Text="コピー先:" />
+                            <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}"
                              Text="{Binding Model.MakeScriptData.NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
+                        </DockPanel>
+                        <CheckBox Margin="3" Content="コピーしたTSファイルをtransferedフォルダに移動する"
+                                  IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                  ToolTip="コピー元TSファイルをtransferedフォルダに移動します" />
+                        <CheckBox Margin="3" Content="コピーする際、コピー先のencodedフォルダを空にする"
+                                  IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                  ToolTip="コピー先のエンコード済みTSファイルを削除します。" />
+                        <CheckBox Margin="3" Content="関連ファイルも一緒にコピー・移動する"
+                                  IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                  ToolTip="*.errや*.program.txtなども一緒にコピー・移動します" />
+                    </StackPanel>
+                </GroupBox>
+                
                 <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" 
                           IsChecked="{Binding Model.MakeScriptData.IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
                 <CheckBox Margin="3" Content="__EDCBX__DIRECT__" 

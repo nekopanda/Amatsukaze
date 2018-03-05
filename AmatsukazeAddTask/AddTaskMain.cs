@@ -21,6 +21,8 @@ namespace Amatsukaze.AddTask
 
         public string NasDir;
         public bool NoMove;
+        public bool ClearEncoded;
+        public bool WithRelated;
 
         public string Subnet = "255.255.255.0";
         public byte[] MacAddress;
@@ -37,6 +39,8 @@ namespace Amatsukaze.AddTask
                 "  -o|--outdir <パス>      出力先ディレクトリ\t\n" +
                 "  -d|--nasdir <パス>      NASのTSファイル置き場\t\n" +
                 "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\t\n" +
+                "  --clear-encoded         NASにコピーする際、コピー先のencodedフォルダを空にする\t\n" +
+                "  --with-related          NASにコピーする際、関連ファイルも一緒にコピー・移動する\t\n" +
                 "  --subnet <サブネットマスク>  Wake On Lan用サブネットマスク\t\n" +
                 "  --mac <MACアドレス>  Wake On Lan用MACアドレス\t\n";
             Console.WriteLine(help);
@@ -80,6 +84,14 @@ namespace Amatsukaze.AddTask
                 else if (arg == "--no-move")
                 {
                     NoMove = true;
+                }
+                else if (arg == "--clear-encoded")
+                {
+                    ClearEncoded = true;
+                }
+                else if (arg == "--with-related")
+                {
+                    WithRelated = true;
                 }
                 else if (arg == "--subnet")
                 {
@@ -186,12 +198,6 @@ namespace Amatsukaze.AddTask
 
         public async Task Exec()
         {
-            // TODO:
-            // - EDCB関連ファイルを一般化 ts*
-            // - NAS保存先encodedフォルダを空にする機能
-            // - NAS保存のEDCB関連ファイル対応
-            // - ローカルパスからネットワークパスへの変換機能
-
             if (File.Exists(option.FilePath) == false)
             {
                 throw new Exception("入力ファイルが見つかりません");
@@ -202,10 +208,33 @@ namespace Amatsukaze.AddTask
 
             if (string.IsNullOrEmpty(option.NasDir) == false)
             {
+                if(option.ClearEncoded)
+                {
+                    // encodedを空にする
+                    foreach(var file in Directory.GetFiles(option.NasDir + "\\encoded"))
+                    {
+                        File.Delete(file);
+                    }
+                }
                 // NASにコピー
                 var remotepath = option.NasDir + "\\" + Path.GetFileName(srcpath);
                 hash = await HashUtil.CopyWithHash(option.FilePath, remotepath);
                 srcpath = remotepath;
+                if(option.WithRelated)
+                {
+                    var body = Path.GetFileNameWithoutExtension(option.FilePath);
+                    var tsext = Path.GetExtension(option.FilePath);
+                    var srcDir = Path.GetDirectoryName(option.FilePath);
+                    foreach (var ext in ServerSupport.GetFileExtentions(null, true))
+                    {
+                        string srcPath = srcDir + "\\" + body + ext;
+                        string dstPath = option.NasDir + "\\" + body + ext;
+                        if (File.Exists(srcPath))
+                        {
+                            File.Move(srcPath, dstPath);
+                        }
+                    }
+                }
             }
 
             // リクエストを生成
@@ -294,13 +323,28 @@ namespace Amatsukaze.AddTask
                     continue;
                 }
 
-                if (string.IsNullOrEmpty(option.NasDir) == false)
+                if (string.IsNullOrEmpty(option.NasDir) == false && !option.NoMove)
                 {
                     // NASにコピーしたファイルはtransferredフォルダに移動
                     string trsDir = Path.GetDirectoryName(option.FilePath) + "\\transferred";
                     Directory.CreateDirectory(trsDir);
                     string trsFile = trsDir + "\\" + Path.GetFileName(option.FilePath);
                     File.Move(option.FilePath, trsDir);
+                    if (option.WithRelated)
+                    {
+                        var body = Path.GetFileNameWithoutExtension(option.FilePath);
+                        var tsext = Path.GetExtension(option.FilePath);
+                        var srcDir = Path.GetDirectoryName(option.FilePath);
+                        foreach (var ext in ServerSupport.GetFileExtentions(null, true))
+                        {
+                            string srcPath = srcDir + "\\" + body + ext;
+                            string dstPath = trsDir + "\\" + body + ext;
+                            if (File.Exists(srcPath))
+                            {
+                                File.Move(srcPath, dstPath);
+                            }
+                        }
+                    }
                 }
 
                 break;

@@ -755,6 +755,19 @@ namespace Amatsukaze.Server
             }
             return null;
         }
+
+        public static IEnumerable<string> GetFileExtentions(string tsext, bool withEDCB)
+        {
+            if (tsext != null)
+            {
+                yield return tsext;
+            }
+            if (withEDCB)
+            {
+                yield return ".ts.err";
+                yield return ".ts.program.txt";
+            }
+        }
     }
 
     public static class TaskSupport

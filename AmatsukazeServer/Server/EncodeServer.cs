@@ -938,7 +938,7 @@ namespace Amatsukaze.Server
                                     var commonName = Path.GetFileNameWithoutExtension(src.Path);
                                     var srcBody = Path.GetDirectoryName(src.Path) + "\\" + commonName;
                                     var dstBody = dir.Succeeded + "\\" + commonName;
-                                    foreach (var ext in EncodeServer
+                                    foreach (var ext in ServerSupport
                                         .GetFileExtentions(null, dir.Profile.MoveEDCBFiles))
                                     {
                                         var srcPath = srcBody + ext;
@@ -3215,25 +3215,12 @@ namespace Amatsukaze.Server
             return NotifyQueueItemUpdate(item, dir);
         }
 
-        private static IEnumerable<string> GetFileExtentions(string tsext, bool withEDCB)
-        {
-            if(tsext != null)
-            {
-                yield return tsext;
-            }
-            if(withEDCB)
-            {
-                yield return ".ts.err";
-                yield return ".ts.program.txt";
-            }
-        }
-
         private static void MoveTSFile(string file, string dstDir, bool withEDCB)
         {
             string body = Path.GetFileNameWithoutExtension(file);
             string tsext = Path.GetExtension(file);
             string srcDir = Path.GetDirectoryName(file);
-            foreach (var ext in GetFileExtentions(tsext, withEDCB))
+            foreach (var ext in ServerSupport.GetFileExtentions(tsext, withEDCB))
             {
                 string srcPath = srcDir + "\\" + body + ext;
                 string dstPath = dstDir + "\\" + body + ext;

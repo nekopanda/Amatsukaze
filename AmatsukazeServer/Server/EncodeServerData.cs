@@ -707,6 +707,12 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool IsWakeOnLan { get; set; }
         [DataMember]
+        public bool MoveAfter { get; set; }
+        [DataMember]
+        public bool ClearEncoded { get; set; }
+        [DataMember]
+        public bool WithRelated { get; set; }
+        [DataMember]
         public bool IsDirect { get; set; }
     }
 

@@ -1017,6 +1017,24 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+
+        #region FinishActionInt変更通知プロパティ
+        public int FinishActionInt {
+            get { return (int)Model.FinishAction; }
+            set { 
+                if (Model.FinishAction == (FinishAction)value)
+                    return;
+                Model.FinishAction = (FinishAction)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        public string[] FinishActionString {
+            get {
+                return new string[] { "何もしない", "スリープ", "休止" };
+            }
+        }
     }
 
     public class DisplayMakeScriptData : NotificationObject
@@ -1080,6 +1098,42 @@ namespace Amatsukaze.Models
                 if (Model.IsWakeOnLan == value)
                     return;
                 Model.IsWakeOnLan = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MoveAfter変更通知プロパティ
+        public bool MoveAfter {
+            get { return Model.MoveAfter; }
+            set { 
+                if (Model.MoveAfter == value)
+                    return;
+                Model.MoveAfter = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ClearEncoded変更通知プロパティ
+        public bool ClearEncoded {
+            get { return Model.ClearEncoded; }
+            set { 
+                if (Model.ClearEncoded == value)
+                    return;
+                Model.ClearEncoded = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region WithRelated変更通知プロパティ
+        public bool WithRelated {
+            get { return Model.WithRelated; }
+            set { 
+                if (Model.WithRelated == value)
+                    return;
+                Model.WithRelated = value;
                 RaisePropertyChanged();
             }
         }

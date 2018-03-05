@@ -326,12 +326,12 @@ namespace Amatsukaze.Server
             var headerbytes = await ReadBytes(ns, HEADER_SIZE);
             var id = (RPCMethodId)BitConverter.ToInt16(headerbytes, 0);
             var csize = BitConverter.ToInt32(headerbytes, 2);
-            Debug.Print("Header: id=" + id + ", size=" + csize);
+            //Debug.Print("Header: id=" + id + ", size=" + csize);
             object arg = null;
             if (csize > 0)
             {
                 var data = await RPCTypes.ReadBytes(ns, csize);
-                Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
+                //Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
                 arg = Deserialize(RPCTypes.ArgumentTypes[id], data);
             }
             return new RPCInfo() { id = id, arg = arg };
