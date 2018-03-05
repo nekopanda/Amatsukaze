@@ -1018,6 +1018,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region SupressSleep変更通知プロパティ
+        public bool SupressSleep {
+            get { return Model.SupressSleep; }
+            set { 
+                if (Model.SupressSleep == value)
+                    return;
+                Model.SupressSleep = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region FinishActionInt変更通知プロパティ
         public int FinishActionInt {
             get { return (int)Model.FinishAction; }
@@ -1116,7 +1128,7 @@ namespace Amatsukaze.Models
         #endregion
 
         #region ClearEncoded変更通知プロパティ
-        public bool ClearEncoded {
+        public bool ClearSucceeded {
             get { return Model.ClearEncoded; }
             set { 
                 if (Model.ClearEncoded == value)

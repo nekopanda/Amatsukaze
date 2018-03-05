@@ -1223,16 +1223,18 @@ namespace Amatsukaze.Server
                     {
                         preventSuspend.Dispose();
                         preventSuspend = null;
-                        if(appData.setting.FinishAction != FinishAction.None)
+                    }
+                    if (appData.setting.FinishAction != FinishAction.None)
+                    {
+                        // これは使えない
+                        // - サービスだとユーザ操作を検知できない
+                        // - なぜか常に操作があると認識されることがある
+                        //if (WinAPI.GetLastInputTime().Minutes >= 3)
                         {
-                            if (WinAPI.GetLastInputTime().Minutes >= 3)
-                            {
-                                // ユーザ操作が3分以上なかったらPCをサスペンド
-                                var state = (appData.setting.FinishAction == FinishAction.Suspend)
-                                        ? System.Windows.Forms.PowerState.Suspend
-                                        : System.Windows.Forms.PowerState.Hibernate;
-                                System.Windows.Forms.Application.SetSuspendState(state, false, false);
-                            }
+                            var state = (appData.setting.FinishAction == FinishAction.Suspend)
+                                    ? System.Windows.Forms.PowerState.Suspend
+                                    : System.Windows.Forms.PowerState.Hibernate;
+                            System.Windows.Forms.Application.SetSuspendState(state, false, false);
                         }
                     }
                     return task;
@@ -2307,9 +2309,9 @@ namespace Amatsukaze.Server
                                 scheduler.StackItem(workerItem);
                             }
 
-                            if(dir.Mode == ProcMode.AutoBatch)
+                            if(appData.setting.SupressSleep)
                             {
-                                // ユーザ操作以外で追加された場合は、サスペンドを抑止
+                                // サスペンドを抑止
                                 if(preventSuspend == null)
                                 {
                                     preventSuspend = new PreventSuspendContext();

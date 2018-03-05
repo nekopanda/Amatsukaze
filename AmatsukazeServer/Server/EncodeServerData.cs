@@ -177,6 +177,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool HideOneSeg { get; set; }
         [DataMember]
+        public bool SupressSleep { get; set; }
+        [DataMember]
         public FinishAction FinishAction { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }

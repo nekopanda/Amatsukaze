@@ -45,7 +45,8 @@
                     <TextBlock HorizontalAlignment="Right" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,4"/>
                     <TextBlock HorizontalAlignment="Right" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコード後" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
+                    <TextBlock HorizontalAlignment="Right" Text="エンコード後動作" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
@@ -68,7 +69,11 @@
                      ToolTip="重要です。なるべくSSDなどの高速なストレージを使ってください。&#xA;たまにゴミが残るので終了しても残っているファイルがあったら削除してください。"/>
                     <CheckBox Height="16" Margin="0,3"  Content="開始時に一時フォルダを空にする" 
                               IsChecked="{Binding Model.Setting.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <ComboBox Margin="0,3" Width="120" HorizontalAlignment="Left"/>
+                    <CheckBox Height="16" Margin="0,3"  Content="エンコード中はスリープしないようにする" 
+                              IsChecked="{Binding Model.Setting.SupressSleep, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <ComboBox Margin="0,3" Width="120" HorizontalAlignment="Left"
+                              ItemsSource="{Binding Model.Setting.FinishActionString}"
+                              SelectedIndex="{Binding Model.Setting.FinishActionInt, Mode=TwoWay}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="0">

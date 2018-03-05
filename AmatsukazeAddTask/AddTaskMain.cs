@@ -21,7 +21,7 @@ namespace Amatsukaze.AddTask
 
         public string NasDir;
         public bool NoMove;
-        public bool ClearEncoded;
+        public bool ClearSucceeded;
         public bool WithRelated;
 
         public string Subnet = "255.255.255.0";
@@ -39,7 +39,7 @@ namespace Amatsukaze.AddTask
                 "  -o|--outdir <パス>      出力先ディレクトリ\t\n" +
                 "  -d|--nasdir <パス>      NASのTSファイル置き場\t\n" +
                 "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\t\n" +
-                "  --clear-encoded         NASにコピーする際、コピー先のencodedフォルダを空にする\t\n" +
+                "  --clear-succeeded       NASにコピーする際、コピー先のsucceededフォルダを空にする\t\n" +
                 "  --with-related          NASにコピーする際、関連ファイルも一緒にコピー・移動する\t\n" +
                 "  --subnet <サブネットマスク>  Wake On Lan用サブネットマスク\t\n" +
                 "  --mac <MACアドレス>  Wake On Lan用MACアドレス\t\n";
@@ -85,9 +85,9 @@ namespace Amatsukaze.AddTask
                 {
                     NoMove = true;
                 }
-                else if (arg == "--clear-encoded")
+                else if (arg == "--clear-succeeded")
                 {
-                    ClearEncoded = true;
+                    ClearSucceeded = true;
                 }
                 else if (arg == "--with-related")
                 {
@@ -208,10 +208,10 @@ namespace Amatsukaze.AddTask
 
             if (string.IsNullOrEmpty(option.NasDir) == false)
             {
-                if(option.ClearEncoded)
+                if(option.ClearSucceeded)
                 {
-                    // encodedを空にする
-                    foreach(var file in Directory.GetFiles(option.NasDir + "\\encoded"))
+                    // succeededを空にする
+                    foreach (var file in Directory.GetFiles(option.NasDir + "\\succeeded"))
                     {
                         File.Delete(file);
                     }

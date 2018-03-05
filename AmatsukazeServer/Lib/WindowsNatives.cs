@@ -76,6 +76,7 @@ namespace Amatsukaze.Lib
             _PowerRequestContext.SimpleReasonString = "Amatsukazeがエンコード中です。";
             _PowerRequest = PowerCreateRequest(ref _PowerRequestContext);
             PowerSetRequest(_PowerRequest, PowerRequestType.PowerRequestSystemRequired);
+            PowerSetRequest(_PowerRequest, PowerRequestType.PowerRequestAwayModeRequired);
         }
 
         #region IDisposable Support
@@ -85,6 +86,7 @@ namespace Amatsukaze.Lib
         {
             if (!disposedValue)
             {
+                PowerClearRequest(_PowerRequest, PowerRequestType.PowerRequestAwayModeRequired);
                 PowerClearRequest(_PowerRequest, PowerRequestType.PowerRequestSystemRequired);
                 CloseHandle(_PowerRequest);
                 _PowerRequest = IntPtr.Zero;
@@ -112,7 +114,7 @@ namespace Amatsukaze.Lib
     {
         [DllImport("User32.dll")]
         private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
-        [DllImport("User32.dll")]
+        [DllImport("Kernel32.dll")]
         private static extern uint GetTickCount();
 
         private struct LASTINPUTINFO

@@ -207,9 +207,9 @@ namespace Amatsukaze.ViewModels
             {
                 sb.Append(" --no-move");
             }
-            if (Model.MakeScriptData.ClearEncoded)
+            if (Model.MakeScriptData.ClearSucceeded)
             {
-                sb.Append(" --clear-encoded");
+                sb.Append(" --clear-succeeded");
             }
             if (Model.MakeScriptData.WithRelated)
             {
