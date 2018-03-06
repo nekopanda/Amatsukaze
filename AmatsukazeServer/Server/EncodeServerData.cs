@@ -277,6 +277,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string Profile { get; set; }
         [DataMember]
+        public int Priority { get; set; }
+        [DataMember]
         public string RequestId { get; set; }
 
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
@@ -304,6 +306,8 @@ namespace Amatsukaze.Server
         public byte[] Hash { get; set; }
         [DataMember]
         public QueueState State { get; set; }
+        [DataMember]
+        public int Priority { get; set; }
 
         [DataMember]
         public int ServiceId { get; set; }
@@ -323,6 +327,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public string DstName { get; set; }
 
+        // サーバで使う
+        public QueueDirectory Dir { get; set; }
+
         public string FileName { get { return System.IO.Path.GetFileName(Path); } }
 
         public bool IsActive {
@@ -336,6 +343,12 @@ namespace Amatsukaze.Server
         public bool IsOneSeg {
             get {
                 return ImageWidth <= 320 || ImageHeight <= 260;
+            }
+        }
+
+        public float ActualPriority {
+            get {
+                return 10 - Priority;
             }
         }
     }
@@ -392,7 +405,7 @@ namespace Amatsukaze.Server
 
     public enum ChangeItemType
     {
-        Retry, Cancel
+        Retry, Cancel, Priority
     }
 
     [DataContract]
@@ -402,6 +415,8 @@ namespace Amatsukaze.Server
         public int ItemId { get; set; }
         [DataMember]
         public ChangeItemType ChangeType { get; set; }
+        [DataMember]
+        public int Priority { get; set; }
     }
 
     [DataContract]
@@ -716,6 +731,8 @@ namespace Amatsukaze.Server
         public bool WithRelated { get; set; }
         [DataMember]
         public bool IsDirect { get; set; }
+        [DataMember]
+        public int Priority { get; set; }
     }
 
     [DataContract]

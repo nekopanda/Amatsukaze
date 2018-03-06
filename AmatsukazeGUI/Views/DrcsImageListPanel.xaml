@@ -39,26 +39,8 @@
                 </Style>
             </Button.Style>
         </Button>
-        
+
         <ListBox ItemsSource="{Binding ImageList}" Grid.Row="1"
-             SelectedIndex="{Binding ImageItemSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" >
-            <ListBox.Resources>
-                <c:IsNullConverter x:Key="isNullConverter"/>
-            </ListBox.Resources>
-            <ListBox.ItemContainerStyle>
-                <Style TargetType="{x:Type ListBoxItem}">
-                    <Setter Property="Visibility" Value="Visible"/>
-                    <Style.Triggers>
-                        <MultiDataTrigger>
-                            <MultiDataTrigger.Conditions>
-                                <Condition Binding="{Binding DataContext.IsNoMapOnly, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:DrcsImageListPanel}}}" Value="True" />
-                                <Condition Binding="{Binding Image.MapStr, Converter={StaticResource isNullConverter}}" Value="False" />
-                            </MultiDataTrigger.Conditions>
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                        </MultiDataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </ListBox.ItemContainerStyle>
-        </ListBox>
+             SelectedIndex="{Binding ImageItemSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
     </Grid>
 </UserControl>

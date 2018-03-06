@@ -24,56 +24,62 @@
             <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
     </i:Interaction.Triggers>
-    
-    <StackPanel>
-        <GroupBox Header="EDCB用録画後実行バッチ">
-            <StackPanel Margin="5">
-                <DockPanel Margin="3">
-                    <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-                    <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding Model.MakeScriptData.SelectedProfile, Mode=TwoWay}" />
-                </DockPanel>
-                <DockPanel Margin="3">
-                    <TextBlock Text="出力先:" />
-                    <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver"
-                             Text="{Binding Model.MakeScriptData.OutDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                </DockPanel>
+
+    <ScrollViewer>
+        <StackPanel>
+            <GroupBox Header="EDCB用録画後実行バッチ">
+                <StackPanel Margin="5">
+                    <DockPanel Margin="3">
+                        <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right" 
+                                  ItemsSource="{Binding Model.PriorityList}" 
+                                  SelectedItem="{Binding Model.MakeScriptData.Priority, Mode=TwoWay}"/>
+                        <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                        <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding Model.MakeScriptData.SelectedProfile, Mode=TwoWay}" />
+                    </DockPanel>
+                    <DockPanel Margin="3">
+                        <TextBlock Text="出力先:" />
+                        <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver"
+                                 Text="{Binding Model.MakeScriptData.OutDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
+
+                    <GroupBox>
+                        <GroupBox.Header>
+                            <CheckBox Margin="3" Content="TSをNASにコピーしてそれをソース指定する" IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}" />
+                        </GroupBox.Header>
+                        <StackPanel IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}">
+                            <DockPanel Margin="3">
+                                <TextBlock Text="コピー先:" />
+                                <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}"
+                                 Text="{Binding Model.MakeScriptData.NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DockPanel>
+                            <CheckBox Margin="3" Content="コピーしたTSファイルをtransferedフォルダに移動する"
+                                      IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                      ToolTip="コピー元TSファイルをtransferedフォルダに移動します" />
+                            <CheckBox Margin="3" Content="コピーする際、コピー先のsucceededフォルダを空にする"
+                                      IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                      ToolTip="コピー先のエンコード済みTSファイルを削除します。" />
+                            <CheckBox Margin="3" Content="関連ファイルも一緒にコピー・移動する"
+                                      IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                      ToolTip="*.errや*.program.txtなども一緒にコピー・移動します" />
+                        </StackPanel>
+                    </GroupBox>
                 
-                <GroupBox>
-                    <GroupBox.Header>
-                        <CheckBox Margin="3" Content="TSをNASにコピーしてそれをソース指定する" IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}" />
-                    </GroupBox.Header>
-                    <StackPanel IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}">
-                        <DockPanel Margin="3">
-                            <TextBlock Text="コピー先:" />
-                            <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver" IsEnabled="{Binding Model.MakeScriptData.IsNasEnabled}"
-                             Text="{Binding Model.MakeScriptData.NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        </DockPanel>
-                        <CheckBox Margin="3" Content="コピーしたTSファイルをtransferedフォルダに移動する"
-                                  IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
-                                  ToolTip="コピー元TSファイルをtransferedフォルダに移動します" />
-                        <CheckBox Margin="3" Content="コピーする際、コピー先のsucceededフォルダを空にする"
-                                  IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
-                                  ToolTip="コピー先のエンコード済みTSファイルを削除します。" />
-                        <CheckBox Margin="3" Content="関連ファイルも一緒にコピー・移動する"
-                                  IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
-                                  ToolTip="*.errや*.program.txtなども一緒にコピー・移動します" />
-                    </StackPanel>
-                </GroupBox>
-                
-                <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" 
-                          IsChecked="{Binding Model.MakeScriptData.IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
-                <CheckBox Margin="3" Content="__EDCBX__DIRECT__" 
-                          IsChecked="{Binding Model.MakeScriptData.IsDirect, Mode=TwoWay}"/>
-                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="3" Foreground="Red"/>
-                <Button Margin="3" Height="25" Content="バッチファイル作成" Command="{Binding MakeBatchFileCommand}"/>
-            </StackPanel>
-        </GroupBox>
+                    <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" 
+                              IsChecked="{Binding Model.MakeScriptData.IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
+                    <CheckBox Margin="3" Content="__EDCBX__DIRECT__" 
+                              IsChecked="{Binding Model.MakeScriptData.IsDirect, Mode=TwoWay}"/>
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="3" Foreground="Red"/>
+                    <Button Margin="3" Height="25" Content="バッチファイル作成" Command="{Binding MakeBatchFileCommand}"/>
+                </StackPanel>
+            </GroupBox>
         
-        <GroupBox Header="Amatsukazeサーバ操作">
-            <StackPanel Margin="5">
-                <Button Content="Amatsukazeサーバを停止" Height="25" Margin="5" IsEnabled="{Binding IsRemoteClient}" Command="{Binding StopServerCommand}"/>
-                <TextBlock Text="ローカルPCのサーバのみ停止できます。" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </GroupBox>
-    </StackPanel>
+            <GroupBox Header="Amatsukazeサーバ操作">
+                <StackPanel Margin="5">
+                    <Button Content="Amatsukazeサーバを停止" Height="25" Margin="5" IsEnabled="{Binding IsRemoteClient}" Command="{Binding StopServerCommand}"/>
+                    <TextBlock Text="ローカルPCのサーバのみ停止できます。" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

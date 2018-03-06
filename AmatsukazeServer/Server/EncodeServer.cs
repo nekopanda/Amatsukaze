@@ -420,13 +420,7 @@ namespace Amatsukaze.Server
             public Process process;
         }
 
-        private class WorkerQueueItem
-        {
-            public QueueDirectory Dir;
-            public QueueItem Item;
-        }
-
-        private class TranscodeWorker : IScheduleWorker<WorkerQueueItem>
+        private class TranscodeWorker : IScheduleWorker<QueueItem>
         {
             public int id;
             public EncodeServer server;
@@ -861,12 +855,12 @@ namespace Amatsukaze.Server
                 }
             }
 
-            private async Task<bool> RunEncodeItem(WorkerQueueItem workerItem)
+            private async Task<bool> RunEncodeItem(QueueItem workerItem)
             {
                 try
                 {
                     var dir = workerItem.Dir;
-                    var src = workerItem.Item;
+                    var src = workerItem;
 
                     // キューじゃなかったらダメ
                     if (src.State != QueueState.Queue)
@@ -887,11 +881,11 @@ namespace Amatsukaze.Server
                     LogItem logItem = null;
                     bool result = true;
 
-                    server.UpdateQueueItem(src, dir, false);
+                    server.UpdateQueueItem(src, dir);
                     if (src.State == QueueState.Queue)
                     {
                         src.State = QueueState.Encoding;
-                        waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                        waitList.Add(server.NotifyQueueItemUpdate(src));
                         logItem = await ProcessItem(server, src, dir);
                     }
 
@@ -957,7 +951,7 @@ namespace Amatsukaze.Server
                         waitList.Add(server.client.OnLogUpdate(server.log.Items.Last()));
                     }
 
-                    waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                    waitList.Add(server.NotifyQueueItemUpdate(src));
                     waitList.Add(server.RequestFreeSpace());
 
                     await Task.WhenAll(waitList);
@@ -1050,12 +1044,12 @@ namespace Amatsukaze.Server
                 }
             }
 
-            private async Task<bool> RunSearchItem(WorkerQueueItem workerItem)
+            private async Task<bool> RunSearchItem(QueueItem workerItem)
             {
                 try
                 {
                     var dir = workerItem.Dir;
-                    var src = workerItem.Item;
+                    var src = workerItem;
 
                     // キューじゃなかったらダメ
                     if (src.State != QueueState.Queue)
@@ -1067,10 +1061,10 @@ namespace Amatsukaze.Server
                     waitList = new List<Task>();
 
                     src.State = QueueState.Encoding;
-                    waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                    waitList.Add(server.NotifyQueueItemUpdate(src));
                     bool result = await ProcessSearchItem(server, src);
                     src.State = result ? QueueState.Complete : QueueState.Failed;
-                    waitList.Add(server.NotifyQueueItemUpdate(src, dir));
+                    waitList.Add(server.NotifyQueueItemUpdate(src));
 
                     await Task.WhenAll(waitList);
 
@@ -1084,7 +1078,7 @@ namespace Amatsukaze.Server
                 }
             }
 
-            public Task<bool> RunItem(WorkerQueueItem workerItem)
+            public Task<bool> RunItem(QueueItem workerItem)
             {
                 if(workerItem.Dir.Mode == ProcMode.DrcsSearch)
                 {
@@ -1111,7 +1105,7 @@ namespace Amatsukaze.Server
 
         private Action finishRequested;
 
-        private EncodeScheduler<WorkerQueueItem> scheduler = null;
+        private EncodeScheduler<QueueItem> scheduler = null;
 
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private int nextDirId = 1;
@@ -1193,7 +1187,7 @@ namespace Amatsukaze.Server
             }
             ReadLog();
 
-            scheduler = new EncodeScheduler<WorkerQueueItem>() {
+            scheduler = new EncodeScheduler<QueueItem>() {
                 NewWorker = id => new TranscodeWorker() {
                     id = id,
                     server = this,
@@ -1224,19 +1218,19 @@ namespace Amatsukaze.Server
                         preventSuspend.Dispose();
                         preventSuspend = null;
                     }
-                    if (appData.setting.FinishAction != FinishAction.None)
-                    {
-                        // これは使えない
-                        // - サービスだとユーザ操作を検知できない
-                        // - なぜか常に操作があると認識されることがある
-                        //if (WinAPI.GetLastInputTime().Minutes >= 3)
-                        {
-                            var state = (appData.setting.FinishAction == FinishAction.Suspend)
-                                    ? System.Windows.Forms.PowerState.Suspend
-                                    : System.Windows.Forms.PowerState.Hibernate;
-                            System.Windows.Forms.Application.SetSuspendState(state, false, false);
-                        }
-                    }
+                    //if (appData.setting.FinishAction != FinishAction.None)
+                    //{
+                    //    // これは使えない
+                    //    // - サービスだとユーザ操作を検知できない
+                    //    // - なぜか常に操作があると認識されることがある
+                    //    //if (WinAPI.GetLastInputTime().Minutes >= 3)
+                    //    {
+                    //        var state = (appData.setting.FinishAction == FinishAction.Suspend)
+                    //                ? System.Windows.Forms.PowerState.Suspend
+                    //                : System.Windows.Forms.PowerState.Hibernate;
+                    //        System.Windows.Forms.Application.SetSuspendState(state, false, false);
+                    //    }
+                    //}
                     return task;
                 },
                 OnError = message => AddEncodeLog(message)
@@ -1827,11 +1821,11 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
-        private Task NotifyQueueItemUpdate(QueueItem item, QueueDirectory dir)
+        private Task NotifyQueueItemUpdate(QueueItem item)
         {
             return client.OnQueueUpdate(new QueueUpdate() {
                 Type = UpdateType.Update,
-                DirId = dir.Id,
+                DirId = item.Dir.Id,
                 Item = item
             });
         }
@@ -2058,7 +2052,7 @@ namespace Amatsukaze.Server
                     Items = new List<QueueItem>(),
                     DstPath = dstPath,
                     Mode = dir.Mode,
-                    Profile = ServerSupport.DeepCopy(profile)
+                    Profile = ServerSupport.DeepCopy(profile),
                 };
 
                 if (dir.IsBatch && profile.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
@@ -2145,7 +2139,9 @@ namespace Amatsukaze.Server
                                     ImageHeight = prog.Height,
                                     TsTime = tsTime,
                                     ServiceName = serviceName,
-                                    State = QueueState.LogoPending
+                                    State = QueueState.LogoPending,
+                                    Priority = dir.Priority,
+                                    Dir = target
                                 };
 
                                 Debug.Print("解析完了: " + additem.Path);
@@ -2176,7 +2172,7 @@ namespace Amatsukaze.Server
                                             Data = newElement
                                         }));
                                     }
-                                    UpdateQueueItem(item, target, true);
+                                    UpdateQueueItem(item, target);
                                     ++numFiles;
                                 }
 
@@ -2201,7 +2197,8 @@ namespace Amatsukaze.Server
                             TsTime = DateTime.MinValue,
                             ServiceName = "不明",
                             State = QueueState.PreFailed,
-                            FailReason = failReason
+                            FailReason = failReason,
+                            Dir = target
                         });
                     }
 
@@ -2253,7 +2250,7 @@ namespace Amatsukaze.Server
         // ペンディング <=> キュー 状態を切り替える
         // ペンディングからキューになったらスケジューリングに追加する
         // 戻り値: 状態が変わった
-        private bool UpdateQueueItem(QueueItem item, QueueDirectory dir, bool enqueue)
+        private bool UpdateQueueItem(QueueItem item, QueueDirectory dir)
         {
             if(item.State == QueueState.LogoPending || item.State == QueueState.Queue)
             {
@@ -2262,11 +2259,7 @@ namespace Amatsukaze.Server
                 {
                     item.FailReason = "";
                     item.State = QueueState.Queue;
-                    scheduler.QueueItem(new WorkerQueueItem()
-                    {
-                        Dir = dir,
-                        Item = item
-                    });
+                    scheduler.QueueItem(item, item.ActualPriority);
                 }
                 else
                 {
@@ -2295,21 +2288,9 @@ namespace Amatsukaze.Server
                             item.FailReason = "";
                             item.State = QueueState.Queue;
 
-                            var workerItem = new WorkerQueueItem()
-                            {
-                                Dir = dir,
-                                Item = item
-                            };
-                            if (enqueue)
-                            {
-                                scheduler.QueueItem(workerItem);
-                            }
-                            else
-                            {
-                                scheduler.StackItem(workerItem);
-                            }
+                            scheduler.QueueItem(item, item.Priority);
 
-                            if(appData.setting.SupressSleep)
+                            if (appData.setting.SupressSleep)
                             {
                                 // サスペンドを抑止
                                 if(preventSuspend == null)
@@ -2337,9 +2318,9 @@ namespace Amatsukaze.Server
                     {
                         continue;
                     }
-                    if(UpdateQueueItem(item, dir, false))
+                    if(UpdateQueueItem(item, dir))
                     {
-                        tasklist.Add(NotifyQueueItemUpdate(item, dir));
+                        tasklist.Add(NotifyQueueItemUpdate(item));
                     }
                 }
             }
@@ -3213,8 +3194,8 @@ namespace Amatsukaze.Server
         private Task ReEnqueueItem(QueueItem item, QueueDirectory dir)
         {
             item.State = QueueState.LogoPending;
-            UpdateQueueItem(item, dir, false);
-            return NotifyQueueItemUpdate(item, dir);
+            UpdateQueueItem(item, dir);
+            return NotifyQueueItemUpdate(item);
         }
 
         private static void MoveTSFile(string file, string dstDir, bool withEDCB)
@@ -3239,9 +3220,9 @@ namespace Amatsukaze.Server
             var target = all.FirstOrDefault(s => s.Id == data.ItemId);
             if(target != null)
             {
-                var dir = queue.First(d => d.Items.Contains(target));
+                var dir = target.Dir;
 
-                if(data.ChangeType == ChangeItemType.Retry)
+                if (data.ChangeType == ChangeItemType.Retry)
                 {
                     if(target.State == QueueState.Complete ||
                         target.State == QueueState.Failed ||
@@ -3268,8 +3249,14 @@ namespace Amatsukaze.Server
                     if(target.IsActive)
                     {
                         target.State = QueueState.Canceled;
-                        return NotifyQueueItemUpdate(target, dir);
+                        return NotifyQueueItemUpdate(target);
                     }
+                }
+                else if(data.ChangeType == ChangeItemType.Priority)
+                {
+                    target.Priority = data.Priority;
+                    scheduler.UpdatePriority(target, target.Priority);
+                    return NotifyQueueItemUpdate(target);
                 }
 
             }

@@ -15,7 +15,6 @@ using Amatsukaze.Models;
 using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using Amatsukaze.Server;
-using System.Windows.Data;
 
 namespace Amatsukaze.ViewModels
 {
@@ -122,14 +121,19 @@ namespace Amatsukaze.ViewModels
         public void ToggleNoMapOnly()
         {
             IsNoMapOnly = !IsNoMapOnly;
+            imagesView.Refresh();
         }
         #endregion
 
-        private List<CollectionChangedEventListener> consoleTextListener = new List<CollectionChangedEventListener>();
+        private List<CollectionChangedEventListener> imagesListener = new List<CollectionChangedEventListener>();
+        private ICollectionView imagesView;
 
         public void Initialize()
         {
-            consoleTextListener.Add(new CollectionChangedEventListener(Model.DrcsImageList, (o, e) => {
+            imagesView = System.Windows.Data.CollectionViewSource.GetDefaultView(_ImageList);
+            imagesView.Filter = x => IsNoMapOnly == false || string.IsNullOrEmpty(((DrcsImageViewModel)x).MapStr);
+
+            imagesListener.Add(new CollectionChangedEventListener(Model.DrcsImageList, (o, e) => {
                 switch (e.Action)
                 {
                     case NotifyCollectionChangedAction.Add:
@@ -155,13 +159,8 @@ namespace Amatsukaze.ViewModels
                         }
                         break;
                 }
+                imagesView.Refresh();
             }));
         }
-
-        private void _UnmappedImageList_Filter(object sender, FilterEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-        
     }
 }

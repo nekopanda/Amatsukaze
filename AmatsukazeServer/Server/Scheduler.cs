@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Priority_Queue;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,8 +35,7 @@ namespace Amatsukaze.Server
 
         public IEnumerable<IScheduleWorker<ITEM>> Workers { get { return workers.Select(w => w.TargetWorker); } }
 
-        private Stack<ITEM> stack = new Stack<ITEM>();
-        private Queue<ITEM> queue = new Queue<ITEM>();
+        private SimplePriorityQueue<ITEM> queue = new SimplePriorityQueue<ITEM>();
 
         private int numParallel;
         private bool isPause;
@@ -66,11 +66,7 @@ namespace Amatsukaze.Server
                     while (id < numActive)
                     {
                         ITEM item;
-                        if(stack.Count > 0)
-                        {
-                            item = stack.Pop();
-                        }
-                        else if(queue.Count > 0)
+                        if(queue.Count > 0)
                         {
                             item = queue.Dequeue();
                         }
@@ -159,22 +155,18 @@ namespace Amatsukaze.Server
             }
         }
 
-        public void StackItem(ITEM item)
+        public void QueueItem(ITEM item, float priority)
         {
-            stack.Push(item);
-            foreach(var w in parking)
+            queue.Enqueue(item, priority);
+            foreach (var w in parking)
             {
                 w.NotifyQ.Post(0);
             }
         }
 
-        public void QueueItem(ITEM item)
+        public void UpdatePriority(ITEM item, float priority)
         {
-            queue.Enqueue(item);
-            foreach (var w in parking)
-            {
-                w.NotifyQ.Post(0);
-            }
+            queue.TryUpdatePriority(item, priority);
         }
 
         // タスクを待たずに終了させる

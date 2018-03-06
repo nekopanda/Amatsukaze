@@ -46,7 +46,6 @@
                     <TextBlock HorizontalAlignment="Right" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコード後動作" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
@@ -71,9 +70,6 @@
                               IsChecked="{Binding Model.Setting.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="エンコード中はスリープしないようにする" 
                               IsChecked="{Binding Model.Setting.SupressSleep, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <ComboBox Margin="0,3" Width="120" HorizontalAlignment="Left"
-                              ItemsSource="{Binding Model.Setting.FinishActionString}"
-                              SelectedIndex="{Binding Model.Setting.FinishActionInt, Mode=TwoWay}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="0">

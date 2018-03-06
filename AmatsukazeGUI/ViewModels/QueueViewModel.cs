@@ -123,6 +123,9 @@ namespace Amatsukaze.ViewModels
 
             foreach (var item in dirList.Values)
             {
+                // デフォルト優先順は3
+                item.Priority = 3;
+
                 // 出力先フォルダ選択
                 var selectPathVM = new SelectOutPathViewModel() {
                     Model = Model, Item = item

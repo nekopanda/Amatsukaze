@@ -56,6 +56,9 @@
     
     <Grid>
         <Grid.Resources>
+            <DataTemplate DataType="{x:Type vm:TestViewModel}">
+                <v:TestPanel />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:MakeScriptViewModel}">
                 <v:MakeScriptPanel />
             </DataTemplate>

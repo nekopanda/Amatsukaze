@@ -89,10 +89,18 @@
             </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock>
-                        <Run Text="{Binding TsTimeString, Mode=OneWay}" /> <Run Text="{Binding Model.ServiceName, Mode=OneWay}" />(<Run Text="{Binding Model.ServiceId, Mode=OneWay}" />): <Run Text="{Binding Model.FileName, Mode=OneWay}" />
-                            <LineBreak />状態: <Run Text="{Binding StateString, Mode=OneWay}" /> <Run Text="{Binding Model.FailReason, Mode=OneWay}" />
-                    </TextBlock>
+                    <DockPanel>
+                        <DockPanel Width="100" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                            <TextBlock DockPanel.Dock="Top"><Run Text="{Binding TsTimeString, Mode=OneWay}" /></TextBlock>
+                            <TextBlock Text="{Binding ServiceString, Mode=OneWay}"/>
+                        </DockPanel>
+                        <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
+                                ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type ListBox}}, Path=DataContext.Model.PriorityList}"
+                                SelectedItem="{Binding Priority, Mode=TwoWay}"/>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0" Text="{Binding Model.FileName, Mode=OneWay}" ToolTip="{Binding Model.FileName, Mode=OneWay}"/>
+                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /> <Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
+                    </DockPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
             <ListBox.ContextMenu>

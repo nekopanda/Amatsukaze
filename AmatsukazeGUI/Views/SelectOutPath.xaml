@@ -42,6 +42,10 @@
     <StackPanel Margin="5">
         <TextBlock Margin="2" Text="{Binding InputInfoText, Mode=OneWay}" TextWrapping="Wrap" />
         <DockPanel>
+            <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right" 
+                              ItemsSource="{Binding Model.PriorityList}" 
+                              SelectedItem="{Binding Item.Priority, Mode=TwoWay}"/>
+            <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
             <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
             <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" />
         </DockPanel>

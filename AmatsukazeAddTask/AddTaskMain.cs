@@ -18,6 +18,7 @@ namespace Amatsukaze.AddTask
         public string FilePath;
         public string OutPath;
         public string Profile;
+        public int Priority = 3;
 
         public string NasDir;
         public bool NoMove;
@@ -34,6 +35,7 @@ namespace Amatsukaze.AddTask
                 "オプション\r\n" +
                 "  -f|--file <パス>        入力ファイルパス\t\n" +
                 "  -s|--setting <プロファイル名> エンコード設定プロファイル\t\n" +
+                "  --priority <優先度>     優先度\t\n" +
                 "  -ip|--ip <IPアドレス>   AmatsukazeServerアドレス\t\n" +
                 "  -p|--port <ボート番号>  AmatsukazeServerポート番号\t\n" +
                 "  -o|--outdir <パス>      出力先ディレクトリ\t\n" +
@@ -69,6 +71,11 @@ namespace Amatsukaze.AddTask
                 else if (arg == "-s" || arg == "--setting")
                 {
                     Profile = args[i + 1];
+                    ++i;
+                }
+                else if (arg == "--priority")
+                {
+                    Priority = int.Parse(args[i + 1]);
                     ++i;
                 }
                 else if (arg == "-o" || arg == "--outdir")
@@ -243,6 +250,7 @@ namespace Amatsukaze.AddTask
                 DirPath = Path.GetDirectoryName(srcpath),
                 DstPath = option.OutPath,
                 Profile = option.Profile,
+                Priority = option.Priority,
                 Targets = new List<AddQueueItem>() {
                     new AddQueueItem() { Path = srcpath, Hash = hash }
                 },

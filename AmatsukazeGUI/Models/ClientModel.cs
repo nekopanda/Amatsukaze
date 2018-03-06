@@ -115,6 +115,8 @@ namespace Amatsukaze.Models
 
         public byte[] MacAddress { get { return serverInfo.MacAddress; } }
 
+        public int[] PriorityList { get { return new int[]{ 1, 2, 3, 4, 5 }; } }
+
         #region ServerHostName変更通知プロパティ
         private string _ServerHostName;
 
@@ -747,6 +749,10 @@ namespace Amatsukaze.Models
                         s => s.Model.Name == data.MakeScriptData.Profile),
                     Model = data.MakeScriptData
                 };
+                if(MakeScriptData.Priority == 0)
+                {
+                    MakeScriptData.Priority = 3;
+                }
             }
             if(data.JlsCommandFiles != null)
             {
@@ -844,7 +850,7 @@ namespace Amatsukaze.Models
             QueueItems.Clear();
             foreach (var item in data.Items)
             {
-                QueueItems.Add(new DisplayQueueDirectory(item));
+                QueueItems.Add(new DisplayQueueDirectory(item, this));
             }
             return Task.FromResult(0);
         }
@@ -856,7 +862,7 @@ namespace Amatsukaze.Models
                 // ディレクトリに対する操作
                 if (update.Type == UpdateType.Add)
                 {
-                    QueueItems.Add(new DisplayQueueDirectory(update.Directory));
+                    QueueItems.Add(new DisplayQueueDirectory(update.Directory, this));
                 }
                 else
                 {
@@ -869,7 +875,7 @@ namespace Amatsukaze.Models
                         }
                         else
                         {
-                            QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory);
+                            QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory, this);
                         }
                     }
                 }
@@ -882,7 +888,7 @@ namespace Amatsukaze.Models
                 {
                     if (update.Type == UpdateType.Add)
                     {
-                        dir.Items.Add(new DisplayQueueItem() { Model = update.Item });
+                        dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
                     }
                     else
                     {
@@ -897,6 +903,7 @@ namespace Amatsukaze.Models
                             {
                                 var index = dir.Items.IndexOf(file);
                                 dir.Items[index] = new DisplayQueueItem() {
+                                    Parent = this,
                                     Model = update.Item,
                                     IsSelected = dir.Items[index].IsSelected
                                 };

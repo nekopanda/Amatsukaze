@@ -4,8 +4,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:LogFileViewModel}}">
-    <TextBox TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True" VerticalScrollBarVisibility="Auto"/>
+    <Border BorderBrush="DarkGray" BorderThickness="1">
+        <WebBrowser c:BrowserBehavior.Html="{Binding Model.CurrentLogFile}" />
+    </Border>
+    <!--<TextBox TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True" VerticalScrollBarVisibility="Auto"/>-->
 </UserControl>

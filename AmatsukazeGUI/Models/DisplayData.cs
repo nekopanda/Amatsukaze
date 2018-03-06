@@ -85,19 +85,21 @@ namespace Amatsukaze.Models
             return "不明モード";
         }
 
-        public DisplayQueueDirectory(QueueDirectory dir)
+        public DisplayQueueDirectory(QueueDirectory dir, ClientModel Parent)
         {
             Id = dir.Id;
             Path = dir.DirPath;
             ModeString = ModeToString(dir.Mode);
             Profile = dir.Profile.Name;
             Items = new ObservableCollection<DisplayQueueItem>(
-                dir.Items.Select(s => new DisplayQueueItem() { Model = s }));
+                dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s }));
         }
     }
 
     public class DisplayQueueItem : NotificationObject
     {
+        public ClientModel Parent { get; set; }
+
         public QueueItem Model { get; set; }
 
         public bool IsSelected { get; set; }
@@ -110,6 +112,7 @@ namespace Amatsukaze.Models
         public bool IsCanceled { get { return Model.State == QueueState.Canceled; } }
         public bool IsTooSmall { get { return IsPreFailed && Model.FailReason.Contains("映像が小さすぎます"); } }
         public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
+        public string ServiceString { get { return Model.ServiceName + "(" + Model.ServiceId + ")"; } }
 
         public string StateString {
             get {
@@ -126,6 +129,19 @@ namespace Amatsukaze.Models
                 return "不明";
             }
         }
+
+        #region Priority変更通知プロパティ
+        public int Priority {
+            get { return Model.Priority; }
+            set { 
+                if (Model.Priority == value)
+                    return;
+                Model.Priority = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 
     public class DisplayProfile : NotificationObject
@@ -1158,6 +1174,18 @@ namespace Amatsukaze.Models
                 if (Model.IsDirect == value)
                     return;
                 Model.IsDirect = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Priority変更通知プロパティ
+        public int Priority {
+            get { return Model.Priority; }
+            set { 
+                if (Model.Priority == value)
+                    return;
+                Model.Priority = value;
                 RaisePropertyChanged();
             }
         }
