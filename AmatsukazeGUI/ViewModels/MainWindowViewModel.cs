@@ -206,7 +206,6 @@ namespace Amatsukaze.ViewModels
         public MainWindowViewModel()
         {
             Model = new ClientModel();
-            MainPanelMenu.Add(new TestViewModel() { Name = "テスト" });
             MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
             MainPanelMenu.Add(new ProfileSettingViewModel() { Name = "エンコード設定", Model = Model });

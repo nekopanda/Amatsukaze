@@ -76,6 +76,7 @@
   <ItemGroup>
     <Compile Include="Components\BrowserBehavior.cs" />
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
+    <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Models\DisplayData.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
@@ -95,7 +96,6 @@
     <Compile Include="ViewModels\SettingViewModel.cs" />
     <Compile Include="ViewModels\SummaryItemViewModel.cs" />
     <Compile Include="ViewModels\SummaryViewModel.cs" />
-    <Compile Include="ViewModels\TestViewModel.cs" />
     <Compile Include="Views\ClientLogPanel.xaml.cs">
       <DependentUpon>ClientLogPanel.xaml</DependentUpon>
     </Compile>
@@ -149,9 +149,6 @@
     </Compile>
     <Compile Include="Views\SummaryPanel.xaml.cs">
       <DependentUpon>SummaryPanel.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\TestPanel.xaml.cs">
-      <DependentUpon>TestPanel.xaml</DependentUpon>
     </Compile>
     <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -270,10 +267,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SummaryPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\TestPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
