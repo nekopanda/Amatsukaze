@@ -58,7 +58,13 @@ namespace Amatsukaze.Server
         [DataMember]
         public EncoderType EncoderType { get; set; }
         [DataMember]
-        public string EncoderOption { get; set; }
+        public string X264Option { get; set; }
+        [DataMember]
+        public string X265Option { get; set; }
+        [DataMember]
+        public string QSVEncOption { get; set; }
+        [DataMember]
+        public string NVEncOption { get; set; }
 
         [DataMember]
         public DecoderType Mpeg2Decoder { get; set; }

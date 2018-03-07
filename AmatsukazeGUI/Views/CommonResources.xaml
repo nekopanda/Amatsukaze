@@ -82,7 +82,7 @@
             </Grid.ColumnDefinitions>
             <Popup x:Name="PART_Popup" AllowsTransparency="True" Grid.ColumnSpan="2" 
                        IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
-                       Margin="1" PopupAnimation="Fade" Placement="Bottom"
+                       Margin="1" PopupAnimation="None" Placement="Bottom"
                        MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
                 <Border x:Name="DropDownBorder"
                             BorderBrush="Gray" 
@@ -90,12 +90,12 @@
                             Background="White">
                     <ScrollViewer x:Name="DropDownScrollViewer">
                         <Grid x:Name="grid" RenderOptions.ClearTypeHint="Enabled">
-                            <!--<Canvas x:Name="canvas" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0">
-                                    <Rectangle x:Name="OpaqueRect"
-                                               Fill="{Binding Background, ElementName=DropDownBorder}" 
-                                               Height="{Binding ActualHeight, ElementName=DropDownBorder}" 
-                                               Width="{Binding ActualWidth, ElementName=DropDownBorder}"/>
-                                </Canvas>-->
+                            <Canvas x:Name="canvas" HorizontalAlignment="Left" Height="0" VerticalAlignment="Top" Width="0">
+                                <Rectangle x:Name="OpaqueRect"
+                                            Fill="{Binding Background, ElementName=DropDownBorder}" 
+                                            Height="{Binding ActualHeight, ElementName=DropDownBorder}" 
+                                            Width="{Binding ActualWidth, ElementName=DropDownBorder}"/>
+                            </Canvas>
                             <ItemsPresenter x:Name="ItemsPresenter" 
                                                 KeyboardNavigation.DirectionalNavigation="Contained"
                                                 SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
@@ -260,10 +260,10 @@
                 </MultiTrigger.Conditions>
                 <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
             </MultiTrigger>
-            <!--<Trigger Property="CanContentScroll" SourceName="DropDownScrollViewer" Value="False">
-                    <Setter Property="Canvas.Top" TargetName="OpaqueRect" Value="{Binding VerticalOffset, ElementName=DropDownScrollViewer}"/>
-                    <Setter Property="Canvas.Left" TargetName="OpaqueRect" Value="{Binding HorizontalOffset, ElementName=DropDownScrollViewer}"/>
-                </Trigger>-->
+            <Trigger Property="CanContentScroll" SourceName="DropDownScrollViewer" Value="False">
+                <Setter Property="Canvas.Top" TargetName="OpaqueRect" Value="{Binding VerticalOffset, ElementName=DropDownScrollViewer}"/>
+                <Setter Property="Canvas.Left" TargetName="OpaqueRect" Value="{Binding HorizontalOffset, ElementName=DropDownScrollViewer}"/>
+            </Trigger>
         </ControlTemplate.Triggers>
     </ControlTemplate>
 

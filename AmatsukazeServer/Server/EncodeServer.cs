@@ -1610,6 +1610,26 @@ namespace Amatsukaze.Server
             }
         }
 
+        private string GetEncoderOption(ProfileSetting profile)
+        {
+            if (profile.EncoderType == EncoderType.x264)
+            {
+                return profile.X264Option;
+            }
+            else if (profile.EncoderType == EncoderType.x265)
+            {
+                return profile.X265Option;
+            }
+            else if (profile.EncoderType == EncoderType.QSVEnc)
+            {
+                return profile.QSVEncOption;
+            }
+            else
+            {
+                return profile.NVEncOption;
+            }
+        }
+
         private string GetEncoderName(EncoderType encoderType)
         {
             if (encoderType == EncoderType.x264)
@@ -1706,10 +1726,11 @@ namespace Amatsukaze.Server
                     .Append("\"");
             }
 
-            if (string.IsNullOrEmpty(profile.EncoderOption) == false)
+            var encoderOption = GetEncoderOption(profile);
+            if (string.IsNullOrEmpty(encoderOption) == false)
             {
                 sb.Append(" -eo \"")
-                    .Append(profile.EncoderOption)
+                    .Append(encoderOption)
                     .Append("\"");
             }
 
@@ -2921,6 +2942,8 @@ namespace Amatsukaze.Server
         {
             try
             {
+                var message = "プロファイル「"+ data.Profile.Name + "」が見つかりません";
+
                 // 面倒だからAddもUpdateも同じ
                 var profilepath = GetProfileDirectoryPath();
                 var filepath = GetProfilePath(profilepath, data.Profile.Name);
@@ -2933,10 +2956,12 @@ namespace Amatsukaze.Server
                     if (profiles.ContainsKey(data.Profile.Name))
                     {
                         profiles[data.Profile.Name] = data.Profile;
+                        message = "プロファイル「" + data.Profile.Name + "」を更新しました";
                     }
                     else
                     {
                         profiles.Add(data.Profile.Name, data.Profile);
+                        message = "プロファイル「" + data.Profile.Name + "」を追加しました";
                     }
                 }
                 else
@@ -2945,11 +2970,12 @@ namespace Amatsukaze.Server
                     {
                         File.Delete(filepath);
                         profiles.Remove(data.Profile.Name);
+                        message = "プロファイル「" + data.Profile.Name + "」を削除しました";
                     }
                 }
                 return Task.WhenAll(
                     client.OnProfile(data),
-                    AddEncodeLog("プロファイルを更新しました"));
+                    AddEncodeLog(message));
             }
             catch (Exception e)
             {

@@ -185,11 +185,42 @@ namespace Amatsukaze.Models
 
         #region EncoderOption変更通知プロパティ
         public string EncoderOption {
-            get { return Model.EncoderOption; }
+            get {
+                switch (Model.EncoderType)
+                {
+                    case EncoderType.x264: return Model.X264Option;
+                    case EncoderType.x265: return Model.X265Option;
+                    case EncoderType.QSVEnc: return Model.QSVEncOption;
+                    case EncoderType.NVEnc: return Model.NVEncOption;
+                }
+                return null;
+            }
             set {
-                if (Model.EncoderOption == value)
-                    return;
-                Model.EncoderOption = value;
+                switch (Model.EncoderType)
+                {
+                    case EncoderType.x264:
+                        if (Model.X264Option == value)
+                            return;
+                        Model.X264Option = value;
+                        break;
+                    case EncoderType.x265:
+                        if (Model.X265Option == value)
+                            return;
+                        Model.X265Option = value;
+                        break;
+                    case EncoderType.QSVEnc:
+                        if (Model.QSVEncOption == value)
+                            return;
+                        Model.QSVEncOption = value;
+                        break;
+                    case EncoderType.NVEnc:
+                        if (Model.NVEncOption == value)
+                            return;
+                        Model.NVEncOption = value;
+                        break;
+                    default:
+                        return;
+                }
                 RaisePropertyChanged();
             }
         }
@@ -636,6 +667,19 @@ namespace Amatsukaze.Models
                 sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
             }
             SettingWarningText = sb.ToString();
+        }
+
+        public void SetEncoderOptions(string X264Option, string X265Option, string QSVEncOption, string NVEncOption)
+        {
+            if(X264Option != Model.X264Option || X265Option != Model.X265Option ||
+                QSVEncOption != Model.QSVEncOption || NVEncOption != Model.NVEncOption)
+            {
+                Model.X264Option = X264Option;
+                Model.X265Option = X265Option;
+                Model.QSVEncOption = QSVEncOption;
+                Model.NVEncOption = NVEncOption;
+                RaisePropertyChanged("EncoderOption");
+            }
         }
 
         private void UpdateBitrate()

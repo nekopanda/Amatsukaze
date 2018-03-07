@@ -1051,7 +1051,9 @@ namespace Amatsukaze.Models
                     ProfileList.Add(profile);
                 }
 
-                profile.EncoderOption = data.Profile.EncoderOption;
+                profile.SetEncoderOptions(
+                    data.Profile.X264Option, data.Profile.X265Option,
+                    data.Profile.QSVEncOption, data.Profile.NVEncOption);
                 profile.EncoderTypeInt = (int)data.Profile.EncoderType;
                 profile.FilterPath = data.Profile.FilterPath;
                 profile.PostFilterPath = data.Profile.PostFilterPath;
