@@ -461,116 +461,116 @@ namespace Amatsukaze.Server
 
     public class ServerAdapter : IEncodeServer
     {
-        private IEncodeServer server;
+        public EncodeServer Server { get; private set; }
 
         private static T Copy<T>(T obj)
         {
             return (T)RPCTypes.Deserialize(typeof(T), RPCTypes.Serialize(typeof(T), obj));
         }
 
-        public ServerAdapter(IEncodeServer server)
+        public ServerAdapter(EncodeServer server)
         {
-            this.server = server;
+            this.Server = server;
         }
 
         public Task AddDrcsMap(DrcsImage drcsMap)
         {
-            return server.AddDrcsMap(Copy(drcsMap));
+            return Server.AddDrcsMap(Copy(drcsMap));
         }
 
         public Task AddQueue(AddQueueDirectory dir)
         {
-            return server.AddQueue(Copy(dir));
+            return Server.AddQueue(Copy(dir));
         }
 
         public Task ChangeItem(ChangeItemData data)
         {
-            return server.ChangeItem(Copy(data));
+            return Server.ChangeItem(Copy(data));
         }
 
         public Task EndServer()
         {
-            return server.EndServer();
+            return Server.EndServer();
         }
 
         public void Finish()
         {
-            server.Finish();
+            Server.Finish();
         }
 
         public Task PauseEncode(bool pause)
         {
-            return server.PauseEncode(Copy(pause));
+            return Server.PauseEncode(Copy(pause));
         }
 
         public Task RemoveQueue(int id)
         {
-            return server.RemoveQueue(Copy(id));
+            return Server.RemoveQueue(Copy(id));
         }
 
         public Task RequestConsole()
         {
-            return server.RequestConsole();
+            return Server.RequestConsole();
         }
 
         public Task RequestDrcsImages()
         {
-            return server.RequestDrcsImages();
+            return Server.RequestDrcsImages();
         }
 
         public Task RequestFreeSpace()
         {
-            return server.RequestFreeSpace();
+            return Server.RequestFreeSpace();
         }
 
         public Task RequestLog()
         {
-            return server.RequestLog();
+            return Server.RequestLog();
         }
 
         public Task RequestLogFile(LogItem item)
         {
-            return server.RequestLogFile(Copy(item));
+            return Server.RequestLogFile(Copy(item));
         }
 
         public Task RequestLogoData(string fileName)
         {
-            return server.RequestLogoData(Copy(fileName));
+            return Server.RequestLogoData(Copy(fileName));
         }
 
         public Task RequestQueue()
         {
-            return server.RequestQueue();
+            return Server.RequestQueue();
         }
 
         public Task RequestServiceSetting()
         {
-            return server.RequestServiceSetting();
+            return Server.RequestServiceSetting();
         }
 
         public Task RequestSetting()
         {
-            return server.RequestSetting();
+            return Server.RequestSetting();
         }
 
         public Task RequestState()
         {
-            return server.RequestState();
+            return Server.RequestState();
         }
 
         public Task SetProfile(ProfileUpdate data)
         {
-            return server.SetProfile(Copy(data));
+            return Server.SetProfile(Copy(data));
         }
 
         public Task SetServiceSetting(ServiceSettingUpdate update)
         {
-            return server.SetServiceSetting(Copy(update));
+            return Server.SetServiceSetting(Copy(update));
         }
 
         public Task SetCommonData(CommonData data)
         {
-            return server.SetCommonData(Copy(data));
+            return Server.SetCommonData(Copy(data));
         }
     }
 }

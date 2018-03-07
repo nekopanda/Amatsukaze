@@ -348,7 +348,7 @@ namespace Amatsukaze.Server
 
         public float ActualPriority {
             get {
-                return 10 - Priority;
+                return - Priority;
             }
         }
     }

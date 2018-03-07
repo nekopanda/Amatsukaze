@@ -157,7 +157,8 @@ namespace Amatsukaze.Server
 
         public void QueueItem(ITEM item, float priority)
         {
-            queue.Enqueue(item, priority);
+            if (priority > 0) throw new Exception("エラー");
+            queue.Enqueue(item, priority + 10);
             foreach (var w in parking)
             {
                 w.NotifyQ.Post(0);
@@ -166,7 +167,8 @@ namespace Amatsukaze.Server
 
         public void UpdatePriority(ITEM item, float priority)
         {
-            queue.TryUpdatePriority(item, priority);
+            if (priority > 0) throw new Exception("エラー");
+            queue.TryUpdatePriority(item, priority + 10);
         }
 
         // タスクを待たずに終了させる

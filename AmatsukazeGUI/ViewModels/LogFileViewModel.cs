@@ -61,8 +61,30 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; set; }
 
+        #region ServerHostName変更通知プロパティ
+        private bool _IsLargeFile;
+
+        public bool IsLargeFile
+        {
+            get { return _IsLargeFile; }
+            set
+            {
+                if (_IsLargeFile == value)
+                    return;
+                _IsLargeFile = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        private PropertyChangedEventListener listener;
+
         public void Initialize()
         {
+            listener = new PropertyChangedEventListener(Model);
+            listener.Add(() => Model.CurrentLogFile, (_, __) => {
+                IsLargeFile = (Model.CurrentLogFile?.Length ?? 0) > 100 * 1000;
+            });
         }
 
     }

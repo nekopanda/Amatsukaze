@@ -2288,7 +2288,7 @@ namespace Amatsukaze.Server
                             item.FailReason = "";
                             item.State = QueueState.Queue;
 
-                            scheduler.QueueItem(item, item.Priority);
+                            scheduler.QueueItem(item, item.ActualPriority);
 
                             if (appData.setting.SupressSleep)
                             {
@@ -3255,7 +3255,7 @@ namespace Amatsukaze.Server
                 else if(data.ChangeType == ChangeItemType.Priority)
                 {
                     target.Priority = data.Priority;
-                    scheduler.UpdatePriority(target, target.Priority);
+                    scheduler.UpdatePriority(target, target.ActualPriority);
                     return NotifyQueueItemUpdate(target);
                 }
 

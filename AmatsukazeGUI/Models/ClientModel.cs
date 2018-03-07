@@ -436,9 +436,9 @@ namespace Amatsukaze.Models
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
                     requestLogoQ.Complete();
 
-                    if (Server is EncodeServer)
+                    if (Server is ServerAdapter)
                     {
-                        (Server as EncodeServer).Dispose();
+                        (Server as ServerAdapter).Server.Dispose();
                     }
                 }
 

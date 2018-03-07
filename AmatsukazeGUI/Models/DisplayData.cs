@@ -137,6 +137,12 @@ namespace Amatsukaze.Models
                 if (Model.Priority == value)
                     return;
                 Model.Priority = value;
+                Parent.Server.ChangeItem(new ChangeItemData()
+                {
+                    ChangeType = ChangeItemType.Priority,
+                    ItemId = Model.Id,
+                    Priority = value
+                });
                 RaisePropertyChanged();
             }
         }
