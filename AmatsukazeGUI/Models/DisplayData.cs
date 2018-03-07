@@ -69,6 +69,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region LastUpdate変更通知プロパティ
+        private string _LastUpdate;
+
+        public string LastUpdate {
+            get { return _LastUpdate; }
+            set { 
+                if (_LastUpdate == value)
+                    return;
+                _LastUpdate = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         private static string ModeToString(ProcMode mode)
         {
             switch (mode)
@@ -91,6 +105,7 @@ namespace Amatsukaze.Models
             Path = dir.DirPath;
             ModeString = ModeToString(dir.Mode);
             Profile = dir.Profile.Name;
+            LastUpdate = dir.Profile.LastUpdate.ToString("yyyy/MM/dd HH:mm:ss");
             Items = new ObservableCollection<DisplayQueueItem>(
                 dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s }));
         }
@@ -1052,23 +1067,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region FinishActionInt変更通知プロパティ
-        public int FinishActionInt {
-            get { return (int)Model.FinishAction; }
-            set { 
-                if (Model.FinishAction == (FinishAction)value)
-                    return;
-                Model.FinishAction = (FinishAction)value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        public string[] FinishActionString {
-            get {
-                return new string[] { "何もしない", "スリープ", "休止" };
-            }
-        }
     }
 
     public class DisplayMakeScriptData : NotificationObject

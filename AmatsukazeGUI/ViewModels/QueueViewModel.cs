@@ -350,6 +350,33 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region ReAddCommand
+        private ViewModelCommand _ReAddCommand;
+
+        public ViewModelCommand ReAddCommand {
+            get {
+                if (_ReAddCommand == null)
+                {
+                    _ReAddCommand = new ViewModelCommand(ReAdd);
+                }
+                return _ReAddCommand;
+            }
+        }
+
+        public void ReAdd()
+        {
+            foreach (var item in SelectedQueueFiles.ToArray())
+            {
+                var file = item.Model;
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.ReAdd
+                });
+            }
+        }
+        #endregion
+
         #region CancelCommand
         private ViewModelCommand _CancelCommand;
 

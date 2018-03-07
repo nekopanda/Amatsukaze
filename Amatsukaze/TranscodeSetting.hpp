@@ -141,7 +141,10 @@ static std::string makeEncoderArgs(
 		sb.append(fmt.progressive ? "" : " --tff");
 		break;
 	case ENCODER_X265:
-		sb.append(fmt.progressive ? " --no-interlace" : " --interlace tff");
+		//sb.append(fmt.progressive ? " --no-interlace" : " --interlace tff");
+		if (fmt.progressive == false) {
+			THROW(ArgumentException, "HEVCのインターレース出力には対応していません");
+		}
 		break;
 	}
 

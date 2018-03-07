@@ -77,6 +77,7 @@
     <Compile Include="Components\BrowserBehavior.cs" />
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Components\MultiStyleExtension .cs" />
+    <Compile Include="Components\TaskbarInfoBehavior.cs" />
     <Compile Include="Models\DisplayData.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />

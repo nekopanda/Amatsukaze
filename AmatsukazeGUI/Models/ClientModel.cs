@@ -16,6 +16,7 @@ using Livet.Commands;
 using System.Windows;
 using System.ComponentModel;
 using System.Net;
+using System.Windows.Shell;
 
 namespace Amatsukaze.Models
 {
@@ -414,6 +415,34 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ProgressState変更通知プロパティ
+        private TaskbarItemProgressState _ProgressState;
+
+        public TaskbarItemProgressState ProgressState {
+            get { return _ProgressState; }
+            set { 
+                if (_ProgressState == value)
+                    return;
+                _ProgressState = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ProgressValue変更通知プロパティ
+        private double _ProgressValue;
+
+        public double ProgressValue {
+            get { return _ProgressValue; }
+            set { 
+                if (_ProgressValue == value)
+                    return;
+                _ProgressValue = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public ClientModel()
         {
             Util.LogHandlers.Add(AddLog);
@@ -740,6 +769,12 @@ namespace Amatsukaze.Models
             if(data.Setting != null)
             {
                 Setting = new DisplaySetting() { Model = data.Setting };
+
+                if (SelectedProfile == null)
+                {
+                    SelectedProfile = ProfileList.FirstOrDefault(
+                        p => p.Model.Name == Setting.Model.LastSelectedProfile);
+                }
             }
             if(data.MakeScriptData != null)
             {
@@ -789,6 +824,8 @@ namespace Amatsukaze.Models
             {
                 IsPaused = data.State.Pause;
                 IsRunning = data.State.Running;
+                ProgressState = IsRunning ? TaskbarItemProgressState.Normal : TaskbarItemProgressState.None;
+                ProgressValue = data.State.Progress;
             }
             return Task.FromResult(0);
         }
@@ -1047,7 +1084,8 @@ namespace Amatsukaze.Models
 
                 profile.IsModified = false;
 
-                if(SelectedProfile == null)
+                if(SelectedProfile == null && Setting.Model != null &&
+                    profile.Model.Name == Setting.Model.LastSelectedProfile)
                 {
                     SelectedProfile = profile;
                 }

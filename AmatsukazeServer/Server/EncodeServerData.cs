@@ -178,8 +178,9 @@ namespace Amatsukaze.Server
         public bool HideOneSeg { get; set; }
         [DataMember]
         public bool SupressSleep { get; set; }
+
         [DataMember]
-        public FinishAction FinishAction { get; set; }
+        public string LastSelectedProfile { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -405,7 +406,7 @@ namespace Amatsukaze.Server
 
     public enum ChangeItemType
     {
-        Retry, Cancel, Priority
+        Retry, ReAdd, Cancel, Priority
     }
 
     [DataContract]
@@ -708,6 +709,8 @@ namespace Amatsukaze.Server
         public bool Pause { get; set; }
         [DataMember]
         public bool Running { get; set; }
+        [DataMember]
+        public double Progress { get; set; }
     }
 
     [DataContract]

@@ -1166,6 +1166,20 @@ namespace Amatsukaze.Server
         }
         #endregion
 
+        #region Progress変更通知プロパティ
+        private double _Progress;
+
+        public double Progress {
+            get { return _Progress; }
+            set { 
+                if (_Progress == value)
+                    return;
+                _Progress = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public ClientManager ClientManager {
             get { return client as ClientManager; }
         }
@@ -1208,10 +1222,12 @@ namespace Amatsukaze.Server
                         CleanTmpDir();
                     }
                     NowEncoding = true;
+                    Progress = 0;
                     return RequestState();
                 },
                 OnFinish = ()=> {
                     NowEncoding = false;
+                    Progress = 1;
                     var task = RequestState();
                     if (preventSuspend != null)
                     {
@@ -1821,13 +1837,28 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
+        private void UpdateProgress()
+        {
+            // 進捗を更新
+            var items = queue.SelectMany(t => t.Items);
+            double enabledCount = items.Count(s =>
+                s.State != QueueState.LogoPending && s.State != QueueState.PreFailed);
+            double remainCount = items.Count(s =>
+                s.State == QueueState.Queue || s.State == QueueState.Encoding);
+            // 完全にゼロだと分からないので・・・
+            Progress = ((enabledCount - remainCount) + 0.1) / (enabledCount + 0.1);
+        }
+
         private Task NotifyQueueItemUpdate(QueueItem item)
         {
-            return client.OnQueueUpdate(new QueueUpdate() {
-                Type = UpdateType.Update,
-                DirId = item.Dir.Id,
-                Item = item
-            });
+            UpdateProgress();
+            return Task.WhenAll(
+                client.OnQueueUpdate(new QueueUpdate() {
+                    Type = UpdateType.Update,
+                    DirId = item.Dir.Id,
+                    Item = item
+                }),
+                RequestState());
         }
 
         private Task AddEncodeLog(string str)
@@ -2005,7 +2036,9 @@ namespace Amatsukaze.Server
             }
 
             var ignoreSet = new HashSet<string>(
-                ignores.SelectMany(t => t.Items).Select(item => item.Path));
+                ignores.SelectMany(t => t.Items)
+                .Where(item => !item.IsActive)
+                .Select(item => item.Path));
 
             var items = ((dir.Targets != null)
                 ? dir.Targets
@@ -2205,12 +2238,14 @@ namespace Amatsukaze.Server
                     target.Items.AddRange(fileitems);
                     foreach (var item in fileitems)
                     {
+                        UpdateProgress();
                         waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Add,
                             Item = item,
                             DirId = target.Id
                         }));
+                        waitItems.Add(RequestState());
                     }
                 }
             }
@@ -2223,6 +2258,13 @@ namespace Amatsukaze.Server
                 await Task.WhenAll(waitItems.ToArray());
 
                 return;
+            }
+
+            // 最後に使ったプロファイルを記憶しておく
+            if(appData.setting.LastSelectedProfile != target.Profile.Name)
+            {
+                appData.setting.LastSelectedProfile = target.Profile.Name;
+                settingUpdated = true;
             }
 
             waitItems.Add(RequestFreeSpace());
@@ -3081,7 +3123,8 @@ namespace Amatsukaze.Server
         {
             var state = new State() {
                 Pause = encodePaused,
-                Running = nowEncoding
+                Running = nowEncoding,
+                Progress = Progress
             };
             return client.OnCommonData(new CommonData()
             {
@@ -3214,6 +3257,23 @@ namespace Amatsukaze.Server
             }
         }
 
+        private bool CanRetry(ChangeItemType type, QueueItem target)
+        {
+            if(type == ChangeItemType.Retry)
+            {
+                // リトライは終わってるのだけ
+                return target.State == QueueState.Complete ||
+                    target.State == QueueState.Failed ||
+                    target.State == QueueState.Canceled;
+            }
+            else if(type == ChangeItemType.ReAdd)
+            {
+                // バッチモードでアクティブなやつは重複になるのでダメ
+                return !(target.Dir.IsBatch && target.IsActive);
+            }
+            return false;
+        }
+
         public Task ChangeItem(ChangeItemData data)
         {
             var all = queue.SelectMany(d => d.Items);
@@ -3222,12 +3282,14 @@ namespace Amatsukaze.Server
             {
                 var dir = target.Dir;
 
-                if (data.ChangeType == ChangeItemType.Retry)
+                if (data.ChangeType == ChangeItemType.Retry ||
+                    data.ChangeType == ChangeItemType.ReAdd)
                 {
-                    if(target.State == QueueState.Complete ||
-                        target.State == QueueState.Failed ||
-                        target.State == QueueState.Canceled)
+                    if (CanRetry(data.ChangeType, target) == false)
                     {
+                        return client.OnOperationResult("このアイテムはリトライ/再投入できません");
+                    }
+                    else {
                         // バッチモードでfailedフォルダに移動されていたら戻す
                         if (target.State == QueueState.Failed && dir.IsBatch)
                         {
@@ -3241,7 +3303,23 @@ namespace Amatsukaze.Server
                                 }
                             }
                         }
-                        return ReEnqueueItem(target, dir);
+
+                        if(data.ChangeType == ChangeItemType.Retry)
+                        {
+                            return ReEnqueueItem(target, dir);
+                        }
+                        else
+                        {
+                            return InternalAddQueue(new AddQueueDirectory()
+                            {
+                                DirPath = dir.DirPath,
+                                Targets = new List<AddQueueItem>() { new AddQueueItem() { Path = target.Path } },
+                                DstPath = dir.DstPath,
+                                Mode = (dir.Mode == ProcMode.AutoBatch) ? ProcMode.Batch : dir.Mode,
+                                Profile = dir.Profile.Name,
+                                Priority = target.Priority,
+                            });
+                        }
                     }
                 }
                 else if(data.ChangeType == ChangeItemType.Cancel)

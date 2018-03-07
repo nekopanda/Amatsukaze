@@ -25,7 +25,14 @@
         </Grid.RowDefinitions>
         <Grid.Resources>
             <DataTemplate DataType="{x:Type m:DisplayQueueDirectory}">
-                <TextBlock><Run Text="{Binding ModeString}"/>: <Run Text="{Binding Path, Mode=OneWay}"/>(<Run Text="{Binding Items.Count, Mode=OneWay}"/>)</TextBlock>
+                <TextBlock>
+                    <TextBlock.ToolTip>
+                        <TextBlock>
+                            <Run Text="{Binding Profile}"/>@<Run Text="{Binding LastUpdate}"/>更新
+                        </TextBlock>
+                    </TextBlock.ToolTip>
+                    <Run Text="{Binding ModeString}"/>: <Run Text="{Binding Path, Mode=OneWay}"/>(<Run Text="{Binding Items.Count, Mode=OneWay}"/>)(<Run Text="{Binding Profile}"/>)
+                </TextBlock>
             </DataTemplate>
         </Grid.Resources>
         <ListBox Grid.Row="0" Margin="0" ItemsSource="{Binding Model.QueueItems}" SelectedIndex="{Binding QueueItemSelectedIndex, Mode=TwoWay}" PreviewDragOver="ListBox_PreviewDragOver" Drop="ListBox_Drop" AllowDrop="True" ToolTip="ここにフォルダorファイルをD&amp;D">
@@ -107,7 +114,10 @@
                 <ContextMenu>
                     <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
-                    <MenuItem Header="リトライ/再エンコード" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
+                    <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}"
+                              ToolTip="プロファイルの設定が変わってる場合でも、投入時の設定でエンコードします" />
+                    <MenuItem Header="再投入" Command="{Binding ReAddCommand}" IsEnabled="{Binding IsQueueFileSelected}"
+                              ToolTip="プロファイルの設定が変わった場合、新しい設定でエンコードします" />
                     <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
                     <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
