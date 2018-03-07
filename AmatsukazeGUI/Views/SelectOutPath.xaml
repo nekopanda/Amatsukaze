@@ -6,7 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="Amatsukaze ファイル追加" Height="380" Width="400" Loaded="Window_Loaded">
+        Title="Amatsukaze ファイル追加" Height="400" Width="400" Loaded="Window_Loaded">
 
     <Window.DataContext>
         <vm:SelectOutPathViewModel/>

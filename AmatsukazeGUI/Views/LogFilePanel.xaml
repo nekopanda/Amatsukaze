@@ -8,8 +8,29 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:LogFileViewModel}}">
-    <Border BorderBrush="DarkGray" BorderThickness="1">
-        <WebBrowser c:BrowserBehavior.Html="{Binding Model.CurrentLogFile}" />
-    </Border>
-    <!--<TextBox TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True" VerticalScrollBarVisibility="Auto"/>-->
+    <Grid>
+        <TextBox TextWrapping="Wrap" Text="{Binding Model.CurrentLogFile}" IsReadOnly="True" VerticalScrollBarVisibility="Auto">
+            <TextBox.Style>
+                <Style TargetType="TextBox">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsLargeFile}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBox.Style>
+        </TextBox>
+        <Border BorderBrush="DarkGray" BorderThickness="1">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsLargeFile}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <WebBrowser c:BrowserBehavior.Html="{Binding Model.CurrentLogFile}" />
+        </Border>
+    </Grid>
 </UserControl>
