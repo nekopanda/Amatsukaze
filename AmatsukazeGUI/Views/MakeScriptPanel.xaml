@@ -66,9 +66,11 @@
                     </GroupBox>
                 
                     <CheckBox Margin="3" Content="エンコードPCを Wake On Lan で起動する" 
-                              IsChecked="{Binding Model.MakeScriptData.IsWakeOnLan, Mode=TwoWay}" IsEnabled="{Binding IsRemoteClient}"/>
+                              IsChecked="{Binding Model.MakeScriptData.IsWakeOnLan, Mode=TwoWay}"
+                              IsEnabled="{Binding IsRemoteClient}"/>
                     <CheckBox Margin="3" Content="__EDCBX__DIRECT__" 
-                              IsChecked="{Binding Model.MakeScriptData.IsDirect, Mode=TwoWay}"/>
+                              IsChecked="{Binding Model.MakeScriptData.IsDirect, Mode=TwoWay}"
+                              ToolTip="これが実装されているEDCBのmod版が必要です"/>
                     <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="3" Foreground="Red"/>
                     <Button Margin="3" Height="25" Content="バッチファイル作成" Command="{Binding MakeBatchFileCommand}"/>
                 </StackPanel>
