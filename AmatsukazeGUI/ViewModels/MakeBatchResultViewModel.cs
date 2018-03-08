@@ -81,7 +81,12 @@ namespace Amatsukaze.ViewModels
 
         public void CopyClipboard()
         {
-            Clipboard.SetData(DataFormats.Text, Path);
+            // RealVNCクライアント使ってると失敗する？ので
+            try
+            {
+                Clipboard.SetText(Path);
+            }
+            catch { }
         }
         #endregion
 

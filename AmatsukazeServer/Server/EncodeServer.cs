@@ -2109,7 +2109,7 @@ namespace Amatsukaze.Server
                     Profile = ServerSupport.DeepCopy(profile),
                 };
 
-                if (dir.IsBatch && profile.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
+                if (dir.Mode == ProcMode.Batch && profile.DisableHashCheck == false && target.DirPath.StartsWith("\\\\"))
                 {
                     var hashpath = target.DirPath + ".hash";
                     if (File.Exists(hashpath) == false)

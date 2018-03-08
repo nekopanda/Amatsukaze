@@ -680,6 +680,15 @@ namespace Amatsukaze.Server
         public static bool IsLocalIP(string ip)
         {
             IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
+            try
+            {
+                IPAddress ipAddr = IPAddress.Parse(ip);
+                if (Array.IndexOf(iphostentry.AddressList, ipAddr) != -1)
+                {
+                    return true;
+                }
+            }
+            catch { }
             IPHostEntry other = null;
             try
             {

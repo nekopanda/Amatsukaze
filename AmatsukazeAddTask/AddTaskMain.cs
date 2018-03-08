@@ -218,9 +218,13 @@ namespace Amatsukaze.AddTask
                 if(option.ClearSucceeded)
                 {
                     // succeededを空にする
-                    foreach (var file in Directory.GetFiles(option.NasDir + "\\succeeded"))
+                    var succeeded = option.NasDir + "\\succeeded";
+                    if(Directory.Exists(succeeded))
                     {
-                        File.Delete(file);
+                        foreach (var file in Directory.GetFiles(succeeded))
+                        {
+                            File.Delete(file);
+                        }
                     }
                 }
                 // NASにコピー

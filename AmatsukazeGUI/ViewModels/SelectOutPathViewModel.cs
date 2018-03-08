@@ -2,8 +2,11 @@
 using Amatsukaze.Server;
 using Livet;
 using Livet.Commands;
+using Livet.Messaging;
 using Livet.Messaging.Windows;
+using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Amatsukaze.ViewModels
 {
@@ -62,12 +65,33 @@ namespace Amatsukaze.ViewModels
 
         public bool Succeeded { get; private set; }
 
-        private bool GetOutPath()
+        private async Task<bool> GetOutPath()
         {
             if (System.IO.Directory.Exists(OutPath) == false)
             {
-                Description = "出力先フォルダが存在しません";
-                return false;
+                var message = new ConfirmationMessage(
+                    "出力先フォルダが存在しません。作成しますか？",
+                    "Amatsukaze フォルダ作成",
+                    System.Windows.MessageBoxImage.Information,
+                    System.Windows.MessageBoxButton.OKCancel,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+
+                if (message.Response == false)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    Directory.CreateDirectory(OutPath);
+                }
+                catch (Exception e)
+                {
+                    Description = "フォルダの作成に失敗しました: " + e.Message;
+                    return false;
+                }
             }
             Item.DstPath = OutPath;
             return true;
@@ -93,7 +117,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Ok()
         {
-            if (!GetOutPath()) return;
+            if (!await GetOutPath()) return;
             GetProfileName();
             Item.Mode = ProcMode.Batch;
             Succeeded = true;
@@ -117,7 +141,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Test()
         {
-            if (!GetOutPath()) return;
+            if (!await GetOutPath()) return;
             GetProfileName();
             Item.Mode = ProcMode.Test;
             Succeeded = true;

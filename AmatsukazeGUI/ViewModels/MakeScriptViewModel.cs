@@ -188,7 +188,8 @@ namespace Amatsukaze.ViewModels
                 .Append(dst)
                 .Append("\" -s \"")
                 .Append(prof)
-                .Append("\"");
+                .Append("\" --priority ")
+                .Append(Model.MakeScriptData.Priority);
             if (nas != null)
             {
                 sb.Append(" -d \"")
