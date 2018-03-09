@@ -10,64 +10,69 @@
              xmlns:m="clr-namespace:Amatsukaze.Models" 
              xmlns:s="clr-namespace:Amatsukaze.Server" 
              mc:Ignorable="d" 
-             d:DesignHeight="400" d:DesignWidth="400"
+             d:DesignHeight="400"
              d:DataContext="{d:DesignInstance {x:Type vm:ServiceSettingViewModel}}">
-    <Grid>
-        <Grid.Resources>
+
+    <DockPanel>
+        <DockPanel.Resources>
             <DataTemplate DataType="{x:Type m:DisplayLogo}">
                 <v:LogoItem />
             </DataTemplate>
-        </Grid.Resources>
-        
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="150"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+        </DockPanel.Resources>
 
-        <TextBlock x:Name="textBlock1" HorizontalAlignment="Left" Margin="6,4,0,0" TextWrapping="Wrap" Text="サービス（チャンネル）" VerticalAlignment="Top"/>
-        <ListBox x:Name="serviceListBox" Margin="0,25,0,0.333" Grid.RowSpan="2" ItemsSource="{Binding Model.ServiceSettings}" SelectedIndex="{Binding SelectedServiceIndex, Mode=TwoWay}">
-            <ListBox.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="選択中のサービス設定を削除" Command="{Binding RemoveServiceSettingCommand}" />
-                </ContextMenu>
-            </ListBox.ContextMenu>
-        </ListBox>
-
-        <TextBlock x:Name="textBlock" Grid.Column="1" HorizontalAlignment="Left" Margin="9.333,2,0,0" TextWrapping="Wrap" Text="JoinLogoScpコマンドファイル" VerticalAlignment="Top"/>
-        <ComboBox x:Name="comboBox" Grid.Column="1" Margin="10.333,22,0,0" HorizontalAlignment="Left" Width="157"
-                  ItemsSource="{Binding Model.JlsCommandFiles}"
-                  Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  Height="22" VerticalAlignment="Top"/>
-        <TextBlock Text="オプション" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,52,5,5"/>
-        <TextBox Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="59,50,10,0" Height="20"
-                 Text="{Binding SelectedServiceItem.JLSOption, Mode=TwoWay}" />
-
-        <TextBlock x:Name="textBlock2" Grid.Column="1" HorizontalAlignment="Left" Margin="10.333,5,0,0" Grid.Row="1" TextWrapping="Wrap" Text="ロゴファイル" VerticalAlignment="Top"/>
-        <ListBox x:Name="logoListBox" Grid.Column="1" Margin="10.333,26,3,0.667" Grid.Row="1"
-                 ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}">
-            <ListBox.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="「ロゴなし」を追加" Command="{Binding AddNoLogoCommand}" />
-                    <MenuItem Header="選択中の「ロゴなし」を削除" Command="{Binding RemoveNoLogoCommand}" />
-                </ContextMenu>
-            </ListBox.ContextMenu>
-        </ListBox>
-
-        <Button x:Name="button" Content="適用" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="310,5,0,0" VerticalAlignment="Top" Width="54" Grid.Row="2" IsEnabled="{Binding SelectedLogoItem.DateChanged}" Command="{Binding ApplyDateCommand}"/>
-        <TextBlock x:Name="textBlock3" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="84,7.333,0,0" Grid.Row="2" TextWrapping="Wrap"
-                   Text="開始       ←ロゴファイル適用期間→      終了" VerticalAlignment="Top"/>
-        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="6,28.333,0,-24" Grid.Row="2" VerticalAlignment="Top"
-                  SelectedDate="{Binding SelectedLogoItem.From, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" DisplayDate="{Binding SelectedLogoItem.From}"
+        <DockPanel DockPanel.Dock="Bottom" HorizontalAlignment="Center">
+            <DockPanel HorizontalAlignment="Center">
+                <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Center" 
+                       Text="開始       ←ロゴファイル適用期間→      終了"/>
+                <Calendar SelectedDate="{Binding SelectedLogoItem.From, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Bottom"
+                  DisplayDate="{Binding SelectedLogoItem.From}"
                   SelectedDatesChanged="Calendar_SelectedDatesChanged"/>
-        
-        <Calendar Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="190,28,0,0" Grid.Row="2" VerticalAlignment="Top"
-                  SelectedDate="{Binding SelectedLogoItem.To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" DisplayDate="{Binding SelectedLogoItem.To}"
+                <Calendar SelectedDate="{Binding SelectedLogoItem.To, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                  DisplayDate="{Binding SelectedLogoItem.To}"
                   SelectedDatesChanged="Calendar_SelectedDatesChanged"/>
+            </DockPanel>
+            <Button Content="適用" Width="54" Height="25" Margin="5" HorizontalAlignment="Left" VerticalAlignment="Top"
+                    IsEnabled="{Binding SelectedLogoItem.DateChanged}" Command="{Binding ApplyDateCommand}"/>
+        </DockPanel>
 
-    </Grid>
+        <DockPanel DockPanel.Dock="Top">
+            <DockPanel DockPanel.Dock="Left">
+                <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Left" Margin="3" Text="サービス（チャンネル）"/>
+                <ListBox ItemsSource="{Binding Model.ServiceSettings}" SelectedIndex="{Binding SelectedServiceIndex, Mode=TwoWay}">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="選択中のサービス設定を削除" Command="{Binding RemoveServiceSettingCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+            </DockPanel>
+
+            <Border Width="6" DockPanel.Dock="Left"/>
+
+            <GroupBox DockPanel.Dock="Top" Header="JoinLogoScpコマンドファイル">
+                <DockPanel>
+                    <ComboBox DockPanel.Dock="Top" HorizontalAlignment="Stretch" Margin="3"
+                              ItemsSource="{Binding Model.JlsCommandFiles}"
+                              Text="{Binding SelectedServiceItem.JlsCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              Height="22" VerticalAlignment="Top"/>
+                    <DockPanel DockPanel.Dock="Top">
+                        <TextBlock Text="オプション" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Margin="3" Text="{Binding SelectedServiceItem.JLSOption, Mode=TwoWay}" />
+                    </DockPanel>
+                </DockPanel>
+            </GroupBox>
+
+            <TextBlock DockPanel.Dock="Top" Text="ロゴファイル" Margin="3"/>
+            <ListBox ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}">
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="「ロゴなし」を追加" Command="{Binding AddNoLogoCommand}" />
+                        <MenuItem Header="選択中の「ロゴなし」を削除" Command="{Binding RemoveNoLogoCommand}" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+            </ListBox>
+
+        </DockPanel>
+
+    </DockPanel>
 </UserControl>

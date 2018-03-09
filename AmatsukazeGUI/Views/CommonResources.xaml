@@ -62,7 +62,6 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
-        <Setter Property="Height" Value="20"/>
         <Setter Property="Background" Value="White"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">

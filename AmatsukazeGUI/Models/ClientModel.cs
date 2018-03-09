@@ -678,6 +678,15 @@ namespace Amatsukaze.Models
             return Server.SetCommonData(new CommonData() { MakeScriptData = MakeScriptData.Model });
         }
 
+        public Task AddProfile(ProfileSetting profile)
+        {
+            return Server.SetProfile(new ProfileUpdate()
+            {
+                Type = UpdateType.Add,
+                Profile = profile
+            });
+        }
+
         public Task SendProfile(ProfileSetting profile)
         {
             return Server.SetProfile(new ProfileUpdate() {

@@ -72,12 +72,12 @@ namespace Amatsukaze.ViewModels
         public async void FileDropped(IEnumerable<string> list, bool isText)
         {
             Dictionary<string, AddQueueDirectory> dirList = new Dictionary<string, AddQueueDirectory>();
-            if(isText)
+            if (isText)
             {
                 // テキストパスの場合は存在チェックしない
                 foreach (var path in list)
                 {
-                    if(string.IsNullOrWhiteSpace(path) == false)
+                    if (string.IsNullOrWhiteSpace(path) == false)
                     {
                         dirList.Add(path, new AddQueueDirectory()
                         {
@@ -127,23 +127,27 @@ namespace Amatsukaze.ViewModels
                 item.Priority = 3;
 
                 // 出力先フォルダ選択
-                var selectPathVM = new SelectOutPathViewModel() {
-                    Model = Model, Item = item
+                var selectPathVM = new SelectOutPathViewModel()
+                {
+                    Model = Model,
+                    Item = item
                 };
                 await Messenger.RaiseAsync(new TransitionMessage(
                     typeof(Views.SelectOutPath), selectPathVM, TransitionMode.Modal, "FromMain"));
 
-                if(selectPathVM.Succeeded)
+                if (selectPathVM.Succeeded)
                 {
                     Model.Server.AddQueue(item).AttachHandler();
                 }
             }
         }
 
-        private IEnumerable<DisplayQueueItem> SelectedQueueFiles {
-            get {
+        private IEnumerable<DisplayQueueItem> SelectedQueueFiles
+        {
+            get
+            {
                 var dir = SetectedQueueItem;
-                if(dir == null)
+                if (dir == null)
                 {
                     return Enumerable.Empty<DisplayQueueItem>();
                 }
@@ -166,11 +170,11 @@ namespace Amatsukaze.ViewModels
                 return;
             }
             string filepath = file.Path;
-            if(File.Exists(filepath) == false)
+            if (File.Exists(filepath) == false)
             {
                 // failedに入っているかもしれないのでそっちも見る
                 filepath = Path.GetDirectoryName(file.Path) + "\\failed\\" + Path.GetFileName(file.Path);
-                if(File.Exists(filepath) == false)
+                if (File.Exists(filepath) == false)
                 {
                     MessageBox.Show("ファイルが見つかりません");
                     return;
@@ -178,11 +182,34 @@ namespace Amatsukaze.ViewModels
             }
             var apppath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             var args = "-l logo --file \"" + filepath + "\" --work \"" + workpath + "\" --serviceid " + file.ServiceId;
-            if(slimts)
+            if (slimts)
             {
                 args += " --slimts";
             }
             System.Diagnostics.Process.Start(apppath, args);
+        }
+
+        private async Task<bool> ConfirmRetryCompleted(DisplayQueueItem[] items, string retry)
+        {
+            var completed = items.Where(s => s.Model.State == QueueState.Complete).ToArray();
+            if (completed.Length > 0)
+            {
+                var top = completed.Take(10);
+                var numOthers = completed.Count() - top.Count();
+                var message = new ConfirmationMessage(
+                    "以下のアイテムは既に完了しています。本当に" + retry + "しますか？\r\n\r\n" +
+                    string.Join("\r\n", top.Select(s => s.Model.FileName)) +
+                    ((numOthers > 0) ? "\r\n\r\n他" + numOthers + "個" : ""),
+                    "Amatsukaze " + retry,
+                    MessageBoxImage.Question,
+                    MessageBoxButton.OKCancel,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+
+                return message.Response == true;
+            }
+            return false;
         }
 
         #region QueueItemSelectedIndex変更通知プロパティ
@@ -204,7 +231,8 @@ namespace Amatsukaze.ViewModels
 
         public DisplayQueueDirectory SetectedQueueItem
         {
-            get {
+            get
+            {
                 if (_QueueItemSelectedIndex >= 0 && _QueueItemSelectedIndex < Model.QueueItems.Count)
                 {
                     return Model.QueueItems[_QueueItemSelectedIndex];
@@ -247,7 +275,8 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        public bool IsQueueFileSelected {
+        public bool IsQueueFileSelected
+        {
             get { return SelectedQueueFiles.FirstOrDefault() != null; }
         }
 
@@ -259,7 +288,7 @@ namespace Amatsukaze.ViewModels
             get
             { return _UpperRowLength; }
             set
-            { 
+            {
                 if (_UpperRowLength == value)
                     return;
                 _UpperRowLength = value;
@@ -276,7 +305,7 @@ namespace Amatsukaze.ViewModels
             get
             { return _LowerRowLength; }
             set
-            { 
+            {
                 if (_LowerRowLength == value)
                     return;
                 _LowerRowLength = value;
@@ -288,8 +317,10 @@ namespace Amatsukaze.ViewModels
         #region OpenLogoAnalyzeCommand
         private ViewModelCommand _OpenLogoAnalyzeCommand;
 
-        public ViewModelCommand OpenLogoAnalyzeCommand {
-            get {
+        public ViewModelCommand OpenLogoAnalyzeCommand
+        {
+            get
+            {
                 if (_OpenLogoAnalyzeCommand == null)
                 {
                     _OpenLogoAnalyzeCommand = new ViewModelCommand(OpenLogoAnalyze);
@@ -307,8 +338,10 @@ namespace Amatsukaze.ViewModels
         #region OpenLogoAnalyzeSlimTsCommand
         private ViewModelCommand _OpenLogoAnalyzeSlimTsCommand;
 
-        public ViewModelCommand OpenLogoAnalyzeSlimTsCommand {
-            get {
+        public ViewModelCommand OpenLogoAnalyzeSlimTsCommand
+        {
+            get
+            {
                 if (_OpenLogoAnalyzeSlimTsCommand == null)
                 {
                     _OpenLogoAnalyzeSlimTsCommand = new ViewModelCommand(OpenLogoAnalyzeSlimTs);
@@ -326,8 +359,10 @@ namespace Amatsukaze.ViewModels
         #region RetryCommand
         private ViewModelCommand _RetryCommand;
 
-        public ViewModelCommand RetryCommand {
-            get {
+        public ViewModelCommand RetryCommand
+        {
+            get
+            {
                 if (_RetryCommand == null)
                 {
                     _RetryCommand = new ViewModelCommand(Retry);
@@ -336,16 +371,20 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public void Retry()
+        public async void Retry()
         {
-            foreach(var item in SelectedQueueFiles.ToArray())
+            var items = SelectedQueueFiles.ToArray();
+            if (await ConfirmRetryCompleted(items, "リトライ"))
             {
-                var file = item.Model;
-                Model.Server.ChangeItem(new ChangeItemData()
+                foreach (var item in items)
                 {
-                    ItemId = file.Id,
-                    ChangeType = ChangeItemType.Retry
-                });
+                    var file = item.Model;
+                    await Model.Server.ChangeItem(new ChangeItemData()
+                    {
+                        ItemId = file.Id,
+                        ChangeType = ChangeItemType.Retry
+                    });
+                }
             }
         }
         #endregion
@@ -353,8 +392,10 @@ namespace Amatsukaze.ViewModels
         #region ReAddCommand
         private ViewModelCommand _ReAddCommand;
 
-        public ViewModelCommand ReAddCommand {
-            get {
+        public ViewModelCommand ReAddCommand
+        {
+            get
+            {
                 if (_ReAddCommand == null)
                 {
                     _ReAddCommand = new ViewModelCommand(ReAdd);
@@ -363,16 +404,20 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public void ReAdd()
+        public async void ReAdd()
         {
-            foreach (var item in SelectedQueueFiles.ToArray())
+            var items = SelectedQueueFiles.ToArray();
+            if (await ConfirmRetryCompleted(items, "再投入"))
             {
-                var file = item.Model;
-                Model.Server.ChangeItem(new ChangeItemData()
+                foreach (var item in items)
                 {
-                    ItemId = file.Id,
-                    ChangeType = ChangeItemType.ReAdd
-                });
+                    var file = item.Model;
+                    await Model.Server.ChangeItem(new ChangeItemData()
+                    {
+                        ItemId = file.Id,
+                        ChangeType = ChangeItemType.ReAdd
+                    });
+                }
             }
         }
         #endregion
@@ -380,8 +425,10 @@ namespace Amatsukaze.ViewModels
         #region CancelCommand
         private ViewModelCommand _CancelCommand;
 
-        public ViewModelCommand CancelCommand {
-            get {
+        public ViewModelCommand CancelCommand
+        {
+            get
+            {
                 if (_CancelCommand == null)
                 {
                     _CancelCommand = new ViewModelCommand(Cancel);
@@ -407,8 +454,10 @@ namespace Amatsukaze.ViewModels
         #region OpenFileInExplorerCommand
         private ViewModelCommand _OpenFileInExplorerCommand;
 
-        public ViewModelCommand OpenFileInExplorerCommand {
-            get {
+        public ViewModelCommand OpenFileInExplorerCommand
+        {
+            get
+            {
                 if (_OpenFileInExplorerCommand == null)
                 {
                     _OpenFileInExplorerCommand = new ViewModelCommand(OpenFileInExplorer);

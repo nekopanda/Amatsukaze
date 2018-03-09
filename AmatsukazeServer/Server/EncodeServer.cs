@@ -915,6 +915,28 @@ namespace Amatsukaze.Server
                             if (sameItems.Any(s => s.IsActive) == false)
                             {
                                 // もうこのファイルでアクティブなアイテムはない
+
+                                if(sameItems.Any(s => s.State == QueueState.Complete))
+                                {
+                                    // 成功が1つでもあれば関連ファイルをコピー
+                                    if (dir.Profile.MoveEDCBFiles)
+                                    {
+                                        var commonName = Path.GetFileNameWithoutExtension(src.Path);
+                                        var srcBody = Path.GetDirectoryName(src.Path) + "\\" + commonName;
+                                        var dstBody = dir.DstPath + "\\" + commonName;
+                                        foreach (var ext in ServerSupport
+                                            .GetFileExtentions(null, dir.Profile.MoveEDCBFiles))
+                                        {
+                                            var srcPath = srcBody + ext;
+                                            var dstPath = dstBody + ext;
+                                            if (File.Exists(srcPath) && !File.Exists(dstPath))
+                                            {
+                                                File.Copy(srcPath, dstPath);
+                                            }
+                                        }
+                                    }
+                                }
+
                                 if (sameItems.Any(s => s.State == QueueState.Failed))
                                 {
                                     // 失敗がある
@@ -924,24 +946,6 @@ namespace Amatsukaze.Server
                                 {
                                     // 全て成功
                                     EncodeServer.MoveTSFile(src.Path, dir.Succeeded, dir.Profile.MoveEDCBFiles);
-                                }
-
-                                // 関連ファイルをコピー
-                                if(dir.Profile.MoveEDCBFiles)
-                                {
-                                    var commonName = Path.GetFileNameWithoutExtension(src.Path);
-                                    var srcBody = Path.GetDirectoryName(src.Path) + "\\" + commonName;
-                                    var dstBody = dir.Succeeded + "\\" + commonName;
-                                    foreach (var ext in ServerSupport
-                                        .GetFileExtentions(null, dir.Profile.MoveEDCBFiles))
-                                    {
-                                        var srcPath = srcBody + ext;
-                                        var dstPath = dstBody + ext;
-                                        if(File.Exists(srcPath) && !File.Exists(dstPath))
-                                        {
-                                            File.Copy(srcPath, dstPath);
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -2775,26 +2779,35 @@ namespace Amatsukaze.Server
                                 .Select(s => Path.GetFileNameWithoutExtension(s))
                                 .ToArray();
 
-                            foreach (var name in newProfiles.Union(profiles.Keys))
+                            foreach (var name in newProfiles.Union(profiles.Keys.ToArray()))
                             {
                                 var filepath = GetProfilePath(profilepath, name);
                                 if (profiles.ContainsKey(name) == false)
                                 {
                                     // 追加された
-                                    var profile = ReadProfile(filepath);
-                                    profile.Name = name;
-                                    profile.LastUpdate = File.GetLastWriteTime(filepath);
-                                    profiles.Add(profile.Name, profile);
-                                    await client.OnProfile(new ProfileUpdate()
+                                    try
                                     {
-                                        Type = UpdateType.Add,
-                                        Profile = profile
-                                    });
+                                        var profile = ReadProfile(filepath);
+                                        profile.Name = name;
+                                        profile.LastUpdate = File.GetLastWriteTime(filepath);
+                                        profiles.Add(profile.Name, profile);
+                                        await client.OnProfile(new ProfileUpdate()
+                                        {
+                                            Type = UpdateType.Add,
+                                            Profile = profile
+                                        });
+                                    }
+                                    catch(Exception e)
+                                    {
+                                        await client.OnOperationResult(
+                                            "プロファイル「" + filepath + "」の読み込みに失敗\r\n" + e.Message);
+                                    }
                                 }
                                 else if (newProfiles.Contains(name) == false)
                                 {
                                     // 削除された
                                     var profile = profiles[name];
+                                    profiles.Remove(name);
                                     await client.OnProfile(new ProfileUpdate()
                                     {
                                         Type = UpdateType.Remove,
@@ -2807,15 +2820,23 @@ namespace Amatsukaze.Server
                                     var lastUpdate = File.GetLastWriteTime(filepath);
                                     if (profile.LastUpdate != lastUpdate)
                                     {
-                                        // 変更された
-                                        profile = ReadProfile(filepath);
-                                        profile.Name = name;
-                                        profile.LastUpdate = lastUpdate;
-                                        await client.OnProfile(new ProfileUpdate()
+                                        try
                                         {
-                                            Type = UpdateType.Update,
-                                            Profile = profile
-                                        });
+                                            // 変更された
+                                            profile = ReadProfile(filepath);
+                                            profile.Name = name;
+                                            profile.LastUpdate = lastUpdate;
+                                            await client.OnProfile(new ProfileUpdate()
+                                            {
+                                                Type = UpdateType.Update,
+                                                Profile = profile
+                                            });
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            await client.OnOperationResult(
+                                                "プロファイル「" + filepath + "」の読み込みに失敗\r\n" + e.Message);
+                                        }
                                     }
                                 }
                             }
@@ -2950,7 +2971,10 @@ namespace Amatsukaze.Server
 
                 if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
                 {
-                    CheckSetting(data.Profile, appData.setting);
+                    if(data.Type == UpdateType.Update)
+                    {
+                        CheckSetting(data.Profile, appData.setting);
+                    }
                     SaveProfile(filepath, data.Profile);
                     data.Profile.LastUpdate = File.GetLastWriteTime(filepath);
                     if (profiles.ContainsKey(data.Profile.Name))
@@ -3316,16 +3340,17 @@ namespace Amatsukaze.Server
                         return client.OnOperationResult("このアイテムはリトライ/再投入できません");
                     }
                     else {
-                        // バッチモードでfailedフォルダに移動されていたら戻す
-                        if (target.State == QueueState.Failed && dir.IsBatch)
+                        // バッチモードでfailed/succeededフォルダに移動されていたら戻す
+                        if ((target.State == QueueState.Failed || target.State == QueueState.Complete) && dir.IsBatch)
                         {
                             if (all.Where(s => s.DstName == target.DstName).Any(s => s.IsActive) == false)
                             {
-                                var failedPath = dir.Failed + "\\" + Path.GetFileName(target.FileName);
-                                if (File.Exists(failedPath))
+                                var movedDir = (target.State == QueueState.Failed) ? dir.Failed : dir.Succeeded;
+                                var movedPath = movedDir + "\\" + Path.GetFileName(target.FileName);
+                                if (File.Exists(movedPath))
                                 {
                                     // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
-                                    MoveTSFile(failedPath, dir.DirPath, true);
+                                    MoveTSFile(movedPath, dir.DirPath, true);
                                 }
                             }
                         }

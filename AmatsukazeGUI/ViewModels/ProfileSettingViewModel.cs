@@ -106,7 +106,7 @@ namespace Amatsukaze.ViewModels
                 {
                     var newprofile = ServerSupport.DeepCopy(profile.Model);
                     newprofile.Name = newp.Name;
-                    await Model.SendProfile(newprofile);
+                    await Model.AddProfile(newprofile);
                 }
             }
         }

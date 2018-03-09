@@ -15,6 +15,10 @@
         <l:InteractionMessageTrigger Messenger="{Binding Messenger}" MessageKey="FromMain">
             <l:TransitionInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
+        
+        <l:InteractionMessageTrigger MessageKey="Confirm" Messenger="{Binding Messenger}">
+            <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+        </l:InteractionMessageTrigger>
     </i:Interaction.Triggers>
 
     <Grid>
