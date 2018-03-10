@@ -315,6 +315,8 @@ namespace Amatsukaze.Server
         public QueueState State { get; set; }
         [DataMember]
         public int Priority { get; set; }
+        [DataMember]
+        public DateTime AddTime { get; set; }
 
         [DataMember]
         public int ServiceId { get; set; }
@@ -412,7 +414,14 @@ namespace Amatsukaze.Server
 
     public enum ChangeItemType
     {
-        Retry, ReAdd, Cancel, Priority
+        Retry,      // リトライ
+        ReAdd,      // 再投入
+        Cancel,     // キャンセル
+        Priority,   // 優先度変更
+        RemoveDir,  // ディレクトリ削除
+        RemoveItem, // アイテム削除
+        RemoveCompletedAll,  // 全ての完了項目を削除
+        RemoveCompletedItem,  // 指定ディレクトリの完了項目を削除
     }
 
     [DataContract]
@@ -763,5 +772,14 @@ namespace Amatsukaze.Server
         public ServerInfo ServerInfo { get; set; }
         [DataMember]
         public State State { get; set; }
+    }
+
+    [DataContract]
+    public class OperationResult
+    {
+        [DataMember]
+        public bool IsFailed { get; set; }
+        [DataMember]
+        public string Message { get; set; }
     }
 }

@@ -16,6 +16,7 @@ using Amatsukaze.Server;
 using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Media;
 
 namespace Amatsukaze.ViewModels
 {
@@ -201,6 +202,15 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region StatucColor変更通知プロパティ
+        public Brush StatusBackColor {
+            get { return Model.IsCurrentResultFail ? Brushes.DarkRed : Brushes.White; }
+        }
+        public Brush StatusForeColor {
+            get { return Model.IsCurrentResultFail ? Brushes.White : Brushes.Black; }
+        }
+        #endregion
+
         public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
 
         public MainWindowViewModel()
@@ -229,6 +239,11 @@ namespace Amatsukaze.ViewModels
             modelListener = new PropertyChangedEventListener(Model);
             modelListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
             modelListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
+            modelListener.Add(() => Model.IsCurrentResultFail, (_, __) =>
+            {
+                RaisePropertyChanged("StatusBackColor");
+                RaisePropertyChanged("StatusForeColor");
+            });
 
             consoleListListener = new CollectionChangedEventListener(Model.ConsoleList, (_, __) => UpdateNumConsole());
 

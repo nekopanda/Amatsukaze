@@ -77,15 +77,15 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region ImageItemSelectedIndex変更通知プロパティ
-        private int _ImageItemSelectedIndex;
+        #region DrcsImageSelectedItem変更通知プロパティ
+        private DrcsImageViewModel _DrcsImageSelectedItem;
 
-        public int ImageItemSelectedIndex {
-            get { return _ImageItemSelectedIndex; }
+        public DrcsImageViewModel DrcsImageSelectedItem {
+            get { return _DrcsImageSelectedItem; }
             set { 
-                if (_ImageItemSelectedIndex == value)
+                if (_DrcsImageSelectedItem == value)
                     return;
-                _ImageItemSelectedIndex = value;
+                _DrcsImageSelectedItem = value;
                 RaisePropertyChanged();
             }
         }

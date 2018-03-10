@@ -22,6 +22,8 @@ public:
 		const ConfigWrapper& setting)
 		: AMTObject(ctx)
 		, setting_(setting)
+		, isFail_()
+		, jknum_()
 	{	}
 
 	bool makeASS(int serviceId, time_t startTime, int duration) 
@@ -160,6 +162,10 @@ private:
 		int exitCode = process.join();
 		if (exitCode == 0 && File::exists(setting_.getTmpNicoJKXMLPath())) {
 			return true;
+		}
+		if (exitCode == 100) {
+			// ƒ`ƒƒƒ“ƒlƒ‹‚ª‚È‚¢
+			return false;
 		}
 		isFail_ = true;
 		return false;

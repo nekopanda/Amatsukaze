@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:LogViewModel}}">
@@ -13,22 +14,26 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
         </Grid.RowDefinitions>
-        <ListView Grid.Row="0" ItemsSource="{Binding Model.LogItems}" SelectedIndex="{Binding LogItemSelectedIndex, Mode=TwoWay}" MouseDoubleClick="ListView_MouseDoubleClick">
+        <ListView Grid.Row="0"
+                  ItemsSource="{Binding Model.LogItems}" 
+                  SelectedItem="{Binding SelectedLogItem, Mode=TwoWay}" 
+                  c:GridViewSort.AutoSort="True"
+                  MouseDoubleClick="ListView_MouseDoubleClick">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}"/>
-                    <GridViewColumn Header="メッセージ" DisplayMemberBinding="{Binding DisplayReason}"/>
-                    <GridViewColumn Header="出力ファイル数" DisplayMemberBinding="{Binding DisplayOutNum}"/>
-                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident}"/>
-                    <GridViewColumn Header="フォルダ" DisplayMemberBinding="{Binding DisplaySrcDirectory}"/>
-                    <GridViewColumn Header="ファイル名" DisplayMemberBinding="{Binding DisplaySrcFileName}"/>
-                    <GridViewColumn Header="CM・チャプター解析" DisplayMemberBinding="{Binding DisplayChapter}"/>
-                    <GridViewColumn Header="ロゴファイル" DisplayMemberBinding="{Binding DisplayLogo}"/>
-                    <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}"/>
-                    <GridViewColumn Header="エンコード時間" DisplayMemberBinding="{Binding DisplayEncodeDuration}"/>
-                    <GridViewColumn Header="入力ファイル時間" DisplayMemberBinding="{Binding DisplaySrcDurationo}"/>
-                    <GridViewColumn Header="出力サイズ[%]" DisplayMemberBinding="{Binding DisplayCompressionRate}"/>
-                    <GridViewColumn Header="ビットレート(Mbps)" DisplayMemberBinding="{Binding DisplayOutBitrate}"/>
+                    <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}" c:GridViewSort.PropertyName="DisplayEncodeStart"/>
+                    <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}" c:GridViewSort.PropertyName="DisplayResult"/>
+                    <GridViewColumn Header="メッセージ" DisplayMemberBinding="{Binding DisplayReason}" c:GridViewSort.PropertyName="DisplayReason"/>
+                    <GridViewColumn Header="出力ファイル数" DisplayMemberBinding="{Binding DisplayOutNum}" c:GridViewSort.PropertyName="DisplayOutNum"/>
+                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident}" c:GridViewSort.PropertyName="DisplayNumIncident"/>
+                    <GridViewColumn Header="フォルダ" DisplayMemberBinding="{Binding DisplaySrcDirectory}" c:GridViewSort.PropertyName="DisplaySrcDirectory"/>
+                    <GridViewColumn Header="ファイル名" DisplayMemberBinding="{Binding DisplaySrcFileName}" c:GridViewSort.PropertyName="DisplaySrcFileName"/>
+                    <GridViewColumn Header="CM・チャプター解析" DisplayMemberBinding="{Binding DisplayChapter}" c:GridViewSort.PropertyName="DisplayChapter"/>
+                    <GridViewColumn Header="ロゴファイル" DisplayMemberBinding="{Binding DisplayLogo}" c:GridViewSort.PropertyName="DisplayLogo"/>
+                    <GridViewColumn Header="エンコード時間" DisplayMemberBinding="{Binding DisplayEncodeDuration}" c:GridViewSort.PropertyName="DisplayEncodeDuration"/>
+                    <GridViewColumn Header="入力ファイル時間" DisplayMemberBinding="{Binding DisplaySrcDurationo}" c:GridViewSort.PropertyName="DisplaySrcDurationo"/>
+                    <GridViewColumn Header="出力サイズ[%]" DisplayMemberBinding="{Binding DisplayCompressionRate}" c:GridViewSort.PropertyName="DisplayCompressionRate"/>
+                    <GridViewColumn Header="ビットレート(Mbps)" DisplayMemberBinding="{Binding DisplayOutBitrate}" c:GridViewSort.PropertyName="DisplayOutBitrate"/>
                 </GridView>
             </ListView.View>
             <ListView.ContextMenu>

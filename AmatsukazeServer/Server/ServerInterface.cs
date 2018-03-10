@@ -15,7 +15,6 @@ namespace Amatsukaze.Server
         // 操作系
         Task SetProfile(ProfileUpdate data);
         Task AddQueue(AddQueueDirectory dir);
-        Task RemoveQueue(int id);
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
 
@@ -57,7 +56,7 @@ namespace Amatsukaze.Server
         Task OnDrcsData(DrcsImageUpdate update);
         Task OnAddResult(string requestId);
 
-        Task OnOperationResult(string result);
+        Task OnOperationResult(OperationResult result);
         void Finish();
     }
 
@@ -65,7 +64,6 @@ namespace Amatsukaze.Server
     {
         SetProfile = 100,
         AddQueue,
-        RemoveQueue,
         ChangeItem,
         PauseEncode,
         SetCommonData,
@@ -110,7 +108,6 @@ namespace Amatsukaze.Server
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
             { RPCMethodId.SetProfile, typeof(ProfileUpdate) },
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
-            { RPCMethodId.RemoveQueue, typeof(int) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetCommonData, typeof(CommonData) },
@@ -141,7 +138,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnDrcsData, typeof(DrcsImageUpdate) },
             { RPCMethodId.OnAddResult, typeof(string) },
-            { RPCMethodId.OnOperationResult, typeof(string) }
+            { RPCMethodId.OnOperationResult, typeof(OperationResult) }
         };
 
         public static readonly int HEADER_SIZE = 6;
@@ -418,7 +415,7 @@ namespace Amatsukaze.Server
             return client.OnLogUpdate(Copy(newLog));
         }
 
-        public Task OnOperationResult(string result)
+        public Task OnOperationResult(OperationResult result)
         {
             return client.OnOperationResult(Copy(result));
         }
@@ -501,11 +498,6 @@ namespace Amatsukaze.Server
         public Task PauseEncode(bool pause)
         {
             return Server.PauseEncode(Copy(pause));
-        }
-
-        public Task RemoveQueue(int id)
-        {
-            return Server.RemoveQueue(Copy(id));
         }
 
         public Task RequestConsole()

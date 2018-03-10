@@ -305,11 +305,14 @@ class AMTSource : public IClip, AMTObject
 		// ffmpegのpts wrapの仕方が謎なので下位33bitのみを見る
 		//（26時間以上ある動画だと重複する可能性はあるが無視）
 		int64_t pts = frame()->pts & ((int64_t(1) << 33) - 1);
+
+		int64_t headDiff = 0, tailDiff = 0;
 		auto it = std::lower_bound(frames.begin(), frames.end(), pts, [](const FilterSourceFrame& e, int64_t pts) {
 			return e.framePTS < pts;
 		});
 
-		if (it == frames.begin() && it->framePTS != pts) {
+		if (it == frames.begin() && pts < it->framePTS) {
+			headDiff = it->framePTS - pts;
 			// 小さすぎた場合は1周分追加して見る
 			pts += (int64_t(1) << 33);
 			it = std::lower_bound(frames.begin(), frames.end(), pts, [](const FilterSourceFrame& e, int64_t pts) {
@@ -319,7 +322,11 @@ class AMTSource : public IClip, AMTObject
 
 		if (it == frames.end()) {
 			// 最後より後ろだった
-			lastDecodeFrame = vi.num_frames;
+			tailDiff = pts - frames.back().framePTS;
+			// 前の可能性もあるので、判定
+			if (headDiff == 0 || headDiff > tailDiff) {
+				lastDecodeFrame = vi.num_frames;
+			}
 			prevFrame = nullptr; // 連続でなくなる場合はnullリセット
 			return;
 		}

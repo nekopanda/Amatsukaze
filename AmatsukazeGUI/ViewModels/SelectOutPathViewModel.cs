@@ -78,7 +78,7 @@ namespace Amatsukaze.ViewModels
 
                 await Messenger.RaiseAsync(message);
 
-                if (message.Response == false)
+                if (message.Response != true)
                 {
                     return false;
                 }

@@ -213,11 +213,13 @@ SRT字幕はレイアウト情報はなく、文字だけです。ルビなど�
 MKVで出力すればSRTとASS両方がMKVファイルに組み込まれます。
 MP4はASSに対応していないためSRTのみが組み込まれ、ASSは別ファイルとして出力されます。
 
-### EDCBから登録
+### EDCBから自動エンコード
 
 「その他」→「EDCB用録画後実行バッチ」で、EDCBで録画後、Amatsukzeで自動エンコードするためのバッチファイルが生成できます。
 
 必要な設定をして、「バッチファイル作成」から、バッチファイルを生成し、EDCBの録画後実行バッチのところに生成したバッチファイルへのパスを設定してください。
+
+EDCBがサービスで動いてて、EpgTimerもAmatsukazeサーバも立ち上げていない場合、AmatsukazeServerCLIがサービスで動いてるEDCBから起動されます。結果、Amatsukazeサーバがシステムアカウントで動作するので、環境によっては、AviSynthプラグインがエラーを吐くことがあるようです。システムアカウントで動いてるAmatsukazeサーバでエラーが出る場合は、手動でAmatsukazeServer.vbsからAmatsukazeサーバを起動しておくようにしてください。なお、システムアカウントで起動しているAmatsukazeサーバは、AmatsukazeClientから「その他」→「Amatsukazeサーバ操作」で終了できます。
 
 録画PCとエンコードPCを別にしたい場合は、[録画後リモートエンコード](https://github.com/nekopanda/Amatsukaze/wiki/%E9%8C%B2%E7%94%BB%E5%BE%8C%E3%83%AA%E3%83%A2%E3%83%BC%E3%83%88%E3%82%A8%E3%83%B3%E3%82%B3%E3%83%BC%E3%83%89)を参照してください。
 

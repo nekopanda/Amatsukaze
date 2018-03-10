@@ -146,7 +146,7 @@ namespace Amatsukaze.ViewModels
         {
             get
             {
-                var dir = SetectedQueueItem;
+                var dir = SetectedQueueDir;
                 if (dir == null)
                 {
                     return Enumerable.Empty<DisplayQueueItem>();
@@ -209,54 +209,68 @@ namespace Amatsukaze.ViewModels
 
                 return message.Response == true;
             }
-            return false;
+            return true;
         }
 
-        #region QueueItemSelectedIndex変更通知プロパティ
-        private int _QueueItemSelectedIndex = -1;
+        #region SetectedQueueDir変更通知プロパティ
+        private DisplayQueueDirectory _SetectedQueueDir;
 
-        public int QueueItemSelectedIndex
-        {
-            get { return _QueueItemSelectedIndex; }
-            set
-            {
-                if (_QueueItemSelectedIndex == value)
+        public DisplayQueueDirectory SetectedQueueDir {
+            get { return _SetectedQueueDir; }
+            set { 
+                if (_SetectedQueueDir == value)
                     return;
-                _QueueItemSelectedIndex = value;
+                _SetectedQueueDir = value;
                 RaisePropertyChanged();
-                RaisePropertyChanged("SetectedQueueItem");
-                RaisePropertyChanged("IsQueueItemSelected");
             }
         }
 
-        public DisplayQueueDirectory SetectedQueueItem
-        {
-            get
-            {
-                if (_QueueItemSelectedIndex >= 0 && _QueueItemSelectedIndex < Model.QueueItems.Count)
-                {
-                    return Model.QueueItems[_QueueItemSelectedIndex];
-                }
-                return null;
-            }
-        }
-
-        public bool IsQueueItemSelected
-        {
-            get
-            {
-                return SetectedQueueItem != null;
+        public bool IsQueueDirSelected {
+            get {
+                return SetectedQueueDir != null;
             }
         }
         #endregion
 
-        #region DeleteQueueItemCommand
-        private ViewModelCommand _DeleteQueueItemCommand;
+        #region DeleteQueueDirCommand
+        private ViewModelCommand _DeleteQueueDirCommand;
 
-        public ViewModelCommand DeleteQueueItemCommand
+        public ViewModelCommand DeleteQueueDirCommand
         {
             get
             {
+                if (_DeleteQueueDirCommand == null)
+                {
+                    _DeleteQueueDirCommand = new ViewModelCommand(DeleteQueueDir);
+                }
+                return _DeleteQueueDirCommand;
+            }
+        }
+
+        public void DeleteQueueDir()
+        {
+            var item = SetectedQueueDir;
+            if (item != null)
+            {
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ChangeType = ChangeItemType.RemoveDir,
+                    ItemId = item.Id
+                });
+            }
+        }
+        #endregion
+
+        public bool IsQueueFileSelected
+        {
+            get { return SelectedQueueFiles.Any(); }
+        }
+
+        #region DeleteQueueItemCommand
+        private ViewModelCommand _DeleteQueueItemCommand;
+
+        public ViewModelCommand DeleteQueueItemCommand {
+            get {
                 if (_DeleteQueueItemCommand == null)
                 {
                     _DeleteQueueItemCommand = new ViewModelCommand(DeleteQueueItem);
@@ -265,20 +279,69 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public void DeleteQueueItem()
+        public async void DeleteQueueItem()
         {
-            var item = SetectedQueueItem;
-            if (item != null)
+            var items = SelectedQueueFiles.ToArray();
+            foreach (var item in items)
             {
-                Model.Server.RemoveQueue(item.Id);
+                var file = item.Model;
+                await Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.RemoveItem
+                });
             }
         }
         #endregion
 
-        public bool IsQueueFileSelected
-        {
-            get { return SelectedQueueFiles.FirstOrDefault() != null; }
+        #region RemoveCompletedItemsCommand
+        private ViewModelCommand _RemoveCompletedItemsCommand;
+
+        public ViewModelCommand RemoveCompletedItemsCommand {
+            get {
+                if (_RemoveCompletedItemsCommand == null)
+                {
+                    _RemoveCompletedItemsCommand = new ViewModelCommand(RemoveCompletedItems);
+                }
+                return _RemoveCompletedItemsCommand;
+            }
         }
+
+        public void RemoveCompletedItems()
+        {
+            var dir = SetectedQueueDir;
+            if (dir != null)
+            {
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ChangeType = ChangeItemType.RemoveCompletedItem,
+                    ItemId = dir.Id
+                });
+            }
+        }
+        #endregion
+
+        #region RemoveCompletedAllCommand
+        private ViewModelCommand _RemoveCompletedAllCommand;
+
+        public ViewModelCommand RemoveCompletedAllCommand {
+            get {
+                if (_RemoveCompletedAllCommand == null)
+                {
+                    _RemoveCompletedAllCommand = new ViewModelCommand(RemoveCompletedAll);
+                }
+                return _RemoveCompletedAllCommand;
+            }
+        }
+
+        public void RemoveCompletedAll()
+        {
+            Model.Server.ChangeItem(new ChangeItemData()
+            {
+                ChangeType = ChangeItemType.RemoveCompletedAll
+            });
+        }
+        #endregion
 
         #region UpperRowLength変更通知プロパティ
         private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
@@ -446,6 +509,33 @@ namespace Amatsukaze.ViewModels
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.Cancel
+                });
+            }
+        }
+        #endregion
+
+        #region RemoveCommand
+        private ViewModelCommand _RemoveCommand;
+
+        public ViewModelCommand RemoveCommand {
+            get {
+                if (_RemoveCommand == null)
+                {
+                    _RemoveCommand = new ViewModelCommand(Remove);
+                }
+                return _RemoveCommand;
+            }
+        }
+
+        public void Remove()
+        {
+            foreach (var item in SelectedQueueFiles.ToArray())
+            {
+                var file = item.Model;
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.RemoveItem
                 });
             }
         }

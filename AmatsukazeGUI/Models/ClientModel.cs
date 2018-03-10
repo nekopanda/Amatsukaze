@@ -300,6 +300,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region IsCurrentResultFail変更通知プロパティ
+        private bool _IsCurrentResultFail;
+
+        public bool IsCurrentResultFail {
+            get { return _IsCurrentResultFail; }
+            set { 
+                if (_IsCurrentResultFail == value)
+                    return;
+                _IsCurrentResultFail = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region IsPaused変更通知プロパティ
         public bool IsPaused
         {
@@ -506,7 +520,11 @@ namespace Amatsukaze.Models
             }
             catch (Exception exception)
             {
-                await OnOperationResult("RequestLogoThreadがエラー終了しました: " + exception.Message);
+                await OnOperationResult(new OperationResult()
+                {
+                    IsFailed = true,
+                    Message = "RequestLogoThreadがエラー終了しました: " + exception.Message
+                });
             }
         }
 
@@ -884,10 +902,11 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnOperationResult(string result)
+        public Task OnOperationResult(OperationResult result)
         {
-            CurrentOperationResult = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + result;
-            AddLog(result);
+            IsCurrentResultFail = result.IsFailed;
+            CurrentOperationResult = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + result.Message;
+            AddLog(result.Message);
             return Task.FromResult(0);
         }
 
@@ -935,6 +954,7 @@ namespace Amatsukaze.Models
                     if (update.Type == UpdateType.Add)
                     {
                         dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
+                        dir.ItemStateUpdated();
                     }
                     else
                     {
@@ -944,6 +964,7 @@ namespace Amatsukaze.Models
                             if (update.Type == UpdateType.Remove)
                             {
                                 dir.Items.Remove(file);
+                                dir.ItemStateUpdated();
                             }
                             else // Update
                             {
@@ -953,6 +974,7 @@ namespace Amatsukaze.Models
                                     Model = update.Item,
                                     IsSelected = dir.Items[index].IsSelected
                                 };
+                                dir.ItemStateUpdated();
                             }
                         }
                     }

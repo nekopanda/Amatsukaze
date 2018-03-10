@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Components\BrowserBehavior.cs" />
+    <Compile Include="Components\GridViewSort.cs" />
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Components\TaskbarInfoBehavior.cs" />

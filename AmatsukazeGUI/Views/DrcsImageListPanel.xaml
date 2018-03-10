@@ -41,6 +41,6 @@
         </Button>
 
         <ListBox ItemsSource="{Binding ImageList}" Grid.Row="1"
-             SelectedIndex="{Binding ImageItemSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+             SelectedItem="{Binding DrcsImageSelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
     </Grid>
 </UserControl>

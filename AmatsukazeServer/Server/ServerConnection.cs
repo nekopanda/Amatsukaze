@@ -78,7 +78,7 @@ namespace Amatsukaze.Server
                     userClient.OnAddResult((string)arg);
                     break;
                 case RPCMethodId.OnOperationResult:
-                    userClient.OnOperationResult((string)arg);
+                    userClient.OnOperationResult((OperationResult)arg);
                     break;
             }
         }
@@ -91,11 +91,6 @@ namespace Amatsukaze.Server
         public Task AddQueue(AddQueueDirectory dir)
         {
             return Send(RPCMethodId.AddQueue, dir);
-        }
-
-        public Task RemoveQueue(int id)
-        {
-            return Send(RPCMethodId.RemoveQueue, id);
         }
 
         public Task ChangeItem(ChangeItemData data)

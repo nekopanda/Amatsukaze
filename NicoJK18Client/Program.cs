@@ -20,6 +20,11 @@ namespace NicoJK18Client
                 client.Exec();
                 return 0;
             }
+            catch (NoThreadException e)
+            {
+                Console.Error.WriteLine(e.Message);
+                return 100;
+            }
             catch (Exception e)
             {
                 Console.Error.WriteLine(e.Message);
@@ -38,6 +43,12 @@ namespace NicoJK18Client
         {
             TooEarlyError();
         }
+    }
+
+    public class NoThreadException : Exception
+    {
+        public NoThreadException(string message)
+            : base(message) { }
     }
 
     public class NicoJK18Client
@@ -155,6 +166,11 @@ namespace NicoJK18Client
             {
                 // これはパラメータがおかしいのでリトライしないで終了させる
                 throw new Exception("パラメータ不正");
+            }
+            else if(res.StatusCode == System.Net.HttpStatusCode.NotAcceptable)
+            {
+                // スレッドがない
+                throw new NoThreadException("スレッドがありません");
             }
             else if(res.StatusCode != System.Net.HttpStatusCode.OK)
             {

@@ -421,9 +421,9 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
-        public Task OnOperationResult(string result)
+        public Task OnOperationResult(OperationResult result)
         {
-            Console.WriteLine(result);
+            Console.WriteLine(result.Message);
             return Task.FromResult(0);
         }
 

@@ -77,31 +77,16 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        #region LogItemSelectedIndex変更通知プロパティ
-        private int _LogItemSelectedIndex;
+        #region SelectedLogItem変更通知プロパティ
+        private LogItem _SelectedLogItem;
 
-        public int LogItemSelectedIndex
-        {
-            get { return _LogItemSelectedIndex; }
-            set
-            {
-                if (_LogItemSelectedIndex == value)
+        public LogItem SelectedLogItem {
+            get { return _SelectedLogItem; }
+            set { 
+                if (_SelectedLogItem == value)
                     return;
-                _LogItemSelectedIndex = value;
+                _SelectedLogItem = value;
                 RaisePropertyChanged();
-                RaisePropertyChanged("SelectedLogItem");
-            }
-        }
-
-        public LogItem SelectedLogItem
-        {
-            get
-            {
-                if (_LogItemSelectedIndex >= 0 && _LogItemSelectedIndex < Model.LogItems.Count)
-                {
-                    return Model.LogItems[_LogItemSelectedIndex];
-                }
-                return null;
             }
         }
         #endregion

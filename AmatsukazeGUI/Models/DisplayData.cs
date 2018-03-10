@@ -11,77 +11,38 @@ namespace Amatsukaze.Models
 {
     public class DisplayQueueDirectory : NotificationObject
     {
+        private static readonly string TIME_FORMAT = "yyyy/MM/dd HH:mm:ss";
+
         public int Id;
 
-        #region Path変更通知プロパティ
-        private string _Path;
+        public string Path { get; set; }
+        public ObservableCollection<DisplayQueueItem> Items { get; set; }
+        public string ModeString { get; set; }
+        public string Profile { get; set; }
+        public string ProfileLastUpdate { get; set; }
 
-        public string Path {
-            get { return _Path; }
-            set {
-                if (_Path == value)
-                    return;
-                _Path = value;
-                RaisePropertyChanged();
+        public string LastAdd {
+            get {
+                if (Items.Count == 0) return "";
+                return Items.Max(s => s.Model.AddTime).ToString(TIME_FORMAT);
             }
         }
-        #endregion
 
-        #region Items変更通知プロパティ
-        private ObservableCollection<DisplayQueueItem> _Items;
+        public int Active { get { return Items.Count(s => s.Model.IsActive); } }
+        public int Encoding { get { return Items.Count(s => s.Model.State == QueueState.Encoding); } }
+        public int Complete { get { return Items.Count(s => s.Model.State == QueueState.Complete); } }
+        public int Pending { get { return Items.Count(s => s.Model.State == QueueState.LogoPending); } }
+        public int Fail { get { return Items.Count(s => s.Model.State == QueueState.Failed); } }
 
-        public ObservableCollection<DisplayQueueItem> Items {
-            get { return _Items; }
-            set {
-                if (_Items == value)
-                    return;
-                _Items = value;
-                RaisePropertyChanged();
-            }
+        public void ItemStateUpdated()
+        {
+            RaisePropertyChanged("LastAdd");
+            RaisePropertyChanged("Active");
+            RaisePropertyChanged("Encoding");
+            RaisePropertyChanged("Complete");
+            RaisePropertyChanged("Pending");
+            RaisePropertyChanged("Fail");
         }
-        #endregion
-
-        #region ModeString変更通知プロパティ
-        private string _ModeString;
-
-        public string ModeString {
-            get { return _ModeString; }
-            set {
-                if (_ModeString == value)
-                    return;
-                _ModeString = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region Profile変更通知プロパティ
-        private string _Profile;
-
-        public string Profile {
-            get { return _Profile; }
-            set {
-                if (_Profile == value)
-                    return;
-                _Profile = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region LastUpdate変更通知プロパティ
-        private string _LastUpdate;
-
-        public string LastUpdate {
-            get { return _LastUpdate; }
-            set { 
-                if (_LastUpdate == value)
-                    return;
-                _LastUpdate = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
 
         private static string ModeToString(ProcMode mode)
         {
@@ -105,7 +66,7 @@ namespace Amatsukaze.Models
             Path = dir.DirPath;
             ModeString = ModeToString(dir.Mode);
             Profile = dir.Profile.Name;
-            LastUpdate = dir.Profile.LastUpdate.ToString("yyyy/MM/dd HH:mm:ss");
+            ProfileLastUpdate = dir.Profile.LastUpdate.ToString(TIME_FORMAT);
             Items = new ObservableCollection<DisplayQueueItem>(
                 dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s }));
         }

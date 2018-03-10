@@ -151,14 +151,10 @@
                 </Button.Style>
             </Button>
             <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
-            <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}" Margin="10,0" Grid.Column="1" VerticalAlignment="Center" Background="White">
-                <i:Interaction.Triggers>
-                    <ei:PropertyChangedTrigger Binding="{Binding Path=Model.CurrentOperationResult}"> 
-                        <ei:ControlStoryboardAction Storyboard="{StaticResource resultChangedAnimation}"     
-                                                ControlStoryboardOption="Play"/>
-                    </ei:PropertyChangedTrigger> 
-                </i:Interaction.Triggers>
-            </TextBlock>
+            <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}"
+                       Margin="10,0" Grid.Column="1" VerticalAlignment="Center"
+                       Foreground="{Binding StatusForeColor}"
+                       Background="{Binding StatusBackColor}"/>
         </DockPanel>
     </Grid>
 </Window>
