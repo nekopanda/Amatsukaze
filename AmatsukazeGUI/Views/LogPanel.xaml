@@ -19,6 +19,15 @@
                   SelectedItem="{Binding SelectedLogItem, Mode=TwoWay}" 
                   c:GridViewSort.AutoSort="True"
                   MouseDoubleClick="ListView_MouseDoubleClick">
+            <ListView.Resources>
+                <Style TargetType="{x:Type ListViewItem}">
+                    <Style.Resources>
+                        <Style TargetType="{x:Type TextBlock}">
+                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self},Path='Text'}" />
+                        </Style>
+                    </Style.Resources>
+                </Style>
+            </ListView.Resources>
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}" c:GridViewSort.PropertyName="DisplayEncodeStart"/>

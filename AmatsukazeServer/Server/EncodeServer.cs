@@ -3110,7 +3110,11 @@ namespace Amatsukaze.Server
                     MacAddress = GetMacAddress()
                 }
             });
-            foreach(var profile in profiles.Values)
+            await client.OnProfile(new ProfileUpdate()
+            {
+                Type = UpdateType.Clear
+            });
+            foreach (var profile in profiles.Values)
             {
                 await client.OnProfile(new ProfileUpdate() {
                     Profile = profile,

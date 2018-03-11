@@ -38,9 +38,33 @@
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="モード" DisplayMemberBinding="{Binding ModeString}" c:GridViewSort.PropertyName="ModeString"/>
-                    <GridViewColumn Header="ディレクトリ" DisplayMemberBinding="{Binding Path}" c:GridViewSort.PropertyName="Path"/>
-                    <GridViewColumn Header="プロファイル" DisplayMemberBinding="{Binding Profile}" c:GridViewSort.PropertyName="Profile"/>
-                    <GridViewColumn Header="最終追加日時" DisplayMemberBinding="{Binding LastAdd}" c:GridViewSort.PropertyName="LastAdd"/>
+                    <GridViewColumn Header="ディレクトリ" c:GridViewSort.PropertyName="Path">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Path}" ToolTip="{Binding Path}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="プロファイル" c:GridViewSort.PropertyName="Profile">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Profile}">
+                                    <TextBlock.ToolTip>
+                                        <TextBlock>
+                                            <Run Text="{Binding Profile}"/>@<Run Text="{Binding ProfileLastUpdate}"/>更新
+                                        </TextBlock>
+                                    </TextBlock.ToolTip>
+                                </TextBlock>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="最終追加日時" c:GridViewSort.PropertyName="LastAdd">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding LastAdd}" ToolTip="{Binding LastAdd}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                     <GridViewColumn Header="アイテム数" DisplayMemberBinding="{Binding Items.Count}" c:GridViewSort.PropertyName="Items.Count"/>
                     <GridViewColumn Header="アクティブ" DisplayMemberBinding="{Binding Active}" c:GridViewSort.PropertyName="Active"/>
                     <GridViewColumn Header="エンコード中" DisplayMemberBinding="{Binding Encoding}" c:GridViewSort.PropertyName="Encoding"/>
@@ -63,8 +87,8 @@
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  SelectionMode="Extended">
             <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
-                    <Setter Property="IsSelected" Value="{Binding Path=IsSelected}"/>
+                <Style TargetType="{x:Type ListBoxItem}">
+                    <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
                     <Setter Property="OverridesDefaultStyle" Value="True" />
                     <Setter Property="Template">
                         <Setter.Value>
@@ -97,7 +121,7 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="Background" Value="LightGray" />
                         </Trigger>
-                        
+
                         <MultiDataTrigger>
                             <MultiDataTrigger.Conditions>
                                 <Condition Binding="{Binding DataContext.Model.Setting.HideOneSeg, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBox}}}" Value="True" />
@@ -117,10 +141,10 @@
                         </DockPanel>
                         <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
                         <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
-                                ItemsSource="{Binding RelativeSource={RelativeSource AncestorType={x:Type ListBox}}, Path=DataContext.Model.PriorityList}"
+                                ItemsSource="{Binding DataContext.Model.PriorityList, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
                                 SelectedItem="{Binding Priority, Mode=TwoWay}"/>
                         <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0" Text="{Binding Model.FileName, Mode=OneWay}" ToolTip="{Binding Model.FileName, Mode=OneWay}"/>
-                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /> <Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
+                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
                     </DockPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>

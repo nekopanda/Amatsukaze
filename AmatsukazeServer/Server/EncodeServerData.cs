@@ -396,7 +396,7 @@ namespace Amatsukaze.Server
 
     public enum UpdateType
     {
-        Add, Remove, Update
+        Add, Remove, Update, Clear
     }
 
     [DataContract]

@@ -1073,6 +1073,11 @@ namespace Amatsukaze.Models
 
         public Task OnProfile(ProfileUpdate data)
         {
+            if(data.Type == UpdateType.Clear)
+            {
+                ProfileList.Clear();
+                return Task.FromResult(0);
+            }
             var profile = ProfileList.FirstOrDefault(s => s.Model.Name == data.Profile.Name);
             if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
             {
