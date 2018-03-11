@@ -131,7 +131,7 @@ namespace Amatsukaze.ViewModels
         public void Initialize()
         {
             imagesView = System.Windows.Data.CollectionViewSource.GetDefaultView(_ImageList);
-            imagesView.Filter = x => IsNoMapOnly == false || string.IsNullOrEmpty(((DrcsImageViewModel)x).MapStr);
+            imagesView.Filter = x => IsNoMapOnly == false || string.IsNullOrEmpty(((DrcsImageViewModel)x).Image.MapStr);
 
             imagesListener.Add(new CollectionChangedEventListener(Model.DrcsImageList, (o, e) => {
                 switch (e.Action)

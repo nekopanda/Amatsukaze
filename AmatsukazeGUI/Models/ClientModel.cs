@@ -1090,6 +1090,7 @@ namespace Amatsukaze.Models
 
                     if(SelectedProfile != null && SelectedProfile.Model.Name == data.Profile.Name)
                     {
+                        // 選択中のプロファイルが更新された
                         SelectedProfile = profile;
                     }
                 }
@@ -1129,10 +1130,21 @@ namespace Amatsukaze.Models
 
                 profile.IsModified = false;
 
-                if(SelectedProfile == null && Setting.Model != null &&
-                    profile.Model.Name == Setting.Model.LastSelectedProfile)
+                if(SelectedProfile == null && Setting.Model != null)
                 {
-                    SelectedProfile = profile;
+                    if(string.IsNullOrEmpty(Setting.Model.LastSelectedProfile))
+                    {
+                        if(profile.Model.Name == "デフォルト")
+                        {
+                            // 選択中のプロファイルがなかったらデフォルトを選択
+                            SelectedProfile = profile;
+                        }
+                    }
+                    else if(profile.Model.Name == Setting.Model.LastSelectedProfile)
+                    {
+                        // 最後に選択中だったらプロファイルだったらそれにする
+                        SelectedProfile = profile;
+                    }
                 }
             }
             else
