@@ -1084,7 +1084,14 @@ namespace Amatsukaze.Models
                 if(profile == null)
                 {
                     profile = new DisplayProfile() { Model = data.Profile };
-                    ProfileList.Add(profile);
+                    ProfileList.Insert(
+                        ProfileList.Count(s => !s.Model.Name.StartsWith("サンプル_")),
+                        profile);
+
+                    if(SelectedProfile != null && SelectedProfile.Model.Name == data.Profile.Name)
+                    {
+                        SelectedProfile = profile;
+                    }
                 }
 
                 profile.SetEncoderOptions(
