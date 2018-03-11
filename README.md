@@ -219,6 +219,8 @@ MP4はASSに対応していないためSRTのみが組み込まれ、ASSは別�
 
 必要な設定をして、「バッチファイル作成」から、バッチファイルを生成し、EDCBの録画後実行バッチのところに生成したバッチファイルへのパスを設定してください。
 
+エンコード自体はAmatsukazeサーバで実行されます。生成したバッチファイルは、Amatsukazeサーバにタスクを投げるのが仕事です。Amatsukazeサーバが起動していない場合は、バッチファイルから起動を試みます。あらかじめ起動しておけば、起動してるAmatsukazeサーバにタスクを投げます。エンコード状況の確認やリトライなどの操作は、AmatsukazeClientから接続して行ってください。
+
 EDCBがサービスで動いてて、EpgTimerもAmatsukazeサーバも立ち上げていない場合、AmatsukazeServerCLIがサービスで動いてるEDCBから起動されます。結果、Amatsukazeサーバがシステムアカウントで動作するので、環境によっては、AviSynthプラグインがエラーを吐くことがあるようです。システムアカウントで動いてるAmatsukazeサーバでエラーが出る場合は、手動でAmatsukazeServer.vbsからAmatsukazeサーバを起動しておくようにしてください。なお、システムアカウントで起動しているAmatsukazeサーバは、AmatsukazeClientから「その他」→「Amatsukazeサーバ操作」で終了できます。
 
 録画PCとエンコードPCを別にしたい場合は、[録画後リモートエンコード](https://github.com/nekopanda/Amatsukaze/wiki/%E9%8C%B2%E7%94%BB%E5%BE%8C%E3%83%AA%E3%83%A2%E3%83%BC%E3%83%88%E3%82%A8%E3%83%B3%E3%82%B3%E3%83%BC%E3%83%89)を参照してください。
