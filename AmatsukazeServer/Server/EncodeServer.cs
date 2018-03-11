@@ -2682,7 +2682,14 @@ namespace Amatsukaze.Server
 
                     string drcspath = GetDRCSDirectoryPath();
                     string drcsmappath = GetDRCSMapPath();
-                    if (Directory.Exists(drcspath) && File.Exists(drcsmappath))
+                    if(!Directory.Exists(drcspath))
+                    {
+                        Directory.CreateDirectory(drcspath);
+                    }
+                    if(!File.Exists(drcsmappath))
+                    {
+                        using (File.Create(drcsmappath)) { }
+                    }
                     {
                         bool needUpdate = false;
                         var lastModified = Directory.GetLastWriteTime(drcspath);
