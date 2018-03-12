@@ -241,7 +241,7 @@ EDCBがサービスで動いてて、EpgTimerもAmatsukazeサーバも立ち上�
 
 <img src="https://i.imgur.com/ZFyOn5l.png" width="445">
 
-「NocoJK18サーバからコメントを取得する」場合は、これだけでOKです。NocoJK18サーバを使わない場合は、[JKCommentGetter](https://github.com/ACUVE/JKCommentGetter)のセットアップが必要になります。
+「NicoJK18サーバからコメントを取得する」場合は、これだけでOKです。NicoJK18サーバを使わない場合は、[JKCommentGetter](https://github.com/ACUVE/JKCommentGetter)のセットアップが必要になります。
 
 NicoConvAssのパラメータを設定したい場合は、NicoConvAss.exeを起動して設定してください。
 
