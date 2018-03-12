@@ -366,6 +366,8 @@ namespace Amatsukaze.Server
             public MakeScriptData scriptData;
             [DataMember]
             public ServiceSetting services;
+            [DataMember]
+            public AutoSelectProfile autoSelect;
 
             public ExtensionDataObject ExtensionData { get; set; }
         }

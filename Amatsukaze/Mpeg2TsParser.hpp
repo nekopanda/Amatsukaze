@@ -499,6 +499,47 @@ private:
 	uint8_t component_tag_;
 };
 
+struct ContentElement
+{
+	ContentElement(uint8_t* ptr) : ptr(ptr) { }
+
+	uint8_t content_nibble_level_1() { return bsm(ptr[0], 4, 4); }
+	uint8_t content_nibble_level_2() { return bsm(ptr[0], 0, 4); }
+	uint8_t user_nibble_1() { return bsm(ptr[1], 4, 4); }
+	uint8_t user_nibble_2() { return bsm(ptr[1], 0, 4); }
+
+private:
+	uint8_t * ptr;
+};
+
+struct ContentDescriptor
+{
+	ContentDescriptor(Descriptor desc) : desc(desc) { }
+
+	bool parse() {
+		MemoryChunk payload = desc.payload();
+		if (payload.length % 2) return false;
+		int offset = 0;
+		while (offset < (int)payload.length) {
+			elems.emplace_back(&payload.data[offset]);
+			offset += 2;
+		}
+		return true;
+	}
+
+	int numElems() const {
+		return int(elems.size());
+	}
+
+	ContentElement get(int i) const {
+		return elems[i];
+	}
+
+private:
+	Descriptor desc;
+	std::vector<ContentElement> elems;
+};
+
 struct PsiConstantHeader : public MemoryChunk {
 
 	PsiConstantHeader(MemoryChunk mc) : MemoryChunk(mc) { }
@@ -760,6 +801,61 @@ struct TOT {
 private:
 	PsiSection section;
 	MemoryChunk payload_;
+};
+
+struct EITElement {
+
+	EITElement(uint8_t* ptr) : ptr(ptr) { }
+
+	uint16_t event_id() { return read16(&ptr[0]); }
+	JSTTime start_time() { return read40(&ptr[2]); }
+	int32_t duration() { return read24(&ptr[7]); }
+	uint8_t running_status() { return bsm(ptr[7], 4, 3); }
+	uint8_t free_CA_mode() { return bsm(ptr[7], 3, 1); }
+	uint16_t descriptor_loop_length() { return bsm(read16(&ptr[7]), 0, 12); }
+	MemoryChunk descriptor() { return MemoryChunk(ptr + 9, descriptor_loop_length()); }
+	int size() { return descriptor_loop_length() + 9; }
+
+private:
+	uint8_t * ptr;
+};
+
+struct EIT {
+
+	EIT(PsiSection section) : section(section) { }
+
+	uint16_t service_id() { return section.id(); }
+	uint16_t transport_stream_id() { return read16(&payload_.data[0]); }
+	uint16_t original_network_id() { return read16(&payload_.data[2]); }
+	uint8_t segment_last_section_number() { return payload_.data[4]; }
+	uint8_t last_table_id() { return payload_.data[5]; }
+	
+	bool parse() {
+		payload_ = section.payload();
+		int offset = 6;
+		while (offset < (int)payload_.length) {
+			elems.emplace_back(&payload_.data[offset]);
+			offset += elems.back().size();
+		}
+		return true;
+	}
+
+	bool check() const {
+		return true;
+	}
+
+	int numElems() const {
+		return int(elems.size());
+	}
+
+	EITElement get(int i) const {
+		return elems[i];
+	}
+
+private:
+	PsiSection section;
+	MemoryChunk payload_;
+	std::vector<EITElement> elems;
 };
 
 class PsiParser : public AMTObject, public TsPacketHandler {

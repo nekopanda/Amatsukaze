@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.IO;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
+using System.Collections.Generic;
 
 namespace Amatsukaze.Lib
 {
@@ -76,6 +77,14 @@ namespace Amatsukaze.Lib
         }
     }
 
+    public struct ContentNibbles
+    {
+        public int Level1;
+        public int Level2;
+        public int User1;
+        public int User2;
+    }
+
     public struct Program
     {
         public int ServiceId;
@@ -86,6 +95,7 @@ namespace Amatsukaze.Lib
         public int Height;
         public int SarW;
         public int SarH;
+        public ContentNibbles[] Content;
     }
 
     public struct Service
@@ -123,7 +133,10 @@ namespace Amatsukaze.Lib
         private static extern int TsInfo_GetNumProgram(IntPtr ptr);
 
         [DllImport("Amatsukaze.dll")]
-        private static extern void TsInfo_GetProgramInfo(IntPtr ptr, int i, out int progId, out bool hasVideo, out int videoPid);
+        private static extern void TsInfo_GetProgramInfo(IntPtr ptr, int i, out int progId, out bool hasVideo, out int videoPid, out int numContent);
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern void TsInfo_GetContentNibbles(IntPtr ptr, int i, int ci, out int level1, out int level2, out int user1, out int user2);
 
         [DllImport("Amatsukaze.dll")]
         private static extern void TsInfo_GetVideoFormat(IntPtr ptr, int i, out int stream, out int width, out int height, out int sarW, out int  sarH);
@@ -197,8 +210,18 @@ namespace Amatsukaze.Lib
             return Enumerable.Range(0, TsInfo_GetNumProgram(Ptr))
                 .Select(i => {
                     Program prog;
-                    TsInfo_GetProgramInfo(Ptr, i, out prog.ServiceId, out prog.HasVideo, out prog.VideoPid);
-                    TsInfo_GetVideoFormat(Ptr, i, out prog.Stream, out prog.Width, out prog.Height, out prog.SarW, out prog.SarH);
+                    int numContent;
+                    TsInfo_GetProgramInfo(Ptr, i,
+                        out prog.ServiceId, out prog.HasVideo, out prog.VideoPid, out numContent);
+                    TsInfo_GetVideoFormat(Ptr, i,
+                        out prog.Stream, out prog.Width, out prog.Height, out prog.SarW, out prog.SarH);
+                    prog.Content = Enumerable.Range(0, numContent)
+                        .Select(ci => {
+                            ContentNibbles data;
+                            TsInfo_GetContentNibbles(Ptr, i, ci,
+                                out data.Level1, out data.Level2, out data.User1, out data.User2);
+                            return data;
+                        }).ToArray();
                     return prog;
                 }).ToArray();
         }

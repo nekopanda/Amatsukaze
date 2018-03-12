@@ -1,4 +1,5 @@
-﻿using Livet;
+﻿using Amatsukaze.Lib;
+using Livet;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -776,6 +777,75 @@ namespace Amatsukaze.Server
                 yield return ".ts.err";
                 yield return ".ts.program.txt";
             }
+        }
+
+        private static bool MatchContentConditions(Program program, ContentCondition[] conds)
+        {
+            // 条件が無効なら無条件でOK
+            if (conds == null) return true;
+            // ジャンル情報がない場合はダメ
+            if (program.Content.Length == 0) return false;
+
+            var content = program.Content[0];
+            foreach(var cond in conds)
+            {
+                if(cond.Level1 == content.Level1)
+                {
+                    if(cond.Level2 == -1 || cond.Level2 == content.Level2)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static VideoSizeCondition GetVideoSize(Program program)
+        {
+            if(program.Width > 1440)
+            {
+                return VideoSizeCondition.FullHD;
+            }
+            if(program.Width > 720)
+            {
+                return VideoSizeCondition.HD1440;
+            }
+            if(program.Width > 320)
+            {
+                return VideoSizeCondition.SD;
+            }
+            return VideoSizeCondition.OneSeg;
+        }
+
+        public static string AutoSelectProfile(Program program, AutoSelectProfile conds)
+        {
+            var videoSize = GetVideoSize(program);
+            foreach (var cond in conds.Conditions)
+            {
+                if(MatchContentConditions(program, cond.ContentConditions) == false)
+                {
+                    continue;
+                }
+                if(cond.ServiceIds != null)
+                {
+                    if(cond.ServiceIds.Contains(program.ServiceId) == false)
+                    {
+                        continue;
+                    }
+                }
+                if(cond.VideoSizes != null)
+                {
+                    if(cond.VideoSizes.Contains(videoSize) == false)
+                    {
+                        continue;
+                    }
+                }
+                // 全てにマッチした
+                return cond.Profile;
+            }
+            // マッチしたのがなかった
+            return null;
         }
     }
 

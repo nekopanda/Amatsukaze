@@ -17,7 +17,7 @@
 struct ProgramInfo {
 	int programId;
 	bool hasVideo;
-	int videoPid; // 同じ映像の別サービスの注意
+	int videoPid; // 同じ映像の別サービスに注意
 	VideoFormat videoFormat;
 };
 
@@ -25,6 +25,18 @@ struct ServiceInfo {
 	int serviceId;
 	std::wstring provider;
 	std::wstring name;
+};
+
+struct ContentNibbles {
+	uint8_t content_nibble_level_1;
+	uint8_t content_nibble_level_2;
+	uint8_t user_nibble_1;
+	uint8_t user_nibble_2;
+};
+
+struct ContentInfo {
+	int serviceId;
+	std::vector<ContentNibbles> nibbles;
 };
 
 class TsInfoParser : public AMTObject {
@@ -38,6 +50,7 @@ public:
 	{
 		handlerTable.addConstant(0x0000, newPsiHandler()); // PAT
 		handlerTable.addConstant(0x0011, newPsiHandler()); // SDT/BAT
+		handlerTable.addConstant(0x0012, newPsiHandler()); // EIT
 		handlerTable.addConstant(0x0014, newPsiHandler()); // TDT/TOT
 	}
 
@@ -63,6 +76,10 @@ public:
 		for (int i = 0; i < numPrograms; ++i) {
 			if (programList[i].programOK == false) return false;
 		}
+		for (int i = 0; i < numPrograms; ++i) {
+			// 映像ありサービスでイベント情報がないのはダメ
+			if (programList[i].hasVideo && programList[i].eventOK == false) return false;
+		}
 		return patOK && serviceOK && timeOK;
 	}
 
@@ -76,6 +93,10 @@ public:
 
 	const ProgramInfo& getProgram(int i) const {
 		return programList[i];
+	}
+
+	const ContentInfo& getContent(int i) const {
+		return programList[i].contentInfo;
 	}
 
 	const std::vector<ServiceInfo>& getServiceList() const {
@@ -104,8 +125,12 @@ private:
 		std::unique_ptr<PSIDelegator> pmtHandler;
 		std::unique_ptr<VideoFrameParser> videoHandler;
 
+		bool eventOK;
+		ContentInfo contentInfo;
+
 		ProgramItem()
 			: programOK(false)
+			, eventOK(false)
 		{
 			programId = -1;
 			hasVideo = false;
@@ -144,10 +169,22 @@ private:
 	std::vector<ServiceInfo> serviceList;
 	JSTTime time;
 
+	// イベント情報から
+	JSTTime startTime;
+
 	PSIDelegator* newPsiHandler() {
 		auto p = new PSIDelegator(ctx, *this);
 		psiHandlers.emplace_back(p);
 		return p;
+	}
+
+	ProgramItem* getProgramItem(int programId) {
+		for (int i = 0; i < (int)numPrograms; ++i) {
+			if (programList[i].programId == programId) {
+				return &programList[i];
+			}
+		}
+		return nullptr;
 	}
 
 	void onPsiUpdated(PsiSection section)
@@ -161,6 +198,9 @@ private:
 			break;
 		case 0x42: // SDT（自ストリーム）
 			onSDT(section);
+			break;
+		case 0x4E: // EIT（自ストリームの現在と次）
+			onEIT(section);
 			break;
 		case 0x70: // TDT
 			onTDT(section);
@@ -205,14 +245,7 @@ private:
 		PMT pmt = section;
 		if (pmt.parse() && pmt.check()) {
 			// 該当プログラムを探す
-			ProgramItem* item = nullptr;
-			int programId = pmt.program_number();
-			for (int i = 0; i < (int)numPrograms; ++i) {
-				if (programList[i].programId == programId) {
-					item = &programList[i];
-					break;
-				}
-			}
+			ProgramItem* item = getProgramItem(pmt.program_number());
 			if (item != nullptr) {
 				// 映像をみつける
 				item->hasVideo = false;
@@ -297,6 +330,48 @@ private:
 		}
 	}
 
+	void onEIT(PsiSection section)
+	{
+		EIT eit(section);
+		if (eit.parse() && eit.check()) {
+			ProgramItem* item = getProgramItem(eit.service_id());
+			if (item != nullptr) {
+				if (eit.numElems() > 0) {
+					auto elem = eit.get(0);
+					startTime = elem.start_time;
+					auto descs = ParseDescriptors(elem.descriptor());
+					ContentInfo info;
+					for (int i = 0; i < (int)descs.size(); ++i) {
+						if (descs[i].tag() == 0x54) { // コンテント記述子
+							ContentDescriptor contentdesc(descs[i]);
+							if (contentdesc.parse()) {
+								int num = contentdesc.numElems();
+								for (int i = 0; i < num; ++i) {
+									auto data_i = contentdesc.get(i);
+									ContentNibbles data;
+									data.content_nibble_level_1 = data_i.content_nibble_level_1();
+									data.content_nibble_level_2 = data_i.content_nibble_level_2();
+									data.user_nibble_1 = data_i.user_nibble_1();
+									data.user_nibble_2 = data_i.user_nibble_2();
+									info.nibbles.push_back(data);
+								}
+								break;
+							}
+						}
+					}
+					// 同じPIDのプログラムは全て上書き
+					for (int i = 0; i < (int)programList.size(); ++i) {
+						if (programList[i].videoPid == item->videoPid) {
+							programList[i].contentInfo.serviceId = item->programId;
+							programList[i].contentInfo.nibbles = info;
+							programList[i].eventOK = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	void onTDT(PsiSection section)
 	{
 		TDT tdt(section);
@@ -366,11 +441,12 @@ public:
 		return parser.getNumPrograms();
 	}
 
-	void GetProgramInfo(int i, int* progId, int* hasVideo, int* videoPid) {
+	void GetProgramInfo(int i, int* progId, int* hasVideo, int* videoPid, int* numContent) {
 		auto& prog = parser.getProgram(i);
 		*progId = prog.programId;
 		*hasVideo = prog.hasVideo;
 		*videoPid = prog.videoPid;
+		*numContent = (int)parser.getContent(i).nibbles.size();
 	}
 
 	void GetVideoFormat(int i, int* stream, int* width, int* height, int* sarW, int* sarH) {
@@ -380,6 +456,14 @@ public:
 		*height = fmt.height;
 		*sarW = fmt.sarWidth;
 		*sarH = fmt.sarHeight;
+	}
+
+	void GetContentNibbles(int i, int ci, int *level1, int *level2, int* user1, int* user2) {
+		auto& data = parser.getContent(i).nibbles[ci];
+		*level1 = data.content_nibble_level_1;
+		*level2 = data.content_nibble_level_2;
+		*user1 = data.user_nibble_1;
+		*user2 = data.user_nibble_2;
 	}
 
 	int GetNumService() {
@@ -447,10 +531,12 @@ extern "C" __declspec(dllexport) int TsInfo_HasServiceInfo(TsInfo* ptr) { return
 extern "C" __declspec(dllexport) void TsInfo_GetDay(TsInfo* ptr, int* y, int* m, int* d) { ptr->GetDay(y, m, d); }
 extern "C" __declspec(dllexport) void TsInfo_GetTime(TsInfo* ptr, int* h, int* m, int* s) { return ptr->GetTime(h, m, s); }
 extern "C" __declspec(dllexport) int TsInfo_GetNumProgram(TsInfo* ptr) { return ptr->GetNumProgram(); }
-extern "C" __declspec(dllexport) void TsInfo_GetProgramInfo(TsInfo* ptr, int i, int* progId, int* hasVideo, int* videoPid)
-{ return ptr->GetProgramInfo(i, progId, hasVideo, videoPid); }
+extern "C" __declspec(dllexport) void TsInfo_GetProgramInfo(TsInfo* ptr, int i, int* progId, int* hasVideo, int* videoPid, int* numContent)
+{ return ptr->GetProgramInfo(i, progId, hasVideo, videoPid, numContent); }
 extern "C" __declspec(dllexport) void TsInfo_GetVideoFormat(TsInfo* ptr, int i, int* stream, int* width, int* height, int* sarW, int* sarH)
 { return ptr->GetVideoFormat(i, stream, width, height, sarW, sarH); }
+extern "C" __declspec(dllexport) void TsInfo_GetContentNibbles(TsInfo* ptr, int i, int ci, int *level1, int *level2, int* user1, int* user2)
+{ return ptr->GetContentNibbles(i, ci, level1, level2, user1, user2); }
 extern "C" __declspec(dllexport) int TsInfo_GetNumService(TsInfo* ptr) { return ptr->GetNumService(); }
 extern "C" __declspec(dllexport) int TsInfo_GetServiceId(TsInfo* ptr, int i) { return ptr->GetServiceId(i); }
 extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetProviderName(TsInfo* ptr, int i) { return ptr->GetProviderName(i); }

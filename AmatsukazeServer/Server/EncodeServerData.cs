@@ -782,4 +782,38 @@ namespace Amatsukaze.Server
         [DataMember]
         public string Message { get; set; }
     }
+
+    public enum VideoSizeCondition
+    {
+        FullHD, HD1440, SD, OneSeg
+    }
+
+    [DataContract]
+    public class ContentCondition
+    {
+        [DataMember]
+        public int Level1 { get; set; }
+        [DataMember]
+        public int Level2 { get; set; }
+    }
+
+    [DataContract]
+    public class AutoSelectCondition
+    {
+        [DataMember]
+        public List<ContentCondition> ContentConditions { get; set; }
+        [DataMember]
+        public List<int> ServiceIds { get; set; }
+        [DataMember]
+        public List<VideoSizeCondition> VideoSizes { get; set; }
+        [DataMember]
+        public string Profile { get; set; }
+    }
+
+    [DataContract]
+    public class AutoSelectProfile
+    {
+        [DataMember]
+        public List<AutoSelectCondition> Conditions { get; set; }
+    }
 }
