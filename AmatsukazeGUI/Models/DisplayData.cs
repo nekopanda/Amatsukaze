@@ -1355,20 +1355,35 @@ namespace Amatsukaze.Models
 
     }
 
+    public class SpaceGenre
+    {
+        public GenreSpace Space { get; set; }
+        public string Name { get; set; }
+        public SortedList<int, MainGenre> MainGenres { get; set; }
+    }
+
+    public class MainGenre
+    {
+        public int Level1 { get; set; }
+        public string Name { get; set; }
+        public SortedList<int, DisplayGenre> SubGenres { get; set; }
+    }
+
     public class DisplayGenre
     {
         public string Name { get; set; }
         public GenreItem Item { get; set; }
 
-        public static readonly DisplayGenre[][][] GENRE_TABLE;
+        public static readonly SortedList<GenreSpace, SpaceGenre> GENRE_TABLE;
 
         static DisplayGenre()
         {
-            var table =
+            var data =
             new []
             {
                 new
                 {
+                    Space = GenreSpace.ARIB,
                     Name = "",
                     Table = new []
                     {
@@ -1652,6 +1667,7 @@ namespace Amatsukaze.Models
                 },
                 new
                 {
+                    Space = GenreSpace.CS,
                     Name = "CS",
                     Table = new []
                     {
@@ -1724,8 +1740,115 @@ namespace Amatsukaze.Models
                                 "その他"
                             }
                         },
+                        new
+                        {
+                            Name = "アダルト(CS)",
+                            Table = new string[16]
+                            {
+                                "アダルト",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
                     }
                 }
+            };
+
+            GENRE_TABLE = new SortedList<GenreSpace, SpaceGenre>();
+            foreach(var a in data)
+            {
+                var spaceData = new SpaceGenre()
+                {
+                    Space = a.Space,
+                    Name = a.Name,
+                    MainGenres = new SortedList<int, MainGenre>()
+                };
+                for(int l1 = 0; l1 < a.Table.Length; ++l1)
+                {
+                    var b = a.Table[l1];
+                    var l1Data = new MainGenre()
+                    {
+                        Level1 = l1,
+                        Name = b.Name,
+                        SubGenres = new SortedList<int, DisplayGenre>()
+                    };
+                    for(int l2 = 0; l2 < b.Table.Length; ++l2)
+                    {
+                        if(b.Table[l2] != null)
+                        {
+                            var c = new DisplayGenre()
+                            {
+                                Name = b.Table[l2],
+                                Item = new GenreItem()
+                                {
+                                    Space = a.Space,
+                                    Level1 = l1,
+                                    Level2 = l2
+                                }
+                            };
+                            l1Data.SubGenres.Add(l2, c);
+                        }
+                    }
+                    spaceData.MainGenres.Add(l1, l1Data);
+                }
+                GENRE_TABLE.Add(a.Space, spaceData);
+            }
+
+            // その他 - その他 を追加
+            GENRE_TABLE[GenreSpace.ARIB].MainGenres.Add(0xF, new MainGenre()
+            {
+                Name = "その他",
+                Level1 = 0xF,
+                SubGenres = new SortedList<int, DisplayGenre>()
+                {
+                    {
+                        0xF,
+                        new DisplayGenre()
+                        {
+                            Name = "その他",
+                            Item = new GenreItem()
+                            {
+                                Space = GenreSpace.ARIB,
+                                Level1 = 0xF,
+                                Level2 = 0xF
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        public static DisplayGenre GetDisplayGenre(GenreItem item)
+        {
+            if(GENRE_TABLE.ContainsKey(item.Space))
+            {
+                var space = GENRE_TABLE[item.Space];
+                if(space.MainGenres.ContainsKey(item.Level1))
+                {
+                    var main = space.MainGenres[item.Level1];
+                    if(main.SubGenres.ContainsKey(item.Level2))
+                    {
+                        return main.SubGenres[item.Level2];
+                    }
+                }
+            }
+            return new DisplayGenre()
+            {
+                Name = "不明",
+                Item = item
             };
         }
     }

@@ -2257,7 +2257,8 @@ namespace Amatsukaze.Server
 
                                 foreach (var outitem in dir.Outputs)
                                 {
-                                    var profile = GetProfile(prog, outitem.Profile);
+                                    var genre = prog.Content.Select(s => ServerSupport.GetGenre(s)).ToList();
+                                    var profile = GetProfile(prog.Width, prog.Height, genre, prog.ServiceId, outitem.Profile);
                                     var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile ?? pendingProfile, waits);
 
                                     var item = new QueueItem()
@@ -2276,7 +2277,7 @@ namespace Amatsukaze.Server
                                         AddTime = DateTime.Now,
                                         ProfileName = outitem.Profile,
                                         Dir = target,
-                                        Program = prog
+                                        Genre = genre
                                     };
 
                                     if (item.IsOneSeg)
@@ -2415,7 +2416,8 @@ namespace Amatsukaze.Server
             }
         }
 
-        private ProfileSetting GetProfile(Program program, string profileName)
+        private ProfileSetting GetProfile(int width, int height,
+            List<GenreItem> genre, int serviceId, string profileName)
         {
             bool isAuto = false;
             profileName = ServerSupport.ParseProfileName(profileName, out isAuto);
@@ -2425,11 +2427,12 @@ namespace Amatsukaze.Server
                 {
                     return null;
                 }
-                if(program == null)
+                if(serviceId == -1)
                 {
+                    // TS情報がない
                     return null;
                 }
-                var resolvedProfile = ServerSupport.AutoSelectProfile(program, autoSelects[profileName]);
+                var resolvedProfile = ServerSupport.AutoSelectProfile(width, height, genre, serviceId, autoSelects[profileName]);
                 if (resolvedProfile == null)
                 {
                     return null;
@@ -2441,6 +2444,11 @@ namespace Amatsukaze.Server
                 return null;
             }
             return profiles[profileName];
+        }
+
+        private ProfileSetting GetProfile(QueueItem item, string profileName)
+        {
+            return GetProfile(item.ImageWidth, item.ImageHeight, item.Genre, item.ServiceId, profileName);
         }
 
         private void MoveItemDirectory(QueueItem item, QueueDirectory newDir, List<Task> waits)
@@ -2495,7 +2503,7 @@ namespace Amatsukaze.Server
                     return false;
                 }
 
-                var resolvedProfile = ServerSupport.AutoSelectProfile(item.Program, autoSelects[profileName]);
+                var resolvedProfile = ServerSupport.AutoSelectProfile(item, autoSelects[profileName]);
                 if (resolvedProfile == null)
                 {
                     item.FailReason = "自動選択「" + profileName + "」でプロファイルが選択されませんでした";
@@ -3577,7 +3585,7 @@ namespace Amatsukaze.Server
 
         private void UpdateReEnqueueItem(QueueItem item, List<Task> waits)
         {
-            var profile = GetProfile(item.Program, item.ProfileName);
+            var profile = GetProfile(item, item.ProfileName);
             var newDir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile ?? pendingProfile, waits);
             if(newDir != item.Dir)
             {
@@ -3589,9 +3597,7 @@ namespace Amatsukaze.Server
         private void DuplicateReEnqueueItem(QueueItem item, List<Task> waits)
         {
             var newItem = ServerSupport.DeepCopy(item);
-            newItem.Program = item.Program;
-
-            var profile = GetProfile(item.Program, item.ProfileName);
+            var profile = GetProfile(item, item.ProfileName);
             newItem.Dir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile ?? pendingProfile, waits);
 
             // ディレクトリに入れる

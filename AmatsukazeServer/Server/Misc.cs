@@ -836,25 +836,26 @@ namespace Amatsukaze.Server
             return VideoSizeCondition.OneSeg;
         }
 
-        public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds)
+        public static string AutoSelectProfile(int width, int height,
+            List<GenreItem> genre, int serviceId, AutoSelectProfile conds)
         {
-            var videoSize = GetVideoSize(item.ImageWidth, item.ImageHeight);
+            var videoSize = GetVideoSize(width, height);
             foreach (var cond in conds.Conditions)
             {
-                if(MatchContentConditions(item.Genre, cond.ContentConditions) == false)
+                if (MatchContentConditions(genre, cond.ContentConditions) == false)
                 {
                     continue;
                 }
-                if(cond.ServiceIds != null)
+                if (cond.ServiceIds != null)
                 {
-                    if(cond.ServiceIds.Contains(item.ServiceId) == false)
+                    if (cond.ServiceIds.Contains(serviceId) == false)
                     {
                         continue;
                     }
                 }
-                if(cond.VideoSizes != null)
+                if (cond.VideoSizes != null)
                 {
-                    if(cond.VideoSizes.Contains(videoSize) == false)
+                    if (cond.VideoSizes.Contains(videoSize) == false)
                     {
                         continue;
                     }
@@ -864,6 +865,11 @@ namespace Amatsukaze.Server
             }
             // マッチしたのがなかった
             return null;
+        }
+
+        public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds)
+        {
+            return AutoSelectProfile(item.ImageWidth, item.ImageHeight, item.Genre, item.ServiceId, conds);
         }
 
         public static string ParseProfileName(string name, out bool autoSelect)
