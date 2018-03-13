@@ -14,6 +14,7 @@ namespace Amatsukaze.Server
     {
         // 操作系
         Task SetProfile(ProfileUpdate data);
+        Task SetAutoSelect(AutoSelectUpdate data);
         Task AddQueue(AddQueueDirectory dir);
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
@@ -51,6 +52,7 @@ namespace Amatsukaze.Server
 
         Task OnCommonData(CommonData data);
         Task OnProfile(ProfileUpdate data);
+        Task OnAutoSelect(AutoSelectUpdate data);
         Task OnServiceSetting(ServiceSettingUpdate update);
         Task OnLogoData(LogoData logoData);
         Task OnDrcsData(DrcsImageUpdate update);
@@ -63,6 +65,7 @@ namespace Amatsukaze.Server
     public enum RPCMethodId
     {
         SetProfile = 100,
+        SetAutoSelect,
         AddQueue,
         ChangeItem,
         PauseEncode,
@@ -90,6 +93,7 @@ namespace Amatsukaze.Server
         OnLogFile,
         OnCommonData,
         OnProfile,
+        OnAutoSelect,
         OnServiceSetting,
         OnLogoData,
         OnDrcsData,
@@ -107,6 +111,7 @@ namespace Amatsukaze.Server
     {
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
             { RPCMethodId.SetProfile, typeof(ProfileUpdate) },
+            { RPCMethodId.SetAutoSelect, typeof(AutoSelectUpdate) },
             { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
@@ -134,6 +139,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnCommonData, typeof(CommonData) },
             { RPCMethodId.OnProfile, typeof(ProfileUpdate) },
+            { RPCMethodId.OnAutoSelect, typeof(AutoSelectUpdate) },
             { RPCMethodId.OnServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnDrcsData, typeof(DrcsImageUpdate) },
@@ -454,6 +460,11 @@ namespace Amatsukaze.Server
         {
             return client.OnProfile(Copy(data));
         }
+
+        public Task OnAutoSelect(AutoSelectUpdate data)
+        {
+            return client.OnAutoSelect(Copy(data));
+        }
     }
 
     public class ServerAdapter : IEncodeServer
@@ -553,6 +564,11 @@ namespace Amatsukaze.Server
         public Task SetProfile(ProfileUpdate data)
         {
             return Server.SetProfile(Copy(data));
+        }
+
+        public Task SetAutoSelect(AutoSelectUpdate data)
+        {
+            return Server.SetAutoSelect(Copy(data));
         }
 
         public Task SetServiceSetting(ServiceSettingUpdate update)

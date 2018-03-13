@@ -810,11 +810,11 @@ struct EITElement {
 	uint16_t event_id() { return read16(&ptr[0]); }
 	JSTTime start_time() { return read40(&ptr[2]); }
 	int32_t duration() { return read24(&ptr[7]); }
-	uint8_t running_status() { return bsm(ptr[7], 4, 3); }
-	uint8_t free_CA_mode() { return bsm(ptr[7], 3, 1); }
-	uint16_t descriptor_loop_length() { return bsm(read16(&ptr[7]), 0, 12); }
-	MemoryChunk descriptor() { return MemoryChunk(ptr + 9, descriptor_loop_length()); }
-	int size() { return descriptor_loop_length() + 9; }
+	uint8_t running_status() { return bsm(ptr[10], 4, 3); }
+	uint8_t free_CA_mode() { return bsm(ptr[10], 3, 1); }
+	uint16_t descriptor_loop_length() { return bsm(read16(&ptr[10]), 0, 12); }
+	MemoryChunk descriptor() { return MemoryChunk(ptr + 12, descriptor_loop_length()); }
+	int size() { return descriptor_loop_length() + 12; }
 
 private:
 	uint8_t * ptr;

@@ -309,6 +309,23 @@ namespace Amatsukaze.Server
         Canceled,       // キャンセルされた
     }
 
+    public enum GenreSpace
+    {
+        ARIB = 0,
+        CS = 2,
+    }
+
+    [DataContract]
+    public class GenreItem
+    {
+        [DataMember]
+        public GenreSpace Space;
+        [DataMember]
+        public int Level1;
+        [DataMember]
+        public int Level2;
+    }
+
     [DataContract]
     public class QueueItem
     {
@@ -345,10 +362,11 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public string ProfileName { get; set; }
+        [DataMember]
+        public List<GenreItem> Genre { get; set; }
 
         // サーバで使う
         public QueueDirectory Dir { get; set; }
-        public Lib.Program Program { get; set; }
 
         public string FileName { get { return System.IO.Path.GetFileName(SrcPath); } }
 
@@ -798,19 +816,10 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class ContentCondition
-    {
-        [DataMember]
-        public int Level1 { get; set; }
-        [DataMember]
-        public int Level2 { get; set; }
-    }
-
-    [DataContract]
     public class AutoSelectCondition
     {
         [DataMember]
-        public List<ContentCondition> ContentConditions { get; set; }
+        public List<GenreItem> ContentConditions { get; set; }
         [DataMember]
         public List<int> ServiceIds { get; set; }
         [DataMember]
@@ -828,5 +837,14 @@ namespace Amatsukaze.Server
         public string Name;
         [DataMember]
         public List<AutoSelectCondition> Conditions { get; set; }
+    }
+
+    [DataContract]
+    public class AutoSelectUpdate
+    {
+        [DataMember]
+        public UpdateType Type { get; set; }
+        [DataMember]
+        public AutoSelectProfile Profile { get; set; }
     }
 }

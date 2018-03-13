@@ -795,21 +795,23 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static bool MatchContentConditions(Program program, List<ContentCondition> conds)
+        private static bool MatchContentConditions(List<GenreItem> genre, List<GenreItem> conds)
         {
             // 条件が無効なら無条件でOK
             if (conds == null) return true;
             // ジャンル情報がない場合はダメ
-            if (program.Content.Length == 0) return false;
+            if (genre.Count == 0) return false;
 
-            var content = program.Content[0];
-            foreach(var cond in conds)
+            foreach (var content in genre)
             {
-                if(cond.Level1 == content.Level1)
+                foreach (var cond in conds)
                 {
-                    if(cond.Level2 == -1 || cond.Level2 == content.Level2)
+                    if (cond.Level1 == content.Level1)
                     {
-                        return true;
+                        if (cond.Level2 == -1 || cond.Level2 == content.Level2)
+                        {
+                            return true;
+                        }
                     }
                 }
             }
@@ -817,35 +819,35 @@ namespace Amatsukaze.Server
             return false;
         }
 
-        private static VideoSizeCondition GetVideoSize(Program program)
+        private static VideoSizeCondition GetVideoSize(int width, int height)
         {
-            if(program.Width > 1440)
+            if(width > 1440)
             {
                 return VideoSizeCondition.FullHD;
             }
-            if(program.Width > 720)
+            if(width > 720)
             {
                 return VideoSizeCondition.HD1440;
             }
-            if(program.Width > 320)
+            if(width > 320)
             {
                 return VideoSizeCondition.SD;
             }
             return VideoSizeCondition.OneSeg;
         }
 
-        public static string AutoSelectProfile(Program program, AutoSelectProfile conds)
+        public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds)
         {
-            var videoSize = GetVideoSize(program);
+            var videoSize = GetVideoSize(item.ImageWidth, item.ImageHeight);
             foreach (var cond in conds.Conditions)
             {
-                if(MatchContentConditions(program, cond.ContentConditions) == false)
+                if(MatchContentConditions(item.Genre, cond.ContentConditions) == false)
                 {
                     continue;
                 }
                 if(cond.ServiceIds != null)
                 {
-                    if(cond.ServiceIds.Contains(program.ServiceId) == false)
+                    if(cond.ServiceIds.Contains(item.ServiceId) == false)
                     {
                         continue;
                     }
@@ -876,6 +878,24 @@ namespace Amatsukaze.Server
                 autoSelect = false;
                 return name;
             }
+        }
+
+        public static GenreItem GetGenre(ContentNibbles nibbles)
+        {
+            var genre = new GenreItem()
+            {
+                Space = GenreSpace.ARIB,
+                Level1 = nibbles.Level1,
+                Level2 = nibbles.Level2
+            };
+            if(nibbles.Level1 == 0xE)
+            {
+                // 拡張
+                genre.Space = (GenreSpace)(nibbles.Level2 + 1);
+                genre.Level1 = nibbles.User1;
+                genre.Level2 = nibbles.User2;
+            }
+            return genre;
         }
     }
 

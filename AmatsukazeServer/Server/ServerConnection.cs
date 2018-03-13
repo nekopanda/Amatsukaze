@@ -65,6 +65,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnProfile:
                     userClient.OnProfile((ProfileUpdate)arg);
                     break;
+                case RPCMethodId.OnAutoSelect:
+                    userClient.OnAutoSelect((AutoSelectUpdate)arg);
+                    break;
                 case RPCMethodId.OnServiceSetting:
                     userClient.OnServiceSetting((ServiceSettingUpdate)arg);
                     break;
@@ -86,6 +89,11 @@ namespace Amatsukaze.Server
         public Task SetProfile(ProfileUpdate data)
         {
             return Send(RPCMethodId.SetProfile, data);
+        }
+
+        public Task SetAutoSelect(AutoSelectUpdate data)
+        {
+            return Send(RPCMethodId.SetAutoSelect, data);
         }
 
         public Task AddQueue(AddQueueDirectory dir)

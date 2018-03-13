@@ -21,8 +21,10 @@ namespace Amatsukaze.Models
         public string Profile { get; set; }
         public string ProfileLastUpdate { get; set; }
 
-        public string LastAdd {
-            get {
+        public string LastAdd
+        {
+            get
+            {
                 if (Items.Count == 0) return "";
                 return Items.Max(s => s.Model.AddTime).ToString(TIME_FORMAT);
             }
@@ -90,8 +92,10 @@ namespace Amatsukaze.Models
         public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
         public string ServiceString { get { return Model.ServiceName + "(" + Model.ServiceId + ")"; } }
 
-        public string StateString {
-            get {
+        public string StateString
+        {
+            get
+            {
                 switch (Model.State)
                 {
                     case QueueState.Queue: return "待ち";
@@ -107,9 +111,11 @@ namespace Amatsukaze.Models
         }
 
         #region Priority変更通知プロパティ
-        public int Priority {
+        public int Priority
+        {
             get { return Model.Priority; }
-            set { 
+            set
+            {
                 if (Model.Priority == value)
                     return;
                 Model.Priority = value;
@@ -131,9 +137,11 @@ namespace Amatsukaze.Models
         public ProfileSetting Model { get; set; }
 
         #region EncoderTypeInt変更通知プロパティ
-        public int EncoderTypeInt {
+        public int EncoderTypeInt
+        {
             get { return (int)Model.EncoderType; }
-            set {
+            set
+            {
                 if ((int)Model.EncoderType == value)
                     return;
                 Model.EncoderType = (EncoderType)value;
@@ -145,8 +153,10 @@ namespace Amatsukaze.Models
         #endregion
 
         #region EncoderOption変更通知プロパティ
-        public string EncoderOption {
-            get {
+        public string EncoderOption
+        {
+            get
+            {
                 switch (Model.EncoderType)
                 {
                     case EncoderType.x264: return Model.X264Option;
@@ -156,7 +166,8 @@ namespace Amatsukaze.Models
                 }
                 return null;
             }
-            set {
+            set
+            {
                 switch (Model.EncoderType)
                 {
                     case EncoderType.x264:
@@ -188,9 +199,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region FilterPath変更通知プロパティ
-        public string FilterPath {
+        public string FilterPath
+        {
             get { return string.IsNullOrEmpty(Model.FilterPath) ? "フィルタなし" : Model.FilterPath; }
-            set {
+            set
+            {
                 string val = (value == "フィルタなし") ? "" : value;
                 if (Model.FilterPath == val)
                     return;
@@ -201,9 +214,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region PostFilterPath変更通知プロパティ
-        public string PostFilterPath {
+        public string PostFilterPath
+        {
             get { return string.IsNullOrEmpty(Model.PostFilterPath) ? "フィルタなし" : Model.PostFilterPath; }
-            set {
+            set
+            {
                 string val = (value == "フィルタなし") ? "" : value;
                 if (Model.PostFilterPath == val)
                     return;
@@ -214,9 +229,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region AutoBuffer変更通知プロパティ
-        public bool AutoBuffer {
+        public bool AutoBuffer
+        {
             get { return Model.AutoBuffer; }
-            set {
+            set
+            {
                 if (Model.AutoBuffer == value)
                     return;
                 Model.AutoBuffer = value;
@@ -226,9 +243,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region TwoPass変更通知プロパティ
-        public bool TwoPass {
+        public bool TwoPass
+        {
             get { return Model.TwoPass; }
-            set {
+            set
+            {
                 if (Model.TwoPass == value)
                     return;
                 Model.TwoPass = value;
@@ -239,9 +258,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region SplitSub変更通知プロパティ
-        public bool SplitSub {
+        public bool SplitSub
+        {
             get { return Model.SplitSub; }
-            set {
+            set
+            {
                 if (Model.SplitSub == value)
                     return;
                 Model.SplitSub = value;
@@ -251,9 +272,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region OutputMask変更通知プロパティ
-        public int OutputMask {
+        public int OutputMask
+        {
             get { return Model.OutputMask; }
-            set {
+            set
+            {
                 if (Model.OutputMask == value)
                     return;
                 Model.OutputMask = value;
@@ -265,9 +288,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateA変更通知プロパティ
-        public double BitrateA {
+        public double BitrateA
+        {
             get { return Model.Bitrate.A; }
-            set {
+            set
+            {
                 if (Model.Bitrate.A == value)
                     return;
                 Model.Bitrate.A = value;
@@ -278,9 +303,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateB変更通知プロパティ
-        public double BitrateB {
+        public double BitrateB
+        {
             get { return Model.Bitrate.B; }
-            set {
+            set
+            {
                 if (Model.Bitrate.B == value)
                     return;
                 Model.Bitrate.B = value;
@@ -291,9 +318,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateH264変更通知プロパティ
-        public double BitrateH264 {
+        public double BitrateH264
+        {
             get { return Model.Bitrate.H264; }
-            set {
+            set
+            {
                 if (Model.Bitrate.H264 == value)
                     return;
                 Model.Bitrate.H264 = value;
@@ -304,9 +333,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateCM変更通知プロパティ
-        public double BitrateCM {
+        public double BitrateCM
+        {
             get { return Model.BitrateCM; }
-            set {
+            set
+            {
                 if (Model.BitrateCM == value)
                     return;
                 Model.BitrateCM = value;
@@ -316,9 +347,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region DefaultJLSCommand変更通知プロパティ
-        public string DefaultJLSCommand {
+        public string DefaultJLSCommand
+        {
             get { return Model.DefaultJLSCommand; }
-            set {
+            set
+            {
                 if (Model.DefaultJLSCommand == value)
                     return;
                 Model.DefaultJLSCommand = value;
@@ -328,9 +361,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region DisableChapter変更通知プロパティ
-        public bool DisableChapter {
+        public bool DisableChapter
+        {
             get { return Model.DisableChapter; }
-            set {
+            set
+            {
                 if (Model.DisableChapter == value)
                     return;
                 Model.DisableChapter = value;
@@ -340,9 +375,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region DisableSubs変更通知プロパティ
-        public bool DisableSubs {
+        public bool DisableSubs
+        {
             get { return Model.DisableSubs; }
-            set {
+            set
+            {
                 if (Model.DisableSubs == value)
                     return;
                 Model.DisableSubs = value;
@@ -352,9 +389,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region IgnoreNoDrcsMap変更通知プロパティ
-        public bool IgnoreNoDrcsMap {
+        public bool IgnoreNoDrcsMap
+        {
             get { return Model.IgnoreNoDrcsMap; }
-            set {
+            set
+            {
                 if (Model.IgnoreNoDrcsMap == value)
                     return;
                 Model.IgnoreNoDrcsMap = value;
@@ -364,9 +403,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region EnableNicoJK変更通知プロパティ
-        public bool EnableNicoJK {
+        public bool EnableNicoJK
+        {
             get { return Model.EnableNicoJK; }
-            set {
+            set
+            {
                 if (Model.EnableNicoJK == value)
                     return;
                 Model.EnableNicoJK = value;
@@ -377,9 +418,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region IgnoreNicoJKError変更通知プロパティ
-        public bool IgnoreNicoJKError {
+        public bool IgnoreNicoJKError
+        {
             get { return Model.IgnoreNicoJKError; }
-            set {
+            set
+            {
                 if (Model.IgnoreNicoJKError == value)
                     return;
                 Model.IgnoreNicoJKError = value;
@@ -389,9 +432,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJK18変更通知プロパティ
-        public bool NicoJK18 {
+        public bool NicoJK18
+        {
             get { return Model.NicoJK18; }
-            set {
+            set
+            {
                 if (Model.NicoJK18 == value)
                     return;
                 Model.NicoJK18 = value;
@@ -401,9 +446,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat720S変更通知プロパティ
-        public bool NicoJKFormat720S {
+        public bool NicoJKFormat720S
+        {
             get { return Model.NicoJKFormats[0]; }
-            set {
+            set
+            {
                 if (Model.NicoJKFormats[0] == value)
                     return;
                 Model.NicoJKFormats[0] = value;
@@ -414,9 +461,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat720T変更通知プロパティ
-        public bool NicoJKFormat720T {
+        public bool NicoJKFormat720T
+        {
             get { return Model.NicoJKFormats[1]; }
-            set {
+            set
+            {
                 if (Model.NicoJKFormats[1] == value)
                     return;
                 Model.NicoJKFormats[1] = value;
@@ -427,9 +476,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat1080S変更通知プロパティ
-        public bool NicoJKFormat1080S {
+        public bool NicoJKFormat1080S
+        {
             get { return Model.NicoJKFormats[2]; }
-            set {
+            set
+            {
                 if (Model.NicoJKFormats[2] == value)
                     return;
                 Model.NicoJKFormats[2] = value;
@@ -440,9 +491,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat1080T変更通知プロパティ
-        public bool NicoJKFormat1080T {
+        public bool NicoJKFormat1080T
+        {
             get { return Model.NicoJKFormats[3]; }
-            set {
+            set
+            {
                 if (Model.NicoJKFormats[3] == value)
                     return;
                 Model.NicoJKFormats[3] = value;
@@ -453,9 +506,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NoDelogo変更通知プロパティ
-        public bool NoDelogo {
+        public bool NoDelogo
+        {
             get { return Model.NoDelogo; }
-            set {
+            set
+            {
                 if (Model.NoDelogo == value)
                     return;
                 Model.NoDelogo = value;
@@ -465,9 +520,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MoveEDCBFiles変更通知プロパティ
-        public bool MoveEDCBFiles {
+        public bool MoveEDCBFiles
+        {
             get { return Model.MoveEDCBFiles; }
-            set {
+            set
+            {
                 if (Model.MoveEDCBFiles == value)
                     return;
                 Model.MoveEDCBFiles = value;
@@ -477,9 +534,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region SystemAviSynthPlugin変更通知プロパティ
-        public bool SystemAviSynthPlugin {
+        public bool SystemAviSynthPlugin
+        {
             get { return Model.SystemAviSynthPlugin; }
-            set {
+            set
+            {
                 if (Model.SystemAviSynthPlugin == value)
                     return;
                 Model.SystemAviSynthPlugin = value;
@@ -489,9 +548,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region DisableHashCheck変更通知プロパティ
-        public bool DisableHashCheck {
+        public bool DisableHashCheck
+        {
             get { return Model.DisableHashCheck; }
-            set {
+            set
+            {
                 if (Model.DisableHashCheck == value)
                     return;
                 Model.DisableHashCheck = value;
@@ -501,9 +562,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region Mpeg2DecoderInt変更通知プロパティ
-        public int Mpeg2DecoderInt {
+        public int Mpeg2DecoderInt
+        {
             get { return (int)Model.Mpeg2Decoder; }
-            set {
+            set
+            {
                 if ((int)Model.Mpeg2Decoder == value)
                     return;
                 Model.Mpeg2Decoder = (DecoderType)value;
@@ -513,9 +576,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region H264DecoderInt変更通知プロパティ
-        public int H264DecoderInt {
+        public int H264DecoderInt
+        {
             get { return (int)Model.H264Deocder; }
-            set {
+            set
+            {
                 if ((int)Model.H264Deocder == value)
                     return;
                 Model.H264Deocder = (DecoderType)value;
@@ -525,9 +590,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region OutputFormatInt変更通知プロパティ
-        public int OutputFormatInt {
+        public int OutputFormatInt
+        {
             get { return (int)Model.OutputFormat; }
-            set {
+            set
+            {
                 if ((int)Model.OutputFormat == value)
                     return;
                 Model.OutputFormat = (FormatType)value;
@@ -539,9 +606,11 @@ namespace Amatsukaze.Models
         #region SettingWarningText変更通知プロパティ
         private string _SettingWarningText;
 
-        public string SettingWarningText {
+        public string SettingWarningText
+        {
             get { return _SettingWarningText; }
-            set {
+            set
+            {
                 if (_SettingWarningText == value)
                     return;
                 _SettingWarningText = value;
@@ -553,9 +622,11 @@ namespace Amatsukaze.Models
         #region OutputOptionIndex変更通知プロパティ
         private int _OutputOptionIndex;
 
-        public int OutputOptionIndex {
+        public int OutputOptionIndex
+        {
             get { return _OutputOptionIndex; }
-            set {
+            set
+            {
                 if (_OutputOptionIndex == value)
                     return;
                 _OutputOptionIndex = value;
@@ -570,29 +641,36 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        public string[] EncoderList {
+        public string[] EncoderList
+        {
             get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc" }; }
         }
-        public string[] Mpeg2DecoderList {
+        public string[] Mpeg2DecoderList
+        {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
-        public string[] H264DecoderList {
+        public string[] H264DecoderList
+        {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
-        public string[] OutputOptionList {
+        public string[] OutputOptionList
+        {
             get { return new string[] { "通常", "CMをカット", "本編とCMを分離", "CMのみ" }; }
         }
         private List<int> OutputMasklist = new List<int> { 1, 2, 6, 4 };
-        public string[] FormatList {
+        public string[] FormatList
+        {
             get { return new string[] { "MP4", "MKV" }; }
         }
 
         #region IsModified変更通知プロパティ
         private bool _IsModified;
 
-        public bool IsModified {
+        public bool IsModified
+        {
             get { return _IsModified; }
-            set {
+            set
+            {
                 if (_IsModified == value)
                     return;
                 _IsModified = value;
@@ -632,7 +710,7 @@ namespace Amatsukaze.Models
 
         public void SetEncoderOptions(string X264Option, string X265Option, string QSVEncOption, string NVEncOption)
         {
-            if(X264Option != Model.X264Option || X265Option != Model.X265Option ||
+            if (X264Option != Model.X264Option || X265Option != Model.X265Option ||
                 QSVEncOption != Model.QSVEncOption || NVEncOption != Model.NVEncOption)
             {
                 Model.X264Option = X264Option;
@@ -691,9 +769,11 @@ namespace Amatsukaze.Models
         #region Data変更通知プロパティ
         private ServiceSettingElement _Data;
 
-        public ServiceSettingElement Data {
+        public ServiceSettingElement Data
+        {
             get { return _Data; }
-            set {
+            set
+            {
                 //if (_Data == value)
                 //    return;
                 _Data = value;
@@ -708,8 +788,10 @@ namespace Amatsukaze.Models
         #region LogoList変更通知プロパティ
         private DisplayLogo[] _LogoList;
 
-        public DisplayLogo[] LogoList {
-            get {
+        public DisplayLogo[] LogoList
+        {
+            get
+            {
                 if (_LogoList == null)
                 {
                     _LogoList = Data.LogoSettings
@@ -736,9 +818,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region JlsCommandFile変更通知プロパティ
-        public string JlsCommandFile {
+        public string JlsCommandFile
+        {
             get { return Data.JLSCommand; }
-            set {
+            set
+            {
                 if (Data.JLSCommand == value)
                     return;
                 Data.JLSCommand = value;
@@ -749,9 +833,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region JlsArgs変更通知プロパティ
-        public string JLSOption {
+        public string JLSOption
+        {
             get { return Data.JLSOption; }
-            set {
+            set
+            {
                 if (Data.JLSOption == value)
                     return;
                 Data.JLSOption = value;
@@ -774,9 +860,11 @@ namespace Amatsukaze.Models
         public LogoSetting Setting { get; set; }
 
         #region Enabled変更通知プロパティ
-        public bool Enabled {
+        public bool Enabled
+        {
             get { return Setting.Enabled; }
-            set {
+            set
+            {
                 if (Setting.Enabled == value)
                     return;
                 Setting.Enabled = value;
@@ -789,9 +877,11 @@ namespace Amatsukaze.Models
         #region Data変更通知プロパティ
         private LogoData _Data;
 
-        public LogoData Data {
+        public LogoData Data
+        {
             get { return _Data; }
-            set {
+            set
+            {
                 if (_Data == value)
                     return;
                 _Data = value;
@@ -803,9 +893,11 @@ namespace Amatsukaze.Models
         #region From変更通知プロパティ
         private DateTime _From;
 
-        public DateTime From {
+        public DateTime From
+        {
             get { return _From; }
-            set {
+            set
+            {
                 if (_From == value)
                     return;
                 _From = value;
@@ -818,9 +910,11 @@ namespace Amatsukaze.Models
         #region To変更通知プロパティ
         private DateTime _To;
 
-        public DateTime To {
+        public DateTime To
+        {
             get { return _To; }
-            set {
+            set
+            {
                 if (_To == value)
                     return;
                 _To = value;
@@ -831,16 +925,19 @@ namespace Amatsukaze.Models
         #endregion
 
         #region DateChanged変更通知プロパティ
-        public bool DateChanged {
+        public bool DateChanged
+        {
             get { return Setting.From != _From || Setting.To != _To; }
         }
         #endregion
 
-        public string ToDateString {
+        public string ToDateString
+        {
             get { return Setting.To.ToString("yyyy/MM/dd"); }
         }
 
-        public string FromDateString {
+        public string FromDateString
+        {
             get { return Setting.From.ToString("yyyy/MM/dd"); }
         }
 
@@ -857,9 +954,11 @@ namespace Amatsukaze.Models
         public Setting Model { get; set; }
 
         #region WorkPath変更通知プロパティ
-        public string WorkPath {
+        public string WorkPath
+        {
             get { return Model.WorkPath; }
-            set {
+            set
+            {
                 if (Model.WorkPath == value)
                     return;
                 Model.WorkPath = value;
@@ -869,9 +968,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NumParallel変更通知プロパティ
-        public int NumParallel {
+        public int NumParallel
+        {
             get { return Model.NumParallel; }
-            set {
+            set
+            {
                 if (Model.NumParallel == value)
                     return;
                 Model.NumParallel = value;
@@ -881,9 +982,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region AmatsukazePath変更通知プロパティ
-        public string AmatsukazePath {
+        public string AmatsukazePath
+        {
             get { return Model.AmatsukazePath; }
-            set {
+            set
+            {
                 if (Model.AmatsukazePath == value)
                     return;
                 Model.AmatsukazePath = value;
@@ -893,9 +996,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region X264Path変更通知プロパティ
-        public string X264Path {
+        public string X264Path
+        {
             get { return Model.X264Path; }
-            set {
+            set
+            {
                 if (Model.X264Path == value)
                     return;
                 Model.X264Path = value;
@@ -905,9 +1010,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region X265Path変更通知プロパティ
-        public string X265Path {
+        public string X265Path
+        {
             get { return Model.X265Path; }
-            set {
+            set
+            {
                 if (Model.X265Path == value)
                     return;
                 Model.X265Path = value;
@@ -917,9 +1024,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region QSVEncPath変更通知プロパティ
-        public string QSVEncPath {
+        public string QSVEncPath
+        {
             get { return Model.QSVEncPath; }
-            set {
+            set
+            {
                 if (Model.QSVEncPath == value)
                     return;
                 Model.QSVEncPath = value;
@@ -929,9 +1038,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NVEncPath変更通知プロパティ
-        public string NVEncPath {
+        public string NVEncPath
+        {
             get { return Model.NVEncPath; }
-            set {
+            set
+            {
                 if (Model.NVEncPath == value)
                     return;
                 Model.NVEncPath = value;
@@ -941,9 +1052,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MuxerPath変更通知プロパティ
-        public string MuxerPath {
+        public string MuxerPath
+        {
             get { return Model.MuxerPath; }
-            set {
+            set
+            {
                 if (Model.MuxerPath == value)
                     return;
                 Model.MuxerPath = value;
@@ -953,9 +1066,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MKVMergePath変更通知プロパティ
-        public string MKVMergePath {
+        public string MKVMergePath
+        {
             get { return Model.MKVMergePath; }
-            set {
+            set
+            {
                 if (Model.MKVMergePath == value)
                     return;
                 Model.MKVMergePath = value;
@@ -965,9 +1080,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region TimelineEditorPath変更通知プロパティ
-        public string TimelineEditorPath {
+        public string TimelineEditorPath
+        {
             get { return Model.TimelineEditorPath; }
-            set {
+            set
+            {
                 if (Model.TimelineEditorPath == value)
                     return;
                 Model.TimelineEditorPath = value;
@@ -977,9 +1094,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MP4BoxPath変更通知プロパティ
-        public string MP4BoxPath {
+        public string MP4BoxPath
+        {
             get { return Model.MP4BoxPath; }
-            set {
+            set
+            {
                 if (Model.MP4BoxPath == value)
                     return;
                 Model.MP4BoxPath = value;
@@ -989,9 +1108,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region ChapterExePath変更通知プロパティ
-        public string ChapterExePath {
+        public string ChapterExePath
+        {
             get { return Model.ChapterExePath; }
-            set {
+            set
+            {
                 if (Model.ChapterExePath == value)
                     return;
                 Model.ChapterExePath = value;
@@ -1001,9 +1122,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region JoinLogoScpPath変更通知プロパティ
-        public string JoinLogoScpPath {
+        public string JoinLogoScpPath
+        {
             get { return Model.JoinLogoScpPath; }
-            set {
+            set
+            {
                 if (Model.JoinLogoScpPath == value)
                     return;
                 Model.JoinLogoScpPath = value;
@@ -1013,9 +1136,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoConvASSPath変更通知プロパティ
-        public string NicoConvASSPath {
+        public string NicoConvASSPath
+        {
             get { return Model.NicoConvASSPath; }
-            set {
+            set
+            {
                 if (Model.NicoConvASSPath == value)
                     return;
                 Model.NicoConvASSPath = value;
@@ -1025,9 +1150,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region AlwaysShowDisk変更通知プロパティ
-        public string AlwaysShowDisk {
+        public string AlwaysShowDisk
+        {
             get { return Model.AlwaysShowDisk; }
-            set {
+            set
+            {
                 if (Model.AlwaysShowDisk == value)
                     return;
                 Model.AlwaysShowDisk = value;
@@ -1037,9 +1164,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region ClearWorkDirOnStart変更通知プロパティ
-        public bool ClearWorkDirOnStart {
+        public bool ClearWorkDirOnStart
+        {
             get { return Model.ClearWorkDirOnStart; }
-            set {
+            set
+            {
                 if (Model.ClearWorkDirOnStart == value)
                     return;
                 Model.ClearWorkDirOnStart = value;
@@ -1049,9 +1178,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region HideOneSeg変更通知プロパティ
-        public bool HideOneSeg {
+        public bool HideOneSeg
+        {
             get { return Model.HideOneSeg; }
-            set {
+            set
+            {
                 if (Model.HideOneSeg == value)
                     return;
                 Model.HideOneSeg = value;
@@ -1061,9 +1192,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region SupressSleep変更通知プロパティ
-        public bool SupressSleep {
+        public bool SupressSleep
+        {
             get { return Model.SupressSleep; }
-            set { 
+            set
+            {
                 if (Model.SupressSleep == value)
                     return;
                 Model.SupressSleep = value;
@@ -1081,9 +1214,11 @@ namespace Amatsukaze.Models
         #region SelectedProfile変更通知プロパティ
         private DisplayProfile _SelectedProfile;
 
-        public DisplayProfile SelectedProfile {
+        public DisplayProfile SelectedProfile
+        {
             get { return _SelectedProfile; }
-            set {
+            set
+            {
                 if (_SelectedProfile == value)
                     return;
                 _SelectedProfile = value;
@@ -1093,9 +1228,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region OutDir変更通知プロパティ
-        public string OutDir {
+        public string OutDir
+        {
             get { return Model.OutDir; }
-            set {
+            set
+            {
                 if (Model.OutDir == value)
                     return;
                 Model.OutDir = value;
@@ -1105,9 +1242,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NasDir変更通知プロパティ
-        public string NasDir {
+        public string NasDir
+        {
             get { return Model.NasDir; }
-            set {
+            set
+            {
                 if (Model.NasDir == value)
                     return;
                 Model.NasDir = value;
@@ -1117,9 +1256,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region IsNasEnabled変更通知プロパティ
-        public bool IsNasEnabled {
+        public bool IsNasEnabled
+        {
             get { return Model.IsNasEnabled; }
-            set {
+            set
+            {
                 if (Model.IsNasEnabled == value)
                     return;
                 Model.IsNasEnabled = value;
@@ -1129,9 +1270,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region IsWakeOnLan変更通知プロパティ
-        public bool IsWakeOnLan {
+        public bool IsWakeOnLan
+        {
             get { return Model.IsWakeOnLan; }
-            set {
+            set
+            {
                 if (Model.IsWakeOnLan == value)
                     return;
                 Model.IsWakeOnLan = value;
@@ -1141,9 +1284,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MoveAfter変更通知プロパティ
-        public bool MoveAfter {
+        public bool MoveAfter
+        {
             get { return Model.MoveAfter; }
-            set { 
+            set
+            {
                 if (Model.MoveAfter == value)
                     return;
                 Model.MoveAfter = value;
@@ -1153,9 +1298,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region ClearEncoded変更通知プロパティ
-        public bool ClearSucceeded {
+        public bool ClearSucceeded
+        {
             get { return Model.ClearEncoded; }
-            set { 
+            set
+            {
                 if (Model.ClearEncoded == value)
                     return;
                 Model.ClearEncoded = value;
@@ -1165,9 +1312,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region WithRelated変更通知プロパティ
-        public bool WithRelated {
+        public bool WithRelated
+        {
             get { return Model.WithRelated; }
-            set { 
+            set
+            {
                 if (Model.WithRelated == value)
                     return;
                 Model.WithRelated = value;
@@ -1177,9 +1326,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region IsDirect変更通知プロパティ
-        public bool IsDirect {
+        public bool IsDirect
+        {
             get { return Model.IsDirect; }
-            set { 
+            set
+            {
                 if (Model.IsDirect == value)
                     return;
                 Model.IsDirect = value;
@@ -1189,9 +1340,11 @@ namespace Amatsukaze.Models
         #endregion
 
         #region Priority変更通知プロパティ
-        public int Priority {
+        public int Priority
+        {
             get { return Model.Priority; }
-            set { 
+            set
+            {
                 if (Model.Priority == value)
                     return;
                 Model.Priority = value;
@@ -1200,5 +1353,380 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+    }
+
+    public class DisplayGenre
+    {
+        public string Name { get; set; }
+        public GenreItem Item { get; set; }
+
+        public static readonly DisplayGenre[][][] GENRE_TABLE;
+
+        static DisplayGenre()
+        {
+            var table =
+            new []
+            {
+                new
+                {
+                    Name = "",
+                    Table = new []
+                    {
+                        new
+                        {
+                            Name = "ニュース／報道",
+                            Table = new string[16]
+                            {
+                                "定時・総合",
+                                "天気",
+                                "特集・ドキュメント",
+                                "政治・国会",
+                                "経済・市況",
+                                "海外・国際",
+                                "解説",
+                                "討論・会談",
+                                "報道特番",
+                                "ローカル・地域",
+                                "交通",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "スポーツ",
+                            Table = new string[16]
+                            {
+                                "スポーツニュース",
+                                "野球",
+                                "サッカー",
+                                "ゴルフ",
+                                "その他の球技",
+                                "相撲・格闘技",
+                                "オリンピック・国際大会",
+                                "マラソン・陸上・水泳",
+                                "モータースポーツ",
+                                "マリン・ウィンタースポーツ",
+                                "競馬・公営競技",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "情報／ワイドショー",
+                            Table = new string[16]
+                            {
+                                "芸能・ワイドショー",
+                                "ファッション",
+                                "暮らし・住まい",
+                                "健康・医療",
+                                "ショッピング・通販",
+                                "グルメ・料理",
+                                "イベント",
+                                "番組紹介・お知らせ",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "ドラマ",
+                            Table = new string[16]
+                            {
+                                "国内ドラマ",
+                                "海外ドラマ",
+                                "時代劇",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "音楽",
+                            Table = new string[16]
+                            {
+                                "国内ロック・ポップス",
+                                "海外ロック・ポップス",
+                                "クラシック・オペラ",
+                                "ジャズ・フュージョン",
+                                "歌謡曲・演歌",
+                                "ライブ・コンサート",
+                                "ランキング・リクエスト",
+                                "カラオケ・のど自慢",
+                                "民謡・邦楽",
+                                "童謡・キッズ",
+                                "民族音楽・ワールドミュージック",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "バラエティ",
+                            Table = new string[16]
+                            {
+                                "クイズ",
+                                "ゲーム",
+                                "トークバラエティ",
+                                "お笑い・コメディ",
+                                "音楽バラエティ",
+                                "旅バラエティ",
+                                "料理バラエティ",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "映画",
+                            Table = new string[16]
+                            {
+                                "洋画",
+                                "邦画",
+                                "アニメ",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "アニメ／特撮",
+                            Table = new string[16]
+                            {
+                                "国内アニメ",
+                                "海外アニメ",
+                                "特撮",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "ドキュメンタリー／教養",
+                            Table = new string[16]
+                            {
+                                "社会・時事",
+                                "歴史・紀行",
+                                "自然・動物・環境",
+                                "宇宙・科学・医学",
+                                "カルチャー・伝統文化",
+                                "文学・文芸",
+                                "スポーツ",
+                                "ドキュメンタリー全般",
+                                "インタビュー・討論",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "劇場／公演",
+                            Table = new string[16]
+                            {
+                                "現代劇・新劇",
+                                "ミュージカル",
+                                "ダンス・バレエ",
+                                "落語・演芸",
+                                "歌舞伎・古典",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "趣味／教育",
+                            Table = new string[16]
+                            {
+                                "旅・釣り・アウトドア",
+                                "園芸・ペット・手芸",
+                                "音楽・美術・工芸",
+                                "囲碁・将棋",
+                                "麻雀・パチンコ",
+                                "車・オートバイ",
+                                "コンピュータ・ＴＶゲーム",
+                                "会話・語学",
+                                "幼児・小学生",
+                                "中学生・高校生",
+                                "大学生・受験",
+                                "生涯教育・資格",
+                                "教育問題",
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "福祉",
+                            Table = new string[16]
+                            {
+                                "高齢者",
+                                "障害者",
+                                "社会福祉",
+                                "ボランティア",
+                                "手話",
+                                "文字（字幕）",
+                                "音声解説",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                    }
+                },
+                new
+                {
+                    Name = "CS",
+                    Table = new []
+                    {
+                        new
+                        {
+                            Name = "スポーツ(CS)",
+                            Table = new string[16]
+                            {
+                                "テニス",
+                                "バスケットボール",
+                                "ラグビー",
+                                "アメリカンフットボール",
+                                "ボクシング",
+                                "プロレス",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "洋画(CS)",
+                            Table = new string[16]
+                            {
+                                "アクション",
+                                "SF／ファンタジー",
+                                "コメディー",
+                                "サスペンス／ミステリー",
+                                "恋愛／ロマンス",
+                                "ホラー／スリラー",
+                                "ウエスタン",
+                                "ドラマ／社会派ドラマ",
+                                "アニメーション",
+                                "ドキュメンタリー",
+                                "アドベンチャー／冒険",
+                                "ミュージカル／音楽映画",
+                                "ホームドラマ",
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                        new
+                        {
+                            Name = "邦画(CS)",
+                            Table = new string[16]
+                            {
+                                "アクション",
+                                "SF／ファンタジー",
+                                "お笑い／コメディー",
+                                "サスペンス／ミステリー",
+                                "恋愛／ロマンス",
+                                "ホラー／スリラー",
+                                "青春／学園／アイドル",
+                                "任侠／時代劇",
+                                "アニメーション",
+                                "ドキュメンタリー",
+                                "アドベンチャー／冒険",
+                                "ミュージカル／音楽映画",
+                                "ホームドラマ",
+                                null,
+                                null,
+                                "その他"
+                            }
+                        },
+                    }
+                }
+            };
+        }
     }
 }

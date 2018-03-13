@@ -1161,5 +1161,12 @@ namespace Amatsukaze.Models
             }
             return Task.FromResult(0);
         }
+
+        public Task OnAutoSelect(AutoSelectUpdate data)
+        {
+            // TODO:
+            //throw new NotImplementedException();
+            return Task.FromResult(0);
+        }
     }
 }

@@ -218,6 +218,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.SetProfile:
                     server.SetProfile((ProfileUpdate)arg);
                     break;
+                case RPCMethodId.SetAutoSelect:
+                    server.SetAutoSelect((AutoSelectUpdate)arg);
+                    break;
                 case RPCMethodId.AddQueue:
                     server.AddQueue((AddQueueDirectory)arg);
                     break;
@@ -326,6 +329,11 @@ namespace Amatsukaze.Server
         public Task OnProfile(ProfileUpdate data)
         {
             return Send(RPCMethodId.OnProfile, data);
+        }
+
+        public Task OnAutoSelect(AutoSelectUpdate data)
+        {
+            return Send(RPCMethodId.OnAutoSelect, data);
         }
 
         public Task OnServiceSetting(ServiceSettingUpdate service)
@@ -894,7 +902,7 @@ namespace Amatsukaze.Server
                         // ペンディング
                         src.State = QueueState.LogoPending;
                         // 他の項目も更新しておく
-                        waitList.AddRange(server.UpdateQueueItems());
+                        server.UpdateQueueItems(waitList);
                     }
                     else
                     {
@@ -1157,6 +1165,7 @@ namespace Amatsukaze.Server
         private Task saveSettingThread;
         private BufferBlock<int> saveSettingQ = new BufferBlock<int>();
         private bool settingUpdated;
+        private bool autoSelectUpdated;
 
         private PreventSuspendContext preventSuspend;
 
@@ -1213,6 +1222,7 @@ namespace Amatsukaze.Server
         {
             this.finishRequested = finishRequested;
             LoadAppData();
+            LoadAutoSelectData();
             if (client != null)
             {
                 this.client = client;
@@ -1323,6 +1333,12 @@ namespace Amatsukaze.Server
                         settingUpdated = false;
                         SaveAppData();
                     }
+
+                    if(autoSelectUpdated)
+                    {
+                        autoSelectUpdated = false;
+                        SaveAutoSelectData();
+                    }
                 }
 
                 // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
@@ -1352,6 +1368,11 @@ namespace Amatsukaze.Server
         private string GetSettingFilePath()
         {
             return "config\\AmatsukazeServer.xml";
+        }
+
+        private string GetAutoSelectFilePath()
+        {
+            return "config\\AutoSelectProfile.xml";
         }
 
         private string GetHistoryFilePath()
@@ -1548,6 +1569,46 @@ namespace Amatsukaze.Server
             {
                 var s = new DataContractSerializer(typeof(AppData));
                 s.WriteObject(fs, appData);
+            }
+        }
+
+        [DataContract]
+        public class AutoSelectData
+        {
+            [DataMember]
+            public List<AutoSelectProfile> Profiles { get; set; }
+        }
+
+        private void LoadAutoSelectData()
+        {
+            string path = GetAutoSelectFilePath();
+            if (File.Exists(path) == false)
+            {
+                return;
+            }
+            using (FileStream fs = new FileStream(path, FileMode.Open))
+            {
+                var s = new DataContractSerializer(typeof(AutoSelectData));
+                var data = (AutoSelectData)s.ReadObject(fs);
+                autoSelects.Clear();
+                foreach(var profile in data.Profiles)
+                {
+                    autoSelects.Add(profile.Name, profile);
+                }
+            }
+        }
+
+        private void SaveAutoSelectData()
+        {
+            string path = GetAutoSelectFilePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using (FileStream fs = new FileStream(path, FileMode.Create))
+            {
+                var s = new DataContractSerializer(typeof(AutoSelectData));
+                s.WriteObject(fs, new AutoSelectData()
+                {
+                    Profiles = autoSelects.Values.ToList()
+                });
             }
         }
 
@@ -2036,6 +2097,20 @@ namespace Amatsukaze.Server
             }
         }
 
+        private void CheckAutoSelect(AutoSelectProfile profile)
+        {
+            foreach(var cond in profile.Conditions)
+            {
+                if(cond.Profile != null)
+                {
+                    if(!profiles.ContainsKey(cond.Profile))
+                    {
+                        throw new ArgumentException("プロファイル「" + cond.Profile + "」がありません");
+                    }
+                }
+            }
+        }
+
         private QueueDirectory GetQueueDirectory(string  dirPath, ProcMode mode, ProfileSetting profile, List<Task> waitItems)
         {
             QueueDirectory target = queue.FirstOrDefault(s =>
@@ -2507,9 +2582,8 @@ namespace Amatsukaze.Server
             return false;
         }
 
-        private List<Task> UpdateQueueItems()
+        private List<Task> UpdateQueueItems(List<Task> waits)
         {
-            List<Task> waits = new List<Task>();
             var map = appData.services.ServiceMap;
             foreach (var dir in queue)
             {
@@ -2770,7 +2844,9 @@ namespace Amatsukaze.Server
                                 });
                             }
                             // キューを再始動
-                            await Task.WhenAll(UpdateQueueItems());
+                            var waits = new List<Task>();
+                            UpdateQueueItems(waits);
+                            await Task.WhenAll(waits);
                         }
                     }
 
@@ -3005,6 +3081,20 @@ namespace Amatsukaze.Server
                         }
                     }
 
+                    {
+                        // 自動選択「デフォルト」がない場合は追加
+                        if(autoSelects.ContainsKey("デフォルト") == false)
+                        {
+                            var def = new AutoSelectProfile()
+                            {
+                                Name = "デフォルト",
+                                Conditions = new List<AutoSelectCondition>()
+                            };
+                            autoSelects.Add(def.Name, def);
+                            autoSelectUpdated = true;
+                        }
+                    }
+
                     if (await Task.WhenAny(completion, Task.Delay(2000)) == completion)
                     {
                         // 終了
@@ -3031,6 +3121,12 @@ namespace Amatsukaze.Server
                     {
                         SaveAppData();
                         settingUpdated = false;
+                    }
+
+                    if(autoSelectUpdated)
+                    {
+                        SaveAutoSelectData();
+                        autoSelectUpdated = false;
                     }
 
                     if (await Task.WhenAny(completion, Task.Delay(5000)) == completion)
@@ -3111,6 +3207,7 @@ namespace Amatsukaze.Server
         {
             try
             {
+                var waits = new List<Task>();
                 var message = "プロファイル「"+ data.Profile.Name + "」が見つかりません";
 
                 // 面倒だからAddもUpdateも同じ
@@ -3135,6 +3232,8 @@ namespace Amatsukaze.Server
                         profiles.Add(data.Profile.Name, data.Profile);
                         message = "プロファイル「" + data.Profile.Name + "」を追加しました";
                     }
+                    // キューを再始動
+                    UpdateQueueItems(waits);
                 }
                 else
                 {
@@ -3145,9 +3244,54 @@ namespace Amatsukaze.Server
                         message = "プロファイル「" + data.Profile.Name + "」を削除しました";
                     }
                 }
-                return Task.WhenAll(
-                    client.OnProfile(data),
-                    NotifyMessage(false, message, false));
+                waits.Add(client.OnProfile(data));
+                waits.Add(NotifyMessage(false, message, false));
+                return Task.WhenAll(waits);
+            }
+            catch (Exception e)
+            {
+                return NotifyMessage(true, e.Message, false);
+            }
+        }
+
+        public Task SetAutoSelect(AutoSelectUpdate data)
+        {
+            try
+            {
+                var waits = new List<Task>();
+                var message = "自動選択「" + data.Profile.Name + "」が見つかりません";
+
+                // 面倒だからAddもUpdateも同じ
+                if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
+                {
+                    if (data.Type == UpdateType.Update)
+                    {
+                        CheckAutoSelect(data.Profile);
+                    }
+                    if (autoSelects.ContainsKey(data.Profile.Name))
+                    {
+                        autoSelects[data.Profile.Name] = data.Profile;
+                        message = "自動選択「" + data.Profile.Name + "」を更新しました";
+                    }
+                    else
+                    {
+                        autoSelects.Add(data.Profile.Name, data.Profile);
+                        message = "自動選択「" + data.Profile.Name + "」を追加しました";
+                    }
+                    // キューを再始動
+                    UpdateQueueItems(waits);
+                }
+                else
+                {
+                    if (autoSelects.ContainsKey(data.Profile.Name))
+                    {
+                        autoSelects.Remove(data.Profile.Name);
+                        message = "自動選択「" + data.Profile.Name + "」を削除しました";
+                    }
+                }
+                waits.Add(client.OnAutoSelect(data));
+                waits.Add(NotifyMessage(false, message, false));
+                return Task.WhenAll(waits);
             }
             catch (Exception e)
             {
@@ -3346,7 +3490,10 @@ namespace Amatsukaze.Server
                             update.Data.LogoSettings[i].Exists = old.LogoSettings[i].Exists;
                         }
                         serviceMap[update.ServiceId] = update.Data;
-                        await Task.WhenAll(UpdateQueueItems());
+
+                        var waits = new List<Task>();
+                        UpdateQueueItems(waits);
+                        await Task.WhenAll(waits);
                         message = "サービス「" + update.Data.ServiceName + "」の設定を更新しました";
                     }
                 }

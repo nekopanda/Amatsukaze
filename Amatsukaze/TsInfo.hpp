@@ -50,7 +50,9 @@ public:
 	{
 		handlerTable.addConstant(0x0000, newPsiHandler()); // PAT
 		handlerTable.addConstant(0x0011, newPsiHandler()); // SDT/BAT
-		handlerTable.addConstant(0x0012, newPsiHandler()); // EIT
+		handlerTable.addConstant(0x0012, newPsiHandler()); // H-EIT
+		handlerTable.addConstant(0x0026, newPsiHandler()); // M-EIT
+		handlerTable.addConstant(0x0027, newPsiHandler()); // L-EIT
 		handlerTable.addConstant(0x0014, newPsiHandler()); // TDT/TOT
 	}
 
@@ -338,9 +340,9 @@ private:
 			if (item != nullptr) {
 				if (eit.numElems() > 0) {
 					auto elem = eit.get(0);
-					startTime = elem.start_time;
+					startTime = elem.start_time();
 					auto descs = ParseDescriptors(elem.descriptor());
-					ContentInfo info;
+					std::vector<ContentNibbles> nibbles;
 					for (int i = 0; i < (int)descs.size(); ++i) {
 						if (descs[i].tag() == 0x54) { // コンテント記述子
 							ContentDescriptor contentdesc(descs[i]);
@@ -353,7 +355,7 @@ private:
 									data.content_nibble_level_2 = data_i.content_nibble_level_2();
 									data.user_nibble_1 = data_i.user_nibble_1();
 									data.user_nibble_2 = data_i.user_nibble_2();
-									info.nibbles.push_back(data);
+									nibbles.push_back(data);
 								}
 								break;
 							}
@@ -362,8 +364,8 @@ private:
 					// 同じPIDのプログラムは全て上書き
 					for (int i = 0; i < (int)programList.size(); ++i) {
 						if (programList[i].videoPid == item->videoPid) {
-							programList[i].contentInfo.serviceId = item->programId;
-							programList[i].contentInfo.nibbles = info;
+							programList[i].contentInfo.serviceId = programList[i].programId;
+							programList[i].contentInfo.nibbles = nibbles;
 							programList[i].eventOK = true;
 						}
 					}
