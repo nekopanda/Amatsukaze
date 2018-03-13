@@ -93,13 +93,13 @@ namespace Amatsukaze.ViewModels
                     return false;
                 }
             }
-            Item.DstPath = OutPath;
+            Item.Outputs[0].DstPath = OutPath;
             return true;
         }
 
         private void GetProfileName()
         {
-            Item.Profile = SelectedProfile?.Model?.Name ?? Server.ServerSupport.GetDefaultProfileName();
+            Item.Outputs[0].Profile = SelectedProfile?.Model?.Name ?? Server.ServerSupport.GetDefaultProfileName();
         }
 
         #region OkCommand

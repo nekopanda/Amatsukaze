@@ -91,9 +91,9 @@ namespace Amatsukaze.ViewModels
         {
             try
             {
-                lockFile = ServerSupport.GetLock(App.Option.ServerPort);
+                lockFile = ServerSupport.GetLock();
             }
-            catch(Exception)
+            catch(MultipleInstanceException)
             {
                 var message = new InformationMessage(
                     "多重起動を検知しました",

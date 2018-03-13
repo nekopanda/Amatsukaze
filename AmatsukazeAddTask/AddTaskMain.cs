@@ -12,7 +12,7 @@ namespace Amatsukaze.AddTask
 {
     public class GUIOPtion
     {
-        public int ServerPort = 32768;
+        public int ServerPort = ServerSupport.DEFAULT_PORT;
         public string ServerIP = "localhost";
 
         public string FilePath;
@@ -252,9 +252,15 @@ namespace Amatsukaze.AddTask
             request = new AddQueueDirectory()
             {
                 DirPath = Path.GetDirectoryName(srcpath),
-                DstPath = option.OutPath,
-                Profile = option.Profile,
-                Priority = option.Priority,
+                Outputs = new List<OutputInfo>()
+                {
+                    new OutputInfo()
+                    {
+                        DstPath = option.OutPath,
+                        Profile = option.Profile,
+                        Priority = option.Priority,
+                    }
+                },
                 Targets = new List<AddQueueItem>() {
                     new AddQueueItem() { Path = srcpath, Hash = hash }
                 },

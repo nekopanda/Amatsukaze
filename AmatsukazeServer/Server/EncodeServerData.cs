@@ -271,6 +271,17 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class OutputInfo
+    {
+        [DataMember]
+        public string DstPath { get; set; }
+        [DataMember]
+        public string Profile { get; set; }
+        [DataMember]
+        public int Priority { get; set; }
+    }
+
+    [DataContract]
     public class AddQueueDirectory
     {
         [DataMember]
@@ -278,13 +289,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<AddQueueItem> Targets { get; set; }
         [DataMember]
-        public string DstPath { get; set; }
-        [DataMember]
         public ProcMode Mode { get; set; }
         [DataMember]
-        public string Profile { get; set; }
-        [DataMember]
-        public int Priority { get; set; }
+        public List<OutputInfo> Outputs { get; set; }
         [DataMember]
         public string RequestId { get; set; }
 
@@ -308,7 +315,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public int Id { get; set; }
         [DataMember]
-        public string Path { get; set; }
+        public string SrcPath { get; set; }
+        [DataMember]
+        public string DstPath { get; set; }
         [DataMember]
         public byte[] Hash { get; set; }
         [DataMember]
@@ -333,13 +342,15 @@ namespace Amatsukaze.Server
         public string FailReason { get; set; }
         [DataMember]
         public string JlsCommand { get; set; }
+
         [DataMember]
-        public string DstName { get; set; }
+        public string ProfileName { get; set; }
 
         // サーバで使う
         public QueueDirectory Dir { get; set; }
+        public Lib.Program Program { get; set; }
 
-        public string FileName { get { return System.IO.Path.GetFileName(Path); } }
+        public string FileName { get { return System.IO.Path.GetFileName(SrcPath); } }
 
         public bool IsActive {
             get {
@@ -370,17 +381,14 @@ namespace Amatsukaze.Server
         [DataMember]
         public string DirPath { get; set; }
         [DataMember]
-        public List<QueueItem> Items { get; set; }
-        [DataMember]
-        public string DstPath;
-        [DataMember]
         public ProcMode Mode { get; set; }
         [DataMember]
         public ProfileSetting Profile { get; set; }
+        [DataMember]
+        public List<QueueItem> Items { get; set; }
 
         // サーバで使う
         public Dictionary<string, byte[]> HashList;
-        public string Encoded { get { return (DstPath != null) ? DstPath : System.IO.Path.Combine(DirPath, "encoded"); } }
         public string Succeeded { get { return System.IO.Path.Combine(DirPath, "succeeded"); } }
         public string Failed { get { return System.IO.Path.Combine(DirPath, "failed"); } }
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
@@ -415,7 +423,8 @@ namespace Amatsukaze.Server
     public enum ChangeItemType
     {
         Retry,      // リトライ
-        ReAdd,      // 再投入
+        RetryUpdate,// プロファイルを更新してリトライ
+        ReAdd,      // 同じタスクを投入
         Cancel,     // キャンセル
         Priority,   // 優先度変更
         RemoveDir,  // ディレクトリ削除
@@ -808,11 +817,15 @@ namespace Amatsukaze.Server
         public List<VideoSizeCondition> VideoSizes { get; set; }
         [DataMember]
         public string Profile { get; set; }
+        [DataMember]
+        public int Priority { get; set; }
     }
 
     [DataContract]
     public class AutoSelectProfile
     {
+        [DataMember]
+        public string Name;
         [DataMember]
         public List<AutoSelectCondition> Conditions { get; set; }
     }

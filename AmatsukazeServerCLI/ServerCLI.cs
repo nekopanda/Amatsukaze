@@ -11,7 +11,7 @@ namespace Amatsukaze.Server
             {
                 TaskSupport.SetSynchronizationContext();
                 GUIOPtion option = new GUIOPtion(args);
-                using (var lockFile = ServerSupport.GetLock(option.ServerPort))
+                using (var lockFile = ServerSupport.GetLock())
                 {
                     var logpath = ServerSupport.GetServerLogPath();
                     var file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
@@ -29,6 +29,11 @@ namespace Amatsukaze.Server
                         TaskSupport.EnterMessageLoop();
                     }
                 }
+            }
+            catch(MultipleInstanceException)
+            {
+                Console.WriteLine("多重起動を検知しました");
+                return;
             }
             catch (Exception e)
             {

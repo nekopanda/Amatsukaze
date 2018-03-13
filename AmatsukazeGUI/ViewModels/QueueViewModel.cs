@@ -123,8 +123,11 @@ namespace Amatsukaze.ViewModels
 
             foreach (var item in dirList.Values)
             {
+                item.Outputs = new List<OutputInfo>() { new OutputInfo()
+                {
                 // デフォルト優先順は3
-                item.Priority = 3;
+                    Priority = 3
+                } };
 
                 // 出力先フォルダ選択
                 var selectPathVM = new SelectOutPathViewModel()
@@ -169,11 +172,11 @@ namespace Amatsukaze.ViewModels
                 MessageBox.Show("一時ファイルフォルダがアクセスできる場所に設定されていないため起動できません");
                 return;
             }
-            string filepath = file.Path;
+            string filepath = file.SrcPath;
             if (File.Exists(filepath) == false)
             {
                 // failedに入っているかもしれないのでそっちも見る
-                filepath = Path.GetDirectoryName(file.Path) + "\\failed\\" + Path.GetFileName(file.Path);
+                filepath = Path.GetDirectoryName(file.SrcPath) + "\\failed\\" + Path.GetFileName(file.SrcPath);
                 if (File.Exists(filepath) == false)
                 {
                     MessageBox.Show("ファイルが見つかりません");
@@ -564,12 +567,12 @@ namespace Amatsukaze.ViewModels
                 return;
             }
             var file = item.Model;
-            if (File.Exists(file.Path) == false)
+            if (File.Exists(file.SrcPath) == false)
             {
                 MessageBox.Show("ファイルが見つかりません");
                 return;
             }
-            System.Diagnostics.Process.Start("EXPLORER.EXE", "/select, \"" + file.Path + "\"");
+            System.Diagnostics.Process.Start("EXPLORER.EXE", "/select, \"" + file.SrcPath + "\"");
         }
         #endregion
 

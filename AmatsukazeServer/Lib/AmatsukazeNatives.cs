@@ -77,7 +77,7 @@ namespace Amatsukaze.Lib
         }
     }
 
-    public struct ContentNibbles
+    public class ContentNibbles
     {
         public int Level1;
         public int Level2;
@@ -85,7 +85,7 @@ namespace Amatsukaze.Lib
         public int User2;
     }
 
-    public struct Program
+    public class Program
     {
         public int ServiceId;
         public bool HasVideo;
@@ -98,7 +98,7 @@ namespace Amatsukaze.Lib
         public ContentNibbles[] Content;
     }
 
-    public struct Service
+    public class Service
     {
         public int ServiceId;
         public string ProviderName;
@@ -209,7 +209,7 @@ namespace Amatsukaze.Lib
         {
             return Enumerable.Range(0, TsInfo_GetNumProgram(Ptr))
                 .Select(i => {
-                    Program prog;
+                    Program prog = new Program();
                     int numContent;
                     TsInfo_GetProgramInfo(Ptr, i,
                         out prog.ServiceId, out prog.HasVideo, out prog.VideoPid, out numContent);
@@ -217,7 +217,7 @@ namespace Amatsukaze.Lib
                         out prog.Stream, out prog.Width, out prog.Height, out prog.SarW, out prog.SarH);
                     prog.Content = Enumerable.Range(0, numContent)
                         .Select(ci => {
-                            ContentNibbles data;
+                            ContentNibbles data = new ContentNibbles();
                             TsInfo_GetContentNibbles(Ptr, i, ci,
                                 out data.Level1, out data.Level2, out data.User1, out data.User2);
                             return data;

@@ -90,6 +90,7 @@ namespace Amatsukaze.Models
         private ClientData appData;
         public IEncodeServer Server { get; private set; }
         public Task CommTask { get; private set; }
+        private FileStream lockFile;
         private ServerInfo serverInfo = new ServerInfo();
         private State state = new State();
 
@@ -483,6 +484,12 @@ namespace Amatsukaze.Models
                     {
                         (Server as ServerAdapter).Server.Dispose();
                     }
+
+                    if(lockFile != null)
+                    {
+                        lockFile.Close();
+                        lockFile = null;
+                    }
                 }
 
                 // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
@@ -596,6 +603,7 @@ namespace Amatsukaze.Models
         {
             if (App.Option.LaunchType == LaunchType.Standalone)
             {
+                lockFile = ServerSupport.GetLock();
                 Server = new ServerAdapter(new EncodeServer(0, new ClientAdapter(this), null));
                 Server.RefreshRequest();
             }
@@ -660,11 +668,8 @@ namespace Amatsukaze.Models
             if (File.Exists(path) == false)
             {
                 appData = new ClientData();
-
-                // テスト用
                 appData.ServerIP = "localhost";
-                appData.ServerPort = 32768;
-
+                appData.ServerPort = ServerSupport.DEFAULT_PORT;
                 return;
             }
             using (FileStream fs = new FileStream(path, FileMode.Open))

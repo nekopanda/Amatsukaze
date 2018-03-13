@@ -234,7 +234,7 @@ namespace Amatsukaze.ViewModels
             vm.Initialize();
         }
 
-        public void Initialize()
+        public async void Initialize()
         {
             modelListener = new PropertyChangedEventListener(Model);
             modelListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
@@ -262,7 +262,23 @@ namespace Amatsukaze.ViewModels
             }
 
             Model.ServerAddressRequired = ServerAddressRequired;
-            Model.Start();
+
+            try
+            {
+                Model.Start();
+            }
+            catch(MultipleInstanceException)
+            {
+                var message = new InformationMessage(
+                    "多重起動を検知しました。\r\n"+
+                    "サーバが起動している場合はAmatsukazeClientで接続してみてください。",
+                    "AmatsukazeServer",
+                    "Message");
+
+                await Messenger.RaiseAsync(message);
+
+                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "MainWindowAction"));
+            }
         }
 
         protected override void Dispose(bool disposing)

@@ -31,7 +31,7 @@ namespace Amatsukaze.Server
     public class GUIOPtion
     {
         public LaunchType LaunchType = LaunchType.Standalone;
-        public int ServerPort = 32768;
+        public int ServerPort = ServerSupport.DEFAULT_PORT;
 
         // ロゴGUI用
         public string FilePath;
@@ -644,12 +644,17 @@ namespace Amatsukaze.Server
         }
     }
 
+    public class MultipleInstanceException : Exception { }
+
     public static class ServerSupport
     {
         static ServerSupport()
         {
             Directory.CreateDirectory("data");
         }
+
+        public static readonly int DEFAULT_PORT = 32768;
+        public static readonly string AUTO_PREFIX = "自動選択_";
 
         public static string GetServerLogPath()
         {
@@ -661,10 +666,21 @@ namespace Amatsukaze.Server
             return "デフォルト";
         }
 
-        public static FileStream GetLock(int port)
+        public static FileStream GetLock()
         {
-            return new FileStream("data\\Server-" + port + ".lock",
-                FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+            if (!Directory.Exists("data"))
+            {
+                Directory.CreateDirectory("data");
+            }
+            try
+            {
+                return new FileStream("data\\Server.lock",
+                    FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch(Exception)
+            {
+                throw new MultipleInstanceException();
+            }
         }
 
         public static void LaunchLocalServer(int port)
@@ -779,7 +795,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static bool MatchContentConditions(Program program, ContentCondition[] conds)
+        private static bool MatchContentConditions(Program program, List<ContentCondition> conds)
         {
             // 条件が無効なら無条件でOK
             if (conds == null) return true;
@@ -846,6 +862,20 @@ namespace Amatsukaze.Server
             }
             // マッチしたのがなかった
             return null;
+        }
+
+        public static string ParseProfileName(string name, out bool autoSelect)
+        {
+            if (name.StartsWith(AUTO_PREFIX))
+            {
+                autoSelect = true;
+                return name.Substring(AUTO_PREFIX.Length);
+            }
+            else
+            {
+                autoSelect = false;
+                return name;
+            }
         }
     }
 
