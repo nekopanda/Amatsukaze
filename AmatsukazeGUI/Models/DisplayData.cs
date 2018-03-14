@@ -1,8 +1,11 @@
 ﻿using Amatsukaze.Server;
 using Livet;
+using Livet.Commands;
+using Livet.EventListeners;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -1364,19 +1367,40 @@ namespace Amatsukaze.Models
 
     public class MainGenre
     {
-        public int Level1 { get; set; }
         public string Name { get; set; }
-        public SortedList<int, DisplayGenre> SubGenres { get; set; }
+        public GenreItem Item { get; set; }
+        public SortedList<int, SubGenre> SubGenres { get; set; }
+
+        public static MainGenre GetFromItem(GenreItem a)
+        {
+            SpaceGenre top;
+            if (SubGenre.GENRE_TABLE.TryGetValue(a.Space, out top) == false)
+            {
+                return null;
+            }
+            MainGenre main;
+            if (top.MainGenres.TryGetValue(a.Level1, out main) == false)
+            {
+                return null;
+            }
+            return main;
+        }
+
+        public static string GetUnknownName(GenreItem a)
+        {
+            return "不明" + (a.Space == GenreSpace.CS ? "CS" : "") + "(" + a.Level1 + ")";
+        }
     }
 
-    public class DisplayGenre
+    public class SubGenre
     {
+        public MainGenre Main { get; set; }
         public string Name { get; set; }
         public GenreItem Item { get; set; }
 
         public static readonly SortedList<GenreSpace, SpaceGenre> GENRE_TABLE;
 
-        static DisplayGenre()
+        static SubGenre()
         {
             var data =
             new []
@@ -1781,16 +1805,22 @@ namespace Amatsukaze.Models
                     var b = a.Table[l1];
                     var l1Data = new MainGenre()
                     {
-                        Level1 = l1,
+                        Item = new GenreItem()
+                        {
+                            Space = a.Space,
+                            Level1 = l1,
+                            Level2 = -1
+                        },
                         Name = b.Name,
-                        SubGenres = new SortedList<int, DisplayGenre>()
+                        SubGenres = new SortedList<int, SubGenre>()
                     };
                     for(int l2 = 0; l2 < b.Table.Length; ++l2)
                     {
                         if(b.Table[l2] != null)
                         {
-                            var c = new DisplayGenre()
+                            var c = new SubGenre()
                             {
+                                Main = l1Data,
                                 Name = b.Table[l2],
                                 Item = new GenreItem()
                                 {
@@ -1810,13 +1840,18 @@ namespace Amatsukaze.Models
             // その他 - その他 を追加
             GENRE_TABLE[GenreSpace.ARIB].MainGenres.Add(0xF, new MainGenre()
             {
+                Item = new GenreItem()
+                {
+                    Space = GenreSpace.ARIB,
+                    Level1 = 0xF,
+                    Level2 = -1
+                },
                 Name = "その他",
-                Level1 = 0xF,
-                SubGenres = new SortedList<int, DisplayGenre>()
+                SubGenres = new SortedList<int, SubGenre>()
                 {
                     {
                         0xF,
-                        new DisplayGenre()
+                        new SubGenre()
                         {
                             Name = "その他",
                             Item = new GenreItem()
@@ -1831,7 +1866,7 @@ namespace Amatsukaze.Models
             });
         }
 
-        public static DisplayGenre GetDisplayGenre(GenreItem item)
+        public static SubGenre GetDisplayGenre(GenreItem item)
         {
             if(GENRE_TABLE.ContainsKey(item.Space))
             {
@@ -1845,11 +1880,595 @@ namespace Amatsukaze.Models
                     }
                 }
             }
-            return new DisplayGenre()
+            return new SubGenre()
             {
                 Name = "不明",
                 Item = item
             };
+        }
+
+        public string FullName
+        {
+            get
+            {
+                return Main.Name + " - " + Name;
+            }
+        }
+
+        public static string GetUnknownFullName(GenreItem a)
+        {
+            return "不明" + (a.Space == GenreSpace.CS ? "CS" : "") + "(" + a.Level1 + "-" + a.Level2 + ")";
+        }
+
+        public override string ToString()
+        {
+            return Name;
+        }
+
+        public static bool IsEqualGenre(GenreItem a, GenreItem b)
+        {
+            return a.Space == b.Space &&
+                a.Level1 == b.Level1 &&
+                a.Level2 == b.Level2;
+        }
+
+        public static SubGenre GetFromItem(GenreItem a)
+        {
+            SpaceGenre top;
+            if(GENRE_TABLE.TryGetValue(a.Space, out top) == false)
+            {
+                return null;
+            }
+            MainGenre main;
+            if(top.MainGenres.TryGetValue(a.Level1, out main) == false)
+            {
+                return null;
+            }
+            SubGenre sub;
+            if(main.SubGenres.TryGetValue(a.Level2, out sub) == false)
+            {
+                return null;
+            }
+            return sub;
+        }
+    }
+
+    public class GenreSelectItem : NotificationObject
+    {
+        public SubGenre Item { get; set; }
+        public MainGenreSelectItem MainGenre { get; set; }
+        public DisplayCondition Cond { get; set; }
+
+        #region IsChecked変更通知プロパティ
+        private bool _IsChecked;
+
+        public bool IsChecked
+        {
+            get { return _IsChecked; }
+            set
+            {
+                if (_IsChecked == value)
+                    return;
+                _IsChecked = value;
+                MainGenre?.ChildrenUpdated();
+                Cond?.ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class MainGenreSelectItem : NotificationObject
+    {
+        public MainGenre Item { get; set; }
+        public List<GenreSelectItem> SubGenres { get; set; }
+        public DisplayCondition Cond { get; set; }
+
+        #region IsChecked変更通知プロパティ
+        private bool? _IsChecked;
+
+        public bool? IsChecked
+        {
+            get { return _IsChecked; }
+            set
+            {
+                if (_IsChecked == value)
+                    return;
+                _IsChecked = value;
+                if(value != null)
+                {
+                    CheckNodes(value == true);
+                }
+                Cond?.ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        private void CheckNodes(bool value)
+        {
+            foreach(var item in SubGenres)
+            {
+                item.IsChecked = value;
+            }
+        }
+
+        public void ChildrenUpdated()
+        {
+            if(SubGenres.All(s => s.IsChecked))
+            {
+                IsChecked = true;
+            }
+            else if(SubGenres.All(s => !s.IsChecked))
+            {
+                IsChecked = false;
+            }
+            else
+            {
+                IsChecked = null;
+            }
+        }
+    }
+
+    public class ServiceSelectItem : NotificationObject
+    {
+        public DisplayService Service { get; set; }
+        public DisplayCondition Cond { get; set; }
+
+        #region IsChecked変更通知プロパティ
+        private bool _IsChecked;
+
+        public bool IsChecked
+        {
+            get { return _IsChecked; }
+            set
+            {
+                if (_IsChecked == value)
+                    return;
+                _IsChecked = value;
+                Cond?.ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class VideoSizeSelectItem : NotificationObject
+    {
+        public string Name { get; set; }
+        public VideoSizeCondition Item { get; set; }
+        public DisplayCondition Cond { get; set; }
+
+        #region IsChecked変更通知プロパティ
+        private bool _IsChecked;
+
+        public bool IsChecked
+        {
+            get { return _IsChecked; }
+            set
+            {
+                if (_IsChecked == value)
+                    return;
+                _IsChecked = value;
+                Cond?.ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class DisplayCondition : NotificationObject
+    {
+        public static readonly SortedList<VideoSizeCondition, string> VIDEO_SIZE_TABLE = new SortedList<VideoSizeCondition, string>()
+        {
+            { VideoSizeCondition.FullHD, "1920x1080" },
+            { VideoSizeCondition.HD1440, "1440x1080" },
+            { VideoSizeCondition.SD, "720x480" },
+            { VideoSizeCondition.OneSeg, "320x240" },
+        };
+
+        // 最初に外から与える
+        public ClientModel Model { get; set; }
+        public AutoSelectCondition Item { get; set; }
+
+        // Initializeで初期化
+        public List<NotificationObject> GenreItems { get; private set; }
+        public ObservableCollection<ServiceSelectItem> ServiceList { get; private set; }
+        public List<VideoSizeSelectItem> VideoSizes { get; private set; }
+        private CollectionChangedEventListener serviceListener;
+
+        // Item -> DisplayCondition
+        public void Initialize()
+        {
+            GenreItems = new List<NotificationObject>();
+            foreach(var mainEntry in SubGenre.GENRE_TABLE.SelectMany(s => s.Value.MainGenres))
+            {
+                var main = mainEntry.Value;
+                var mainItem = new MainGenreSelectItem()
+                {
+                    Item = main,
+                    SubGenres = new List<GenreSelectItem>(),
+                    Cond = this
+                };
+                GenreItems.Add(mainItem);
+                foreach (var subEntry in main.SubGenres)
+                {
+                    var sub = subEntry.Value;
+                    var subItem = new GenreSelectItem()
+                    {
+                        Item = sub,
+                        IsChecked = Item.ContentConditions.Any(s => SubGenre.IsEqualGenre(s, sub.Item)),
+                        MainGenre = mainItem,
+                        Cond = this
+                    };
+                    mainItem.SubGenres.Add(subItem);
+                    GenreItems.Add(subItem);
+                }
+                mainItem.ChildrenUpdated();
+            }
+
+            ServiceList = new ObservableCollection<ServiceSelectItem>();
+            foreach(var service in Model.ServiceSettings)
+            {
+                ServiceList.Add(new ServiceSelectItem()
+                {
+                    Service = service,
+                    IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
+                    Cond = this
+                });
+            }
+            serviceListener = new CollectionChangedEventListener(Model.DrcsImageList, (o, e) => {
+                switch (e.Action)
+                {
+                    case NotifyCollectionChangedAction.Add:
+                        foreach (var item in e.NewItems)
+                        {
+                            var service = item as DisplayService;
+                            ServiceList.Add(new ServiceSelectItem()
+                            {
+                                Service = service,
+                                IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
+                                Cond = this
+                            });
+                        }
+                        break;
+                    case NotifyCollectionChangedAction.Remove:
+                        foreach (var item in e.OldItems)
+                        {
+                            var tgt = ServiceList.First(s => s.Service == item);
+                            ServiceList.Remove(tgt);
+                        }
+                        break;
+                    case NotifyCollectionChangedAction.Reset:
+                        ServiceList.Clear();
+                        break;
+                    case NotifyCollectionChangedAction.Replace:
+                        for (int i = 0; i < e.NewItems.Count; ++i)
+                        {
+                            var service = e.NewItems[i] as DisplayService;
+                            var target = ServiceList[e.NewStartingIndex + i];
+                            target.Service = service;
+                            target.IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId);
+                        }
+                        break;
+                }
+            });
+
+            VideoSizes = new List<VideoSizeSelectItem>();
+            Func<VideoSizeCondition, VideoSizeSelectItem> NewVideoSize = (item) => {
+                return new VideoSizeSelectItem()
+                {
+                    Name = VIDEO_SIZE_TABLE[item],
+                    Item = item,
+                    IsChecked = Item.VideoSizes.Any(s => s == item),
+                    Cond = this
+                };
+            };
+            VideoSizes.Add(NewVideoSize(VideoSizeCondition.FullHD));
+            VideoSizes.Add(NewVideoSize(VideoSizeCondition.HD1440));
+            VideoSizes.Add(NewVideoSize(VideoSizeCondition.SD));
+
+            ApplyCondition();
+        }
+
+        public string[] PriorityList
+        {
+            get
+            {
+                return new string[] { "デフォルト", "1", "2", "3", "4", "5" };
+            }
+        }
+
+        #region Condition変更通知プロパティ
+        private string _Condition;
+
+        public string Condition
+        {
+            get { return _Condition; }
+            set
+            {
+                if (_Condition == value)
+                    return;
+                _Condition = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region WarningText変更通知プロパティ
+        private string _WarningText;
+
+        public string WarningText
+        {
+            get { return _WarningText; }
+            set
+            {
+                if (_WarningText == value)
+                    return;
+                _WarningText = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Description変更通知プロパティ
+        public string Description
+        {
+            get { return Item.Description; }
+            set
+            {
+                if (Item.Description == value)
+                    return;
+                Item.Description = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Profile変更通知プロパティ
+        public string Profile
+        {
+            get { return Item.Profile; }
+            set
+            {
+                if (Item.Profile == value)
+                    return;
+                Item.Profile = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Priority変更通知プロパティ
+        public string Priority
+        {
+            get {
+                if(Item.Priority == 0)
+                {
+                    return "デフォルト";
+                }
+                return Item.Priority.ToString();
+            }
+            set
+            {
+                int ival = (string.IsNullOrEmpty(value) || "デフォルト" == value) 
+                    ? 0 : int.Parse(value);
+                if (Item.Priority == ival)
+                    return;
+                Item.Priority = ival;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ContentConditionEnabled変更通知プロパティ
+        public bool ContentConditionEnabled
+        {
+            get { return Item.ContentConditionEnabled; }
+            set
+            {
+                if (Item.ContentConditionEnabled == value)
+                    return;
+                Item.ContentConditionEnabled = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ServiceEnabled変更通知プロパティ
+        public bool ServiceEnabled
+        {
+            get { return Item.ServiceIdEnabled; }
+            set
+            {
+                if (Item.ServiceIdEnabled == value)
+                    return;
+                Item.ServiceIdEnabled = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region VideoSizeEnabled変更通知プロパティ
+        public bool VideoSizeEnabled
+        {
+            get { return Item.VideoSizeEnabled; }
+            set
+            {
+                if (Item.VideoSizeEnabled == value)
+                    return;
+                Item.VideoSizeEnabled = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        // 有効な必要な項目だけ抜き出す
+        private static GenreItem SelectItemToGenreItem(NotificationObject s)
+        {
+            var main = s as MainGenreSelectItem;
+            var sub = s as GenreSelectItem;
+            if (main != null)
+            {
+                if (main.IsChecked == true)
+                {
+                    return main.Item.Item;
+                }
+            }
+            else
+            {
+                if (sub.MainGenre.IsChecked == true)
+                {
+                    // 親ジャンルが選択されていれば自分はなくていい
+                    return null;
+                }
+                if (sub.IsChecked == true)
+                {
+                    return sub.Item.Item;
+                }
+            }
+            return null;
+        }
+
+        public void ApplyCondition()
+        {
+            bool never = false;
+            WarningText = "";
+            var conds = new List<string>();
+            if(Item.ContentConditionEnabled)
+            {
+                var cond = string.Join(",", GenreItems.Where(s => s is MainGenreSelectItem)
+                    .Select(m =>
+                    {
+                        var main = m as MainGenreSelectItem;
+                        if (main.IsChecked == true)
+                        {
+                            return main.Item.Name;
+                        }
+                        if (main.IsChecked == false)
+                        {
+                            return null;
+                        }
+                        return main.Item.Name + "(" + string.Join(",", main.SubGenres
+                            .Where(s => s.IsChecked).Select(s => s.Item.Name)) + ")";
+                    }).Where(s => s != null));
+                if(string.IsNullOrEmpty(cond))
+                {
+                    cond = "該当ジャンルなし";
+                    never = true;
+                }
+                else
+                {
+                    cond = "ジャンル:" + cond;
+                }
+                conds.Add(cond);
+            }
+            if(Item.ServiceIdEnabled)
+            {
+                var cond = string.Join(",",
+                    ServiceList.Where(s => s.IsChecked).Select(s => s.Service.ToString()));
+                if (string.IsNullOrEmpty(cond))
+                {
+                    cond = "該当チャンネルなし";
+                    never = true;
+                }
+                else
+                {
+                    cond = "チャンネル:" + cond;
+                }
+                conds.Add(cond);
+            }
+            if (Item.VideoSizeEnabled)
+            {
+                var cond = string.Join(",",
+                    VideoSizes.Where(s => s.IsChecked).Select(s => s.Name));
+                if (string.IsNullOrEmpty(cond))
+                {
+                    cond = "該当サイズなし";
+                    never = true;
+                }
+                else
+                {
+                    cond = "映像サイズ:" + cond;
+                }
+                conds.Add(cond);
+            }
+            if(conds.Count == 0)
+            {
+                conds.Add("無条件（常に条件を満たす）");
+            }
+            else if(never)
+            {
+                WarningText = "この条件を満たすことはありません";
+            }
+            Condition = string.Join(" かつ ", conds);
+        }
+
+        // DisplayCondition -> Item
+        public void UpdateItem()
+        {
+            Item.ContentConditions = GenreItems
+                .Select(SelectItemToGenreItem).Where(s => s != null).ToList();
+            Item.ServiceIds = ServiceList.Select(s => s.Service.Data.ServiceId).ToList();
+            Item.VideoSizes = VideoSizes.Select(s => s.Item).ToList();
+        }
+    }
+
+    public class DisplayAutoSelect : NotificationObject
+    {
+        public AutoSelectProfile Model { get; set; }
+
+        #region Conditions変更通知プロパティ
+        public ObservableCollection<DisplayCondition> _Conditions = new ObservableCollection<DisplayCondition>();
+
+        public ObservableCollection<DisplayCondition> Conditions
+        {
+            get { return _Conditions; }
+            set
+            {
+                if (_Conditions == value)
+                    return;
+                _Conditions = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SelectedIndex変更通知プロパティ
+        private int _SelectedIndex = -1;
+
+        // 更新されたときにアイテムを追跡する術がないので順番で覚えておく
+        public int SelectedIndex
+        {
+            get { return _SelectedIndex; }
+            set
+            {
+                if (_SelectedIndex == value)
+                    return;
+                _SelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("SelectedCondition");
+            }
+        }
+
+        public DisplayCondition SelectedCondition
+        {
+            get
+            {
+                if(_SelectedIndex >= 0 && _SelectedIndex < Conditions.Count) {
+                    return Conditions[_SelectedIndex];
+                }
+                return null;
+            }
+        }
+        #endregion
+
+        public override string ToString()
+        {
+            return Model.Name;
         }
     }
 }

@@ -1593,6 +1593,21 @@ namespace Amatsukaze.Server
                 autoSelects.Clear();
                 foreach(var profile in data.Profiles)
                 {
+                    foreach(var cond in profile.Conditions)
+                    {
+                        if(cond.ContentConditions == null)
+                        {
+                            cond.ContentConditions = new List<GenreItem>();
+                        }
+                        if(cond.ServiceIds == null)
+                        {
+                            cond.ServiceIds = new List<int>();
+                        }
+                        if(cond.VideoSizes == null)
+                        {
+                            cond.VideoSizes = new List<VideoSizeCondition>();
+                        }
+                    }
                     autoSelects.Add(profile.Name, profile);
                 }
             }
@@ -3099,6 +3114,11 @@ namespace Amatsukaze.Server
                                 Conditions = new List<AutoSelectCondition>()
                             };
                             autoSelects.Add(def.Name, def);
+                            await client.OnAutoSelect(new AutoSelectUpdate()
+                            {
+                                Type = UpdateType.Add,
+                                Profile = def
+                            });
                             autoSelectUpdated = true;
                         }
                     }
@@ -3405,6 +3425,8 @@ namespace Amatsukaze.Server
                     MacAddress = GetMacAddress()
                 }
             });
+
+            // プロファイル
             await client.OnProfile(new ProfileUpdate()
             {
                 Type = UpdateType.Clear
@@ -3416,6 +3438,21 @@ namespace Amatsukaze.Server
                     Type = UpdateType.Update
                 });
             }
+
+            // 自動選択
+            await client.OnAutoSelect(new AutoSelectUpdate()
+            {
+                Type = UpdateType.Clear
+            });
+            foreach (var profile in autoSelects.Values)
+            {
+                await client.OnAutoSelect(new AutoSelectUpdate()
+                {
+                    Profile = profile,
+                    Type = UpdateType.Update
+                });
+            }
+
             // プロファイルがないと関連付けできないため、
             // プロファイルを送った後にこれを送る
             await client.OnCommonData(new CommonData()

@@ -81,6 +81,7 @@
     <Compile Include="Components\TaskbarInfoBehavior.cs" />
     <Compile Include="Models\DisplayData.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
+    <Compile Include="ViewModels\AutoSelectSettingViewModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageListViewModel.cs" />
@@ -90,6 +91,7 @@
     <Compile Include="ViewModels\MakeBatchResultViewModel.cs" />
     <Compile Include="ViewModels\MakeScriptViewModel.cs" />
     <Compile Include="ViewModels\NamedViewModel.cs" />
+    <Compile Include="ViewModels\NewAutoSelectViewModel.cs" />
     <Compile Include="ViewModels\NewProfileViewModel.cs" />
     <Compile Include="ViewModels\ProfileSettingViewModel.cs" />
     <Compile Include="ViewModels\SelectOutPathViewModel.cs" />
@@ -98,6 +100,9 @@
     <Compile Include="ViewModels\SettingViewModel.cs" />
     <Compile Include="ViewModels\SummaryItemViewModel.cs" />
     <Compile Include="ViewModels\SummaryViewModel.cs" />
+    <Compile Include="Views\AutoSelectSettingPanel.xaml.cs">
+      <DependentUpon>AutoSelectSettingPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\ClientLogPanel.xaml.cs">
       <DependentUpon>ClientLogPanel.xaml</DependentUpon>
     </Compile>
@@ -128,6 +133,9 @@
     <Compile Include="Views\MakeScriptPanel.xaml.cs">
       <DependentUpon>MakeScriptPanel.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\NewAutoSelectWindow.xaml.cs">
+      <DependentUpon>NewAutoSelectWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\NewProfileWindow.xaml.cs">
       <DependentUpon>NewProfileWindow.xaml</DependentUpon>
     </Compile>
@@ -155,6 +163,10 @@
     <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\AutoSelectSettingPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\ClientLogPanel.xaml">
       <SubType>Designer</SubType>
@@ -237,6 +249,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\MakeScriptPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\NewAutoSelectWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

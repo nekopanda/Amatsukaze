@@ -213,6 +213,22 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region AutoSelectList変更通知プロパティ
+        private ObservableCollection<DisplayAutoSelect> _AutoSelectList = new ObservableCollection<DisplayAutoSelect>();
+
+        public ObservableCollection<DisplayAutoSelect> AutoSelectList
+        {
+            get { return _AutoSelectList; }
+            set
+            {
+                if (_AutoSelectList == value)
+                    return;
+                _AutoSelectList = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region SelectedProfile変更通知プロパティ
         private DisplayProfile _SelectedProfile;
 
@@ -222,6 +238,22 @@ namespace Amatsukaze.Models
                 if (_SelectedProfile == value)
                     return;
                 _SelectedProfile = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SelectedAutoSelect変更通知プロパティ
+        private DisplayAutoSelect _SelectedAutoSelect;
+
+        public DisplayAutoSelect SelectedAutoSelect
+        {
+            get { return _SelectedAutoSelect; }
+            set
+            {
+                if (_SelectedAutoSelect == value)
+                    return;
+                _SelectedAutoSelect = value;
                 RaisePropertyChanged();
             }
         }
@@ -710,7 +742,7 @@ namespace Amatsukaze.Models
             });
         }
 
-        public Task SendProfile(ProfileSetting profile)
+        public Task UpdateProfile(ProfileSetting profile)
         {
             return Server.SetProfile(new ProfileUpdate() {
                 Type = UpdateType.Update, Profile = profile
@@ -720,6 +752,33 @@ namespace Amatsukaze.Models
         public Task RemoveProfile(ProfileSetting profile)
         {
             return Server.SetProfile(new ProfileUpdate()
+            {
+                Type = UpdateType.Remove,
+                Profile = profile
+            });
+        }
+
+        public Task AddAutoSelect(AutoSelectProfile profile)
+        {
+            return Server.SetAutoSelect(new AutoSelectUpdate()
+            {
+                Type = UpdateType.Add,
+                Profile = profile
+            });
+        }
+
+        public Task UpdateAutoSelect(AutoSelectProfile profile)
+        {
+            return Server.SetAutoSelect(new AutoSelectUpdate()
+            {
+                Type = UpdateType.Update,
+                Profile = profile
+            });
+        }
+
+        public Task RemoveAutoSelect(AutoSelectProfile profile)
+        {
+            return Server.SetAutoSelect(new AutoSelectUpdate()
             {
                 Type = UpdateType.Remove,
                 Profile = profile
@@ -1164,8 +1223,68 @@ namespace Amatsukaze.Models
 
         public Task OnAutoSelect(AutoSelectUpdate data)
         {
-            // TODO:
-            //throw new NotImplementedException();
+            if (data.Type == UpdateType.Clear)
+            {
+                AutoSelectList.Clear();
+                return Task.FromResult(0);
+            }
+            var profile = AutoSelectList.FirstOrDefault(s => s.Model.Name == data.Profile.Name);
+            if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
+            {
+                if (profile == null)
+                {
+                    profile = new DisplayAutoSelect() {
+                        Model = data.Profile
+                    };
+                    AutoSelectList.Add(profile);
+
+                    if (SelectedAutoSelect != null && SelectedAutoSelect.Model.Name == data.Profile.Name)
+                    {
+                        // 選択中のプロファイルが更新された
+                        SelectedAutoSelect = profile;
+                    }
+                }
+
+                var conds = new ObservableCollection<DisplayCondition>();
+                foreach (var cond in data.Profile.Conditions.Select(s =>
+                {
+                    var cond = new DisplayCondition()
+                    {
+                        Model = this,
+                        Item = s
+                    };
+                    cond.Initialize();
+                    return cond;
+                }))
+                {
+                    conds.Add(cond);
+                }
+                profile.Conditions = conds;
+
+                if (SelectedAutoSelect == null && Setting.Model != null)
+                {
+                    if (string.IsNullOrEmpty(Setting.Model.LastSelectedAutoSelect))
+                    {
+                        if (profile.Model.Name == "デフォルト")
+                        {
+                            // 選択中のプロファイルがなかったらデフォルトを選択
+                            SelectedAutoSelect = profile;
+                        }
+                    }
+                    else if (profile.Model.Name == Setting.Model.LastSelectedAutoSelect)
+                    {
+                        // 最後に選択中だったらプロファイルだったらそれにする
+                        SelectedAutoSelect = profile;
+                    }
+                }
+            }
+            else
+            {
+                if (profile != null)
+                {
+                    AutoSelectList.Remove(profile);
+                }
+            }
             return Task.FromResult(0);
         }
     }

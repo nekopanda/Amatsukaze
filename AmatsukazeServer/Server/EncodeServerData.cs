@@ -187,6 +187,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public string LastSelectedProfile { get; set; }
+        [DataMember]
+        public string LastSelectedAutoSelect { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -819,15 +821,23 @@ namespace Amatsukaze.Server
     public class AutoSelectCondition
     {
         [DataMember]
+        public bool ContentConditionEnabled { get; set; }
+        [DataMember]
         public List<GenreItem> ContentConditions { get; set; }
         [DataMember]
+        public bool ServiceIdEnabled { get; set; }
+        [DataMember]
         public List<int> ServiceIds { get; set; }
+        [DataMember]
+        public bool VideoSizeEnabled { get; set; }
         [DataMember]
         public List<VideoSizeCondition> VideoSizes { get; set; }
         [DataMember]
         public string Profile { get; set; }
         [DataMember]
         public int Priority { get; set; }
+        [DataMember]
+        public string Description { get; set; }
     }
 
     [DataContract]

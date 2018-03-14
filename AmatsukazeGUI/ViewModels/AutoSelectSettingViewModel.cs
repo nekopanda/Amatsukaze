@@ -1,11 +1,19 @@
 ﻿using Amatsukaze.Models;
 using Amatsukaze.Server;
+using Livet;
 using Livet.Commands;
 using Livet.Messaging;
+using Livet.Messaging.Windows;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
-    public class ProfileSettingViewModel : NamedViewModel
+    public class AutoSelectSettingViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -57,8 +65,10 @@ namespace Amatsukaze.ViewModels
         #region ApplyProfileCommand
         private ViewModelCommand _ApplyProfileCommand;
 
-        public ViewModelCommand ApplyProfileCommand {
-            get {
+        public ViewModelCommand ApplyProfileCommand
+        {
+            get
+            {
                 if (_ApplyProfileCommand == null)
                 {
                     _ApplyProfileCommand = new ViewModelCommand(ApplyProfile);
@@ -69,9 +79,13 @@ namespace Amatsukaze.ViewModels
 
         public void ApplyProfile()
         {
-            if(Model.SelectedProfile != null)
+            if (Model.SelectedAutoSelect != null)
             {
-                Model.UpdateProfile(Model.SelectedProfile.Model);
+                foreach(var cond in Model.SelectedAutoSelect.Conditions)
+                {
+                    cond.UpdateItem();
+                }
+                Model.UpdateAutoSelect(Model.SelectedAutoSelect.Model);
             }
         }
         #endregion
@@ -79,8 +93,10 @@ namespace Amatsukaze.ViewModels
         #region NewProfileCommand
         private ViewModelCommand _NewProfileCommand;
 
-        public ViewModelCommand NewProfileCommand {
-            get {
+        public ViewModelCommand NewProfileCommand
+        {
+            get
+            {
                 if (_NewProfileCommand == null)
                 {
                     _NewProfileCommand = new ViewModelCommand(NewProfile);
@@ -91,22 +107,23 @@ namespace Amatsukaze.ViewModels
 
         public async void NewProfile()
         {
-            if (Model.SelectedProfile != null)
+            if (Model.SelectedAutoSelect != null)
             {
-                var profile = Model.SelectedProfile;
-                var newp = new NewProfileViewModel() {
+                var profile = Model.SelectedAutoSelect;
+                var newp = new NewAutoSelectViewModel()
+                {
                     Model = Model,
                     Name = profile.Model.Name + "のコピー"
                 };
 
                 await Messenger.RaiseAsync(new TransitionMessage(
-                    typeof(Views.NewProfileWindow), newp, TransitionMode.Modal, "FromProfile"));
+                    typeof(Views.NewAutoSelectWindow), newp, TransitionMode.Modal, "FromProfile"));
 
-                if(newp.Success)
+                if (newp.Success)
                 {
                     var newprofile = ServerSupport.DeepCopy(profile.Model);
                     newprofile.Name = newp.Name;
-                    await Model.AddProfile(newprofile);
+                    await Model.AddAutoSelect(newprofile);
                 }
             }
         }
@@ -115,8 +132,10 @@ namespace Amatsukaze.ViewModels
         #region DeleteProfileCommand
         private ViewModelCommand _DeleteProfileCommand;
 
-        public ViewModelCommand DeleteProfileCommand {
-            get {
+        public ViewModelCommand DeleteProfileCommand
+        {
+            get
+            {
                 if (_DeleteProfileCommand == null)
                 {
                     _DeleteProfileCommand = new ViewModelCommand(DeleteProfile);
@@ -129,10 +148,10 @@ namespace Amatsukaze.ViewModels
         {
             if (Model.SelectedProfile != null)
             {
-                var profile = Model.SelectedProfile.Model;
+                var profile = Model.SelectedAutoSelect.Model;
 
                 var message = new ConfirmationMessage(
-                    "プロファイル「" + profile.Name + "」を削除しますか？",
+                    "プロファイル自動選択「" + profile.Name + "」を削除しますか？",
                     "Amatsukaze",
                     System.Windows.MessageBoxImage.Information,
                     System.Windows.MessageBoxButton.OKCancel,
@@ -142,11 +161,107 @@ namespace Amatsukaze.ViewModels
 
                 if (message.Response == true)
                 {
-                    await Model.RemoveProfile(profile);
+                    await Model.RemoveAutoSelect(profile);
                 }
             }
         }
         #endregion
 
+        #region AddConditionCommand
+        private ViewModelCommand _AddConditionCommand;
+
+        public ViewModelCommand AddConditionCommand
+        {
+            get
+            {
+                if (_AddConditionCommand == null)
+                {
+                    _AddConditionCommand = new ViewModelCommand(AddCondition);
+                }
+                return _AddConditionCommand;
+            }
+        }
+
+        public void AddCondition()
+        {
+            if(Model.SelectedAutoSelect != null)
+            {
+                var cond = new AutoSelectCondition()
+                {
+                    ContentConditions = new List<GenreItem>(),
+                    ServiceIds = new List<int>(),
+                    VideoSizes = new List<VideoSizeCondition>()
+                };
+                var disp = new DisplayCondition()
+                {
+                    Model = Model,
+                    Item = cond
+                };
+                disp.Initialize();
+                Model.SelectedAutoSelect.Model.Conditions.Add(cond);
+                Model.SelectedAutoSelect.Conditions.Add(disp);
+            }
+        }
+        #endregion
+
+        #region RemoveConditionCommand
+        private ViewModelCommand _RemoveConditionCommand;
+
+        public ViewModelCommand RemoveConditionCommand
+        {
+            get
+            {
+                if (_RemoveConditionCommand == null)
+                {
+                    _RemoveConditionCommand = new ViewModelCommand(RemoveCondition);
+                }
+                return _RemoveConditionCommand;
+            }
+        }
+
+        public void RemoveCondition()
+        {
+            if (Model.SelectedAutoSelect?.SelectedCondition != null)
+            {
+                var cond = Model.SelectedAutoSelect.SelectedCondition;
+                Model.SelectedAutoSelect.Model.Conditions.Remove(cond.Item);
+                Model.SelectedAutoSelect.Conditions.Remove(cond);
+            }
+        }
+        #endregion
+
+        #region UpperRowLength変更通知プロパティ
+        private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength UpperRowLength
+        {
+            get
+            { return _UpperRowLength; }
+            set
+            {
+                if (_UpperRowLength == value)
+                    return;
+                _UpperRowLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region LowerRowLength変更通知プロパティ
+        private GridLength _LowerRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength LowerRowLength
+        {
+            get
+            { return _LowerRowLength; }
+            set
+            {
+                if (_LowerRowLength == value)
+                    return;
+                _LowerRowLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
     }
 }

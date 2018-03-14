@@ -1,0 +1,146 @@
+﻿<UserControl x:Class="Amatsukaze.Views.AutoSelectSettingPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+             xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
+             mc:Ignorable="d" 
+             d:DesignHeight="900" d:DesignWidth="500"
+             d:DataContext="{d:DesignInstance {x:Type vm:AutoSelectSettingViewModel}}">
+    
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
+
+    <i:Interaction.Triggers>
+        <l:InteractionMessageTrigger Messenger="{Binding Messenger}" MessageKey="FromProfile">
+            <l:TransitionInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+        </l:InteractionMessageTrigger>
+
+        <l:InteractionMessageTrigger MessageKey="Confirm" Messenger="{Binding Messenger}">
+            <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+        </l:InteractionMessageTrigger>
+    </i:Interaction.Triggers>
+
+    <DockPanel>
+
+        <DockPanel DockPanel.Dock="Top">
+            <TextBlock DockPanel.Dock="Left" Text="自動選択" VerticalAlignment="Center" Margin="5"/>
+            <Button DockPanel.Dock="Right" Content="削除" Margin="5" Height="30" ToolTip="現在の自動選択を削除します" Command="{Binding DeleteProfileCommand}"/>
+            <Button DockPanel.Dock="Right" Content="新規" Margin="5" Height="30" ToolTip="現在の自動選択をコピーして新しい自動選択を作成します" Command="{Binding NewProfileCommand}"/>
+            <Button DockPanel.Dock="Right" Content="適用" Margin="5" Height="30" Width="60" Command="{Binding ApplyProfileCommand}" />
+            <ComboBox ItemsSource="{Binding Model.AutoSelectList}" Margin="5" Height="22" SelectedItem="{Binding Model.SelectedAutoSelect, Mode=TwoWay}"/>
+        </DockPanel>
+
+        <Separator DockPanel.Dock="Top"/>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="{Binding UpperRowLength, Mode=TwoWay}"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
+            </Grid.RowDefinitions>
+            
+            <ListBox ItemsSource="{Binding Model.SelectedAutoSelect.Conditions}"
+                     SelectedIndex="{Binding Model.SelectedAutoSelect.SelectedIndex, Mode=TwoWay}"
+                     HorizontalContentAlignment="Stretch"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.Resources>
+                    <DataTemplate DataType="{x:Type m:DisplayCondition}">
+                        <DockPanel>
+                            <TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
+                                <Run Text="{Binding Condition}"/> <Run Text="{Binding WarningText}" Foreground="Red"/>
+                            </TextBlock>
+                            <!--<TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
+                                備考: <Run Text="{Binding Description}"/>
+                            </TextBlock>-->
+                            <DockPanel Margin="3">
+                                <ComboBox Width="80" HorizontalAlignment="Left" DockPanel.Dock="Right" 
+                                  ItemsSource="{Binding PriorityList}" 
+                                  SelectedItem="{Binding Priority, Mode=TwoWay}"/>
+                                <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                                <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
+                                <ComboBox ItemsSource="{Binding Model.ProfileList}" 
+                                          SelectedItem="{Binding Profile, Mode=TwoWay}" />
+                            </DockPanel>
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.Resources>
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="条件を追加" Command="{Binding AddConditionCommand}"/>
+                        <MenuItem Header="選択中の条件を削除" Command="{Binding RemoveConditionCommand}"/>
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+            </ListBox>
+
+            <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
+
+            <Grid Grid.Row="2" DataContext="{Binding Model.SelectedAutoSelect.SelectedCondition}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+                
+                <DockPanel Grid.Column="0">
+                    <CheckBox Content="ジャンル" DockPanel.Dock="Top"
+                              IsChecked="{Binding ContentConditionEnabled, Mode=TwoWay}"/>
+                    <ListBox ItemsSource="{Binding GenreItems}"
+                             IsEnabled="{Binding ContentConditionEnabled}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type m:MainGenreSelectItem}">
+                                <CheckBox Content="{Binding Item.Name}" 
+                                    IsChecked="{Binding IsChecked, Mode=TwoWay}" 
+                                    IsThreeState="False"/>
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type m:GenreSelectItem}">
+                                <CheckBox Content="{Binding Item.Name}" 
+                                    IsChecked="{Binding IsChecked, Mode=TwoWay}" 
+                                    Margin="20,0,0,0"/>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                </DockPanel>
+
+                <DockPanel Grid.Column="1">
+                    <CheckBox Content="チャンネル" DockPanel.Dock="Top"
+                              IsChecked="{Binding ServiceEnabled, Mode=TwoWay}"/>
+                    <ListBox ItemsSource="{Binding ServiceList}"
+                             IsEnabled="{Binding ServiceEnabled}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type m:ServiceSelectItem}">
+                                <CheckBox Content="{Binding Service}" 
+                                    IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                </DockPanel>
+
+                <DockPanel Grid.Column="2">
+                    <CheckBox Content="映像サイズ" DockPanel.Dock="Top"
+                              IsChecked="{Binding VideoSizeEnabled, Mode=TwoWay}"/>
+                    <ListBox ItemsSource="{Binding VideoSizes}"
+                             IsEnabled="{Binding VideoSizeEnabled}"
+                              DockPanel.Dock="Top" Height="75">
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type m:VideoSizeSelectItem}">
+                                <CheckBox Content="{Binding Name}" 
+                                IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                    <TextBlock Text="備考:" DockPanel.Dock="Top"/>
+                    <TextBox Text="{Binding Description, Mode=TwoWay}"
+                             TextWrapping="Wrap" AcceptsReturn="True"/>
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>

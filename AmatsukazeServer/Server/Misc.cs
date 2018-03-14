@@ -797,8 +797,6 @@ namespace Amatsukaze.Server
 
         private static bool MatchContentConditions(List<GenreItem> genre, List<GenreItem> conds)
         {
-            // 条件が無効なら無条件でOK
-            if (conds == null) return true;
             // ジャンル情報がない場合はダメ
             if (genre.Count == 0) return false;
 
@@ -842,18 +840,21 @@ namespace Amatsukaze.Server
             var videoSize = GetVideoSize(width, height);
             foreach (var cond in conds.Conditions)
             {
-                if (MatchContentConditions(genre, cond.ContentConditions) == false)
+                if(cond.ContentConditionEnabled)
                 {
-                    continue;
+                    if (MatchContentConditions(genre, cond.ContentConditions) == false)
+                    {
+                        continue;
+                    }
                 }
-                if (cond.ServiceIds != null)
+                if (cond.ServiceIdEnabled)
                 {
                     if (cond.ServiceIds.Contains(serviceId) == false)
                     {
                         continue;
                     }
                 }
-                if (cond.VideoSizes != null)
+                if (cond.VideoSizeEnabled)
                 {
                     if (cond.VideoSizes.Contains(videoSize) == false)
                     {
@@ -954,6 +955,18 @@ namespace Amatsukaze.Server
         public static void Finish()
         {
             _Context.Finish();
+        }
+    }
+
+    public static class Extentions
+    {
+        public static TValue GetOrDefault<TKey, TValue>(
+            this IDictionary<TKey, TValue> self,
+            TKey key,
+            TValue defaultValue = default(TValue))
+        {
+            TValue value;
+            return self.TryGetValue(key, out value) ? value : defaultValue;
         }
     }
 }
