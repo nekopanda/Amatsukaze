@@ -57,8 +57,6 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        private MakeScriptData scriptData = new MakeScriptData();
-
         public void Initialize() {
         }
 

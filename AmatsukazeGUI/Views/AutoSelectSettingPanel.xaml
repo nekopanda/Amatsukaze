@@ -65,7 +65,7 @@
                                 <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
                                 <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
                                 <ComboBox ItemsSource="{Binding Model.ProfileList}" 
-                                          SelectedItem="{Binding Profile, Mode=TwoWay}" />
+                                          SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" />
                             </DockPanel>
                         </DockPanel>
                     </DataTemplate>
@@ -137,7 +137,7 @@
                         </ListBox.Resources>
                     </ListBox>
                     <TextBlock Text="備考:" DockPanel.Dock="Top"/>
-                    <TextBox Text="{Binding Description, Mode=TwoWay}"
+                    <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              TextWrapping="Wrap" AcceptsReturn="True"/>
                 </DockPanel>
             </Grid>

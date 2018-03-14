@@ -835,7 +835,7 @@ namespace Amatsukaze.Server
         }
 
         public static string AutoSelectProfile(int width, int height,
-            List<GenreItem> genre, int serviceId, AutoSelectProfile conds)
+            List<GenreItem> genre, int serviceId, AutoSelectProfile conds, out int priority)
         {
             var videoSize = GetVideoSize(width, height);
             foreach (var cond in conds.Conditions)
@@ -862,15 +862,18 @@ namespace Amatsukaze.Server
                     }
                 }
                 // 全てにマッチした
+                priority = cond.Priority;
                 return cond.Profile;
             }
             // マッチしたのがなかった
+            priority = 0;
             return null;
         }
 
-        public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds)
+        public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds, out int priority)
         {
-            return AutoSelectProfile(item.ImageWidth, item.ImageHeight, item.Genre, item.ServiceId, conds);
+            return AutoSelectProfile(item.ImageWidth, item.ImageHeight,
+                item.Genre, item.ServiceId, conds, out priority);
         }
 
         public static string ParseProfileName(string name, out bool autoSelect)

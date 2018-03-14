@@ -1240,7 +1240,7 @@ namespace Amatsukaze.Models
 
                     if (SelectedAutoSelect != null && SelectedAutoSelect.Model.Name == data.Profile.Name)
                     {
-                        // 選択中のプロファイルが更新された
+                        // 選択中の自動選択プロファイルが更新された
                         SelectedAutoSelect = profile;
                     }
                 }
@@ -1251,7 +1251,8 @@ namespace Amatsukaze.Models
                     var cond = new DisplayCondition()
                     {
                         Model = this,
-                        Item = s
+                        Item = s,
+                        SelectedProfile = ProfileList.FirstOrDefault(p => p.Model.Name == s.Profile)
                     };
                     cond.Initialize();
                     return cond;
@@ -1259,7 +1260,9 @@ namespace Amatsukaze.Models
                 {
                     conds.Add(cond);
                 }
+                int selectedIndex = profile.SelectedIndex;
                 profile.Conditions = conds;
+                profile.SelectedIndex = selectedIndex;
 
                 if (SelectedAutoSelect == null && Setting.Model != null)
                 {

@@ -2087,8 +2087,7 @@ namespace Amatsukaze.Models
                 var mainItem = new MainGenreSelectItem()
                 {
                     Item = main,
-                    SubGenres = new List<GenreSelectItem>(),
-                    Cond = this
+                    SubGenres = new List<GenreSelectItem>()
                 };
                 GenreItems.Add(mainItem);
                 foreach (var subEntry in main.SubGenres)
@@ -2105,6 +2104,7 @@ namespace Amatsukaze.Models
                     GenreItems.Add(subItem);
                 }
                 mainItem.ChildrenUpdated();
+                mainItem.Cond = this;
             }
 
             ServiceList = new ObservableCollection<ServiceSelectItem>();
@@ -2117,7 +2117,7 @@ namespace Amatsukaze.Models
                     Cond = this
                 });
             }
-            serviceListener = new CollectionChangedEventListener(Model.DrcsImageList, (o, e) => {
+            serviceListener = new CollectionChangedEventListener(Model.ServiceSettings, (o, e) => {
                 switch (e.Action)
                 {
                     case NotifyCollectionChangedAction.Add:
@@ -2225,15 +2225,15 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region Profile変更通知プロパティ
-        public string Profile
-        {
-            get { return Item.Profile; }
-            set
-            {
-                if (Item.Profile == value)
+        #region SelectedProfile変更通知プロパティ
+        private DisplayProfile _SelectedProfile;
+
+        public DisplayProfile SelectedProfile {
+            get { return _SelectedProfile; }
+            set { 
+                if (_SelectedProfile == value)
                     return;
-                Item.Profile = value;
+                _SelectedProfile = value;
                 RaisePropertyChanged();
             }
         }
@@ -2412,8 +2412,11 @@ namespace Amatsukaze.Models
         {
             Item.ContentConditions = GenreItems
                 .Select(SelectItemToGenreItem).Where(s => s != null).ToList();
-            Item.ServiceIds = ServiceList.Select(s => s.Service.Data.ServiceId).ToList();
-            Item.VideoSizes = VideoSizes.Select(s => s.Item).ToList();
+            // 今のサービスリストにないサービスは含める
+            Item.ServiceIds = Item.ServiceIds.Where(id => !ServiceList.Any(s => s.Service.Data.ServiceId == id))
+                .Concat(ServiceList.Where(s => s.IsChecked).Select(s => s.Service.Data.ServiceId)).ToList();
+            Item.VideoSizes = VideoSizes.Where(s => s.IsChecked).Select(s => s.Item).ToList();
+            Item.Profile = SelectedProfile?.Model?.Name;
         }
     }
 
