@@ -6,6 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
+        xmlns:m="clr-namespace:Amatsukaze.Models" 
         Title="Amatsukaze ファイル追加" SizeToContent="Height" Width="400" Loaded="Window_Loaded">
 
     <Window.DataContext>
@@ -46,12 +47,26 @@
     <StackPanel Margin="5">
         <TextBlock Margin="2" Text="{Binding InputInfoText, Mode=OneWay}" TextWrapping="Wrap" />
         <DockPanel>
+            <DockPanel.Resources>
+                <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
+                <CollectionViewSource x:Key="AutoSelectList" Source="{Binding Model.AutoSelectList}"/>
+                <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
+                    <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
+                </DataTemplate>
+            </DockPanel.Resources>
             <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right" 
                               ItemsSource="{Binding Model.PriorityList}" 
                               SelectedItem="{Binding Item.Outputs[0].Priority, Mode=TwoWay}"/>
             <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
             <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-            <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" />
+            <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+                <ComboBox.ItemsSource>
+                    <CompositeCollection>
+                        <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
+                        <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
+                    </CompositeCollection>
+                </ComboBox.ItemsSource>
+            </ComboBox>
         </DockPanel>
         <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
         <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>

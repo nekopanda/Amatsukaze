@@ -75,7 +75,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Components\BrowserBehavior.cs" />
+    <Compile Include="Components\ControlHostAdornerBase.cs" />
+    <Compile Include="Components\DragBehavior.cs" />
+    <Compile Include="Components\DragContentAdorner.cs" />
+    <Compile Include="Components\ExtentionMethods.cs" />
     <Compile Include="Components\GridViewSort.cs" />
+    <Compile Include="Components\InsertionAdorner.cs" />
+    <Compile Include="Components\InsertionCursor.xaml.cs">
+      <DependentUpon>InsertionCursor.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Components\TaskbarInfoBehavior.cs" />
@@ -163,6 +171,10 @@
     <Page Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Components\InsertionCursor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
     </Page>
     <Page Include="Views\AutoSelectSettingPanel.xaml">
       <SubType>Designer</SubType>

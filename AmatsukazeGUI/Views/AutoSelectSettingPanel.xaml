@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="Amatsukaze.Views.AutoSelectSettingPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
              xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -44,39 +45,67 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
             </Grid.RowDefinitions>
-            
-            <ListBox ItemsSource="{Binding Model.SelectedAutoSelect.Conditions}"
+
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top">
+                    <Button Content="条件追加" Command="{Binding AddConditionCommand}" Width="80" Height="20" Margin="5,0"/>
+                    <Button Content="条件削除" Command="{Binding RemoveConditionCommand}" Width="80" Height="20" Margin="5,0"/>
+                    <TextBlock Text="条件は上から順番に評価されます" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                </DockPanel>
+                
+                <ListBox ItemsSource="{Binding Model.SelectedAutoSelect.Conditions}"
                      SelectedIndex="{Binding Model.SelectedAutoSelect.SelectedIndex, Mode=TwoWay}"
-                     HorizontalContentAlignment="Stretch"
+                     HorizontalContentAlignment="Stretch" AllowDrop="True"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.Resources>
-                    <DataTemplate DataType="{x:Type m:DisplayCondition}">
-                        <DockPanel>
-                            <TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
+                    <i:Interaction.Behaviors>
+                        <c:DragBehavior />
+                    </i:Interaction.Behaviors>
+                    <ListBox.ItemTemplate>
+
+                        <DataTemplate DataType="{x:Type m:DisplayCondition}">
+                            <DockPanel>
+                                <DockPanel.Resources>
+                                    <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
+                                    <CollectionViewSource x:Key="PriorityList" Source="{Binding Model.PriorityList}"/>
+                                </DockPanel.Resources>
+                                <TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
                                 <Run Text="{Binding Condition}"/> <Run Text="{Binding WarningText}" Foreground="Red"/>
-                            </TextBlock>
-                            <!--<TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
+                                </TextBlock>
+                                <!--<TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
                                 備考: <Run Text="{Binding Description}"/>
                             </TextBlock>-->
-                            <DockPanel Margin="3">
-                                <ComboBox Width="80" HorizontalAlignment="Left" DockPanel.Dock="Right" 
-                                  ItemsSource="{Binding PriorityList}" 
-                                  SelectedItem="{Binding Priority, Mode=TwoWay}"/>
-                                <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
-                                <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-                                <ComboBox ItemsSource="{Binding Model.ProfileList}" 
-                                          SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" />
+                                <DockPanel Margin="3">
+                                    <ComboBox Width="80" HorizontalAlignment="Left" DockPanel.Dock="Right" 
+                                        SelectedItem="{Binding Priority, Mode=TwoWay}">
+                                        <ComboBox.ItemsSource>
+                                            <CompositeCollection>
+                                                <sys:String>デフォルト</sys:String>
+                                                <CollectionContainer Collection="{Binding Source={StaticResource PriorityList}}"/>
+                                            </CompositeCollection>
+                                        </ComboBox.ItemsSource>
+                                    </ComboBox>
+                                    <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                                    <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
+                                    <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+                                        <ComboBox.ItemsSource>
+                                            <CompositeCollection>
+                                                <sys:String>ペンディングにする</sys:String>
+                                                <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
+                                            </CompositeCollection>
+                                        </ComboBox.ItemsSource>
+                                    </ComboBox>
+                                </DockPanel>
                             </DockPanel>
-                        </DockPanel>
-                    </DataTemplate>
-                </ListBox.Resources>
-                <ListBox.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="条件を追加" Command="{Binding AddConditionCommand}"/>
-                        <MenuItem Header="選択中の条件を削除" Command="{Binding RemoveConditionCommand}"/>
-                    </ContextMenu>
-                </ListBox.ContextMenu>
-            </ListBox>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="条件を追加" Command="{Binding AddConditionCommand}"/>
+                            <MenuItem Header="選択中の条件を削除" Command="{Binding RemoveConditionCommand}"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+            </DockPanel>
 
             <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
 

@@ -143,7 +143,15 @@
                         <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
                                 ItemsSource="{Binding DataContext.Model.PriorityList, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
                                 SelectedItem="{Binding Priority, Mode=TwoWay}"/>
-                        <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0" Text="{Binding Model.FileName, Mode=OneWay}" ToolTip="{Binding Model.FileName, Mode=OneWay}"/>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0" Text="{Binding Model.FileName, Mode=OneWay}">
+                            <TextBlock.ToolTip>
+                                <TextBlock>
+                                    <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                                    <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
+                                    <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                </TextBlock>
+                            </TextBlock.ToolTip>
+                        </TextBlock>
                         <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
                     </DockPanel>
                 </DataTemplate>

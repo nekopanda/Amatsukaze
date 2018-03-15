@@ -729,7 +729,7 @@ namespace Amatsukaze.Models
 
         public Task SendMakeScriptData()
         {
-            MakeScriptData.Model.Profile = MakeScriptData.SelectedProfile?.Model?.Name;
+            MakeScriptData.Model.Profile = DisplayProfile.GetProfileName(MakeScriptData.SelectedProfile);
             return Server.SetCommonData(new CommonData() { MakeScriptData = MakeScriptData.Model });
         }
 

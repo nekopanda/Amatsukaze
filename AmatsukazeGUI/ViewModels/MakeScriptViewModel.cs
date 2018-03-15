@@ -98,7 +98,7 @@ namespace Amatsukaze.ViewModels
             string cur = Directory.GetCurrentDirectory();
             string exe = Path.GetDirectoryName(GetType().Assembly.Location);
             string dst = Model.MakeScriptData.OutDir;
-            string prof = Model.MakeScriptData.SelectedProfile?.Model?.Name;
+            string prof = DisplayProfile.GetProfileName(Model.MakeScriptData.SelectedProfile);
             string nas = null;
             string ip = "localhost";
             int port = Model.ServerPort;

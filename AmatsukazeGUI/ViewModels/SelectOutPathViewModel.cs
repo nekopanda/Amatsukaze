@@ -99,7 +99,7 @@ namespace Amatsukaze.ViewModels
 
         private void GetProfileName()
         {
-            Item.Outputs[0].Profile = SelectedProfile?.Model?.Name ?? Server.ServerSupport.GetDefaultProfileName();
+            Item.Outputs[0].Profile = DisplayProfile.GetProfileName(SelectedProfile);
         }
 
         #region OkCommand
@@ -172,9 +172,9 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region SelectedProfile変更通知プロパティ
-        private DisplayProfile _SelectedProfile;
+        private object _SelectedProfile;
 
-        public DisplayProfile SelectedProfile {
+        public object SelectedProfile {
             get { return _SelectedProfile; }
             set { 
                 if (_SelectedProfile == value)

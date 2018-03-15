@@ -95,6 +95,16 @@ namespace Amatsukaze.Models
         public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
         public string ServiceString { get { return Model.ServiceName + "(" + Model.ServiceId + ")"; } }
 
+        public string GenreString
+        {
+            get { return string.Join(", ", Model.Genre.Select(s => SubGenre.GetFromItem(s).FullName)); }
+        }
+
+        public string VideoSizeString
+        {
+            get { return Model.ImageWidth + "x" + Model.ImageHeight; }
+        }
+
         public string StateString
         {
             get
@@ -763,6 +773,17 @@ namespace Amatsukaze.Models
         {
             return Model.Name;
         }
+
+        public static string GetProfileName(object item)
+        {
+            var name = (item as DisplayProfile)?.Model?.Name ??
+                (item as DisplayAutoSelect)?.Model?.Name;
+            if (item is DisplayAutoSelect)
+            {
+                name = "自動選択_" + name;
+            }
+            return name;
+        }
     }
 
     public class DisplayService : NotificationObject
@@ -1215,9 +1236,9 @@ namespace Amatsukaze.Models
         public MakeScriptData Model { get; set; }
 
         #region SelectedProfile変更通知プロパティ
-        private DisplayProfile _SelectedProfile;
+        private object _SelectedProfile;
 
-        public DisplayProfile SelectedProfile
+        public object SelectedProfile
         {
             get { return _SelectedProfile; }
             set
@@ -2171,14 +2192,6 @@ namespace Amatsukaze.Models
             ApplyCondition();
         }
 
-        public string[] PriorityList
-        {
-            get
-            {
-                return new string[] { "デフォルト", "1", "2", "3", "4", "5" };
-            }
-        }
-
         #region Condition変更通知プロパティ
         private string _Condition;
 
@@ -2226,10 +2239,10 @@ namespace Amatsukaze.Models
         #endregion
 
         #region SelectedProfile変更通知プロパティ
-        private DisplayProfile _SelectedProfile;
+        private object _SelectedProfile;
 
-        public DisplayProfile SelectedProfile {
-            get { return _SelectedProfile; }
+        public object SelectedProfile {
+            get { return _SelectedProfile ?? "ペンディングにする"; }
             set { 
                 if (_SelectedProfile == value)
                     return;
@@ -2240,19 +2253,18 @@ namespace Amatsukaze.Models
         #endregion
 
         #region Priority変更通知プロパティ
-        public string Priority
+        public object Priority
         {
             get {
                 if(Item.Priority == 0)
                 {
                     return "デフォルト";
                 }
-                return Item.Priority.ToString();
+                return Item.Priority;
             }
             set
             {
-                int ival = (string.IsNullOrEmpty(value) || "デフォルト" == value) 
-                    ? 0 : int.Parse(value);
+                int ival = (value as int?) ?? 0;
                 if (Item.Priority == ival)
                     return;
                 Item.Priority = ival;
@@ -2416,7 +2428,7 @@ namespace Amatsukaze.Models
             Item.ServiceIds = Item.ServiceIds.Where(id => !ServiceList.Any(s => s.Service.Data.ServiceId == id))
                 .Concat(ServiceList.Where(s => s.IsChecked).Select(s => s.Service.Data.ServiceId)).ToList();
             Item.VideoSizes = VideoSizes.Where(s => s.IsChecked).Select(s => s.Item).ToList();
-            Item.Profile = SelectedProfile?.Model?.Name;
+            Item.Profile = (SelectedProfile as DisplayProfile)?.Model?.Name;
         }
     }
 

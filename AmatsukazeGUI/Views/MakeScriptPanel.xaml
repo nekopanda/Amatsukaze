@@ -6,6 +6,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
              xmlns:local="clr-namespace:Amatsukaze.Views"
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="300"
@@ -30,12 +31,26 @@
             <GroupBox Header="EDCB用録画後実行バッチ">
                 <StackPanel Margin="5">
                     <DockPanel Margin="3">
+                        <DockPanel.Resources>
+                            <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
+                            <CollectionViewSource x:Key="AutoSelectList" Source="{Binding Model.AutoSelectList}"/>
+                            <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
+                                <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
+                            </DataTemplate>
+                        </DockPanel.Resources>
                         <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right" 
                                   ItemsSource="{Binding Model.PriorityList}" 
                                   SelectedItem="{Binding Model.MakeScriptData.Priority, Mode=TwoWay}"/>
                         <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
                         <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-                        <ComboBox ItemsSource="{Binding Model.ProfileList}" SelectedItem="{Binding Model.MakeScriptData.SelectedProfile, Mode=TwoWay}" />
+                        <ComboBox SelectedItem="{Binding Model.MakeScriptData.SelectedProfile, Mode=TwoWay}">
+                            <ComboBox.ItemsSource>
+                                <CompositeCollection>
+                                    <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
+                                    <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
+                                </CompositeCollection>
+                            </ComboBox.ItemsSource>
+                        </ComboBox>
                     </DockPanel>
                     <DockPanel Margin="3">
                         <TextBlock Text="出力先:" />

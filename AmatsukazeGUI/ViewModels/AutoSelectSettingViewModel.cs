@@ -62,6 +62,7 @@ namespace Amatsukaze.ViewModels
         {
         }
 
+
         #region ApplyProfileCommand
         private ViewModelCommand _ApplyProfileCommand;
 
@@ -81,10 +82,12 @@ namespace Amatsukaze.ViewModels
         {
             if (Model.SelectedAutoSelect != null)
             {
-                foreach(var cond in Model.SelectedAutoSelect.Conditions)
-                {
-                    cond.UpdateItem();
-                }
+                Model.SelectedAutoSelect.Model.Conditions = 
+                    Model.SelectedAutoSelect.Conditions.Select(s =>
+                    {
+                        s.UpdateItem();
+                        return s.Item;
+                    }).ToList();
                 Model.UpdateAutoSelect(Model.SelectedAutoSelect.Model);
             }
         }
@@ -146,7 +149,7 @@ namespace Amatsukaze.ViewModels
 
         public async void DeleteProfile()
         {
-            if (Model.SelectedProfile != null)
+            if (Model.SelectedAutoSelect != null)
             {
                 var profile = Model.SelectedAutoSelect.Model;
 
