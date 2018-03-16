@@ -531,6 +531,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public int Incident { get; set; }
 
+        [DataMember]
+        public string Profile { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         // アクセサ
@@ -844,7 +847,7 @@ namespace Amatsukaze.Server
     public class AutoSelectProfile
     {
         [DataMember]
-        public string Name;
+        public string Name { get; set; }
         [DataMember]
         public List<AutoSelectCondition> Conditions { get; set; }
     }

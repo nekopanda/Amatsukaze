@@ -454,7 +454,7 @@ namespace Amatsukaze.Server
                 }
             }
 
-            private LogItem FailLogItem(string srcpath, string reason, DateTime start, DateTime finish)
+            private LogItem FailLogItem(string srcpath, string profile, string reason, DateTime start, DateTime finish)
             {
                 return new LogItem() {
                     Success = false,
@@ -462,7 +462,8 @@ namespace Amatsukaze.Server
                     SrcPath = srcpath,
                     MachineName = Dns.GetHostName(),
                     EncodeStartDate = start,
-                    EncodeFinishDate = finish
+                    EncodeFinishDate = finish,
+                    Profile = profile,
                 };
             }
 
@@ -507,7 +508,7 @@ namespace Amatsukaze.Server
                 }
             }
 
-            private LogItem LogFromJson(bool isGeneric, string jsonpath, DateTime start, DateTime finish, QueueItem src, int outputMask)
+            private LogItem LogFromJson(bool isGeneric, string profile, string jsonpath, DateTime start, DateTime finish, QueueItem src, int outputMask)
             {
                 var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
                 if (isGeneric)
@@ -520,7 +521,8 @@ namespace Amatsukaze.Server
                         OutFileSize = (long)json.outfilesize,
                         MachineName = Dns.GetHostName(),
                         EncodeStartDate = start,
-                        EncodeFinishDate = finish
+                        EncodeFinishDate = finish,
+                        Profile = profile,
                     };
                 }
                 var outpath = new List<string>();
@@ -570,7 +572,8 @@ namespace Amatsukaze.Server
                     ServiceId = src.ServiceId,
                     TsTime = src.TsTime,
                     LogoFiles = logofiles,
-                    Incident = incident
+                    Incident = incident,
+                    Profile = profile,
                 };
             }
 
@@ -580,7 +583,7 @@ namespace Amatsukaze.Server
 
                 if (File.Exists(src.SrcPath) == false)
                 {
-                    return FailLogItem(src.SrcPath, "入力ファイルが見つかりません", now, now);
+                    return FailLogItem(src.SrcPath, dir.Profile.Name, "入力ファイルが見つかりません", now, now);
                 }
 
                 ProfileSetting profile = dir.Profile;
@@ -640,7 +643,7 @@ namespace Amatsukaze.Server
                         string name = Path.GetFileName(srcpath);
                         if (dir.HashList != null && dir.HashList.ContainsKey(name) == false)
                         {
-                            return FailLogItem(src.SrcPath, "入力ファイルのハッシュがありません", now, now);
+                            return FailLogItem(src.SrcPath, dir.Profile.Name, "入力ファイルのハッシュがありません", now, now);
                         }
 
                         byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
@@ -648,7 +651,7 @@ namespace Amatsukaze.Server
                         if (hash.SequenceEqual(refhash) == false)
                         {
                             File.Delete(localsrc);
-                            return FailLogItem(src.SrcPath, "コピーしたファイルのハッシュが一致しません", now, now);
+                            return FailLogItem(src.SrcPath, dir.Profile.Name, "コピーしたファイルのハッシュが一致しません", now, now);
                         }
 
                         srcpath = localsrc;
@@ -800,7 +803,7 @@ namespace Amatsukaze.Server
                     if(exitCode == 0 && isCanceled == false)
                     {
                         // 成功
-                        var log = LogFromJson(isMp4, json, start, finish, src, outputMask);
+                        var log = LogFromJson(isMp4, dir.Profile.Name, json, start, finish, src, outputMask);
 
                         // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
                         if (dir.HashList != null || src.Hash != null)
@@ -833,22 +836,22 @@ namespace Amatsukaze.Server
                     if(isCanceled)
                     {
                         // キャンセルされた
-                        return FailLogItem(src.SrcPath, "キャンセルされました", start, finish);
+                        return FailLogItem(src.SrcPath, dir.Profile.Name, "キャンセルされました", start, finish);
                     }
                     else if (exitCode == 100)
                     {
                         // マッチするロゴがなかった
-                        return FailLogItem(src.SrcPath, "マッチするロゴがありませんでした", start, finish);
+                        return FailLogItem(src.SrcPath, dir.Profile.Name, "マッチするロゴがありませんでした", start, finish);
                     }
                     else if (exitCode == 101)
                     {
                         // DRCSマッピングがなかった
-                        return FailLogItem(src.SrcPath, "DRCS外字のマッピングがありませんでした", start, finish);
+                        return FailLogItem(src.SrcPath, dir.Profile.Name, "DRCS外字のマッピングがありませんでした", start, finish);
                     }
                     else
                     {
                         // その他
-                        return FailLogItem(src.SrcPath,
+                        return FailLogItem(src.SrcPath, dir.Profile.Name,
                             "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
                     }
 
@@ -2228,7 +2231,7 @@ namespace Amatsukaze.Server
             {
                 using (var info = new TsInfo(amtcontext))
                 {
-                    var fileitems = new List<QueueItem>();
+                    var fileOK = false;
                     var failReason = "";
                     if (await Task.Run(() => info.ReadFile(additem.Path)) == false)
                     {
@@ -2327,27 +2330,31 @@ namespace Amatsukaze.Server
 
                                     // 追加
                                     target.Items.Add(item);
+                                    // まずは内部だけで状態を更新
+                                    UpdateQueueItem(item, null);
+                                    // 状態が決まったらクライアント側に追加通知
                                     waits.Add(client.OnQueueUpdate(new QueueUpdate()
                                     {
                                         Type = UpdateType.Add,
-                                        DirId = target.Id,
+                                        DirId = item.Dir.Id,
                                         Item = item
                                     }));
                                     ++numItems;
-
-                                    UpdateQueueItem(item, waits);
+                                    fileOK = true;
                                 }
                             }
                         }
 
                     }
 
-                    if (fileitems.Count == 0)
+                    if (fileOK == false)
                     {
                         foreach (var outitem in dir.Outputs)
                         {
-                            var profile = GetProfile(null, outitem.Profile);
-                            var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile?.Profile ?? pendingProfile, waits);
+                            bool isAuto = false;
+                            var profileName = ServerSupport.ParseProfileName(outitem.Profile, out isAuto);
+                            var profile = isAuto ? null : profiles.GetOrDefault(profileName);
+                            var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile ?? pendingProfile, waits);
                             var item = new QueueItem()
                             {
                                 Id = nextItemId++,
@@ -2485,7 +2492,9 @@ namespace Amatsukaze.Server
             item.Dir.Items.Remove(item);
 
             // RemoveとAddをatomicに行わなければならないのでここをawaitにしないこと
-            waits.Add(client.OnQueueUpdate(new QueueUpdate()
+            // ?.の後ろの引数はnullの場合は評価されないことに注意
+            // （C#の仕様が分かりにくいけど・・・）
+            waits?.Add(client.OnQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Remove,
                 DirId = item.Dir.Id,
@@ -2496,7 +2505,7 @@ namespace Amatsukaze.Server
             {
                 // プロファイル未選択ディレクトリは自動的に削除する
                 queue.Remove(item.Dir);
-                waits.Add(client.OnQueueUpdate(new QueueUpdate()
+                waits?.Add(client.OnQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = item.Dir.Id,
@@ -2505,7 +2514,7 @@ namespace Amatsukaze.Server
 
             item.Dir = newDir;
             item.Dir.Items.Add(item);
-            waits.Add(client.OnQueueUpdate(new QueueUpdate()
+            waits?.Add(client.OnQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
                 DirId = item.Dir.Id,
@@ -2567,6 +2576,7 @@ namespace Amatsukaze.Server
 
         // ペンディング <=> キュー 状態を切り替える
         // ペンディングからキューになったらスケジューリングに追加する
+        // waitsがnullの場合は、クライアント側を更新しない
         // 戻り値: 状態が変わった
         private bool UpdateQueueItem(QueueItem item, List<Task> waits)
         {
@@ -2628,9 +2638,9 @@ namespace Amatsukaze.Server
         private List<Task> UpdateQueueItems(List<Task> waits)
         {
             var map = appData.services.ServiceMap;
-            foreach (var dir in queue)
+            foreach (var dir in queue.ToArray())
             {
-                foreach(var item in dir.Items)
+                foreach(var item in dir.Items.ToArray())
                 {
                     if (item.State != QueueState.LogoPending && item.State != QueueState.Queue)
                     {
@@ -3454,7 +3464,7 @@ namespace Amatsukaze.Server
             {
                 Type = UpdateType.Clear
             });
-            foreach (var profile in profiles.Values)
+            foreach (var profile in profiles.Values.ToArray())
             {
                 await client.OnProfile(new ProfileUpdate() {
                     Profile = profile,
@@ -3467,7 +3477,7 @@ namespace Amatsukaze.Server
             {
                 Type = UpdateType.Clear
             });
-            foreach (var profile in autoSelects.Values)
+            foreach (var profile in autoSelects.Values.ToArray())
             {
                 await client.OnAutoSelect(new AutoSelectUpdate()
                 {
@@ -3600,7 +3610,7 @@ namespace Amatsukaze.Server
             {
                 Type = ServiceSettingUpdateType.Clear
             });
-            foreach (var service in serviceMap.Values)
+            foreach (var service in serviceMap.Values.ToArray())
             {
                 await client.OnServiceSetting(new ServiceSettingUpdate() {
                     Type = ServiceSettingUpdateType.Update,
