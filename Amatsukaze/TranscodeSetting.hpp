@@ -322,8 +322,9 @@ enum AMT_CLI_MODE {
 class TempDirectory : AMTObject, NonCopyable
 {
 public:
-	TempDirectory(AMTContext& ctx, const std::string& tmpdir)
+	TempDirectory(AMTContext& ctx, const std::string& tmpdir, bool noRemoveTmp)
 		: AMTObject(ctx)
+		, noRemoveTmp_(noRemoveTmp)
 	{
 		if (tmpdir.size() == 0) {
 			// 指定がなければ作らない
@@ -354,11 +355,13 @@ public:
 		if (path_.size() == 0) {
 			return;
 		}
-		// 一時ファイルを削除
-		ctx.clearTmpFiles();
-		// ディレクトリ削除
-		if (_rmdir(path_.c_str()) != 0) {
-			ctx.warn("一時ディレクトリ削除に失敗: ", path_.c_str());
+		if (noRemoveTmp_ == false) {
+			// 一時ファイルを削除
+			ctx.clearTmpFiles();
+			// ディレクトリ削除
+			if (_rmdir(path_.c_str()) != 0) {
+				ctx.warn("一時ディレクトリ削除に失敗: ", path_.c_str());
+			}
 		}
 	}
 
@@ -371,6 +374,7 @@ public:
 
 private:
 	std::string path_;
+	bool noRemoveTmp_;
 
 	std::string genPath(const std::string& base, int code)
 	{
@@ -449,6 +453,7 @@ struct Config {
 	// デバッグ用設定
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;
+	bool noRemoveTmp;
 };
 
 class ConfigWrapper : public AMTObject
@@ -459,7 +464,7 @@ public:
 		const Config& conf)
 		: AMTObject(ctx)
 		, conf(conf)
-		, tmpDir(ctx, conf.workDir)
+		, tmpDir(ctx, conf.workDir, conf.noRemoveTmp)
 	{
 		for (int cmtypei = 0; cmtypei < CMTYPE_MAX; ++cmtypei) {
 			if (conf.cmoutmask & (1 << cmtypei)) {

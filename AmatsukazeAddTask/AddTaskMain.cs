@@ -242,7 +242,7 @@ namespace Amatsukaze.AddTask
                         string dstPath = option.NasDir + "\\" + body + ext;
                         if (File.Exists(srcPath))
                         {
-                            File.Move(srcPath, dstPath);
+                            File.Copy(srcPath, dstPath);
                         }
                     }
                 }

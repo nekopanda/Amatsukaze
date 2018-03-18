@@ -31,5 +31,15 @@ namespace Amatsukaze.Views
         {
             InitializeComponent();
         }
+
+        private void Window_SourceInitialized(object sender, EventArgs e)
+        {
+            (DataContext as ViewModels.MainWindowViewModel)?.Model?.RestoreWindowPlacement(this);
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            (DataContext as ViewModels.MainWindowViewModel)?.Model?.SaveWindowPlacement(this);
+        }
     }
 }

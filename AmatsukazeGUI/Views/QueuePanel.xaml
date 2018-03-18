@@ -163,8 +163,10 @@
                     <Separator />
                     <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueFileSelected}"
                               ToolTip="プロファイルの設定が変わってる場合でも、投入時の設定でエンコードします" />
-                    <MenuItem Header="再投入" Command="{Binding ReAddCommand}" IsEnabled="{Binding IsQueueFileSelected}"
+                    <MenuItem Header="リトライ（設定更新）" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding IsQueueFileSelected}"
                               ToolTip="プロファイルの設定が変わった場合、新しい設定でエンコードします" />
+                    <MenuItem Header="再投入" Command="{Binding ReAddCommand}" IsEnabled="{Binding IsQueueFileSelected}"
+                              ToolTip="アイテム情報をコピーして再投入します。プロファイルの設定が変わった場合、新しい設定でエンコードします" />
                     <Separator />
                     <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueFileSelected}" />
                     <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding IsQueueFileSelected}"/>

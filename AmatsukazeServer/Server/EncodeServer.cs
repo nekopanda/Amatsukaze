@@ -1956,6 +1956,10 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --no-delogo");
             }
+            if (profile.NoRemoveTmp)
+            {
+                sb.Append(" --no-remove-tmp");
+            }
 
             if (logofiles != null)
             {
@@ -3684,10 +3688,10 @@ namespace Amatsukaze.Server
             }));
             if (profile != null && profile.Priority > 0)
             {
-                item.Priority = profile.Priority;
+                newItem.Priority = profile.Priority;
             }
 
-            ReEnqueueItem(item, waits);
+            ReEnqueueItem(newItem, waits);
         }
 
         private static void MoveTSFile(string file, string dstDir, bool withEDCB)
@@ -3816,6 +3820,7 @@ namespace Amatsukaze.Server
                 var dir = target.Dir;
 
                 if (data.ChangeType == ChangeItemType.Retry ||
+                    data.ChangeType == ChangeItemType.RetryUpdate ||
                     data.ChangeType == ChangeItemType.ReAdd)
                 {
                     if (CanRetry(data.ChangeType, target) == false)

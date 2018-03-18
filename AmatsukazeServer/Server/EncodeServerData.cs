@@ -115,6 +115,8 @@ namespace Amatsukaze.Server
         public bool[] NicoJKFormats { get; set; }
         [DataMember]
         public bool MoveEDCBFiles { get; set; }
+        [DataMember]
+        public bool NoRemoveTmp { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

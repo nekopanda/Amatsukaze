@@ -108,6 +108,7 @@ static void printHelp(const tchar* bin) {
 		"                      4 : 1920x1080不透明\n"
 		"                      8 : 1920x1080半透明\n"
 		"                      ORも可 例) 15: すべて出力\n"
+		"  --no-remove-tmp     一時ファイルを削除せずに残す\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
 		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
@@ -395,6 +396,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--systemavsplugin")) {
 			conf.systemAvsPlugin = true;
+		}
+		else if (key == _T("--no-remove-tmp")) {
+			conf.noRemoveTmp = true;
 		}
 		else if (key.size() == 0) {
 			continue;

@@ -250,12 +250,32 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public void DeleteQueueDir()
+        public async void DeleteQueueDir()
         {
             var item = SetectedQueueDir;
             if (item != null)
             {
-                Model.Server.ChangeItem(new ChangeItemData()
+                var running = item.Items.Where(s => s.Model.IsActive).ToArray();
+                if (running.Length > 0)
+                {
+                    var message = new ConfirmationMessage(
+                        "" + running.Length + "件のアクティブなアイテムがあります。\r\n" +
+                        "全てキャンセルされます。\r\n" +
+                        "本当に削除しますか？",
+                        "Amatsukaze キューディレクトリ削除",
+                        MessageBoxImage.Question,
+                        MessageBoxButton.OKCancel,
+                        "Confirm");
+
+                    await Messenger.RaiseAsync(message);
+
+                    if(message.Response != true)
+                    {
+                        return;
+                    }
+                }
+
+                await Model.Server.ChangeItem(new ChangeItemData()
                 {
                     ChangeType = ChangeItemType.RemoveDir,
                     ItemId = item.Id
@@ -449,6 +469,37 @@ namespace Amatsukaze.ViewModels
                     {
                         ItemId = file.Id,
                         ChangeType = ChangeItemType.Retry
+                    });
+                }
+            }
+        }
+        #endregion
+
+        #region RetryUpdateCommand
+        private ViewModelCommand _RetryUpdateCommand;
+
+        public ViewModelCommand RetryUpdateCommand {
+            get {
+                if (_RetryUpdateCommand == null)
+                {
+                    _RetryUpdateCommand = new ViewModelCommand(RetryUpdate);
+                }
+                return _RetryUpdateCommand;
+            }
+        }
+
+        public async void RetryUpdate()
+        {
+            var items = SelectedQueueFiles.ToArray();
+            if (await ConfirmRetryCompleted(items, "リトライ（設定更新）"))
+            {
+                foreach (var item in items)
+                {
+                    var file = item.Model;
+                    await Model.Server.ChangeItem(new ChangeItemData()
+                    {
+                        ItemId = file.Id,
+                        ChangeType = ChangeItemType.RetryUpdate
                     });
                 }
             }

@@ -83,6 +83,8 @@ namespace Amatsukaze.Models
             public string ServerIP;
             [DataMember]
             public int ServerPort;
+            [DataMember]
+            public byte[] windowPlacement;
 
             public ExtensionDataObject ExtensionData { get; set; }
         }
@@ -546,6 +548,31 @@ namespace Amatsukaze.Models
             // GC.SuppressFinalize(this);
         }
         #endregion
+
+        public void RestoreWindowPlacement(Window w)
+        {
+            if(appData.windowPlacement != null)
+            {
+                Lib.WINDOWPLACEMENT placement;
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+                var stream = new MemoryStream(appData.windowPlacement);
+                var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                placement = (Lib.WINDOWPLACEMENT)formatter.Deserialize(stream);
+                Lib.WinAPI.SetWindowPlacement(hwnd, ref placement);
+            }
+        }
+
+        public void SaveWindowPlacement(Window w)
+        {
+            Lib.WINDOWPLACEMENT placement;
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+            Lib.WinAPI.GetWindowPlacement(hwnd, out placement);
+            var stream = new MemoryStream();
+            var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+            formatter.Serialize(stream, placement);
+            appData.windowPlacement = stream.ToArray();
+            SaveAppData();
+        }
 
         private async Task RequestLogoThread()
         {
@@ -1172,7 +1199,7 @@ namespace Amatsukaze.Models
                 profile.BitrateCM = data.Profile.BitrateCM;
                 profile.TwoPass = data.Profile.TwoPass;
                 profile.SplitSub = data.Profile.SplitSub;
-                profile.OutputMask = data.Profile.OutputMask;
+                profile.OutputMask = profile.OutputOptionList.FirstOrDefault(s => s.Mask == data.Profile.OutputMask);
                 profile.DefaultJLSCommand = data.Profile.DefaultJLSCommand;
                 profile.DisableChapter = data.Profile.DisableChapter;
                 profile.DisableSubs = data.Profile.DisableSubs;
