@@ -610,6 +610,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region MoveLogFile変更通知プロパティ
+        public bool MoveLogFile
+        {
+            get { return Model.MoveLogFile; }
+            set
+            {
+                if (Model.MoveLogFile == value)
+                    return;
+                Model.MoveLogFile = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region Mpeg2DecoderInt変更通知プロパティ
         public int Mpeg2DecoderInt
         {
@@ -702,7 +716,7 @@ namespace Amatsukaze.Models
         public DisplayOutputMask[] OutputOptionList { get { return OutputOptionList_; } }
         public string[] FormatList
         {
-            get { return new string[] { "MP4", "MKV" }; }
+            get { return new string[] { "MP4", "MKV", "M2TS" }; }
         }
 
         #region IsModified変更通知プロパティ
@@ -1197,6 +1211,20 @@ namespace Amatsukaze.Models
                 if (Model.NicoConvASSPath == value)
                     return;
                 Model.NicoConvASSPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region TsMuxeRPath変更通知プロパティ
+        public string TsMuxeRPath
+        {
+            get { return Model.TsMuxeRPath; }
+            set
+            {
+                if (Model.TsMuxeRPath == value)
+                    return;
+                Model.TsMuxeRPath = value;
                 RaisePropertyChanged();
             }
         }

@@ -72,8 +72,8 @@ static void printHelp(const tchar* bin) {
 		"  --2pass             2passエンコード\n"
 		"  --splitsub          メイン以外のフォーマットは結合しない\n"
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
-		"                      対応フォーマット: mp4,mkv\n"
-		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeへのパス[muxer.exe]\n"
+		"                      対応フォーマット: mp4,mkv,m2ts\n"
+		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeまたはtsMuxeRへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor  <パス>  timelineeditorへのパス（MP4でVFR出力する場合に必要）[timelineeditor.exe]\n"
 		"  --mp4box <パス>     mp4boxへのパス（MP4で字幕処理する場合に必要）[mp4box.exe]\n"
 		"  -f|--filter <パス>  フィルタAvisynthスクリプトへのパス[]\n"
@@ -288,6 +288,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			else if (arg == _T("mkv")) {
 				conf.format = FORMAT_MKV;
 			}
+			else if (arg == _T("m2ts")) {
+				conf.format = FORMAT_M2TS;
+			}
 			else {
 				THROWF(ArgumentException, "--formatの指定が間違っています: %" PRITSTR "", arg.c_str());
 			}
@@ -418,8 +421,11 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		if (conf.format == FORMAT_MP4) {
 			conf.muxerPath = "muxer.exe";
 		}
-		else {
+		else if (conf.format == FORMAT_MKV) {
 			conf.muxerPath = "mkvmerge.exe";
+		}
+		else {
+			conf.muxerPath = "tsmuxer.exe";
 		}
 	}
 

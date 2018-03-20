@@ -7,7 +7,7 @@
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
-             d:DesignHeight="500" d:DesignWidth="500"
+             d:DesignHeight="550" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
     
     <UserControl.Resources>
@@ -86,6 +86,7 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="ChapterExeパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NicoConvASSパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="tsMuxeRパス"/>
                 </StackPanel>
                 <DockPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel DockPanel.Dock="Right">
@@ -121,6 +122,7 @@
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.ChapterExePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.NicoConvASSPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.TsMuxeRPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     </StackPanel>
                 </DockPanel>
 

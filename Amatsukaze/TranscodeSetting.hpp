@@ -77,7 +77,8 @@ enum ENUM_ENCODER {
 
 enum ENUM_FORMAT {
 	FORMAT_MP4,
-	FORMAT_MKV
+	FORMAT_MKV,
+	FORMAT_M2TS
 };
 
 struct BitrateSetting {
@@ -252,7 +253,7 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 			sb.clear();
 		}
 	}
-	else { // mkv
+	else if(format == FORMAT_MKV) {
 
 		if (chapterpath.size() > 0) {
 			sb.append(" --chapters \"%s\"", chapterpath);
@@ -274,6 +275,9 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 
 		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
+	}
+	else { // mkv
+		// TODO:
 	}
 
 	return ret;

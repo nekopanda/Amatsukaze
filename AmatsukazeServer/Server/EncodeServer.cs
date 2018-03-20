@@ -613,7 +613,7 @@ namespace Amatsukaze.Server
                 string dstpath;
                 if (dir.IsTest)
                 {
-                    var ext = (profile.OutputFormat == FormatType.MP4) ? ".mp4" : ".mkv";
+                    var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
                     var baseName = Path.Combine(
                         Path.GetDirectoryName(src.DstPath),
                         Path.GetFileNameWithoutExtension(src.DstPath));
@@ -790,7 +790,14 @@ namespace Amatsukaze.Server
                         string logbase = server.GetLogFileBase(start);
                         Directory.CreateDirectory(Path.GetDirectoryName(logbase));
                         string dstlog = logbase + ".txt";
-                        File.Copy(logpath, dstlog);
+                        if(profile.MoveLogFile)
+                        {
+                            File.Move(logpath, dstlog);
+                        }
+                        else
+                        {
+                            File.Copy(logpath, dstlog);
+                        }
 
                         if (File.Exists(json))
                         {
@@ -1852,9 +1859,13 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" -fmt mp4 -m \"" + setting.MuxerPath + "\"");
             }
-            else
+            else if(profile.OutputFormat == FormatType.MKV)
             {
                 sb.Append(" -fmt mkv -m \"" + setting.MKVMergePath + "\"");
+            }
+            else
+            {
+                sb.Append(" -fmt m2ts -m \"" + setting.TsMuxeRPath + "\"");
             }
 
             if (bitrateCM != 1)
@@ -2089,11 +2100,18 @@ namespace Amatsukaze.Server
                         throw new ArgumentException("Timelineeditorパスが設定されていません");
                     }
                 }
-                else
+                else if(profile.OutputFormat == FormatType.MKV)
                 {
                     if (string.IsNullOrEmpty(setting.MKVMergePath))
                     {
                         throw new ArgumentException("MKVMergeパスが設定されていません");
+                    }
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(setting.TsMuxeRPath))
+                    {
+                        throw new ArgumentException("tsMuxeRパスが設定されていません");
                     }
                 }
 

@@ -907,6 +907,20 @@ namespace Amatsukaze.Server
             }
             return genre;
         }
+
+        public static string GetFileExtension(FormatType format)
+        {
+            switch(format)
+            {
+                case FormatType.MP4:
+                    return ".mp4";
+                case FormatType.MKV:
+                    return ".mkv";
+                case FormatType.M2TS:
+                    return ".m2ts";
+            }
+            throw new ArgumentException();
+        }
     }
 
     public static class TaskSupport

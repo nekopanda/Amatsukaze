@@ -41,7 +41,8 @@ namespace Amatsukaze.Server
     public enum FormatType
     {
         MP4 = 0,
-        MKV
+        MKV,
+        M2TS
     }
 
     public enum FinishAction
@@ -117,6 +118,8 @@ namespace Amatsukaze.Server
         public bool MoveEDCBFiles { get; set; }
         [DataMember]
         public bool NoRemoveTmp { get; set; }
+        [DataMember]
+        public bool MoveLogFile { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -171,6 +174,8 @@ namespace Amatsukaze.Server
         public string JoinLogoScpPath { get; set; }
         [DataMember]
         public string NicoConvASSPath { get; set; }
+        [DataMember]
+        public string TsMuxeRPath { get; set; }
 
         [DataMember]
         public string WorkPath { get; set; }
