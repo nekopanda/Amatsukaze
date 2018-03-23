@@ -64,9 +64,9 @@ namespace Amatsukaze.ViewModels
         public ClientModel Model { get; set; }
 
         #region ImageList変更通知プロパティ
-        private ObservableCollection<DrcsImageViewModel> _ImageList = new ObservableCollection<DrcsImageViewModel>();
+        private Components.ObservableViewModelCollection<DrcsImageViewModel, DrcsImage> _ImageList;
 
-        public ObservableCollection<DrcsImageViewModel> ImageList {
+        public Components.ObservableViewModelCollection<DrcsImageViewModel, DrcsImage> ImageList {
             get { return _ImageList; }
             set { 
                 if (_ImageList == value)
@@ -125,42 +125,22 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        private List<CollectionChangedEventListener> imagesListener = new List<CollectionChangedEventListener>();
         private ICollectionView imagesView;
+        private CollectionChangedEventListener imagesListener;
 
         public void Initialize()
         {
+            ImageList = new Components.ObservableViewModelCollection<DrcsImageViewModel, DrcsImage>(
+                Model.DrcsImageList, item => new DrcsImageViewModel(Model, item));
+            foreach(var item in Model.DrcsImageList)
+            {
+                ImageList.Add(new DrcsImageViewModel(Model, item));
+            }
+
             imagesView = System.Windows.Data.CollectionViewSource.GetDefaultView(_ImageList);
             imagesView.Filter = x => IsNoMapOnly == false || string.IsNullOrEmpty(((DrcsImageViewModel)x).Image.MapStr);
 
-            imagesListener.Add(new CollectionChangedEventListener(Model.DrcsImageList, (o, e) => {
-                switch (e.Action)
-                {
-                    case NotifyCollectionChangedAction.Add:
-                        foreach(var item in e.NewItems)
-                        {
-                            _ImageList.Add(new DrcsImageViewModel(Model, item as DrcsImage));
-                        }
-                        break;
-                    case NotifyCollectionChangedAction.Remove:
-                        foreach (var item in e.OldItems)
-                        {
-                            var tgt = _ImageList.First(s => s.Image == item);
-                            _ImageList.Remove(tgt);
-                        }
-                        break;
-                    case NotifyCollectionChangedAction.Reset:
-                        _ImageList.Clear();
-                        break;
-                    case NotifyCollectionChangedAction.Replace:
-                        for(int i = 0; i < e.NewItems.Count; ++i)
-                        {
-                            _ImageList[e.NewStartingIndex + i].Image = e.NewItems[i] as DrcsImage;
-                        }
-                        break;
-                }
-                imagesView.Refresh();
-            }));
+            imagesListener = new CollectionChangedEventListener(_ImageList, (o, e) => imagesView.Refresh());
         }
     }
 }

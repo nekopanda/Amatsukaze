@@ -206,12 +206,6 @@ namespace Amatsukaze.Models
 
         public ObservableCollection<DisplayProfile> ProfileList {
             get { return _ProfileList; }
-            set { 
-                if (_ProfileList == value)
-                    return;
-                _ProfileList = value;
-                RaisePropertyChanged();
-            }
         }
         #endregion
 
@@ -221,13 +215,6 @@ namespace Amatsukaze.Models
         public ObservableCollection<DisplayAutoSelect> AutoSelectList
         {
             get { return _AutoSelectList; }
-            set
-            {
-                if (_AutoSelectList == value)
-                    return;
-                _AutoSelectList = value;
-                RaisePropertyChanged();
-            }
         }
         #endregion
 

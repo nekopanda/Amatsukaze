@@ -3921,6 +3921,27 @@ namespace Amatsukaze.Server
                         }),
                         NotifyMessage(false, "優先度を変更しました", false));
                 }
+                else if (data.ChangeType == ChangeItemType.Profile)
+                {
+                    if(target.State != QueueState.Canceled &&
+                        target.State != QueueState.Failed &&
+                        target.State != QueueState.LogoPending &&
+                        target.State != QueueState.Queue)
+                    {
+                        return NotifyMessage(true, "このアイテムはプロファイル変更できません", false);
+                    }
+
+                    var waits = new List<Task>();
+                    var profile = GetProfile(target, data.Profile);
+                    var newDir = GetQueueDirectory(target.Dir.DirPath, target.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
+                    if(newDir != target.Dir)
+                    {
+                        MoveItemDirectory(target, newDir, waits);
+                        waits.Add(NotifyMessage(false, "プロファイルを「" + data.Profile + "」に変更しました", false));
+                    }
+
+                    return Task.WhenAll(waits);
+                }
                 else if(data.ChangeType == ChangeItemType.RemoveItem)
                 {
                     target.State = QueueState.Canceled;

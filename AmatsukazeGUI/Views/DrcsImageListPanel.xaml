@@ -40,7 +40,13 @@
             </Button.Style>
         </Button>
 
-        <ListBox ItemsSource="{Binding ImageList}" Grid.Row="1"
-             SelectedItem="{Binding DrcsImageSelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <ListBox ItemsSource="{Binding ImageList}" Grid.Row="1" KeyboardNavigation.TabNavigation="Local"
+             SelectedItem="{Binding DrcsImageSelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="IsTabStop" Value="False"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
+        </ListBox>
     </Grid>
 </UserControl>

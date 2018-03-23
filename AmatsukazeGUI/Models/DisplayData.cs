@@ -838,7 +838,7 @@ namespace Amatsukaze.Models
                 (item as DisplayAutoSelect)?.Model?.Name;
             if (item is DisplayAutoSelect)
             {
-                name = "自動選択_" + name;
+                name = ServerSupport.AUTO_PREFIX + name;
             }
             return name;
         }
@@ -2168,7 +2168,6 @@ namespace Amatsukaze.Models
         public List<NotificationObject> GenreItems { get; private set; }
         public ObservableCollection<ServiceSelectItem> ServiceList { get; private set; }
         public List<VideoSizeSelectItem> VideoSizes { get; private set; }
-        private CollectionChangedEventListener serviceListener;
 
         // Item -> DisplayCondition
         public void Initialize()
@@ -2200,52 +2199,18 @@ namespace Amatsukaze.Models
                 mainItem.Cond = this;
             }
 
-            ServiceList = new ObservableCollection<ServiceSelectItem>();
+            Func<DisplayService, ServiceSelectItem> CreateService = service => new ServiceSelectItem()
+            {
+                Service = service,
+                IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
+                Cond = this
+            };
+            ServiceList = new Components.ObservableViewModelCollection<ServiceSelectItem, DisplayService>(
+                Model.ServiceSettings, CreateService);
             foreach(var service in Model.ServiceSettings)
             {
-                ServiceList.Add(new ServiceSelectItem()
-                {
-                    Service = service,
-                    IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
-                    Cond = this
-                });
+                ServiceList.Add(CreateService(service));
             }
-            serviceListener = new CollectionChangedEventListener(Model.ServiceSettings, (o, e) => {
-                switch (e.Action)
-                {
-                    case NotifyCollectionChangedAction.Add:
-                        foreach (var item in e.NewItems)
-                        {
-                            var service = item as DisplayService;
-                            ServiceList.Add(new ServiceSelectItem()
-                            {
-                                Service = service,
-                                IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
-                                Cond = this
-                            });
-                        }
-                        break;
-                    case NotifyCollectionChangedAction.Remove:
-                        foreach (var item in e.OldItems)
-                        {
-                            var tgt = ServiceList.First(s => s.Service == item);
-                            ServiceList.Remove(tgt);
-                        }
-                        break;
-                    case NotifyCollectionChangedAction.Reset:
-                        ServiceList.Clear();
-                        break;
-                    case NotifyCollectionChangedAction.Replace:
-                        for (int i = 0; i < e.NewItems.Count; ++i)
-                        {
-                            var service = e.NewItems[i] as DisplayService;
-                            var target = ServiceList[e.NewStartingIndex + i];
-                            target.Service = service;
-                            target.IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId);
-                        }
-                        break;
-                }
-            });
 
             VideoSizes = new List<VideoSizeSelectItem>();
             Func<VideoSizeCondition, VideoSizeSelectItem> NewVideoSize = (item) => {

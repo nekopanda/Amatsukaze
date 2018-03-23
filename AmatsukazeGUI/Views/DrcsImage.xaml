@@ -37,7 +37,7 @@
             </DataTemplate>
         </StackPanel.Resources>
 
-        <ContentControl Width="24" Height="24">
+        <ContentControl Width="24" Height="24" IsTabStop="False">
             <ContentControl.Style>
                 <Style TargetType="ContentControl">
                     <Setter Property="Content" Value="{Binding Image.Image}" />
@@ -59,10 +59,16 @@
         <TextBox Text="{Binding MapStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />
         <Button Margin="10,0,0,0" Content="マッピング追加" Command="{Binding SetMapStrCommand, Mode=OneWay}"
-                HorizontalAlignment="Left" Width="80" Height="22" VerticalAlignment="Center" Style="{StaticResource AddButtonStyle}" IsEnabled="{Binding IsModified}" />
+                IsTabStop="False"
+                HorizontalAlignment="Left" Width="80" Height="22" VerticalAlignment="Center"
+                Style="{StaticResource AddButtonStyle}" IsEnabled="{Binding IsModified}" />
         <Button Margin="10,0,0,0" Content="変更" Command="{Binding SetMapStrCommand, Mode=OneWay}"
-                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" Style="{StaticResource ModityButtonStyle}" IsEnabled="{Binding IsModified}" />
+                IsTabStop="False"
+                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" 
+                Style="{StaticResource ModityButtonStyle}" IsEnabled="{Binding IsModified}" />
         <Button Margin="10,0,0,0" Content="削除" Command="{Binding DeleteMapStrCommand, Mode=OneWay}"
-                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" Style="{StaticResource ModityButtonStyle}" />
+                IsTabStop="False"
+                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center"
+                Style="{StaticResource ModityButtonStyle}" />
     </StackPanel>
 </UserControl>

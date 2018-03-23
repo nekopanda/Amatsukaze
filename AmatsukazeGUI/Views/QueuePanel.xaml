@@ -158,8 +158,30 @@
             </ListBox.ItemTemplate>
             <ListBox.ContextMenu>
                 <ContextMenu>
+                    <ContextMenu.Resources>
+                        <CollectionViewSource x:Key="ProfileList" Source="{Binding ProfileList}"/>
+                        <CollectionViewSource x:Key="AutoSelectList" Source="{Binding AutoSelectList}"/>
+                        <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
+                            <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
+                        </DataTemplate>
+                    </ContextMenu.Resources>
                     <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}" />
                     <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}" />
+                    <Separator />
+                    <MenuItem Header="プロファイル変更">
+                        <MenuItem.ItemsSource>
+                            <CompositeCollection>
+                                <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
+                                <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
+                            </CompositeCollection>
+                        </MenuItem.ItemsSource>
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="MenuItem">
+                                <Setter Property="Header" Value="{Binding Path=Item}"/>
+                                <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
+                    </MenuItem>
                     <Separator />
                     <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}"
                               ToolTip="プロファイルの設定が変わってる場合でも、投入時の設定でエンコードします" />

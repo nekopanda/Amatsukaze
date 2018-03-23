@@ -19,6 +19,33 @@ using System.IO;
 
 namespace Amatsukaze.ViewModels
 {
+    public class QueueMenuProfileViewModel : ViewModel
+    {
+        public QueueViewModel QueueVM { get; set; }
+        public object Item { get; set; }
+
+        #region SelectedCommand
+        private ViewModelCommand _SelectedCommand;
+
+        public ViewModelCommand SelectedCommand
+        {
+            get
+            {
+                if (_SelectedCommand == null)
+                {
+                    _SelectedCommand = new ViewModelCommand(Selected);
+                }
+                return _SelectedCommand;
+            }
+        }
+
+        public void Selected()
+        {
+            QueueVM.ChangeProfile(Item);
+        }
+        #endregion
+    }
+
     public class QueueViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
@@ -67,6 +94,23 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
+            Func<DisplayProfile, QueueMenuProfileViewModel> CreateMenuProfile = s => new QueueMenuProfileViewModel()
+            {
+                QueueVM = this,
+                Item = s
+            };
+            _ProfileList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
+                Model.ProfileList, CreateMenuProfile);
+            foreach (var s in Model.ProfileList) _ProfileList.Add(CreateMenuProfile(s));
+
+            Func<DisplayAutoSelect, QueueMenuProfileViewModel> CreateMenuAutoSelect = s => new QueueMenuProfileViewModel()
+            {
+                QueueVM = this,
+                Item = s
+            };
+            _AutoSelectList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
+                Model.AutoSelectList, CreateMenuAutoSelect);
+            foreach (var s in Model.AutoSelectList) _AutoSelectList.Add(CreateMenuAutoSelect(s));
         }
 
         public async void FileDropped(IEnumerable<string> list, bool isText)
@@ -233,6 +277,24 @@ namespace Amatsukaze.ViewModels
             get {
                 return SetectedQueueDir != null;
             }
+        }
+        #endregion
+
+        #region ProfileList変更通知プロパティ
+        private Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> _ProfileList;
+
+        public Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> ProfileList
+        {
+            get { return _ProfileList; }
+        }
+        #endregion
+
+        #region AutoSelectList変更通知プロパティ
+        private Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> _AutoSelectList;
+
+        public Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> AutoSelectList
+        {
+            get { return _AutoSelectList; }
         }
         #endregion
 
@@ -623,5 +685,10 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        public void ChangeProfile(object profile)
+        {
+            var profileName = DisplayProfile.GetProfileName(profile);
+            // TODO:
+        }
     }
 }

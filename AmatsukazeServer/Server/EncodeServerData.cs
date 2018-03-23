@@ -454,6 +454,7 @@ namespace Amatsukaze.Server
         ReAdd,      // 同じタスクを投入
         Cancel,     // キャンセル
         Priority,   // 優先度変更
+        Profile,    // プロファイル変更
         RemoveDir,  // ディレクトリ削除
         RemoveItem, // アイテム削除
         RemoveCompletedAll,  // 全ての完了項目を削除
@@ -469,6 +470,8 @@ namespace Amatsukaze.Server
         public ChangeItemType ChangeType { get; set; }
         [DataMember]
         public int Priority { get; set; }
+        [DataMember]
+        public string Profile { get; set; }
     }
 
     [DataContract]
