@@ -49,6 +49,16 @@ namespace Amatsukaze.Models
             RaisePropertyChanged("Fail");
         }
 
+        public void ItemSelectionChanged()
+        {
+            RaisePropertyChanged("IsQueueFileSelected");
+        }
+
+        public bool IsQueueFileSelected
+        {
+            get { return Items.Any(s => s.IsSelected); }
+        }
+
         private static string ModeToString(ProcMode mode)
         {
             switch (mode)
@@ -73,13 +83,17 @@ namespace Amatsukaze.Models
             Profile = dir.Profile.Name;
             ProfileLastUpdate = dir.Profile.LastUpdate.ToString(TIME_FORMAT);
             Items = new ObservableCollection<DisplayQueueItem>(
-                dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s }));
+                dir.Items.Select(s => new DisplayQueueItem() {
+                    Parent = Parent, Dir = this, Model = s
+                }));
         }
     }
 
     public class DisplayQueueItem : NotificationObject
     {
         public ClientModel Parent { get; set; }
+
+        public DisplayQueueDirectory Dir { get; set; }
 
         public QueueItem Model { get; set; }
 
@@ -151,6 +165,7 @@ namespace Amatsukaze.Models
                     return;
                 _IsSelected = value;
                 RaisePropertyChanged();
+                Dir?.ItemSelectionChanged();
             }
         }
         #endregion
@@ -1983,11 +1998,11 @@ namespace Amatsukaze.Models
             return Name;
         }
 
-        public static bool IsEqualGenre(GenreItem a, GenreItem b)
+        public static bool IsInclude(GenreItem g, GenreItem sub)
         {
-            return a.Space == b.Space &&
-                a.Level1 == b.Level1 &&
-                a.Level2 == b.Level2;
+            if (g.Space != sub.Space || g.Level1 != sub.Level1) return false;
+            if (g.Level2 != -1 && g.Level2 != sub.Level2) return false;
+            return true;
         }
 
         public static SubGenre GetFromItem(GenreItem a)
@@ -2174,7 +2189,7 @@ namespace Amatsukaze.Models
                     var subItem = new GenreSelectItem()
                     {
                         Item = sub,
-                        IsChecked = Item.ContentConditions.Any(s => SubGenre.IsEqualGenre(s, sub.Item)),
+                        IsChecked = Item.ContentConditions.Any(s => SubGenre.IsInclude(s, sub.Item)),
                         MainGenre = mainItem,
                         Cond = this
                     };

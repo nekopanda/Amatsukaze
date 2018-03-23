@@ -3693,6 +3693,8 @@ namespace Amatsukaze.Server
         private void DuplicateReEnqueueItem(QueueItem item, List<Task> waits)
         {
             var newItem = ServerSupport.DeepCopy(item);
+            newItem.Id = nextItemId++;
+
             var profile = GetProfile(item, item.ProfileName);
             newItem.Dir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
 

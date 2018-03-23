@@ -225,6 +225,7 @@ namespace Amatsukaze.ViewModels
                     return;
                 _SetectedQueueDir = value;
                 RaisePropertyChanged();
+                RaisePropertyChanged("IsQueueDirSelected");
             }
         }
 
@@ -283,11 +284,6 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
-
-        public bool IsQueueFileSelected
-        {
-            get { return SelectedQueueFiles.Any(); }
-        }
 
         #region DeleteQueueItemCommand
         private ViewModelCommand _DeleteQueueItemCommand;

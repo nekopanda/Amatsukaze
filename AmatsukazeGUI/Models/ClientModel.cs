@@ -1044,7 +1044,7 @@ namespace Amatsukaze.Models
                 {
                     if (update.Type == UpdateType.Add)
                     {
-                        dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
+                        dir.Items.Add(new DisplayQueueItem() { Parent = this, Dir = dir, Model = update.Item });
                         dir.ItemStateUpdated();
                     }
                     else
@@ -1062,6 +1062,7 @@ namespace Amatsukaze.Models
                                 var index = dir.Items.IndexOf(file);
                                 dir.Items[index] = new DisplayQueueItem() {
                                     Parent = this,
+                                    Dir = dir,
                                     Model = update.Item,
                                     IsSelected = dir.Items[index].IsSelected
                                 };
