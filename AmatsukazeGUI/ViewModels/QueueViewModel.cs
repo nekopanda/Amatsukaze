@@ -16,6 +16,7 @@ using Amatsukaze.Server;
 using System.Threading.Tasks;
 using System.Windows;
 using System.IO;
+using Amatsukaze.Components;
 
 namespace Amatsukaze.ViewModels
 {
@@ -92,6 +93,8 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; set; }
 
+        private Components.CollectionItemListener<DisplayQueueDirectory> queueDirListener;
+
         public void Initialize()
         {
             Func<DisplayProfile, QueueMenuProfileViewModel> CreateMenuProfile = s => new QueueMenuProfileViewModel()
@@ -111,6 +114,18 @@ namespace Amatsukaze.ViewModels
             _AutoSelectList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
                 Model.AutoSelectList, CreateMenuAutoSelect);
             foreach (var s in Model.AutoSelectList) _AutoSelectList.Add(CreateMenuAutoSelect(s));
+
+            queueDirListener = new CollectionItemListener<DisplayQueueDirectory>(Model.QueueItems,
+                item => item.PropertyChanged += QueueDirPropertyChanged,
+                item => item.PropertyChanged -= QueueDirPropertyChanged);
+        }
+
+        private void QueueDirPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(e.PropertyName == "IsSelected")
+            {
+                RaisePropertyChanged("IsQueueDirSelected");
+            }
         }
 
         public async void FileDropped(IEnumerable<string> list, bool isText)
@@ -184,27 +199,22 @@ namespace Amatsukaze.ViewModels
 
                 if (selectPathVM.Succeeded)
                 {
+                    if(selectPathVM.PauseStart)
+                    {
+                        await Model.Server.PauseEncode(true);
+                    }
                     Model.Server.AddQueue(item).AttachHandler();
                 }
             }
         }
 
-        private IEnumerable<DisplayQueueItem> SelectedQueueFiles
-        {
-            get
-            {
-                var dir = SetectedQueueDir;
-                if (dir == null)
-                {
-                    return Enumerable.Empty<DisplayQueueItem>();
-                }
-                return dir.Items.Where(s => s.IsSelected);
-            }
+        private IEnumerable<DisplayQueueItem> SelectedQueueItems {
+            get { return SelectedDir?.Items?.Where(s => s.IsSelected); }
         }
 
         private void LaunchLogoAnalyze(bool slimts)
         {
-            var item = SelectedQueueFiles.FirstOrDefault();
+            var item = SelectedQueueItems?.FirstOrDefault();
             if (item == null)
             {
                 return;
@@ -236,7 +246,7 @@ namespace Amatsukaze.ViewModels
             System.Diagnostics.Process.Start(apppath, args);
         }
 
-        private async Task<bool> ConfirmRetryCompleted(DisplayQueueItem[] items, string retry)
+        private async Task<bool> ConfirmRetryCompleted(IEnumerable<DisplayQueueItem> items, string retry)
         {
             var completed = items.Where(s => s.Model.State == QueueState.Complete).ToArray();
             if (completed.Length > 0)
@@ -259,23 +269,18 @@ namespace Amatsukaze.ViewModels
             return true;
         }
 
-        #region SetectedQueueDir変更通知プロパティ
-        private DisplayQueueDirectory _SetectedQueueDir;
+        public bool IsQueueDirSelected { get { return Model.QueueItems.Any(s => s.IsSelected); } }
 
-        public DisplayQueueDirectory SetectedQueueDir {
-            get { return _SetectedQueueDir; }
+        #region SelectedDir変更通知プロパティ
+        private DisplayQueueDirectory _SelectedDir;
+
+        public DisplayQueueDirectory SelectedDir {
+            get { return _SelectedDir; }
             set { 
-                if (_SetectedQueueDir == value)
+                if (_SelectedDir == value)
                     return;
-                _SetectedQueueDir = value;
+                _SelectedDir = value;
                 RaisePropertyChanged();
-                RaisePropertyChanged("IsQueueDirSelected");
-            }
-        }
-
-        public bool IsQueueDirSelected {
-            get {
-                return SetectedQueueDir != null;
             }
         }
         #endregion
@@ -315,29 +320,28 @@ namespace Amatsukaze.ViewModels
 
         public async void DeleteQueueDir()
         {
-            var item = SetectedQueueDir;
-            if (item != null)
+            var selectedDirs = Model.QueueItems.Where(s => s.IsSelected).ToArray();
+            var running = selectedDirs.SelectMany(s => s.Items).Where(s => s.Model.IsActive).ToArray();
+            if (running.Length > 0)
             {
-                var running = item.Items.Where(s => s.Model.IsActive).ToArray();
-                if (running.Length > 0)
+                var message = new ConfirmationMessage(
+                    "" + running.Length + "件のアクティブなアイテムがあります。\r\n" +
+                    "全てキャンセルされます。\r\n" +
+                    "本当に削除しますか？",
+                    "Amatsukaze キューディレクトリ削除",
+                    MessageBoxImage.Question,
+                    MessageBoxButton.OKCancel,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+
+                if (message.Response != true)
                 {
-                    var message = new ConfirmationMessage(
-                        "" + running.Length + "件のアクティブなアイテムがあります。\r\n" +
-                        "全てキャンセルされます。\r\n" +
-                        "本当に削除しますか？",
-                        "Amatsukaze キューディレクトリ削除",
-                        MessageBoxImage.Question,
-                        MessageBoxButton.OKCancel,
-                        "Confirm");
-
-                    await Messenger.RaiseAsync(message);
-
-                    if(message.Response != true)
-                    {
-                        return;
-                    }
+                    return;
                 }
-
+            }
+            foreach (var item in selectedDirs)
+            {
                 await Model.Server.ChangeItem(new ChangeItemData()
                 {
                     ChangeType = ChangeItemType.RemoveDir,
@@ -362,8 +366,7 @@ namespace Amatsukaze.ViewModels
 
         public async void DeleteQueueItem()
         {
-            var items = SelectedQueueFiles.ToArray();
-            foreach (var item in items)
+            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
             {
                 var file = item.Model;
                 await Model.Server.ChangeItem(new ChangeItemData()
@@ -390,7 +393,7 @@ namespace Amatsukaze.ViewModels
 
         public void RemoveCompletedItems()
         {
-            var dir = SetectedQueueDir;
+            var dir = SelectedDir;
             if (dir != null)
             {
                 Model.Server.ChangeItem(new ChangeItemData()
@@ -517,7 +520,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Retry()
         {
-            var items = SelectedQueueFiles.ToArray();
+            var items = SelectedQueueItems.OrEmpty().ToArray();
             if (await ConfirmRetryCompleted(items, "リトライ"))
             {
                 foreach (var item in items)
@@ -548,7 +551,7 @@ namespace Amatsukaze.ViewModels
 
         public async void RetryUpdate()
         {
-            var items = SelectedQueueFiles.ToArray();
+            var items = SelectedQueueItems.OrEmpty().ToArray();
             if (await ConfirmRetryCompleted(items, "リトライ（設定更新）"))
             {
                 foreach (var item in items)
@@ -581,7 +584,7 @@ namespace Amatsukaze.ViewModels
 
         public async void ReAdd()
         {
-            var items = SelectedQueueFiles.ToArray();
+            var items = SelectedQueueItems.OrEmpty().ToArray();
             if (await ConfirmRetryCompleted(items, "再投入"))
             {
                 foreach (var item in items)
@@ -614,7 +617,7 @@ namespace Amatsukaze.ViewModels
 
         public void Cancel()
         {
-            foreach (var item in SelectedQueueFiles.ToArray())
+            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
             {
                 var file = item.Model;
                 Model.Server.ChangeItem(new ChangeItemData()
@@ -641,7 +644,7 @@ namespace Amatsukaze.ViewModels
 
         public void Remove()
         {
-            foreach (var item in SelectedQueueFiles.ToArray())
+            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
             {
                 var file = item.Model;
                 Model.Server.ChangeItem(new ChangeItemData()
@@ -670,7 +673,7 @@ namespace Amatsukaze.ViewModels
 
         public void OpenFileInExplorer()
         {
-            var item = SelectedQueueFiles.FirstOrDefault();
+            var item = SelectedQueueItems?.FirstOrDefault();
             if (item == null)
             {
                 return;
@@ -688,7 +691,16 @@ namespace Amatsukaze.ViewModels
         public void ChangeProfile(object profile)
         {
             var profileName = DisplayProfile.GetProfileName(profile);
-            // TODO:
+            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
+            {
+                var file = item.Model;
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.Profile,
+                    Profile = profileName
+                });
+            }
         }
     }
 }

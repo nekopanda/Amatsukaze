@@ -68,7 +68,10 @@
                 </ComboBox.ItemsSource>
             </ComboBox>
         </DockPanel>
-        <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
+        <DockPanel>
+            <CheckBox Content="一時停止で追加" IsChecked="{Binding PauseStart, Mode=TwoWay}" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+            <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
+        </DockPanel>
         <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
         
         <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>

@@ -30,7 +30,7 @@
         </Grid.RowDefinitions>
         <ListView Grid.Row="0" Margin="0"
                   ItemsSource="{Binding Model.QueueItems}" 
-                  SelectedItem="{Binding SetectedQueueDir, Mode=TwoWay}" 
+                  SelectedItem="{Binding SelectedDir, Mode=TwoWay}" 
                   PreviewDragOver="ListBox_PreviewDragOver" 
                   Drop="ListBox_Drop" AllowDrop="True" 
                   c:GridViewSort.AutoSort="True"
@@ -73,6 +73,11 @@
                     <GridViewColumn Header="失敗" DisplayMemberBinding="{Binding Fail}" c:GridViewSort.PropertyName="Fail"/>
                 </GridView>
             </ListView.View>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="選択した項目を削除" IsEnabled="{Binding IsQueueDirSelected}" Command="{Binding DeleteQueueDirCommand}"/>
@@ -83,7 +88,7 @@
         
         <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
         
-        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SetectedQueueDir.Items}"
+        <ListBox Grid.Row="2" Margin="0" ItemsSource="{Binding SelectedDir.Items}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  SelectionMode="Extended">
             <ListBox.ItemContainerStyle>
@@ -165,10 +170,10 @@
                             <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
                         </DataTemplate>
                     </ContextMenu.Resources>
-                    <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}" />
-                    <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}" />
+                    <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" />
+                    <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" />
                     <Separator />
-                    <MenuItem Header="プロファイル変更">
+                    <MenuItem Header="プロファイル変更" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}">
                         <MenuItem.ItemsSource>
                             <CompositeCollection>
                                 <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
@@ -183,18 +188,18 @@
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
                     <Separator />
-                    <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}"
+                    <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
                               ToolTip="プロファイルの設定が変わってる場合でも、投入時の設定でエンコードします" />
-                    <MenuItem Header="リトライ（設定更新）" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}"
+                    <MenuItem Header="リトライ（設定更新）" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
                               ToolTip="プロファイルの設定が変わった場合、新しい設定でエンコードします" />
-                    <MenuItem Header="再投入" Command="{Binding ReAddCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}"
+                    <MenuItem Header="再投入" Command="{Binding ReAddCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
                               ToolTip="アイテム情報をコピーして再投入します。プロファイルの設定が変わった場合、新しい設定でエンコードします" />
                     <Separator />
-                    <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}" />
-                    <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}"/>
+                    <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" />
+                    <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"/>
                     <Separator />
                     <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedItemsCommand}"/>
-                    <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding SetectedQueueDir.IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
+                    <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
                     <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                 </ContextMenu>
             </ListBox.ContextMenu>

@@ -213,6 +213,20 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region PauseStart変更通知プロパティ
+        private bool _PauseStart;
+
+        public bool PauseStart {
+            get { return _PauseStart; }
+            set { 
+                if (_PauseStart == value)
+                    return;
+                _PauseStart = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public string InputInfoText {
             get {
                 if(Item == null)

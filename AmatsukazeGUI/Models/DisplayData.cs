@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,6 +24,22 @@ namespace Amatsukaze.Models
         public string ModeString { get; set; }
         public string Profile { get; set; }
         public string ProfileLastUpdate { get; set; }
+
+        private Components.CollectionItemListener<DisplayQueueItem> itemListener;
+
+        #region IsSelected変更通知プロパティ
+        private bool _IsSelected;
+
+        public bool IsSelected {
+            get { return _IsSelected; }
+            set { 
+                if (_IsSelected == value)
+                    return;
+                _IsSelected = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         public string LastAdd
         {
@@ -49,9 +66,12 @@ namespace Amatsukaze.Models
             RaisePropertyChanged("Fail");
         }
 
-        public void ItemSelectionChanged()
+        private void ItemPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            RaisePropertyChanged("IsQueueFileSelected");
+            if (e.PropertyName == "IsSelected")
+            {
+                RaisePropertyChanged("IsQueueFileSelected");
+            }
         }
 
         public bool IsQueueFileSelected
@@ -82,18 +102,21 @@ namespace Amatsukaze.Models
             ModeString = ModeToString(dir.Mode);
             Profile = dir.Profile.Name;
             ProfileLastUpdate = dir.Profile.LastUpdate.ToString(TIME_FORMAT);
-            Items = new ObservableCollection<DisplayQueueItem>(
-                dir.Items.Select(s => new DisplayQueueItem() {
-                    Parent = Parent, Dir = this, Model = s
-                }));
+
+            Items = new ObservableCollection<DisplayQueueItem>();
+            itemListener = new Components.CollectionItemListener<DisplayQueueItem>(Items,
+                item => item.PropertyChanged += ItemPropertyChanged,
+                item => item.PropertyChanged -= ItemPropertyChanged);
+            foreach(var item in dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s }))
+            {
+                Items.Add(item);
+            }
         }
     }
 
     public class DisplayQueueItem : NotificationObject
     {
         public ClientModel Parent { get; set; }
-
-        public DisplayQueueDirectory Dir { get; set; }
 
         public QueueItem Model { get; set; }
 
@@ -165,7 +188,6 @@ namespace Amatsukaze.Models
                     return;
                 _IsSelected = value;
                 RaisePropertyChanged();
-                Dir?.ItemSelectionChanged();
             }
         }
         #endregion

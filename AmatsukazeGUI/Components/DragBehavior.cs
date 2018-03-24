@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interactivity;
+using Amatsukaze.Components.DragExtention;
 
 namespace Amatsukaze.Components
 {

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Livet.EventListeners;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -13,16 +14,14 @@ namespace Amatsukaze.Components
     {
         private readonly ObservableCollection<TModel> _source;
         private readonly Func<TModel, TViewModel> _viewModelFactory;
+        private CollectionChangedEventListener _listener;
 
         public ObservableViewModelCollection(ObservableCollection<TModel> source, Func<TModel, TViewModel> viewModelFactory)
             : base(source.Select(model => viewModelFactory(model)))
         {
-            Contract.Requires(source != null);
-            Contract.Requires(viewModelFactory != null);
-
-            this._source = source;
-            this._viewModelFactory = viewModelFactory;
-            this._source.CollectionChanged += OnSourceCollectionChanged;
+            _source = source;
+            _viewModelFactory = viewModelFactory;
+            _listener = new CollectionChangedEventListener(_source, OnSourceCollectionChanged);
         }
 
         protected virtual TViewModel CreateViewModel(TModel model)

@@ -3932,11 +3932,16 @@ namespace Amatsukaze.Server
                     }
 
                     var waits = new List<Task>();
-                    var profile = GetProfile(target, data.Profile);
+                    target.ProfileName = data.Profile;
+                    var profile = GetProfile(target, target.ProfileName);
                     var newDir = GetQueueDirectory(target.Dir.DirPath, target.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
                     if(newDir != target.Dir)
                     {
                         MoveItemDirectory(target, newDir, waits);
+                        if(UpdateQueueItem(target, waits))
+                        {
+                            waits.Add(NotifyQueueItemUpdate(target));
+                        }
                         waits.Add(NotifyMessage(false, "プロファイルを「" + data.Profile + "」に変更しました", false));
                     }
 
