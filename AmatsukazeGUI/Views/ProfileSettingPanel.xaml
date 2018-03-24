@@ -122,7 +122,7 @@
                 <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力選択" VerticalAlignment="Top" Margin="0,35,1,0"/>
                 <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,33,0,0" VerticalAlignment="Top" Width="130"
                       ItemsSource="{Binding Model.SelectedProfile.OutputOptionList}" 
-                          SelectedIndex="{Binding Model.SelectedProfile.OutputOptionIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          SelectedItem="{Binding Model.SelectedProfile.OutputMask, Mode=TwoWay}"
                        ToolTip="CMカットの精度は100%ではありません"/>
 
                 <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,62,1,0"/>

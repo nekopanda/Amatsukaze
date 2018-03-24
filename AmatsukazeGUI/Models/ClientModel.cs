@@ -1108,7 +1108,7 @@ namespace Amatsukaze.Models
                 profile.BitrateCM = data.Profile.BitrateCM;
                 profile.TwoPass = data.Profile.TwoPass;
                 profile.SplitSub = data.Profile.SplitSub;
-                profile.OutputMask = data.Profile.OutputMask;
+                profile.OutputMask = profile.OutputOptionList.FirstOrDefault(s => s.Mask == data.Profile.OutputMask);
                 profile.DefaultJLSCommand = data.Profile.DefaultJLSCommand;
                 profile.DisableChapter = data.Profile.DisableChapter;
                 profile.DisableSubs = data.Profile.DisableSubs;

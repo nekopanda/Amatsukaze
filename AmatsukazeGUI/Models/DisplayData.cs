@@ -126,6 +126,17 @@ namespace Amatsukaze.Models
 
     }
 
+    public class DisplayOutputMask : NotificationObject
+    {
+        public string Name { get; set; }
+        public int Mask { get; set; }
+
+        public override string ToString()
+        {
+            return Name;
+        }
+    }
+
     public class DisplayProfile : NotificationObject
     {
         public ProfileSetting Model { get; set; }
@@ -251,14 +262,15 @@ namespace Amatsukaze.Models
         #endregion
 
         #region OutputMask変更通知プロパティ
-        public int OutputMask {
-            get { return Model.OutputMask; }
+        public DisplayOutputMask OutputMask {
+            get { return 
+                    OutputOptionList_.FirstOrDefault(s => s.Mask == Model.OutputMask)
+                    ?? OutputOptionList_[0]; }
             set {
-                if (Model.OutputMask == value)
+                if (Model.OutputMask == value?.Mask)
                     return;
-                Model.OutputMask = value;
+                Model.OutputMask = value?.Mask ?? OutputOptionList_[0].Mask;
                 UpdateWarningText();
-                OutputOptionIndex = OutputMasklist.IndexOf(OutputMask);
                 RaisePropertyChanged();
             }
         }
@@ -550,26 +562,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region OutputOptionIndex変更通知プロパティ
-        private int _OutputOptionIndex;
-
-        public int OutputOptionIndex {
-            get { return _OutputOptionIndex; }
-            set {
-                if (_OutputOptionIndex == value)
-                    return;
-                _OutputOptionIndex = value;
-
-                if (value >= 0 && value < OutputMasklist.Count)
-                {
-                    OutputMask = OutputMasklist[value];
-                }
-
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         public string[] EncoderList {
             get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc" }; }
         }
@@ -579,10 +571,26 @@ namespace Amatsukaze.Models
         public string[] H264DecoderList {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
-        public string[] OutputOptionList {
-            get { return new string[] { "通常", "CMをカット", "本編とCMを分離", "CMのみ" }; }
-        }
-        private List<int> OutputMasklist = new List<int> { 1, 2, 6, 4 };
+        public DisplayOutputMask[] OutputOptionList_ = new DisplayOutputMask[]
+        {
+            new DisplayOutputMask()
+            {
+                Name = "通常", Mask = 1
+            },
+            new DisplayOutputMask()
+            {
+                Name = "CMをカット", Mask = 2
+            },
+            new DisplayOutputMask()
+            {
+                Name = "本編とCMを分離", Mask = 6
+            },
+            new DisplayOutputMask()
+            {
+                Name = "CMのみ", Mask = 4
+            }
+        };
+        public DisplayOutputMask[] OutputOptionList { get { return OutputOptionList_; } }
         public string[] FormatList {
             get { return new string[] { "MP4", "MKV" }; }
         }
