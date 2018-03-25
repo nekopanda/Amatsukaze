@@ -52,10 +52,10 @@
         </Setter>
     </Style>
 
-    <Style TargetType="Button">
+    <Style x:Key="ButtonStyle" TargetType="ButtonBase">
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="Button">
+                <ControlTemplate TargetType="ButtonBase">
                     <Border BorderThickness="0.5" BorderBrush="Gray" CornerRadius="5" Background="{TemplateBinding Background}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
@@ -72,6 +72,8 @@
             </Trigger>
         </Style.Triggers>
     </Style>
+
+    <Style TargetType="Button" BasedOn="{StaticResource ButtonStyle}"/>
 
     <ControlTemplate x:Key="MyComboboxTemplate" TargetType="{x:Type ComboBox}">
         <Grid x:Name="templateRoot" SnapsToDevicePixels="True">

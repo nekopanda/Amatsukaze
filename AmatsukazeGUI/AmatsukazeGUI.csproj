@@ -80,6 +80,7 @@
     <Compile Include="Components\DragBehavior.cs" />
     <Compile Include="Components\DragContentAdorner.cs" />
     <Compile Include="Components\DragExtentionMethods.cs" />
+    <Compile Include="Components\DropDownButton.cs" />
     <Compile Include="Components\ExtentionMethods.cs" />
     <Compile Include="Components\GridViewSort.cs" />
     <Compile Include="Components\InsertionAdorner.cs" />

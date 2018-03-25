@@ -321,27 +321,6 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        #region TogglePauseCommand
-        private ViewModelCommand _TogglePauseCommand;
-
-        public ViewModelCommand TogglePauseCommand
-        {
-            get
-            {
-                if (_TogglePauseCommand == null)
-                {
-                    _TogglePauseCommand = new ViewModelCommand(TogglePause);
-                }
-                return _TogglePauseCommand;
-            }
-        }
-
-        public void TogglePause()
-        {
-            Model.Server.PauseEncode(!Model.IsPaused);
-        }
-        #endregion
-
         #region RefreshCommand
         private ViewModelCommand _RefreshCommand;
 

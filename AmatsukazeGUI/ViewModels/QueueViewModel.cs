@@ -688,6 +688,25 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region TogglePauseCommand
+        private ViewModelCommand _TogglePauseCommand;
+
+        public ViewModelCommand TogglePauseCommand {
+            get {
+                if (_TogglePauseCommand == null)
+                {
+                    _TogglePauseCommand = new ViewModelCommand(TogglePause);
+                }
+                return _TogglePauseCommand;
+            }
+        }
+
+        public void TogglePause()
+        {
+            Model.Server.PauseEncode(!Model.IsPaused);
+        }
+        #endregion
+
         public void ChangeProfile(object profile)
         {
             var profileName = DisplayProfile.GetProfileName(profile);

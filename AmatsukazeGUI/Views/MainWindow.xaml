@@ -142,21 +142,6 @@
         <DockPanel Grid.Row="4" Grid.ColumnSpan="3">
             <Button DockPanel.Dock="Left" Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
             <Button DockPanel.Dock="Left" Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" />
-            <Button DockPanel.Dock="Right" Content="一時停止" Grid.Column="3" Command="{Binding TogglePauseCommand, Mode=OneWay}" Width="65">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                        <Setter Property="Foreground" Value="#FFA4A4A4"/>
-                        <Setter Property="Background" Value="White"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
-                                <Setter Property="Foreground" Value="Black"/>
-                                <Setter Property="Background" Value="Yellow"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
             <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
             <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}"
                        Margin="10,0" Grid.Column="1" VerticalAlignment="Center"
