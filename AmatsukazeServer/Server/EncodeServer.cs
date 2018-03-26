@@ -2461,7 +2461,7 @@ namespace Amatsukaze.Server
             {
                 foreach (var line in File.ReadAllLines(GetDRCSMapPath()))
                 {
-                    if (line.Length >= 34 && line.IndexOf("=") == 32)
+                    if (line.Length >= 34 && line.IndexOf('=') == 32)
                     {
                         string md5 = line.Substring(0, 32);
                         string mapStr = line.Substring(33);
