@@ -239,6 +239,8 @@
                               IsChecked="{Binding Model.SelectedProfile.DisableSubs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS外字は無視する"
                               IsChecked="{Binding Model.SelectedProfile.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="ロゴ検出判定しきい値を低くする" 
+                              IsChecked="{Binding Model.SelectedProfile.LooseLogoDetection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ロゴ消ししない" 
                               IsChecked="{Binding Model.SelectedProfile.NoDelogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない"

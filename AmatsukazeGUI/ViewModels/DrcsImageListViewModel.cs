@@ -132,10 +132,6 @@ namespace Amatsukaze.ViewModels
         {
             ImageList = new Components.ObservableViewModelCollection<DrcsImageViewModel, DrcsImage>(
                 Model.DrcsImageList, item => new DrcsImageViewModel(Model, item));
-            foreach(var item in Model.DrcsImageList)
-            {
-                ImageList.Add(new DrcsImageViewModel(Model, item));
-            }
 
             imagesView = System.Windows.Data.CollectionViewSource.GetDefaultView(_ImageList);
             imagesView.Filter = x => IsNoMapOnly == false || string.IsNullOrEmpty(((DrcsImageViewModel)x).Image.MapStr);

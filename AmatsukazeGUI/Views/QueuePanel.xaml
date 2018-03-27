@@ -101,12 +101,12 @@
                 </DataTemplate>
             </DockPanel.Resources>
 
-            <Expander DockPanel.Dock="Top" Header="操作パネル">
+            <Expander DockPanel.Dock="Top" Header="操作パネル" IsExpanded="{Binding IsPanelOpen, Mode=TwoWay}">
                 <DockPanel>
-                    <UniformGrid Columns="3">
-                        <Button Margin="3" Height="24" Content="状態リセット"/>
-                        <Button Margin="3" Height="24" Content="プロファイル再適用"/>
-                        <Button Margin="3" Height="24" Content="複製"/>
+                    <UniformGrid Columns="3" DockPanel.Dock="Top">
+                        <Button Margin="3" Height="24" Content="状態リセット" Command="{Binding RetryCommand}"/>
+                        <Button Margin="3" Height="24" Content="プロファイル再適用" Command="{Binding RetryUpdateCommand}"/>
+                        <Button Margin="3" Height="24" Content="複製" Command="{Binding ReAddCommand}"/>
                         <c:DropDownMenuButton Margin="3" Height="24" Content="プロファイル変更">
                             <c:DropDownMenuButton.Style>
                                 <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton"/>
@@ -128,9 +128,15 @@
                                 </ContextMenu>
                             </c:DropDownMenuButton.DropDownContextMenu>
                         </c:DropDownMenuButton>
-                        <Button Margin="3" Height="24" Content="キャンセル"/>
-                        <Button Margin="3" Height="24" Content="削除"/>
+                        <Button Margin="3" Height="24" Content="キャンセル" Command="{Binding CancelCommand}"/>
+                        <Button Margin="3" Height="24" Content="削除" Command="{Binding RemoveCommand}"/>
                     </UniformGrid>
+                    <DockPanel>
+                        <TextBlock Text="検索" VerticalAlignment="Center"/>
+                        <Button DockPanel.Dock="Right" Content="☓" Width="18" Command="{Binding ClearSearchWordCommand}" 
+                                IsTabStop="False" Focusable="False"/>
+                        <TextBox Margin="3" Text="{Binding SearchWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
                 </DockPanel>
             </Expander>
             

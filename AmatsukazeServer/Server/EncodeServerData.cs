@@ -101,6 +101,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool IgnoreNoDrcsMap { get; set; }
         [DataMember]
+        public bool LooseLogoDetection { get; set; }
+        [DataMember]
         public bool NoDelogo { get; set; }
         [DataMember]
         public bool SystemAviSynthPlugin { get; set; }
@@ -449,9 +451,9 @@ namespace Amatsukaze.Server
 
     public enum ChangeItemType
     {
-        Retry,      // リトライ
-        RetryUpdate,// プロファイルを更新してリトライ
-        ReAdd,      // 同じタスクを投入
+        ResetState,      // リトライ
+        UpdateProfile,// プロファイルを更新してリトライ
+        Duplicate,      // 同じタスクを投入
         Cancel,     // キャンセル
         Priority,   // 優先度変更
         Profile,    // プロファイル変更

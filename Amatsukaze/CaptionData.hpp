@@ -214,8 +214,8 @@ static BOOL CalcMD5FromDRCSPattern(std::vector<char>& hash, const DRCS_PATTERN_D
 	static const char* digits = "0123456789ABCDEF";
 	hash.resize(32);
 	for (int i = 0; i < 16; ++i) {
-		hash[i * 2 + 0] = digits[bHash[i] & 0x0F];
-		hash[i * 2 + 1] = digits[bHash[i] >> 4];
+		hash[i * 2 + 0] = digits[bHash[i] >> 4];
+		hash[i * 2 + 1] = digits[bHash[i] & 0x0F];
 	}
 
 	bRet = TRUE;

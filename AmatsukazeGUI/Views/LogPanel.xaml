@@ -33,16 +33,17 @@
                     <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}" c:GridViewSort.PropertyName="DisplayEncodeStart"/>
                     <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}" c:GridViewSort.PropertyName="DisplayResult"/>
                     <GridViewColumn Header="メッセージ" DisplayMemberBinding="{Binding DisplayReason}" c:GridViewSort.PropertyName="DisplayReason"/>
-                    <GridViewColumn Header="出力ファイル数" DisplayMemberBinding="{Binding DisplayOutNum}" c:GridViewSort.PropertyName="DisplayOutNum"/>
-                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident}" c:GridViewSort.PropertyName="DisplayNumIncident"/>
+                    <GridViewColumn Header="プロファイル" DisplayMemberBinding="{Binding Profile}" c:GridViewSort.PropertyName="Profile"/>
                     <GridViewColumn Header="フォルダ" DisplayMemberBinding="{Binding DisplaySrcDirectory}" c:GridViewSort.PropertyName="DisplaySrcDirectory"/>
                     <GridViewColumn Header="ファイル名" DisplayMemberBinding="{Binding DisplaySrcFileName}" c:GridViewSort.PropertyName="DisplaySrcFileName"/>
+                    <GridViewColumn Header="出力ファイル数" DisplayMemberBinding="{Binding DisplayOutNum}" c:GridViewSort.PropertyName="DisplayOutNum"/>
+                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident}" c:GridViewSort.PropertyName="DisplayNumIncident"/>
                     <GridViewColumn Header="CM・チャプター解析" DisplayMemberBinding="{Binding DisplayChapter}" c:GridViewSort.PropertyName="DisplayChapter"/>
-                    <GridViewColumn Header="ロゴファイル" DisplayMemberBinding="{Binding DisplayLogo}" c:GridViewSort.PropertyName="DisplayLogo"/>
+                    <!--<GridViewColumn Header="ロゴファイル" DisplayMemberBinding="{Binding DisplayLogo}" c:GridViewSort.PropertyName="DisplayLogo"/>-->
                     <GridViewColumn Header="エンコード時間" DisplayMemberBinding="{Binding DisplayEncodeDuration}" c:GridViewSort.PropertyName="DisplayEncodeDuration"/>
                     <GridViewColumn Header="入力ファイル時間" DisplayMemberBinding="{Binding DisplaySrcDurationo}" c:GridViewSort.PropertyName="DisplaySrcDurationo"/>
                     <GridViewColumn Header="出力サイズ[%]" DisplayMemberBinding="{Binding DisplayCompressionRate}" c:GridViewSort.PropertyName="DisplayCompressionRate"/>
-                    <GridViewColumn Header="ビットレート(Mbps)" DisplayMemberBinding="{Binding DisplayOutBitrate}" c:GridViewSort.PropertyName="DisplayOutBitrate"/>
+                    <!--<GridViewColumn Header="ビットレート(Mbps)" DisplayMemberBinding="{Binding DisplayOutBitrate}" c:GridViewSort.PropertyName="DisplayOutBitrate"/>-->
                 </GridView>
             </ListView.View>
             <ListView.ContextMenu>

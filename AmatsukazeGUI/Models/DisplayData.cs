@@ -1,4 +1,5 @@
-﻿using Amatsukaze.Server;
+﻿using Amatsukaze.Components;
+using Amatsukaze.Server;
 using Livet;
 using Livet.Commands;
 using Livet.EventListeners;
@@ -574,6 +575,20 @@ namespace Amatsukaze.Models
                     return;
                 Model.NicoJKFormats[3] = value;
                 UpdateWarningText();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region LooseLogoDetection変更通知プロパティ
+        public bool LooseLogoDetection
+        {
+            get { return Model.LooseLogoDetection; }
+            set
+            {
+                if (Model.LooseLogoDetection == value)
+                    return;
+                Model.LooseLogoDetection = value;
                 RaisePropertyChanged();
             }
         }
@@ -2221,18 +2236,13 @@ namespace Amatsukaze.Models
                 mainItem.Cond = this;
             }
 
-            Func<DisplayService, ServiceSelectItem> CreateService = service => new ServiceSelectItem()
-            {
-                Service = service,
-                IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
-                Cond = this
-            };
-            ServiceList = new Components.ObservableViewModelCollection<ServiceSelectItem, DisplayService>(
-                Model.ServiceSettings, CreateService);
-            foreach(var service in Model.ServiceSettings)
-            {
-                ServiceList.Add(CreateService(service));
-            }
+            ServiceList = new ObservableViewModelCollection<ServiceSelectItem, DisplayService>(
+                Model.ServiceSettings, service => new ServiceSelectItem()
+                {
+                    Service = service,
+                    IsChecked = Item.ServiceIds.Contains(service.Data.ServiceId),
+                    Cond = this
+                });
 
             VideoSizes = new List<VideoSizeSelectItem>();
             Func<VideoSizeCondition, VideoSizeSelectItem> NewVideoSize = (item) => {

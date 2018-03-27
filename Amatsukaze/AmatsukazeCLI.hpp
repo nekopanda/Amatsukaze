@@ -91,6 +91,7 @@ static void printHelp(const tchar* bin) {
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
 		"  --ignore-nicojk-error ニコニコ実況取得でエラーが発生しても処理を続行する\n"
 		"  --no-delogo         ロゴ消しをしない（デフォルトはロゴがある場合は消します）\n"
+		"  --loose-logo-detection ロゴ検出判定しきい値を低くします\n"
 		"  --chapter-exe <パス> chapter_exe.exeへのパス\n"
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
@@ -355,6 +356,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--ignore-nicojk-error")) {
 			conf.ignoreNicoJKError = true;
+		}
+		else if (key == _T("--loose-logo-detection")) {
+			conf.looseLogoDetection = true;
 		}
 		else if (key == _T("--no-delogo")) {
 			conf.noDelogo = true;

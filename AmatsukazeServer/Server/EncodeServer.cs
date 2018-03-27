@@ -375,6 +375,11 @@ namespace Amatsukaze.Server
             [DataMember]
             public ServiceSetting services;
 
+            // 0: ～4.0.3
+            // 1: 4.1.0～
+            [DataMember]
+            public int Version;
+
             public ExtensionDataObject ExtensionData { get; set; }
         }
 
@@ -899,7 +904,7 @@ namespace Amatsukaze.Server
                     LogItem logItem = null;
                     bool result = true;
 
-                    server.UpdateQueueItem(src, waitList);
+                    server.UpdateQueueItem(src, waitList, true);
                     if (src.State == QueueState.Queue)
                     {
                         src.State = QueueState.Encoding;
@@ -1138,6 +1143,11 @@ namespace Amatsukaze.Server
             }
         }
 
+        private static Func<char, bool> IsHex = c =>
+                 (c >= '0' && c <= '9') ||
+                 (c >= 'a' && c <= 'f') ||
+                 (c >= 'A' && c <= 'F');
+
         private IUserClient client;
         public Task ServerTask { get; private set; }
         private AppData appData;
@@ -1305,6 +1315,9 @@ namespace Amatsukaze.Server
             scheduler.SetNumParallel(appData.setting.NumParallel);
             affinityCreator.NumProcess = appData.setting.NumParallel;
 
+            // 古いバージョンからの更新処理
+            UpdateFromOldVersion();
+
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
             saveSettingThread = SaveSettingThread();
@@ -1432,12 +1445,22 @@ namespace Amatsukaze.Server
 
         private string GetDRCSImagePath(string md5)
         {
-            return GetDRCSDirectoryPath() + "\\" + md5 + ".bmp";
+            return GetDRCSImagePath(GetDRCSDirectoryPath(), md5);
+        }
+
+        private string GetDRCSImagePath(string md5, string dirPath)
+        {
+            return dirPath + "\\" + md5 + ".bmp";
         }
 
         private string GetDRCSMapPath()
         {
-            return GetDRCSDirectoryPath() + "\\drcs_map.txt";
+            return GetDRCSMapPath(GetDRCSDirectoryPath());
+        }
+
+        private string GetDRCSMapPath(string dirPath)
+        {
+            return dirPath + "\\drcs_map.txt";
         }
 
         private string GetProfileDirectoryPath()
@@ -1458,6 +1481,69 @@ namespace Amatsukaze.Server
                 client.Finish();
                 client = null;
             }
+        }
+
+        private void UpdateFromOldVersion()
+        {
+            // 古いバージョンからのアップデート処理
+            if(appData.Version == 0)
+            {
+                // DRCS文字の並びを変更する
+                var dirPath = GetDRCSDirectoryPath();
+                var oldDirPath = dirPath + ".old";
+                if(Directory.Exists(dirPath) && !Directory.Exists(oldDirPath))
+                {
+                    // drcs -> drcs.old にディレクトリ名変更
+                    Directory.Move(dirPath, oldDirPath);
+
+                    // drcsディレクトリを改めて作る
+                    Directory.CreateDirectory(dirPath);
+
+                    Func<string, string> RevertHash = s =>
+                    {
+                        var sb = new StringBuilder();
+                        for (int i = 0; i < 32; i += 2)
+                        {
+                            sb.Append(s[i + 1]).Append(s[i]);
+                        }
+                        return sb.ToString();
+                    };
+
+                    // drcs_map.txtを変換
+                    using (var sw = new StreamWriter(File.OpenWrite(GetDRCSMapPath()), Encoding.UTF8))
+                    {
+                        foreach (var line in File.ReadAllLines(GetDRCSMapPath(oldDirPath)))
+                        {
+                            if (line.Length >= 34 && line.IndexOf('=') == 32)
+                            {
+                                string md5 = line.Substring(0, 32);
+                                string mapStr = line.Substring(33);
+                                if (md5.All(IsHex))
+                                {
+                                    sw.WriteLine(RevertHash(md5) + "=" + mapStr);
+                                }
+                            }
+                        }
+                    }
+
+                    // 文字画像ファイルを変換
+                    foreach (var imgpath in Directory.GetFiles(oldDirPath))
+                    {
+                        var filename = Path.GetFileName(imgpath);
+                        if (filename.Length == 36 && Path.GetExtension(filename).ToLower() == ".bmp")
+                        {
+                            string md5 = filename.Substring(0, 32);
+                            File.Copy(imgpath, dirPath + "\\" + RevertHash(md5) + ".bmp");
+                        }
+                    }
+
+                }
+
+                settingUpdated = true;
+            }
+
+            // 現在バージョンに更新
+            appData.Version = 1;
         }
 
         private Task NotifyMessage(bool fail, string message, bool log)
@@ -1959,6 +2045,10 @@ namespace Amatsukaze.Server
             {
                 sb.Append(" --ignore-no-logo");
             }
+            if (profile.LooseLogoDetection)
+            {
+                sb.Append(" --loose-logo-detection");
+            }
             if (profile.IgnoreNoDrcsMap)
             {
                 sb.Append(" --ignore-no-drcsmap");
@@ -2353,7 +2443,7 @@ namespace Amatsukaze.Server
                                     // 追加
                                     target.Items.Add(item);
                                     // まずは内部だけで状態を更新
-                                    UpdateQueueItem(item, null);
+                                    UpdateQueueItem(item, waits, false);
                                     // 状態が決まったらクライアント側に追加通知
                                     waits.Add(client.OnQueueUpdate(new QueueUpdate()
                                     {
@@ -2544,7 +2634,7 @@ namespace Amatsukaze.Server
             }));
         }
 
-        private bool CheckProfile(QueueItem item, QueueDirectory dir, List<Task> waits)
+        private bool CheckProfile(QueueItem item, QueueDirectory dir, List<Task> waits, bool notifyItem)
         {
             if (dir.Profile != pendingProfile)
             {
@@ -2586,7 +2676,7 @@ namespace Amatsukaze.Server
 
             // プロファイルの選択ができたので、アイテムを適切なディレクトリに移動
             var newDir = GetQueueDirectory(dir.DirPath, dir.Mode, profile, waits);
-            MoveItemDirectory(item, newDir, waits);
+            MoveItemDirectory(item, newDir, notifyItem ? waits : null);
 
             if(itemPriority > 0)
             {
@@ -2598,9 +2688,9 @@ namespace Amatsukaze.Server
 
         // ペンディング <=> キュー 状態を切り替える
         // ペンディングからキューになったらスケジューリングに追加する
-        // waitsがnullの場合は、クライアント側を更新しない
+        // notifyItem: trueの場合は、ディレクトリ・アイテム両方の更新通知、falseの場合は、ディレクトリの更新通知のみ
         // 戻り値: 状態が変わった
-        private bool UpdateQueueItem(QueueItem item, List<Task> waits)
+        private bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
         {
             var dir = item.Dir;
             if(item.State == QueueState.LogoPending || item.State == QueueState.Queue)
@@ -2612,7 +2702,7 @@ namespace Amatsukaze.Server
                     item.State = QueueState.Queue;
                     scheduler.QueueItem(item, item.ActualPriority);
                 }
-                else if (CheckProfile(item, dir, waits))
+                else if (CheckProfile(item, dir, waits, notifyItem))
                 {
                     var map = appData.services.ServiceMap;
                     if (item.ServiceId == -1)
@@ -2668,7 +2758,7 @@ namespace Amatsukaze.Server
                     {
                         continue;
                     }
-                    if(UpdateQueueItem(item, waits))
+                    if(UpdateQueueItem(item, waits, true))
                     {
                         waits.Add(NotifyQueueItemUpdate(item));
                     }
@@ -2736,22 +2826,17 @@ namespace Amatsukaze.Server
 
         private Dictionary<string, DrcsImage> LoadDrcsMap()
         {
-            Func<char, bool> isHex = c =>
-                     (c >= '0' && c <= '9') ||
-                     (c >= 'a' && c <= 'f') ||
-                     (c >= 'A' && c <= 'F');
-
             var ret = new Dictionary<string, DrcsImage>();
 
             try
             {
                 foreach (var line in File.ReadAllLines(GetDRCSMapPath()))
                 {
-                    if (line.Length >= 34 && line.IndexOf("=") == 32)
+                    if (line.Length >= 34 && line.IndexOf('=') == 32)
                     {
                         string md5 = line.Substring(0, 32);
                         string mapStr = line.Substring(33);
-                        if (md5.All(isHex))
+                        if (md5.All(IsHex))
                         {
                             ret.Add(md5, new DrcsImage() { MD5 = md5, MapStr = mapStr, Image = null });
                         }
@@ -3668,14 +3753,14 @@ namespace Amatsukaze.Server
             }
         }
 
-        private void ReEnqueueItem(QueueItem item, List<Task> waits)
+        private void ResetStateItem(QueueItem item, List<Task> waits)
         {
             item.State = QueueState.LogoPending;
-            UpdateQueueItem(item, waits);
+            UpdateQueueItem(item, waits, true);
             waits.Add(NotifyQueueItemUpdate(item));
         }
 
-        private void UpdateReEnqueueItem(QueueItem item, List<Task> waits)
+        private void UpdateProfileItem(QueueItem item, List<Task> waits)
         {
             var profile = GetProfile(item, item.ProfileName);
             var newDir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
@@ -3687,31 +3772,25 @@ namespace Amatsukaze.Server
             {
                 item.Priority = profile.Priority;
             }
-            ReEnqueueItem(item, waits);
         }
 
-        private void DuplicateReEnqueueItem(QueueItem item, List<Task> waits)
+        private void DuplicateItem(QueueItem item, List<Task> waits)
         {
             var newItem = ServerSupport.DeepCopy(item);
             newItem.Id = nextItemId++;
-
-            var profile = GetProfile(item, item.ProfileName);
-            newItem.Dir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
-
-            // ディレクトリに入れる
+            newItem.Dir = item.Dir;
             newItem.Dir.Items.Add(newItem);
+
+            // 状態はリセットしておく
+            newItem.State = QueueState.LogoPending;
+            UpdateQueueItem(newItem, waits, false);
+
             waits.Add(client.OnQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
                 DirId = newItem.Dir.Id,
                 Item = newItem
             }));
-            if (profile != null && profile.Priority > 0)
-            {
-                newItem.Priority = profile.Priority;
-            }
-
-            ReEnqueueItem(newItem, waits);
         }
 
         private static void MoveTSFile(string file, string dstDir, bool withEDCB)
@@ -3728,23 +3807,6 @@ namespace Amatsukaze.Server
                     File.Move(srcPath, dstPath);
                 }
             }
-        }
-
-        private bool CanRetry(ChangeItemType type, QueueItem target)
-        {
-            if(type == ChangeItemType.Retry || type == ChangeItemType.RetryUpdate)
-            {
-                // リトライは終わってるのだけ
-                return target.State == QueueState.Complete ||
-                    target.State == QueueState.Failed ||
-                    target.State == QueueState.Canceled;
-            }
-            else if(type == ChangeItemType.ReAdd)
-            {
-                // バッチモードでアクティブなやつは重複になるのでダメ
-                return !(target.Dir.IsBatch && target.IsActive);
-            }
-            return false;
         }
 
         private int RemoveCompleted(QueueDirectory dir, List<Task> waits)
@@ -3839,54 +3901,74 @@ namespace Amatsukaze.Server
 
                 var dir = target.Dir;
 
-                if (data.ChangeType == ChangeItemType.Retry ||
-                    data.ChangeType == ChangeItemType.RetryUpdate ||
-                    data.ChangeType == ChangeItemType.ReAdd)
+                if (data.ChangeType == ChangeItemType.ResetState ||
+                    data.ChangeType == ChangeItemType.UpdateProfile ||
+                    data.ChangeType == ChangeItemType.Duplicate)
                 {
-                    if (CanRetry(data.ChangeType, target) == false)
+                    if (data.ChangeType == ChangeItemType.ResetState)
                     {
-                        return NotifyMessage(true, "このアイテムはリトライ/再投入できません", false);
-                    }
-                    else
-                    {
-                        var waits = new List<Task>();
-
-                        if (dir.IsBatch)
+                        // 状態リセットは終わってるのだけ
+                        if (target.State != QueueState.Complete &&
+                            target.State != QueueState.Failed &&
+                            target.State != QueueState.Canceled)
                         {
-                            // バッチモードでfailed/succeededフォルダに移動されていたら戻す
-                            if (target.State == QueueState.Failed || target.State == QueueState.Complete)
+                            return NotifyMessage(true, "このアイテムは状態リセットできません", false);
+                        }
+                    }
+                    else if (data.ChangeType == ChangeItemType.UpdateProfile)
+                    {
+                        // エンコード中は変更できない
+                        if (target.State == QueueState.Encoding)
+                        {
+                            return NotifyMessage(true, "このアイテムはエンコード中のためプロファイル更新できません", false);
+                        }
+                    }
+                    else if (data.ChangeType == ChangeItemType.Duplicate)
+                    {
+                        // バッチモードでアクティブなやつは重複になるのでダメ
+                        if (target.Dir.IsBatch && target.IsActive)
+                        {
+                            return NotifyMessage(true, "このアイテムは複製できません", false);
+                        }
+                    }
+
+                    var waits = new List<Task>();
+
+                    if (dir.IsBatch)
+                    {
+                        // バッチモードでfailed/succeededフォルダに移動されていたら戻す
+                        if (target.State == QueueState.Failed || target.State == QueueState.Complete)
+                        {
+                            if (all.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive) == false)
                             {
-                                if (all.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive) == false)
+                                var movedDir = (target.State == QueueState.Failed) ? dir.Failed : dir.Succeeded;
+                                var movedPath = movedDir + "\\" + Path.GetFileName(target.FileName);
+                                if (File.Exists(movedPath))
                                 {
-                                    var movedDir = (target.State == QueueState.Failed) ? dir.Failed : dir.Succeeded;
-                                    var movedPath = movedDir + "\\" + Path.GetFileName(target.FileName);
-                                    if (File.Exists(movedPath))
-                                    {
-                                        // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
-                                        MoveTSFile(movedPath, dir.DirPath, true);
-                                    }
+                                    // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
+                                    MoveTSFile(movedPath, dir.DirPath, true);
                                 }
                             }
                         }
-
-                        if (data.ChangeType == ChangeItemType.Retry)
-                        {
-                            ReEnqueueItem(target, waits);
-                            waits.Add(NotifyMessage(false, "リトライします", false));
-                        }
-                        else if(data.ChangeType == ChangeItemType.RetryUpdate)
-                        {
-                            UpdateReEnqueueItem(target, waits);
-                            waits.Add(NotifyMessage(false, "設定更新リトライします", false));
-                        }
-                        else
-                        {
-                            DuplicateReEnqueueItem(target, waits);
-                            waits.Add(NotifyMessage(false, "再投入しました", false));
-                        }
-
-                        return Task.WhenAll(waits);
                     }
+
+                    if (data.ChangeType == ChangeItemType.ResetState)
+                    {
+                        ResetStateItem(target, waits);
+                        waits.Add(NotifyMessage(false, "状態リセットします", false));
+                    }
+                    else if (data.ChangeType == ChangeItemType.UpdateProfile)
+                    {
+                        UpdateProfileItem(target, waits);
+                        waits.Add(NotifyMessage(false, "プロファイル再適用します", false));
+                    }
+                    else
+                    {
+                        DuplicateItem(target, waits);
+                        waits.Add(NotifyMessage(false, "複製しました", false));
+                    }
+
+                    return Task.WhenAll(waits);
                 }
                 else if (data.ChangeType == ChangeItemType.Cancel)
                 {
@@ -3923,7 +4005,7 @@ namespace Amatsukaze.Server
                 }
                 else if (data.ChangeType == ChangeItemType.Profile)
                 {
-                    if(target.State != QueueState.Canceled &&
+                    if (target.State != QueueState.Canceled &&
                         target.State != QueueState.Failed &&
                         target.State != QueueState.LogoPending &&
                         target.State != QueueState.Queue)
@@ -3935,10 +4017,10 @@ namespace Amatsukaze.Server
                     target.ProfileName = data.Profile;
                     var profile = GetProfile(target, target.ProfileName);
                     var newDir = GetQueueDirectory(target.Dir.DirPath, target.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
-                    if(newDir != target.Dir)
+                    if (newDir != target.Dir)
                     {
                         MoveItemDirectory(target, newDir, waits);
-                        if(UpdateQueueItem(target, waits))
+                        if (UpdateQueueItem(target, waits, true))
                         {
                             waits.Add(NotifyQueueItemUpdate(target));
                         }
@@ -3947,7 +4029,7 @@ namespace Amatsukaze.Server
 
                     return Task.WhenAll(waits);
                 }
-                else if(data.ChangeType == ChangeItemType.RemoveItem)
+                else if (data.ChangeType == ChangeItemType.RemoveItem)
                 {
                     target.State = QueueState.Canceled;
                     dir.Items.Remove(target);
@@ -3986,10 +4068,9 @@ namespace Amatsukaze.Server
                         item.MapStr = recvitem.MapStr;
                         try
                         {
-                            using (var sw = File.AppendText(filepath))
-                            {
-                                sw.WriteLine(item.MD5 + "=" + recvitem.MapStr);
-                            }
+                            File.AppendAllLines(filepath,
+                                new string[] { item.MD5 + "=" + recvitem.MapStr },
+                                Encoding.UTF8);
                         }
                         catch (Exception e) {
                             await NotifyMessage(true,

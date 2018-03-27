@@ -448,6 +448,7 @@ struct Config {
 	bool ignoreNoLogo;
 	bool ignoreNoDrcsMap;
 	bool ignoreNicoJKError;
+	bool looseLogoDetection;
 	bool noDelogo;
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
@@ -604,6 +605,10 @@ public:
 
 	bool isIgnoreNicoJKError() const {
 		return conf.ignoreNicoJKError;
+	}
+
+	bool isLooseLogoDetection() const {
+		return conf.looseLogoDetection;
 	}
 
 	bool isNoDelogo() const {

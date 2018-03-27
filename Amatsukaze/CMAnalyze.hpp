@@ -150,7 +150,7 @@ private:
 			logof.scanFrames(clip, env.get());
 			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
 
-			float threshold = (duration <= 60 * 7) ? 0.3f : 0.5f;
+			float threshold = setting_.isLooseLogoDetection() ? 0.03f : (duration <= 60 * 7) ? 0.3f : 0.5f;
 			if (logof.getLogoRatio() < threshold) {
 				// 3•ªˆÈ‰º‚Ìƒtƒ@ƒCƒ‹‚ÍƒƒS‚ªŒ©‚Â‚©‚ç‚È‚­‚Ä‚à–³Ž‹‚·‚é
 				if (duration <= 60*3) {

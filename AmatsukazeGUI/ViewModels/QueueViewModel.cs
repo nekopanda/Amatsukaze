@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.IO;
 using Amatsukaze.Components;
+using System.Windows.Data;
 
 namespace Amatsukaze.ViewModels
 {
@@ -93,27 +94,23 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; set; }
 
-        private Components.CollectionItemListener<DisplayQueueDirectory> queueDirListener;
+        private CollectionItemListener<DisplayQueueDirectory> queueDirListener;
 
         public void Initialize()
         {
-            Func<DisplayProfile, QueueMenuProfileViewModel> CreateMenuProfile = s => new QueueMenuProfileViewModel()
-            {
-                QueueVM = this,
-                Item = s
-            };
             _ProfileList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
-                Model.ProfileList, CreateMenuProfile);
-            foreach (var s in Model.ProfileList) _ProfileList.Add(CreateMenuProfile(s));
+                Model.ProfileList, s => new QueueMenuProfileViewModel()
+                {
+                    QueueVM = this,
+                    Item = s
+                });
 
-            Func<DisplayAutoSelect, QueueMenuProfileViewModel> CreateMenuAutoSelect = s => new QueueMenuProfileViewModel()
-            {
-                QueueVM = this,
-                Item = s
-            };
             _AutoSelectList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
-                Model.AutoSelectList, CreateMenuAutoSelect);
-            foreach (var s in Model.AutoSelectList) _AutoSelectList.Add(CreateMenuAutoSelect(s));
+                Model.AutoSelectList, s => new QueueMenuProfileViewModel()
+                {
+                    QueueVM = this,
+                    Item = s
+                });
 
             queueDirListener = new CollectionItemListener<DisplayQueueDirectory>(Model.QueueItems,
                 item => item.PropertyChanged += QueueDirPropertyChanged,
@@ -273,6 +270,7 @@ namespace Amatsukaze.ViewModels
 
         #region SelectedDir変更通知プロパティ
         private DisplayQueueDirectory _SelectedDir;
+        private ICollectionView _ItemsView;
 
         public DisplayQueueDirectory SelectedDir {
             get { return _SelectedDir; }
@@ -281,7 +279,27 @@ namespace Amatsukaze.ViewModels
                     return;
                 _SelectedDir = value;
                 RaisePropertyChanged();
+
+                if(_SelectedDir == null)
+                {
+                    _ItemsView = null;
+                }
+                else
+                {
+                    _ItemsView = CollectionViewSource.GetDefaultView(_SelectedDir.Items);
+                    _ItemsView.Filter = ItemsFilter;
+                    _ItemsView.Refresh();
+                }
             }
+        }
+
+        private bool ItemsFilter(object obj)
+        {
+            if (string.IsNullOrEmpty(_SearchWord)) return true;
+            var item = obj as DisplayQueueItem;
+            return item.Model.ServiceName.IndexOf(_SearchWord) != -1 ||
+                item.Model.FileName.IndexOf(_SearchWord) != -1 ||
+                item.GenreString.IndexOf(_SearchWord) != -1;
         }
         #endregion
 
@@ -300,6 +318,44 @@ namespace Amatsukaze.ViewModels
         public Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> AutoSelectList
         {
             get { return _AutoSelectList; }
+        }
+        #endregion
+
+        #region SearchWord変更通知プロパティ
+        private string _SearchWord;
+
+        public string SearchWord
+        {
+            get { return _SearchWord; }
+            set
+            {
+                if (_SearchWord == value)
+                    return;
+                _SearchWord = value;
+                RaisePropertyChanged();
+                _ItemsView?.Refresh();
+            }
+        }
+        #endregion
+
+        #region ClearSearchWordCommand
+        private ViewModelCommand _ClearSearchWordCommand;
+
+        public ViewModelCommand ClearSearchWordCommand
+        {
+            get
+            {
+                if (_ClearSearchWordCommand == null)
+                {
+                    _ClearSearchWordCommand = new ViewModelCommand(ClearSearchWord);
+                }
+                return _ClearSearchWordCommand;
+            }
+        }
+
+        public void ClearSearchWord()
+        {
+            SearchWord = null;
         }
         #endregion
 
@@ -461,6 +517,23 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region IsPanelOpen変更通知プロパティ
+        private bool _IsPanelOpen;
+
+        public bool IsPanelOpen
+        {
+            get
+            { return _IsPanelOpen; }
+            set
+            {
+                if (_IsPanelOpen == value)
+                    return;
+                _IsPanelOpen = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region OpenLogoAnalyzeCommand
         private ViewModelCommand _OpenLogoAnalyzeCommand;
 
@@ -521,7 +594,7 @@ namespace Amatsukaze.ViewModels
         public async void Retry()
         {
             var items = SelectedQueueItems.OrEmpty().ToArray();
-            if (await ConfirmRetryCompleted(items, "リトライ"))
+            if (await ConfirmRetryCompleted(items, "状態リセット"))
             {
                 foreach (var item in items)
                 {
@@ -529,7 +602,7 @@ namespace Amatsukaze.ViewModels
                     await Model.Server.ChangeItem(new ChangeItemData()
                     {
                         ItemId = file.Id,
-                        ChangeType = ChangeItemType.Retry
+                        ChangeType = ChangeItemType.ResetState
                     });
                 }
             }
@@ -552,17 +625,14 @@ namespace Amatsukaze.ViewModels
         public async void RetryUpdate()
         {
             var items = SelectedQueueItems.OrEmpty().ToArray();
-            if (await ConfirmRetryCompleted(items, "リトライ（設定更新）"))
+            foreach (var item in items)
             {
-                foreach (var item in items)
+                var file = item.Model;
+                await Model.Server.ChangeItem(new ChangeItemData()
                 {
-                    var file = item.Model;
-                    await Model.Server.ChangeItem(new ChangeItemData()
-                    {
-                        ItemId = file.Id,
-                        ChangeType = ChangeItemType.RetryUpdate
-                    });
-                }
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.UpdateProfile
+                });
             }
         }
         #endregion
@@ -585,17 +655,14 @@ namespace Amatsukaze.ViewModels
         public async void ReAdd()
         {
             var items = SelectedQueueItems.OrEmpty().ToArray();
-            if (await ConfirmRetryCompleted(items, "再投入"))
+            foreach (var item in items)
             {
-                foreach (var item in items)
+                var file = item.Model;
+                await Model.Server.ChangeItem(new ChangeItemData()
                 {
-                    var file = item.Model;
-                    await Model.Server.ChangeItem(new ChangeItemData()
-                    {
-                        ItemId = file.Id,
-                        ChangeType = ChangeItemType.ReAdd
-                    });
-                }
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.Duplicate
+                });
             }
         }
         #endregion

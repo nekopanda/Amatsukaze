@@ -800,16 +800,15 @@ namespace Amatsukaze.Server
             // ジャンル情報がない場合はダメ
             if (genre.Count == 0) return false;
 
-            foreach (var content in genre)
+            // １つ目のジャンルだけ見る
+            var content = genre[0];
+            foreach (var cond in conds)
             {
-                foreach (var cond in conds)
+                if (cond.Level1 == content.Level1)
                 {
-                    if (cond.Level1 == content.Level1)
+                    if (cond.Level2 == -1 || cond.Level2 == content.Level2)
                     {
-                        if (cond.Level2 == -1 || cond.Level2 == content.Level2)
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }
