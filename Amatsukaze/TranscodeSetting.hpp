@@ -184,7 +184,8 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 	const std::string& timecodepath,
 	std::pair<int, int> timebase,
 	const std::vector<std::string>& inSubs,
-	const std::vector<std::string>& subsTitles)
+	const std::vector<std::string>& subsTitles,
+	const std::string metapath)
 {
 	std::vector<std::pair<std::string, bool>> ret;
 
@@ -276,8 +277,10 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
 	}
-	else { // mkv
-		// TODO:
+	else { // M2TS
+		sb.append(" \"%s\" \"%s\"", metapath, outpath);
+		ret.push_back(std::make_pair(sb.str(), true));
+		sb.clear();
 	}
 
 	return ret;
@@ -751,10 +754,15 @@ public:
 		return regtmp(StringFormat("%s/t%d-%d%s.mp4", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
+	std::string getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/t%d-%d%s.meta", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	}
+
 	const char* getOutputExtention() const {
 		switch (conf.format) {
 		case FORMAT_MP4: return "mp4";
 		case FORMAT_MKV: return "mkv";
+		case FORMAT_M2TS: return "m2ts";
 		}
 		return "amatsukze";
 	}

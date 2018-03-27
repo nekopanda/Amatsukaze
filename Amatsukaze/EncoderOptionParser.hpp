@@ -23,6 +23,7 @@ enum ENUM_ENCODER_DEINT {
 };
 
 struct EncoderOptionInfo {
+	VIDEO_STREAM_FORMAT format;
 	ENUM_ENCODER_DEINT deint;
 	bool afsTimecode;
 };
@@ -50,12 +51,19 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const std::string& st
 {
 	EncoderOptionInfo info = EncoderOptionInfo();
 
-	if (encoder != ENCODER_QSVENC && encoder != ENCODER_NVENC) {
+	if (encoder == ENCODER_X264) {
+		info.format = VS_H264;
+		return info;
+	}
+	else if (encoder == ENCODER_X265) {
+		info.format = VS_H265;
 		return info;
 	}
 
 	auto argv = SplitOptions(str);
 	int argc = (int)argv.size();
+
+	info.format = VS_H264;
 
 	for (int i = 0; i < argc; ++i) {
 		auto& arg = argv[i];
@@ -113,6 +121,20 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const std::string& st
 			else {
 				info.deint = is24 ? ENCODER_DEINT_24P : ENCODER_DEINT_30P;
 				info.afsTimecode = false;
+			}
+		}
+		else if (arg == L"-c" || arg == L"--codec") {
+			if (next == L"h264") {
+				info.format = VS_H264;
+			}
+			else if (next == L"hevc") {
+				info.format = VS_H265;
+			}
+			else if (next == L"mpeg2") {
+				info.format = VS_MPEG2;
+			}
+			else {
+				info.format = VS_UNKNOWN;
 			}
 		}
 	}

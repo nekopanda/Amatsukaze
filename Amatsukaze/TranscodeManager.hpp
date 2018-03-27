@@ -1404,7 +1404,7 @@ public:
 				subsFiles.push_back(srcsub);
 				subsTitles.push_back("ASS");
 			}
-			else { // MP4の場合は別ファイルとしてコピー
+			else { // MP4,M2TSの場合は別ファイルとしてコピー
 				auto dstsub = pathgen.getOutASSPath(lang, (NicoJKType)0);
 				File::copy(srcsub, dstsub);
 				outFilePath.outSubs.push_back(dstsub);
@@ -1426,12 +1426,43 @@ public:
 		std::string tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
 		outFilePath.outPath = pathgen.getOutFilePath();
 
+		std::string metaFile;
+		if (setting_.getFormat() == FORMAT_M2TS) {
+			// M2TSの場合はmetaファイル作成
+			StringBuilder sb;
+			sb.append("MUXOPT\n");
+			switch (eoInfo.format) {
+			case VS_MPEG2:
+				sb.append("V_MPEG-2");
+				break;
+			case VS_H264:
+				sb.append("V_MPEG4/ISO/AVC");
+				break;
+			case VS_H265:
+				sb.append("V_MPEGH/ISO/HEVC");
+				break;
+			}
+			double fps = vfmt.frameRateNum / (double)vfmt.frameRateDenom;
+			sb.append(",\"%s\",fps=%.3f\n", encVideoFile, fps);
+			for (auto apath : audioFiles) {
+				sb.append("A_AAC,\"%s\",\n", apath);
+			}
+			for (auto spath : subsFiles) {
+				sb.append("S_TEXT/UTF8,\"%s\",fps=%.3f,video-width=%d,video-height=%d\n",
+					spath, fps, vfmt.width, vfmt.height);
+			}
+
+			metaFile = setting_.getM2tsMetaFilePath(videoFileIndex, encoderIndex, cmtype);
+			File file(metaFile, "w");
+			file.write(sb.getMC());
+		}
+
 		auto args = makeMuxerArgs(
 			setting_.getFormat(),
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, vfmt, audioFiles, 
 			outFilePath.outPath, tmpOutPath, chapterFile,
-			timecodeFile, timebase, subsFiles, subsTitles);
+			timecodeFile, timebase, subsFiles, subsTitles, metaFile);
 
 		for (int i = 0; i < (int)args.size(); ++i) {
 			ctx.info(args[i].first.c_str());
@@ -1491,7 +1522,7 @@ public:
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, videoFormat, audioFiles, outFilePath, 
 			std::string(), std::string(), std::string(), std::pair<int, int>(), 
-			std::vector<std::string>(), std::vector<std::string>());
+			std::vector<std::string>(), std::vector<std::string>(), std::string());
 		ctx.info("[Mux開始]");
 		ctx.info(args[0].first.c_str());
 
@@ -1535,6 +1566,11 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
 	PrintEncoderInfo(ctx, eoInfo);
+
+	// チェック
+	if (setting.getFormat() == FORMAT_M2TS && eoInfo.afsTimecode) {
+		THROW(FormatException, "M2TS出力はVFRをサポートしていません");
+	}
 
 	Stopwatch sw;
 	sw.start();
