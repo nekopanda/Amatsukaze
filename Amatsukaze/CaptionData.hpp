@@ -404,7 +404,7 @@ private:
 										auto info = getDRCSOutPath(PTS, std::string(md5.begin(), md5.end()));
 										SaveDRCSImage(info.filename, pDrcs);
 
-										ctx.incrementCounter("drcsnomap");
+										ctx.incrementCounter(AMT_ERR_NO_DRCS_MAP);
 
 										if (info.elapsed >= 0) {
 											double seconds = info.elapsed / MPEG_CLOCK_HZ;

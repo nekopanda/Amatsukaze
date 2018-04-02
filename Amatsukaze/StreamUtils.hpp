@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <array>
 #include <map>
 #include <set>
 #include <fstream>
@@ -305,14 +306,39 @@ enum AMT_LOG_LEVEL {
 	AMT_LOG_ERROR
 };
 
+enum AMT_ERROR_COUNTER {
+   // 不明なPTSのフレーム
+   AMT_ERR_UNKNOWN_PTS = 0,
+   // PESパケットデコードエラー
+   AMT_ERR_DECODE_PACKET_FAILED,
+   // H264におけるPTSミスマッチ
+   AMT_ERR_H264_PTS_MISMATCH,
+   // H264におけるフィールド配置エラー
+   AMT_ERR_H264_UNEXPECTED_FIELD,
+   // PTSが戻っている
+   AMT_ERR_NON_CONTINUOUS_PTS,
+   // DRCSマッピングがない
+   AMT_ERR_NO_DRCS_MAP,
+   // エラーの個数
+   AMT_ERR_MAX,
+};
+
+const char* AMT_ERROR_NAMES[] = {
+   "unknown-pts",
+   "decode-packet-failed",
+   "h264-pts-mismatch",
+   "h264-unexpected-field",
+   "non-continuous-pts",
+   "no-drcs-map",
+};
+
 class AMTContext {
 public:
 	AMTContext()
 		: debugEnabled(true)
 		, acp(GetACP())
-	{
-		counter["incident"] = 0;
-	}
+      , errCounter()
+	{ }
 
 	const CRC32* getCRC() const {
 		return &crc;
@@ -356,21 +382,12 @@ public:
 		tmpFiles.clear();
 	}
 
-	void setCounter(const std::string& key, int value) {
-		counter[key] = value;
+	void incrementCounter(AMT_ERROR_COUNTER err) {
+      errCounter[err]++;
 	}
 
-	void incrementCounter(const std::string& key) {
-		if (counter.find(key) == counter.end()) {
-			counter[key] = 1;
-		}
-		else {
-			counter[key]++;
-		}
-	}
-
-	const std::map<std::string, int>& getCounter() const {
-		return counter;
+	int getErrorCount(AMT_ERROR_COUNTER err) const {
+		return errCounter[err];
 	}
 
 	void setError(const Exception& exception) {
@@ -424,7 +441,7 @@ private:
 	int acp;
 
 	std::set<std::string> tmpFiles;
-	std::map<std::string, int> counter;
+   std::array<int, AMT_ERR_MAX> errCounter;
 	std::string errMessage;
 
 	std::map<std::string, std::wstring> drcsMap;

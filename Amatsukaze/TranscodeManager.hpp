@@ -1602,9 +1602,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 	if(setting.isIgnoreNoDrcsMap() == false) {
 		// DRCSマッピングチェック
-		auto& counter = ctx.getCounter();
-		auto it = counter.find("drcsnomap");
-		if (it != counter.end() && it->second > 0) {
+		if (ctx.getErrorCount(AMT_ERR_NO_DRCS_MAP) > 0) {
 			THROW(NoDrcsMapException, "マッピングにないDRCS外字あり正常に字幕処理できなかったため終了します");
 		}
 	}
@@ -1854,9 +1852,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			(double)duration.first / MPEG_CLOCK_HZ, (double)duration.second / MPEG_CLOCK_HZ);
 		sb.append(", \"audiodiff\": ");
 		audioDiffInfo.printToJson(sb);
-		for (const auto& pair : ctx.getCounter()) {
-			sb.append(", \"%s\": %d", pair.first, pair.second);
-		}
+      sb.append(", \"error\": {");
+      for (int i = 0; i < AMT_ERR_MAX; ++i) {
+         if (i > 0) sb.append(", ");
+         sb.append("\"%s\": %d", AMT_ERROR_NAMES[i], ctx.getErrorCount((AMT_ERROR_COUNTER)i));
+      }
+      sb.append(" }");
 		sb.append(", \"cmanalyze\": %s", (setting.isChapterEnabled() ? "true" : "false"))
 			.append(", \"nicojk\": %s", (nicoOK ? "true" : "false"))
 			.append(" }");

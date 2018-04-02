@@ -74,7 +74,6 @@ class AMTSource : public IClip, AMTObject
 	File waveFile;
 
 	bool initialized;
-	bool errorReported;
 
 	int seekDistance;
 
@@ -333,7 +332,7 @@ class AMTSource : public IClip, AMTObject
 
 		if (it->framePTS != pts) {
 			// 一致するフレームがない
-			ctx.incrementCounter("incident");
+			ctx.incrementCounter(AMT_ERR_UNKNOWN_PTS);
 			ctx.warn("Unknown PTS frame %lld", pts);
 			prevFrame = nullptr; // 連続でなくなる場合はnullリセット
 			return;
@@ -405,13 +404,8 @@ class AMTSource : public IClip, AMTObject
 		while (av_read_frame(inputCtx(), &packet) == 0) {
 			if (packet.stream_index == videoStream->index) {
 				if (avcodec_send_packet(codecCtx(), &packet) != 0) {
-					if (errorReported == false) {
-						// カウントは1回のみ
-						errorReported = true;
-						ctx.incrementCounter("incident");
-					}
+               ctx.incrementCounter(AMT_ERR_DECODE_PACKET_FAILED);
 					ctx.warn("avcodec_send_packet failed");
-					//THROW(FormatException, "avcodec_send_packet failed");
 				}
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
 					// 最初はIフレームまでスキップ
@@ -457,7 +451,6 @@ public:
 		, waveFile(audiopath, "rb")
 		, seekDistance(10)
 		, initialized(false)
-		, errorReported(false)
 		, lastDecodeFrame(-1)
 	{
 		MakeVideoInfo(vfmt, afmt);

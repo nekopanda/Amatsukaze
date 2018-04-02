@@ -795,6 +795,66 @@ namespace Amatsukaze.Server
             }
         }
 
+        public class ErrorDescription
+        {
+            public int[] Count { get; private set; }
+
+            public string[] Message = new string[]
+            {
+                "デコードエラー",
+                "時間処理エラー",
+                "DRCSマッピングのない文字",
+                "その他のエラー",
+            };
+
+            public string[] DecodeErrors = new string[]
+            {
+               "decode-packet-failed",
+               "h264-pts-mismatch",
+               "h264-unexpected-field",
+            };
+
+            public string[] TimeErrors = new string[]
+            {
+               "unknown-pts",
+               "non-continuous-pts",
+            };
+
+            public string[] DrcsErrors = new string[]
+            {
+                "no-drcs-map",
+            };
+
+            public ErrorDescription(List<ErrorCount> error)
+            {
+                var tmp = new int[]
+                {
+                    error.Where(s => Array.IndexOf(DecodeErrors, s.Name) >= 0).Sum(s => s.Count),
+                    error.Where(s => Array.IndexOf(TimeErrors, s.Name) >= 0).Sum(s => s.Count),
+                    error.Where(s => Array.IndexOf(DrcsErrors, s.Name) >= 0).Sum(s => s.Count)
+                };
+                Count = tmp.Concat(new int[] { error.Sum(s => s.Count) - tmp.Sum() }).ToArray();
+            }
+
+            public override string ToString()
+            {
+                if(Count.Sum() == 0)
+                {
+                    return "";
+                }
+                var messages = Message
+                    .Zip(Count, (message, count) => new { Message = message, Count = count })
+                    .Where(s => s.Count > 0)
+                    .Select(s => s.Message + " " + s.Count + "件");
+                return string.Join(",", messages);
+            }
+        }
+
+        public static string ErrorCountToString(List<ErrorCount> error)
+        {
+            return new ErrorDescription(error).ToString();
+        }
+
         private static bool MatchContentConditions(List<GenreItem> genre, List<GenreItem> conds)
         {
             // ジャンル情報がない場合はダメ

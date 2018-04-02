@@ -412,21 +412,21 @@ public:
 					else {
 						// 2枚目はチェック可能だけど面倒なので見ない
 						if (picHeader.picture_structure == 3) {
-							ctx.incrementCounter("incident");
+							ctx.incrementCounter(AMT_ERR_H264_UNEXPECTED_FIELD);
 							ctx.error("フィールド配置が変則的すぎて対応できません");
 							return false;
 						}
 						switch (picType) {
 						case PIC_TFF:
 							if (picHeader.picture_structure != 2) {
-								ctx.incrementCounter("incident");
+								ctx.incrementCounter(AMT_ERR_H264_UNEXPECTED_FIELD);
 								ctx.error("フィールド配置が変則的すぎて対応できません");
 								return false;
 							}
 							break;
 						case PIC_BFF:
 							if (picHeader.picture_structure != 1) {
-								ctx.incrementCounter("incident");
+								ctx.incrementCounter(AMT_ERR_H264_UNEXPECTED_FIELD);
 								ctx.error("フィールド配置が変則的すぎて対応できません");
 								return false;
 							}
@@ -437,7 +437,7 @@ public:
 				}
 
 				if (receivedField > 2) {
-					ctx.incrementCounter("incident");
+					ctx.incrementCounter(AMT_ERR_H264_UNEXPECTED_FIELD);
 					ctx.error("フィールド配置が変則的すぎて対応できません");
 					return false;
 				}

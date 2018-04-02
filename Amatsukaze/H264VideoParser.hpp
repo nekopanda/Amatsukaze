@@ -707,7 +707,7 @@ public:
 								if (PTS != -1) {
 									// PESパケットのPTSと一致しているかチェック
 									if (std::abs(PTS - PTS_from_SEI) > 1) {
-										ctx.incrementCounter("incident");
+										ctx.incrementCounter(AMT_ERR_H264_PTS_MISMATCH);
 										ctx.warn("[H264パーサ] PTSが一致しません");
 									}
 								}
@@ -759,7 +759,7 @@ public:
 					}
 
 					if (receivedField > 2) {
-						ctx.incrementCounter("incident");
+						ctx.incrementCounter(AMT_ERR_H264_UNEXPECTED_FIELD);
 						ctx.warn("フィールド配置が変則的すぎて対応できません");
 						break;
 					}

@@ -496,6 +496,17 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class ErrorCount : IExtensibleDataObject
+    {
+        [DataMember]
+        public string Name;
+        [DataMember]
+        public int Count;
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+    [DataContract]
     public class LogItem : IExtensibleDataObject
     {
         [DataMember]
@@ -542,6 +553,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public int Incident { get; set; }
+        [DataMember]
+        public List<ErrorCount> Error { get; set; }
 
         [DataMember]
         public string Profile { get; set; }

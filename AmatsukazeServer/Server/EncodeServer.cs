@@ -518,7 +518,8 @@ namespace Amatsukaze.Server
                 var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
                 if (isGeneric)
                 {
-                    return new LogItem() {
+                    return new LogItem()
+                    {
                         Success = true,
                         SrcPath = json.srcpath,
                         OutPath = json.outpath,
@@ -547,10 +548,16 @@ namespace Amatsukaze.Server
                         logofiles.Add(Path.GetFileName(logo));
                     }
                 }
-                int incident = (int)json.incident;
-                return new LogItem() {
-                    Success = (incident < 10),
-                    Reason = (incident < 10) ? "" : "インシデントが多すぎます",
+                List<ErrorCount> error = json.error.GetDynamicMemberNames().Select((Func<string, ErrorCount>)(name => new ErrorCount()
+                {
+                    Name = name,
+                    Count = (int)json.error[name]
+                })).ToList();
+
+                return new LogItem()
+                {
+                    Success = true,
+                    Reason = ServerSupport.ErrorCountToString(error),
                     SrcPath = json.srcpath,
                     OutPath = outpath,
                     SrcFileSize = (long)json.srcfilesize,
@@ -561,7 +568,8 @@ namespace Amatsukaze.Server
                     EncodeStartDate = start,
                     EncodeFinishDate = finish,
                     MachineName = Dns.GetHostName(),
-                    AudioDiff = new AudioDiff() {
+                    AudioDiff = new AudioDiff()
+                    {
                         TotalSrcFrames = (int)json.audiodiff.totalsrcframes,
                         TotalOutFrames = (int)json.audiodiff.totaloutframes,
                         TotalOutUniqueFrames = (int)json.audiodiff.totaloutuniqueframes,
@@ -577,7 +585,8 @@ namespace Amatsukaze.Server
                     ServiceId = src.ServiceId,
                     TsTime = src.TsTime,
                     LogoFiles = logofiles,
-                    Incident = incident,
+                    Incident = error.Sum(s => s.Count),
+                    Error = error,
                     Profile = profile,
                 };
             }

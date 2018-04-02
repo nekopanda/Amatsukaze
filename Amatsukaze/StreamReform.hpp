@@ -982,7 +982,7 @@ private:
 		for (int i = 1; i < int(frames.size()); ++i) {
 			if (modifiedPTS[i] - modifiedPTS[i - 1] < -60 * MPEG_CLOCK_HZ) {
 				// 1•ªˆÈã–ß‚Á‚Ä‚¢‚é
-				ctx.incrementCounter("incident");
+				ctx.incrementCounter(AMT_ERR_NON_CONTINUOUS_PTS);
 				ctx.warn("PTS‚ª–ß‚Á‚Ä‚¢‚Ü‚·B³‚µ‚­ˆ—‚Å‚«‚È‚¢‚©‚à‚µ‚ê‚Ü‚¹‚ñB [%d] %.0f -> %.0f",
 					i, modifiedPTS[i - 1], modifiedPTS[i]);
 			}
