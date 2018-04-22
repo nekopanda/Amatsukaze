@@ -21,352 +21,10 @@ using System.Windows.Media.Imaging;
 
 namespace Amatsukaze.Server
 {
-    public class Client : NotificationObject
-    {
-        private ClientManager manager;
-        private TcpClient client;
-        private NetworkStream stream;
-
-        public string HostName { get; private set; }
-        public int Port { get; private set; }
-
-        public IPEndPoint RemoteIP {
-            get {
-                return (IPEndPoint)client.Client.RemoteEndPoint;
-            }
-        }
-
-        public IPEndPoint LocalIP {
-            get {
-                return (IPEndPoint)client.Client.LocalEndPoint;
-            }
-        }
-
-        #region TotalSendCount変更通知プロパティ
-        private int _TotalSendCount;
-
-        public int TotalSendCount {
-            get { return _TotalSendCount; }
-            set { 
-                if (_TotalSendCount == value)
-                    return;
-                _TotalSendCount = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region TotalRecvCount変更通知プロパティ
-        private int _TotalRecvCount;
-
-        public int TotalRecvCount {
-            get { return _TotalRecvCount; }
-            set { 
-                if (_TotalRecvCount == value)
-                    return;
-                _TotalRecvCount = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        public Client(TcpClient client, ClientManager manager)
-        {
-            this.manager = manager;
-            this.client = client;
-            this.stream = client.GetStream();
-
-            var endPoint = (IPEndPoint)client.Client.RemoteEndPoint;
-            HostName = Dns.GetHostEntry(endPoint.Address).HostName;
-            Port = endPoint.Port;
-
-            Util.AddLog("クライアント("+ HostName + ":" + Port + ")と接続");
-        }
-
-        public async Task Start()
-        {
-            try
-            {
-                while (true)
-                {
-                    var rpc = await RPCTypes.Deserialize(stream);
-                    manager.OnRequestReceived(this, rpc.id, rpc.arg);
-                    TotalRecvCount++;
-                }
-            }
-            catch (Exception e)
-            {
-                Util.AddLog("クライアント(" + HostName + ":" + Port + ")との接続が切れました");
-                Util.AddLog(e.Message);
-                Close();
-            }
-            manager.OnClientClosed(this);
-        }
-
-        public void Close()
-        {
-            if (client != null)
-            {
-                client.Close();
-                client = null;
-            }
-        }
-
-        public NetworkStream GetStream()
-        {
-            return stream;
-        }
-    }
-
-    public class ClientManager : NotificationObject, IUserClient
-    {
-        private TcpListener listener;
-        private bool finished = false;
-        private List<Task> receiveTask = new List<Task>();
-
-        public ObservableCollection<Client> ClientList { get; private set; }
-
-        private IEncodeServer server;
-
-        public ClientManager(IEncodeServer server)
-        {
-            this.server = server;
-            ClientList = new ObservableCollection<Client>();
-        }
-
-        public void Finish()
-        {
-            if (listener != null)
-            {
-                listener.Stop();
-                listener = null;
-
-                foreach (var client in ClientList)
-                {
-                    client.Close();
-                }
-            }
-        }
-
-        public async Task Listen(int port)
-        {
-            int errorCount = 0;
-
-            while(finished == false)
-            {
-                listener = new TcpListener(IPAddress.Any, port);
-                listener.Start();
-                Util.AddLog("サーバ開始しました。ポート: " + port);
-
-                try
-                {
-                    while (true)
-                    {
-                        var client = new Client(await listener.AcceptTcpClientAsync(), this);
-                        receiveTask.Add(client.Start());
-                        ClientList.Add(client);
-                        errorCount = 0;
-                    }
-                }
-                catch (Exception e)
-                {
-                    if (finished == false)
-                    {
-                        Util.AddLog("Listen中にエラーが発生");
-                        Util.AddLog(e.Message);
-
-                        // 一定時間待つ
-                        await Task.Delay((++errorCount) * 5 * 1000);
-                    }
-                }
-                finally
-                {
-                    try
-                    {
-                        listener.Stop();
-                    }
-                    catch { }
-                }
-            }
-        }
-
-        private async Task Send(RPCMethodId id, object obj)
-        {
-            byte[] bytes = RPCTypes.Serialize(id, obj);
-            foreach (var client in ClientList.ToArray())
-            {
-                try
-                {
-                    await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
-                    client.TotalSendCount++;
-                }
-                catch (Exception e)
-                {
-                    Util.AddLog("クライアント(" +
-                        client.HostName + ":" + client.Port + ")との接続が切れました");
-                    Util.AddLog(e.Message);
-                    client.Close();
-                    OnClientClosed(client);
-                }
-            }
-        }
-
-        internal void OnRequestReceived(Client client, RPCMethodId methodId, object arg)
-        {
-            switch (methodId)
-            {
-                case RPCMethodId.SetProfile:
-                    server.SetProfile((ProfileUpdate)arg);
-                    break;
-                case RPCMethodId.SetAutoSelect:
-                    server.SetAutoSelect((AutoSelectUpdate)arg);
-                    break;
-                case RPCMethodId.AddQueue:
-                    server.AddQueue((AddQueueDirectory)arg);
-                    break;
-                case RPCMethodId.ChangeItem:
-                    server.ChangeItem((ChangeItemData)arg);
-                    break;
-                case RPCMethodId.PauseEncode:
-                    server.PauseEncode((bool)arg);
-                    break;
-                case RPCMethodId.SetCommonData:
-                    server.SetCommonData((CommonData)arg);
-                    break;
-                case RPCMethodId.SetServiceSetting:
-                    server.SetServiceSetting((ServiceSettingUpdate)arg);
-                    break;
-                case RPCMethodId.AddDrcsMap:
-                    server.AddDrcsMap((DrcsImage)arg);
-                    break;
-                case RPCMethodId.EndServer:
-                    server.EndServer();
-                    break;
-                case RPCMethodId.RequestSetting:
-                    server.RequestSetting();
-                    break;
-                case RPCMethodId.RequestQueue:
-                    server.RequestQueue();
-                    break;
-                case RPCMethodId.RequestLog:
-                    server.RequestLog();
-                    break;
-                case RPCMethodId.RequestConsole:
-                    server.RequestConsole();
-                    break;
-                case RPCMethodId.RequestLogFile:
-                    server.RequestLogFile((LogItem)arg);
-                    break;
-                case RPCMethodId.RequestState:
-                    server.RequestState();
-                    break;
-                case RPCMethodId.RequestFreeSpace:
-                    server.RequestFreeSpace();
-                    break;
-                case RPCMethodId.RequestServiceSetting:
-                    server.RequestServiceSetting();
-                    break;
-                case RPCMethodId.RequestLogoData:
-                    server.RequestLogoData((string)arg);
-                    break;
-                case RPCMethodId.RequestDrcsImages:
-                    server.RequestDrcsImages();
-                    break;
-            }
-        }
-
-        internal void OnClientClosed(Client client)
-        {
-            int index = ClientList.IndexOf(client);
-            if (index >= 0)
-            {
-                receiveTask.RemoveAt(index);
-                ClientList.RemoveAt(index);
-            }
-        }
-
-        #region IUserClient
-        public Task OnQueueData(QueueData data)
-        {
-            return Send(RPCMethodId.OnQueueData, data);
-        }
-
-        public Task OnQueueUpdate(QueueUpdate update)
-        {
-            return Send(RPCMethodId.OnQueueUpdate, update);
-        }
-
-        public Task OnLogData(LogData data)
-        {
-            return Send(RPCMethodId.OnLogData, data);
-        }
-
-        public Task OnLogUpdate(LogItem newLog)
-        {
-            return Send(RPCMethodId.OnLogUpdate, newLog);
-        }
-
-        public Task OnConsole(ConsoleData str)
-        {
-            return Send(RPCMethodId.OnConsole, str);
-        }
-
-        public Task OnConsoleUpdate(ConsoleUpdate str)
-        {
-            return Send(RPCMethodId.OnConsoleUpdate, str);
-        }
-
-        public Task OnLogFile(string str)
-        {
-            return Send(RPCMethodId.OnLogFile, str);
-        }
-
-        public Task OnCommonData(CommonData data)
-        {
-            return Send(RPCMethodId.OnCommonData, data);
-        }
-
-        public Task OnProfile(ProfileUpdate data)
-        {
-            return Send(RPCMethodId.OnProfile, data);
-        }
-
-        public Task OnAutoSelect(AutoSelectUpdate data)
-        {
-            return Send(RPCMethodId.OnAutoSelect, data);
-        }
-
-        public Task OnServiceSetting(ServiceSettingUpdate service)
-        {
-            return Send(RPCMethodId.OnServiceSetting, service);
-        }
-
-        public Task OnLogoData(LogoData logoData)
-        {
-            return Send(RPCMethodId.OnLogoData, logoData);
-        }
-
-        public Task OnDrcsData(DrcsImageUpdate update)
-        {
-            return Send(RPCMethodId.OnDrcsData, update);
-        }
-
-        public Task OnAddResult(string requestId)
-        {
-            return Send(RPCMethodId.OnAddResult, requestId);
-        }
-
-        public Task OnOperationResult(OperationResult result)
-        {
-            return Send(RPCMethodId.OnOperationResult, result);
-        }
-        #endregion
-    }
-
     public class EncodeServer : NotificationObject, IEncodeServer, IDisposable
     {
         [DataContract]
-        private class AppData : IExtensibleDataObject
+        public class AppData : IExtensibleDataObject
         {
             [DataMember]
             public Setting setting;
@@ -383,767 +41,6 @@ namespace Amatsukaze.Server
             public ExtensionDataObject ExtensionData { get; set; }
         }
 
-        private class ConsoleText : ConsoleTextBase
-        {
-            public List<string> TextLines = new List<string>();
-
-            private int maxLines;
-
-            public ConsoleText(int maxLines)
-            {
-                this.maxLines = maxLines;
-            }
-
-            public override void Clear()
-            {
-                base.Clear();
-                TextLines.Clear();
-            }
-
-            public override void OnAddLine(string text)
-            {
-                if (TextLines.Count > maxLines)
-                {
-                    TextLines.RemoveRange(0, 100);
-                }
-                TextLines.Add(text);
-            }
-
-            public override void OnReplaceLine(string text)
-            {
-                if (TextLines.Count == 0)
-                {
-                    TextLines.Add(text);
-                }
-                else
-                {
-                    TextLines[TextLines.Count - 1] = text;
-                }
-            }
-        }
-
-        private class TranscodeTask
-        {
-            public TranscodeWorker thread;
-            public QueueItem src;
-            public FileStream logWriter;
-            public Process process;
-        }
-
-        private class TranscodeWorker : IScheduleWorker<QueueItem>
-        {
-            public int id;
-            public EncodeServer server;
-            public ConsoleText logText;
-            public ConsoleText consoleText;
-
-            public TranscodeTask current { get; private set; }
-
-            private List<Task> waitList;
-
-            public void KillProcess()
-            {
-                if (current != null)
-                {
-                    if (current.process != null)
-                    {
-                        try
-                        {
-                            current.process.Kill();
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            // プロセスが既に終了していた場合
-                        }
-                    }
-                }
-            }
-
-            private LogItem FailLogItem(string srcpath, string profile, string reason, DateTime start, DateTime finish)
-            {
-                return new LogItem() {
-                    Success = false,
-                    Reason = reason,
-                    SrcPath = srcpath,
-                    MachineName = Dns.GetHostName(),
-                    EncodeStartDate = start,
-                    EncodeFinishDate = finish,
-                    Profile = profile,
-                };
-            }
-
-            private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer, int offset, int length)
-            {
-                if (transcode.logWriter != null)
-                {
-                    transcode.logWriter.Write(buffer, offset, length);
-                }
-                logText.AddBytes(buffer, offset, length);
-                consoleText.AddBytes(buffer, offset, length);
-
-                byte[] newbuf = new byte[length];
-                Array.Copy(buffer, newbuf, length);
-                return server.client.OnConsoleUpdate(new ConsoleUpdate() { index = id, data = newbuf });
-            }
-
-            private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer)
-            {
-                return WriteTextBytes(server, transcode, buffer, 0, buffer.Length);
-            }
-
-            private async Task RedirectOut(EncodeServer server, TranscodeTask transcode, Stream stream)
-            {
-                try
-                {
-                    byte[] buffer = new byte[1024];
-                    while (true)
-                    {
-                        var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
-                        if (readBytes == 0)
-                        {
-                            // 終了
-                            return;
-                        }
-                        await WriteTextBytes(server, transcode, buffer, 0, readBytes);
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.Print("RedirectOut exception " + e.Message);
-                }
-            }
-
-            private LogItem LogFromJson(bool isGeneric, string profile, string jsonpath, DateTime start, DateTime finish, QueueItem src, int outputMask)
-            {
-                var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
-                if (isGeneric)
-                {
-                    return new LogItem()
-                    {
-                        Success = true,
-                        SrcPath = json.srcpath,
-                        OutPath = json.outpath,
-                        SrcFileSize = (long)json.srcfilesize,
-                        OutFileSize = (long)json.outfilesize,
-                        MachineName = Dns.GetHostName(),
-                        EncodeStartDate = start,
-                        EncodeFinishDate = finish,
-                        Profile = profile,
-                    };
-                }
-                var outpath = new List<string>();
-                foreach (var file in json.outfiles)
-                {
-                    outpath.Add(file.path);
-                    foreach (var sub in file.subs)
-                    {
-                        outpath.Add(sub);
-                    }
-                }
-                var logofiles = new List<string>();
-                foreach (var logo in json.logofiles)
-                {
-                    if (string.IsNullOrEmpty(logo) == false)
-                    {
-                        logofiles.Add(Path.GetFileName(logo));
-                    }
-                }
-                List<ErrorCount> error = json.error.GetDynamicMemberNames().Select((Func<string, ErrorCount>)(name => new ErrorCount()
-                {
-                    Name = name,
-                    Count = (int)json.error[name]
-                })).ToList();
-
-                return new LogItem()
-                {
-                    Success = true,
-                    Reason = ServerSupport.ErrorCountToString(error),
-                    SrcPath = json.srcpath,
-                    OutPath = outpath,
-                    SrcFileSize = (long)json.srcfilesize,
-                    IntVideoFileSize = (long)json.intvideofilesize,
-                    OutFileSize = (long)json.outfilesize,
-                    SrcVideoDuration = TimeSpan.FromSeconds(json.srcduration),
-                    OutVideoDuration = TimeSpan.FromSeconds(json.outduration),
-                    EncodeStartDate = start,
-                    EncodeFinishDate = finish,
-                    MachineName = Dns.GetHostName(),
-                    AudioDiff = new AudioDiff()
-                    {
-                        TotalSrcFrames = (int)json.audiodiff.totalsrcframes,
-                        TotalOutFrames = (int)json.audiodiff.totaloutframes,
-                        TotalOutUniqueFrames = (int)json.audiodiff.totaloutuniqueframes,
-                        NotIncludedPer = json.audiodiff.notincludedper,
-                        AvgDiff = json.audiodiff.avgdiff,
-                        MaxDiff = json.audiodiff.maxdiff,
-                        MaxDiffPos = json.audiodiff.maxdiffpos
-                    },
-                    Chapter = json.cmanalyze,
-                    NicoJK = json.nicojk,
-                    OutputMask = outputMask,
-                    ServiceName = src.ServiceName,
-                    ServiceId = src.ServiceId,
-                    TsTime = src.TsTime,
-                    LogoFiles = logofiles,
-                    Incident = error.Sum(s => s.Count),
-                    Error = error,
-                    Profile = profile,
-                };
-            }
-
-            private async Task<LogItem> ProcessItem(EncodeServer server, QueueItem src, QueueDirectory dir)
-            {
-                DateTime now = DateTime.Now;
-
-                if (File.Exists(src.SrcPath) == false)
-                {
-                    return FailLogItem(src.SrcPath, dir.Profile.Name, "入力ファイルが見つかりません", now, now);
-                }
-
-                ProfileSetting profile = dir.Profile;
-                ServiceSettingElement serviceSetting = 
-                    server.appData.services.ServiceMap[src.ServiceId];
-
-                bool ignoreNoLogo = true;
-                string[] logopaths = null;
-                if (profile.DisableChapter == false)
-                {
-                    var logofiles = serviceSetting.LogoSettings
-                        .Where(s => s.CanUse(src.TsTime))
-                        .Select(s => s.FileName)
-                        .ToArray();
-                    if (logofiles.Length == 0)
-                    {
-                        // これは必要ないはず
-                        src.FailReason = "ロゴ設定がありません";
-                        return null;
-                    }
-                    ignoreNoLogo = !logofiles.All(path => path != LogoSetting.NO_LOGO);
-                    logopaths = logofiles.Where(path => path != LogoSetting.NO_LOGO).ToArray();
-                }
-
-
-                // 出力パス生成
-                string dstpath;
-                if (dir.IsTest)
-                {
-                    var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
-                    var baseName = Path.Combine(
-                        Path.GetDirectoryName(src.DstPath),
-                        Path.GetFileNameWithoutExtension(src.DstPath));
-                    dstpath = Util.CreateDstFile(baseName, ext);
-                }
-                else
-                {
-                    dstpath = src.DstPath;
-                }
-
-                bool isMp4 = src.SrcPath.ToLower().EndsWith(".mp4");
-                string srcpath = src.SrcPath;
-                string localsrc = null;
-                string localdst = dstpath;
-                string tmpBase = null;
-
-                try
-                {
-                    if (dir.HashList != null || src.Hash != null)
-                    {
-                        // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
-                        // NASとエンコードPCが同じ場合はローカルでのコピーとなってしまうが
-                        // そこだけ特別処理するのは大変なので、全部同じようにコピーする
-
-                        tmpBase = Util.CreateTmpFile(server.appData.setting.WorkPath);
-                        localsrc = tmpBase + "-in" + Path.GetExtension(srcpath);
-                        string name = Path.GetFileName(srcpath);
-                        if (dir.HashList != null && dir.HashList.ContainsKey(name) == false)
-                        {
-                            return FailLogItem(src.SrcPath, dir.Profile.Name, "入力ファイルのハッシュがありません", now, now);
-                        }
-
-                        byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
-                        var refhash = (dir.HashList != null) ? dir.HashList[name] : src.Hash;
-                        if (hash.SequenceEqual(refhash) == false)
-                        {
-                            File.Delete(localsrc);
-                            return FailLogItem(src.SrcPath, dir.Profile.Name, "コピーしたファイルのハッシュが一致しません", now, now);
-                        }
-
-                        srcpath = localsrc;
-                        localdst = tmpBase + "-out.mp4";
-                    }
-
-                    string json = Path.Combine(
-                        Path.GetDirectoryName(localdst),
-                        Path.GetFileNameWithoutExtension(localdst)) + "-enc.json";
-                    string logpath = Path.Combine(
-                        Path.GetDirectoryName(dstpath),
-                        Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
-                    string jlscmd = serviceSetting.DisableCMCheck ?
-                        null :
-                        (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
-                        profile.DefaultJLSCommand :
-                        serviceSetting.JLSCommand);
-                    string jlsopt = serviceSetting.DisableCMCheck ?
-                        null : serviceSetting.JLSOption;
-
-                    string args = server.MakeAmatsukazeArgs(
-                        profile,
-                        server.appData.setting,
-                        isMp4,
-                        srcpath, localdst, json,
-                        src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt);
-                    string exename = server.appData.setting.AmatsukazePath;
-
-                    int outputMask = profile.OutputMask;
-
-                    Util.AddLog(id, "エンコード開始: " + src.SrcPath);
-                    Util.AddLog(id, "Args: " + exename + " " + args);
-
-                    DateTime start = DateTime.Now;
-
-                    var psi = new ProcessStartInfo(exename, args) {
-                        UseShellExecute = false,
-                        WorkingDirectory = Directory.GetCurrentDirectory(),
-                        RedirectStandardError = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardInput = false,
-                        CreateNoWindow = true
-                    };
-
-                    int exitCode = -1;
-                    bool isCanceled = false;
-                    logText.Clear();
-
-                    try
-                    {
-                        using (var p = Process.Start(psi))
-                        {
-                            try
-                            {
-                                // アフィニティを設定
-                                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
-                                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
-                                p.ProcessorAffinity = affinityMask;
-                                p.PriorityClass = ProcessPriorityClass.BelowNormal;
-                            }
-                            catch (InvalidOperationException)
-                            {
-                                // 既にプロセスが終了していると例外が出るが無視する
-                            }
-
-                            current = new TranscodeTask() {
-                                thread = this,
-                                src = src,
-                                process = p,
-                            };
-
-                            using (current.logWriter = File.Create(logpath))
-                            {
-                                // 起動コマンドをログ出力
-                                await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
-
-                                await Task.WhenAll(
-                                    RedirectOut(server, current, p.StandardOutput.BaseStream),
-                                    RedirectOut(server, current, p.StandardError.BaseStream),
-                                    Task.Run(() =>
-                                    {
-                                        while(p.WaitForExit(1000) == false)
-                                        {
-                                            if(src.State == QueueState.Canceled)
-                                            {
-                                                // キャンセルされた
-                                                p.Kill();
-                                                isCanceled = true;
-                                                break;
-                                            }
-                                        }
-                                    }));
-                            }
-
-                            exitCode = p.ExitCode;
-                        }
-                    }
-                    catch (Win32Exception w32e)
-                    {
-                        Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
-                        throw w32e;
-                    }
-                    catch (IOException ioe)
-                    {
-                        Util.AddLog(id, "ログファイル生成に失敗");
-                        throw ioe;
-                    }
-                    finally
-                    {
-                        if (current != null)
-                        {
-                            current.logWriter = null;
-                            current = null;
-                        }
-                    }
-
-                    DateTime finish = DateTime.Now;
-
-                    if (dir.HashList != null || src.Hash != null)
-                    {
-                        File.Delete(localsrc);
-                    }
-
-                    // ログを整形したテキストに置き換える
-                    using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
-                    {
-                        foreach (var str in logText.TextLines)
-                        {
-                            fs.WriteLine(str);
-                        }
-                    }
-
-                    // ログファイルを専用フォルダにコピー
-                    if (File.Exists(logpath))
-                    {
-                        string logbase = server.GetLogFileBase(start);
-                        Directory.CreateDirectory(Path.GetDirectoryName(logbase));
-                        string dstlog = logbase + ".txt";
-                        if(profile.MoveLogFile)
-                        {
-                            File.Move(logpath, dstlog);
-                        }
-                        else
-                        {
-                            File.Copy(logpath, dstlog);
-                        }
-
-                        if (File.Exists(json))
-                        {
-                            string dstjson = logbase + ".json";
-                            File.Move(json, dstjson);
-                            json = dstjson;
-                        }
-                    }
-
-                    if(exitCode == 0 && isCanceled == false)
-                    {
-                        // 成功
-                        var log = LogFromJson(isMp4, dir.Profile.Name, json, start, finish, src, outputMask);
-
-                        // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
-                        if (dir.HashList != null || src.Hash != null)
-                        {
-                            log.SrcPath = src.SrcPath;
-                            string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
-                            string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
-                            for (int i = 0; i < log.OutPath.Count; ++i)
-                            {
-                                string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
-                                var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
-                                string name = Path.GetFileName(outpath);
-                                HashUtil.AppendHash(Path.Combine(Path.GetDirectoryName(src.DstPath), "_encoded.hash"), name, hash);
-                                File.Delete(log.OutPath[i]);
-                                log.OutPath[i] = outpath;
-                            }
-                        }
-
-                        return log;
-                    }
-
-                    // 失敗 //
-
-                    if (dir.IsTest)
-                    {
-                        // 出力ファイルを削除
-                        File.Delete(dstpath);
-                    }
-
-                    if(isCanceled)
-                    {
-                        // キャンセルされた
-                        return FailLogItem(src.SrcPath, dir.Profile.Name, "キャンセルされました", start, finish);
-                    }
-                    else if (exitCode == 100)
-                    {
-                        // マッチするロゴがなかった
-                        return FailLogItem(src.SrcPath, dir.Profile.Name, "マッチするロゴがありませんでした", start, finish);
-                    }
-                    else if (exitCode == 101)
-                    {
-                        // DRCSマッピングがなかった
-                        return FailLogItem(src.SrcPath, dir.Profile.Name, "DRCS外字のマッピングがありませんでした", start, finish);
-                    }
-                    else
-                    {
-                        // その他
-                        return FailLogItem(src.SrcPath, dir.Profile.Name,
-                            "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
-                    }
-
-                }
-                finally
-                {
-                    if (tmpBase != null)
-                    {
-                        File.Delete(tmpBase);
-                    }
-                }
-            }
-
-            private async Task<bool> RunEncodeItem(QueueItem workerItem)
-            {
-                try
-                {
-                    var dir = workerItem.Dir;
-                    var src = workerItem;
-
-                    // キューじゃなかったらダメ
-                    if (src.State != QueueState.Queue)
-                    {
-                        return true;
-                    }
-
-                    if(dir.IsBatch)
-                    {
-                        Directory.CreateDirectory(dir.Succeeded);
-                        Directory.CreateDirectory(dir.Failed);
-                    }
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(src.DstPath));
-
-                    // 待たなくてもいいタスクリスト
-                    waitList = new List<Task>();
-
-                    LogItem logItem = null;
-                    bool result = true;
-
-                    server.UpdateQueueItem(src, waitList, true);
-                    if (src.State == QueueState.Queue)
-                    {
-                        src.State = QueueState.Encoding;
-                        waitList.Add(server.NotifyQueueItemUpdate(src));
-                        logItem = await ProcessItem(server, src, dir);
-                    }
-
-                    if (logItem == null)
-                    {
-                        // ペンディング
-                        src.State = QueueState.LogoPending;
-                        // 他の項目も更新しておく
-                        server.UpdateQueueItems(waitList);
-                    }
-                    else
-                    {
-                        if (logItem.Success)
-                        {
-                            src.State = QueueState.Complete;
-                        }
-                        else
-                        {
-                            if(src.State != QueueState.Canceled)
-                            {
-                                src.State = QueueState.Failed;
-                            }
-                            src.FailReason = logItem.Reason;
-                            result = false;
-                        }
-
-                        if (dir.IsBatch)
-                        {
-                            var sameItems = dir.Items.Where(s => s.SrcPath == src.SrcPath);
-                            if (sameItems.Any(s => s.IsActive) == false)
-                            {
-                                // もうこのファイルでアクティブなアイテムはない
-
-                                if(sameItems.Any(s => s.State == QueueState.Complete))
-                                {
-                                    // 成功が1つでもあれば関連ファイルをコピー
-                                    if (dir.Profile.MoveEDCBFiles)
-                                    {
-                                        var commonName = Path.GetFileNameWithoutExtension(src.SrcPath);
-                                        var srcBody = Path.GetDirectoryName(src.SrcPath) + "\\" + commonName;
-                                        var dstBody = Path.GetDirectoryName(src.DstPath) + "\\" + commonName;
-                                        foreach (var ext in ServerSupport
-                                            .GetFileExtentions(null, dir.Profile.MoveEDCBFiles))
-                                        {
-                                            var srcPath = srcBody + ext;
-                                            var dstPath = dstBody + ext;
-                                            if (File.Exists(srcPath) && !File.Exists(dstPath))
-                                            {
-                                                File.Copy(srcPath, dstPath);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // キャンセルの場合、削除されている可能性がある
-                                // 自分がキャンセルされている場合は、移動しない
-                                if (src.State != QueueState.Canceled && sameItems.All(s => s.State != QueueState.Canceled))
-                                {
-                                    // キャンセルが1つもない場合のみ
-                                    if (sameItems.Any(s => s.State == QueueState.Failed))
-                                    {
-                                        // 失敗がある
-                                        EncodeServer.MoveTSFile(src.SrcPath, dir.Failed, dir.Profile.MoveEDCBFiles);
-                                    }
-                                    else
-                                    {
-                                        // 全て成功
-                                        EncodeServer.MoveTSFile(src.SrcPath, dir.Succeeded, dir.Profile.MoveEDCBFiles);
-                                    }
-                                }
-                            }
-                        }
-
-                        server.log.Items.Add(logItem);
-                        server.WriteLog();
-                        waitList.Add(server.client.OnLogUpdate(server.log.Items.Last()));
-                    }
-
-                    waitList.Add(server.NotifyQueueItemUpdate(src));
-                    waitList.Add(server.RequestFreeSpace());
-
-                    await Task.WhenAll(waitList);
-
-                    return result;
-
-                }
-                catch (Exception e)
-                {
-                    await server.client.OnOperationResult(new OperationResult()
-                    {
-                        IsFailed = true,
-                        Message = "予期せぬエラー: " + e.Message
-                    });
-                    return false;
-                }
-            }
-
-            private async Task<bool> ProcessSearchItem(EncodeServer server, QueueItem src)
-            {
-                if (File.Exists(src.SrcPath) == false)
-                {
-                    return false;
-                }
-
-                string args = server.MakeAmatsukazeSearchArgs(
-                    src.SrcPath, src.ServiceId);
-                string exename = server.appData.setting.AmatsukazePath;
-
-                Util.AddLog(id, "サーチ開始: " + src.SrcPath);
-                Util.AddLog(id, "Args: " + exename + " " + args);
-
-                var psi = new ProcessStartInfo(exename, args)
-                {
-                    UseShellExecute = false,
-                    WorkingDirectory = Directory.GetCurrentDirectory(),
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardInput = false,
-                    CreateNoWindow = true
-                };
-
-                int exitCode = -1;
-                logText.Clear();
-
-                try
-                {
-                    using (var p = Process.Start(psi))
-                    {
-                        try
-                        {
-                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            // 既にプロセスが終了していると例外が出るが無視する
-                        }
-
-                        current = new TranscodeTask()
-                        {
-                            thread = this,
-                            src = src,
-                            process = p,
-                        };
-
-                        // 起動コマンドをログ出力
-                        await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
-
-                        await Task.WhenAll(
-                            RedirectOut(server, current, p.StandardOutput.BaseStream),
-                            RedirectOut(server, current, p.StandardError.BaseStream),
-                            Task.Run(() => p.WaitForExit()));
-
-                        exitCode = p.ExitCode;
-                    }
-
-                    if (exitCode == 0)
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                catch (Win32Exception w32e)
-                {
-                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
-                    throw w32e;
-                }
-                finally
-                {
-                    current = null;
-                }
-            }
-
-            private async Task<bool> RunSearchItem(QueueItem workerItem)
-            {
-                try
-                {
-                    var dir = workerItem.Dir;
-                    var src = workerItem;
-
-                    // キューじゃなかったらダメ
-                    if (src.State != QueueState.Queue)
-                    {
-                        return true;
-                    }
-
-                    // 待たなくてもいいタスクリスト
-                    waitList = new List<Task>();
-
-                    src.State = QueueState.Encoding;
-                    waitList.Add(server.NotifyQueueItemUpdate(src));
-                    bool result = await ProcessSearchItem(server, src);
-                    src.State = result ? QueueState.Complete : QueueState.Failed;
-                    waitList.Add(server.NotifyQueueItemUpdate(src));
-
-                    await Task.WhenAll(waitList);
-
-                    return result;
-
-                }
-                catch (Exception e)
-                {
-                    await server.client.OnOperationResult(new OperationResult()
-                    {
-                        IsFailed = true,
-                        Message = "予期せぬエラー: " + e.Message
-                    });
-                    return false;
-                }
-            }
-
-            public Task<bool> RunItem(QueueItem workerItem)
-            {
-                if(workerItem.Dir.Mode == ProcMode.DrcsSearch)
-                {
-                    return RunSearchItem(workerItem);
-                }
-                else
-                {
-                    return RunEncodeItem(workerItem);
-                }
-            }
-        }
-
         private class EncodeException : Exception
         {
             public EncodeException(string message)
@@ -1157,9 +54,9 @@ namespace Amatsukaze.Server
                  (c >= 'a' && c <= 'f') ||
                  (c >= 'A' && c <= 'F');
 
-        private IUserClient client;
+        internal IUserClient Client { get; private set; }
         public Task ServerTask { get; private set; }
-        private AppData appData;
+        internal AppData AppData_ { get; private set; }
 
         private Action finishRequested;
 
@@ -1168,10 +65,10 @@ namespace Amatsukaze.Server
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private int nextDirId = 1;
         private int nextItemId = 1;
-        private LogData log;
+        internal LogData Log { get; private set; }
         private SortedDictionary<string, DiskItem> diskMap = new SortedDictionary<string, DiskItem>();
 
-        private AffinityCreator affinityCreator = new AffinityCreator();
+        internal readonly AffinityCreator affinityCreator = new AffinityCreator();
 
         private Dictionary<string, ProfileSetting> profiles = new Dictionary<string, ProfileSetting>();
         private Dictionary<string, AutoSelectProfile> autoSelects = new Dictionary<string, AutoSelectProfile>();
@@ -1244,7 +141,7 @@ namespace Amatsukaze.Server
         #endregion
 
         public ClientManager ClientManager {
-            get { return client as ClientManager; }
+            get { return Client as ClientManager; }
         }
 
         public EncodeServer(int port, IUserClient client, Action finishRequested)
@@ -1254,13 +151,13 @@ namespace Amatsukaze.Server
             LoadAutoSelectData();
             if (client != null)
             {
-                this.client = client;
+                this.Client = client;
             }
             else
             {
                 var clientManager = new ClientManager(this);
                 ServerTask = clientManager.Listen(port);
-                this.client = clientManager;
+                this.Client = clientManager;
                 RaisePropertyChanged("ClientManager");
             }
             ReadLog();
@@ -1287,7 +184,7 @@ namespace Amatsukaze.Server
                     {
                         File.Create(GetDRCSMapPath());
                     }
-                    if (appData.setting.ClearWorkDirOnStart)
+                    if (AppData_.setting.ClearWorkDirOnStart)
                     {
                         CleanTmpDir();
                     }
@@ -1321,8 +218,8 @@ namespace Amatsukaze.Server
                 },
                 OnError = message => NotifyMessage(true, message, true)
             };
-            scheduler.SetNumParallel(appData.setting.NumParallel);
-            affinityCreator.NumProcess = appData.setting.NumParallel;
+            scheduler.SetNumParallel(AppData_.setting.NumParallel);
+            affinityCreator.NumProcess = AppData_.setting.NumParallel;
 
             // 古いバージョンからの更新処理
             UpdateFromOldVersion();
@@ -1412,7 +309,7 @@ namespace Amatsukaze.Server
             return "data\\EncodeHistory.xml";
         }
 
-        private string GetLogFileBase(DateTime start)
+        internal string GetLogFileBase(DateTime start)
         {
             return "data\\logs\\" + start.ToString("yyyy-MM-dd_HHmmss.fff");
         }
@@ -1485,17 +382,17 @@ namespace Amatsukaze.Server
 
         public void Finish()
         {
-            if (client != null)
+            if (Client != null)
             {
-                client.Finish();
-                client = null;
+                Client.Finish();
+                Client = null;
             }
         }
 
         private void UpdateFromOldVersion()
         {
             // 古いバージョンからのアップデート処理
-            if(appData.Version == 0)
+            if(AppData_.Version == 0)
             {
                 // DRCS文字の並びを変更する
                 var dirPath = GetDRCSDirectoryPath();
@@ -1552,7 +449,7 @@ namespace Amatsukaze.Server
             }
 
             // 現在バージョンに更新
-            appData.Version = 1;
+            AppData_.Version = 1;
         }
 
         private Task NotifyMessage(bool fail, string message, bool log)
@@ -1561,7 +458,7 @@ namespace Amatsukaze.Server
             {
                 Util.AddLog(message);
             }
-            return client.OnOperationResult(new OperationResult()
+            return Client.OnOperationResult(new OperationResult()
             {
                 IsFailed = fail,
                 Message = message
@@ -1634,7 +531,7 @@ namespace Amatsukaze.Server
             string path = GetSettingFilePath();
             if (File.Exists(path) == false)
             {
-                appData = new AppData() {
+                AppData_ = new AppData() {
                     setting = GetDefaultSetting(),
                     scriptData = new MakeScriptData(),
                     services = new ServiceSetting() {
@@ -1646,22 +543,22 @@ namespace Amatsukaze.Server
             using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(AppData));
-                appData = (AppData)s.ReadObject(fs);
-                if (appData.setting == null)
+                AppData_ = (AppData)s.ReadObject(fs);
+                if (AppData_.setting == null)
                 {
-                    appData.setting = GetDefaultSetting();
+                    AppData_.setting = GetDefaultSetting();
                 }
-                if (appData.scriptData == null)
+                if (AppData_.scriptData == null)
                 {
-                    appData.scriptData = new MakeScriptData();
+                    AppData_.scriptData = new MakeScriptData();
                 }
-                if (appData.services == null)
+                if (AppData_.services == null)
                 {
-                    appData.services = new ServiceSetting();
+                    AppData_.services = new ServiceSetting();
                 }
-                if (appData.services.ServiceMap == null)
+                if (AppData_.services.ServiceMap == null)
                 {
-                    appData.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
+                    AppData_.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
                 }
             }
         }
@@ -1673,7 +570,7 @@ namespace Amatsukaze.Server
             using (FileStream fs = new FileStream(path, FileMode.Create))
             {
                 var s = new DataContractSerializer(typeof(AppData));
-                s.WriteObject(fs, appData);
+                s.WriteObject(fs, AppData_);
             }
         }
 
@@ -1765,7 +662,7 @@ namespace Amatsukaze.Server
             string path = GetHistoryFilePath();
             if (File.Exists(path) == false)
             {
-                log = new LogData() {
+                Log = new LogData() {
                     Items = new List<LogItem>()
                 };
                 return;
@@ -1775,10 +672,10 @@ namespace Amatsukaze.Server
                 using (FileStream fs = new FileStream(path, FileMode.Open))
                 {
                     var s = new DataContractSerializer(typeof(LogData));
-                    log = (LogData)s.ReadObject(fs);
-                    if (log.Items == null)
+                    Log = (LogData)s.ReadObject(fs);
+                    if (Log.Items == null)
                     {
-                        log.Items = new List<LogItem>();
+                        Log.Items = new List<LogItem>();
                     }
                 }
             }
@@ -1788,7 +685,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private void WriteLog()
+        internal void WriteLog()
         {
             string path = GetHistoryFilePath();
             try
@@ -1797,7 +694,7 @@ namespace Amatsukaze.Server
                 using (FileStream fs = new FileStream(path, FileMode.Create))
                 {
                     var s = new DataContractSerializer(typeof(LogData));
-                    s.WriteObject(fs, log);
+                    s.WriteObject(fs, Log);
                 }
             }
             catch (IOException e)
@@ -1866,7 +763,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private string MakeAmatsukazeSearchArgs(string src, int serviceId)
+        internal string MakeAmatsukazeSearchArgs(string src, int serviceId)
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("--mode drcs")
@@ -1882,7 +779,7 @@ namespace Amatsukaze.Server
             return sb.ToString();
         }
 
-        private string MakeAmatsukazeArgs(
+        internal string MakeAmatsukazeArgs(
             ProfileSetting profile,
             Setting setting,
             bool isGeneric,
@@ -2098,14 +995,14 @@ namespace Amatsukaze.Server
             Progress = ((enabledCount - remainCount) + 0.1) / (enabledCount + 0.1);
         }
 
-        private Task NotifyQueueItemUpdate(QueueItem item)
+        internal Task NotifyQueueItemUpdate(QueueItem item)
         {
             UpdateProgress();
             if(item.Dir.Items.Contains(item))
             {
                 // ないアイテムをUpdateすると追加されてしまうので
                 return Task.WhenAll(
-                    client.OnQueueUpdate(new QueueUpdate()
+                    Client.OnQueueUpdate(new QueueUpdate()
                     {
                         Type = UpdateType.Update,
                         DirId = item.Dir.Id,
@@ -2119,7 +1016,7 @@ namespace Amatsukaze.Server
         private void CleanTmpDir()
         {
             foreach (var dir in Directory
-                .GetDirectories(appData.setting.ActualWorkPath)
+                .GetDirectories(AppData_.setting.ActualWorkPath)
                 .Where(s => Path.GetFileName(s).StartsWith("amt")))
             {
                 try
@@ -2129,7 +1026,7 @@ namespace Amatsukaze.Server
                 catch (Exception) { } // 例外は無視
             }
             foreach (var file in Directory
-                .GetFiles(appData.setting.ActualWorkPath)
+                .GetFiles(AppData_.setting.ActualWorkPath)
                 .Where(s => Path.GetFileName(s).StartsWith("amt")))
             {
                 try
@@ -2233,6 +1130,25 @@ namespace Amatsukaze.Server
                         throw new ArgumentException("NicoConvASSパスが設定されていません");
                     }
                 }
+
+                if (profile.EnableRename)
+                {
+                    if (string.IsNullOrEmpty(setting.SCRenamePath))
+                    {
+                        throw new ArgumentException("SCRenameパスが設定されていません");
+                    }
+                    var fileName = Path.GetFileName(setting.SCRenamePath);
+                    // 間違える人がいるかも知れないので一応チェックしておく
+                    if(fileName.Equals("SCRename.bat", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.Equals("SCRenameEDCB.bat", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new ArgumentException("SCRenameはbatファイルではなくvbsファイルへのパスを設定してください");
+                    }
+                    if (string.IsNullOrEmpty(profile.RenameFormat))
+                    {
+                        throw new ArgumentException("リネームフォーマットが設定されていません");
+                    }
+                }
             }
         }
 
@@ -2295,7 +1211,7 @@ namespace Amatsukaze.Server
                 }
 
                 queue.Add(target);
-                waitItems.Add(client.OnQueueUpdate(new QueueUpdate()
+                waitItems.Add(Client.OnQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Add,
                     Directory = target
@@ -2344,7 +1260,7 @@ namespace Amatsukaze.Server
                     .Select(f => new AddQueueItem() { Path = f }))
                     .Where(f => !ignoreSet.Contains(f.Path));
 
-            var map = appData.services.ServiceMap;
+            var map = AppData_.services.ServiceMap;
             var numItems = 0;
 
             // TSファイル情報を読む
@@ -2412,6 +1328,7 @@ namespace Amatsukaze.Server
                                         ImageHeight = prog.Height,
                                         TsTime = tsTime,
                                         ServiceName = serviceName,
+                                        EventName = prog.EventName,
                                         State = QueueState.LogoPending,
                                         Priority = priority,
                                         AddTime = DateTime.Now,
@@ -2439,7 +1356,7 @@ namespace Amatsukaze.Server
                                             };
                                             map.Add(item.ServiceId, newElement);
                                             serviceListUpdated = true;
-                                            waits.Add(client.OnServiceSetting(new ServiceSettingUpdate()
+                                            waits.Add(Client.OnServiceSetting(new ServiceSettingUpdate()
                                             {
                                                 Type = ServiceSettingUpdateType.Update,
                                                 ServiceId = newElement.ServiceId,
@@ -2454,7 +1371,7 @@ namespace Amatsukaze.Server
                                     // まずは内部だけで状態を更新
                                     UpdateQueueItem(item, waits, false);
                                     // 状態が決まったらクライアント側に追加通知
-                                    waits.Add(client.OnQueueUpdate(new QueueUpdate()
+                                    waits.Add(Client.OnQueueUpdate(new QueueUpdate()
                                     {
                                         Type = UpdateType.Add,
                                         DirId = item.Dir.Id,
@@ -2495,7 +1412,7 @@ namespace Amatsukaze.Server
                             };
 
                             target.Items.Add(item);
-                            waits.Add(client.OnQueueUpdate(new QueueUpdate()
+                            waits.Add(Client.OnQueueUpdate(new QueueUpdate()
                             {
                                 Type = UpdateType.Add,
                                 DirId = target.Id,
@@ -2530,9 +1447,9 @@ namespace Amatsukaze.Server
                 var profileName = ServerSupport.ParseProfileName(dir.Outputs[0].Profile, out isAuto);
                 if(!isAuto)
                 {
-                    if (appData.setting.LastSelectedProfile != profileName)
+                    if (AppData_.setting.LastSelectedProfile != profileName)
                     {
-                        appData.setting.LastSelectedProfile = profileName;
+                        AppData_.setting.LastSelectedProfile = profileName;
                         settingUpdated = true;
                     }
                 }
@@ -2551,7 +1468,7 @@ namespace Amatsukaze.Server
                 {
                     AddQueueDirectory dir = await queueQ.ReceiveAsync();
                     await InternalAddQueue(dir);
-                    await client.OnAddResult(dir.RequestId);
+                    await Client.OnAddResult(dir.RequestId);
                 }
             }
             catch (Exception exception)
@@ -2615,7 +1532,7 @@ namespace Amatsukaze.Server
             // RemoveとAddをatomicに行わなければならないのでここをawaitにしないこと
             // ?.の後ろの引数はnullの場合は評価されないことに注意
             // （C#の仕様が分かりにくいけど・・・）
-            waits?.Add(client.OnQueueUpdate(new QueueUpdate()
+            waits?.Add(Client.OnQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Remove,
                 DirId = item.Dir.Id,
@@ -2626,7 +1543,7 @@ namespace Amatsukaze.Server
             {
                 // プロファイル未選択ディレクトリは自動的に削除する
                 queue.Remove(item.Dir);
-                waits?.Add(client.OnQueueUpdate(new QueueUpdate()
+                waits?.Add(Client.OnQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = item.Dir.Id,
@@ -2635,7 +1552,7 @@ namespace Amatsukaze.Server
 
             item.Dir = newDir;
             item.Dir.Items.Add(item);
-            waits?.Add(client.OnQueueUpdate(new QueueUpdate()
+            waits?.Add(Client.OnQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
                 DirId = item.Dir.Id,
@@ -2699,7 +1616,7 @@ namespace Amatsukaze.Server
         // ペンディングからキューになったらスケジューリングに追加する
         // notifyItem: trueの場合は、ディレクトリ・アイテム両方の更新通知、falseの場合は、ディレクトリの更新通知のみ
         // 戻り値: 状態が変わった
-        private bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
+        internal bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
         {
             var dir = item.Dir;
             if(item.State == QueueState.LogoPending || item.State == QueueState.Queue)
@@ -2713,7 +1630,7 @@ namespace Amatsukaze.Server
                 }
                 else if (CheckProfile(item, dir, waits, notifyItem))
                 {
-                    var map = appData.services.ServiceMap;
+                    var map = AppData_.services.ServiceMap;
                     if (item.ServiceId == -1)
                     {
                         item.FailReason = "TS情報取得中";
@@ -2740,7 +1657,7 @@ namespace Amatsukaze.Server
 
                             scheduler.QueueItem(item, item.ActualPriority);
 
-                            if (appData.setting.SupressSleep)
+                            if (AppData_.setting.SupressSleep)
                             {
                                 // サスペンドを抑止
                                 if (preventSuspend == null)
@@ -2756,9 +1673,9 @@ namespace Amatsukaze.Server
             return false;
         }
 
-        private List<Task> UpdateQueueItems(List<Task> waits)
+        internal List<Task> UpdateQueueItems(List<Task> waits)
         {
-            var map = appData.services.ServiceMap;
+            var map = AppData_.services.ServiceMap;
             foreach (var dir in queue.ToArray())
             {
                 foreach(var item in dir.Items.ToArray())
@@ -2876,7 +1793,7 @@ namespace Amatsukaze.Server
                 var drcsTime = DateTime.MinValue;
 
                 // 初期化
-                foreach (var service in appData.services.ServiceMap.Values)
+                foreach (var service in AppData_.services.ServiceMap.Values)
                 {
                     foreach (var logo in service.LogoSettings)
                     {
@@ -2890,7 +1807,7 @@ namespace Amatsukaze.Server
                     string logopath = GetLogoDirectoryPath();
                     if (Directory.Exists(logopath))
                     {
-                        var map = appData.services.ServiceMap;
+                        var map = AppData_.services.ServiceMap;
 
                         var logoDict = new Dictionary<string, LogoSetting>();
                         foreach (var service in map.Values)
@@ -3006,7 +1923,7 @@ namespace Amatsukaze.Server
                             // 更新をクライアントに通知
                             foreach (var updatedServiceId in updatedServices.Distinct())
                             {
-                                await client.OnServiceSetting(new ServiceSettingUpdate() {
+                                await Client.OnServiceSetting(new ServiceSettingUpdate() {
                                     Type = ServiceSettingUpdateType.Update,
                                     ServiceId = updatedServiceId,
                                     Data = map[updatedServiceId]
@@ -3029,7 +1946,7 @@ namespace Amatsukaze.Server
 
                             JlsCommandFiles = Directory.GetFiles(jlspath)
                                 .Select(s => Path.GetFileName(s)).ToList();
-                            await client.OnCommonData(new CommonData()
+                            await Client.OnCommonData(new CommonData()
                             {
                                 JlsCommandFiles = JlsCommandFiles
                             });
@@ -3054,7 +1971,7 @@ namespace Amatsukaze.Server
                             PostScriptFiles = files
                                 .Where(f => f.StartsWith("ポスト_")).ToList();
 
-                            await client.OnCommonData(new CommonData()
+                            await Client.OnCommonData(new CommonData()
                             {
                                 MainScriptFiles = MainScriptFiles,
                                 PostScriptFiles = PostScriptFiles
@@ -3115,7 +2032,7 @@ namespace Amatsukaze.Server
                                 if (newDrcsMap.ContainsKey(key) == false)
                                 {
                                     // 消えた
-                                    await client.OnDrcsData(new DrcsImageUpdate() {
+                                    await Client.OnDrcsData(new DrcsImageUpdate() {
                                         Type = DrcsUpdateType.Remove,
                                         Image = drcsMap[key]
                                     });
@@ -3139,7 +2056,7 @@ namespace Amatsukaze.Server
 
                             if(updateImages.Count > 0)
                             {
-                                await client.OnDrcsData(new DrcsImageUpdate() {
+                                await Client.OnDrcsData(new DrcsImageUpdate() {
                                     Type = DrcsUpdateType.Update,
                                     ImageList = updateImages.Distinct().ToList()
                                 });
@@ -3177,7 +2094,7 @@ namespace Amatsukaze.Server
                                         profile.Name = name;
                                         profile.LastUpdate = File.GetLastWriteTime(filepath);
                                         profiles.Add(profile.Name, profile);
-                                        await client.OnProfile(new ProfileUpdate()
+                                        await Client.OnProfile(new ProfileUpdate()
                                         {
                                             Type = UpdateType.Add,
                                             Profile = profile
@@ -3185,7 +2102,7 @@ namespace Amatsukaze.Server
                                     }
                                     catch (Exception e)
                                     {
-                                        await client.OnOperationResult(new OperationResult()
+                                        await Client.OnOperationResult(new OperationResult()
                                         {
                                             IsFailed = true,
                                             Message = "プロファイル「" + filepath + "」の読み込みに失敗\r\n" + e.Message
@@ -3197,7 +2114,7 @@ namespace Amatsukaze.Server
                                     // 削除された
                                     var profile = profiles[name];
                                     profiles.Remove(name);
-                                    await client.OnProfile(new ProfileUpdate()
+                                    await Client.OnProfile(new ProfileUpdate()
                                     {
                                         Type = UpdateType.Remove,
                                         Profile = profile
@@ -3215,7 +2132,7 @@ namespace Amatsukaze.Server
                                             profile = ReadProfile(filepath);
                                             profile.Name = name;
                                             profile.LastUpdate = lastUpdate;
-                                            await client.OnProfile(new ProfileUpdate()
+                                            await Client.OnProfile(new ProfileUpdate()
                                             {
                                                 Type = UpdateType.Update,
                                                 Profile = profile
@@ -3223,7 +2140,7 @@ namespace Amatsukaze.Server
                                         }
                                         catch (Exception e)
                                         {
-                                            await client.OnOperationResult(new OperationResult()
+                                            await Client.OnOperationResult(new OperationResult()
                                             {
                                                 IsFailed = true,
                                                 Message = "プロファイル「" + filepath + "」の読み込みに失敗\r\n" + e.Message
@@ -3241,7 +2158,7 @@ namespace Amatsukaze.Server
                                 SaveProfile(filepath, profile);
                                 profile.LastUpdate = File.GetLastWriteTime(filepath);
                                 profiles.Add(profile.Name, profile);
-                                await client.OnProfile(new ProfileUpdate()
+                                await Client.OnProfile(new ProfileUpdate()
                                 {
                                     Type = UpdateType.Add,
                                     Profile = profile
@@ -3260,7 +2177,7 @@ namespace Amatsukaze.Server
                                 Conditions = new List<AutoSelectCondition>()
                             };
                             autoSelects.Add(def.Name, def);
-                            await client.OnAutoSelect(new AutoSelectUpdate()
+                            await Client.OnAutoSelect(new AutoSelectUpdate()
                             {
                                 Type = UpdateType.Add,
                                 Profile = def
@@ -3329,9 +2246,9 @@ namespace Amatsukaze.Server
         private void RefrechDiskSpace()
         {
             diskMap = new SortedDictionary<string, DiskItem>();
-            if (string.IsNullOrEmpty(appData.setting.AlwaysShowDisk) == false)
+            if (string.IsNullOrEmpty(AppData_.setting.AlwaysShowDisk) == false)
             {
-                foreach (var path in appData.setting.AlwaysShowDisk.Split(';'))
+                foreach (var path in AppData_.setting.AlwaysShowDisk.Split(';'))
                 {
                     if (string.IsNullOrEmpty(path))
                     {
@@ -3355,8 +2272,8 @@ namespace Amatsukaze.Server
                     diskMap.Add(item, MakeDiskItem(item));
                 }
             }
-            if(string.IsNullOrEmpty(appData.setting.WorkPath) == false) {
-                var diskPath = Path.GetPathRoot(appData.setting.WorkPath);
+            if(string.IsNullOrEmpty(AppData_.setting.WorkPath) == false) {
+                var diskPath = Path.GetPathRoot(AppData_.setting.WorkPath);
                 if (diskMap.ContainsKey(diskPath) == false)
                 {
                     diskMap.Add(diskPath, MakeDiskItem(diskPath));
@@ -3377,6 +2294,14 @@ namespace Amatsukaze.Server
             };
         }
 
+        private void SetDefaultFormat(ProfileSetting profile)
+        {
+            if (string.IsNullOrWhiteSpace(profile.RenameFormat))
+            {
+                profile.RenameFormat = "$SCtitle$\\$SCtitle$ $SCpart$第$SCnumber$話 「$SCsubtitle$」 ($SCservice$) [$SCdate$]";
+            }
+        }
+
         public Task SetProfile(ProfileUpdate data)
         {
             try
@@ -3390,9 +2315,10 @@ namespace Amatsukaze.Server
 
                 if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
                 {
-                    if(data.Type == UpdateType.Update)
+                    SetDefaultFormat(data.Profile);
+                    if (data.Type == UpdateType.Update)
                     {
-                        CheckSetting(data.Profile, appData.setting);
+                        CheckSetting(data.Profile, AppData_.setting);
                     }
                     SaveProfile(filepath, data.Profile);
                     data.Profile.LastUpdate = File.GetLastWriteTime(filepath);
@@ -3418,7 +2344,7 @@ namespace Amatsukaze.Server
                         message = "プロファイル「" + data.Profile.Name + "」を削除しました";
                     }
                 }
-                waits.Add(client.OnProfile(data));
+                waits.Add(Client.OnProfile(data));
                 waits.Add(NotifyMessage(false, message, false));
                 return Task.WhenAll(waits);
             }
@@ -3466,7 +2392,7 @@ namespace Amatsukaze.Server
                         autoSelectUpdated = true;
                     }
                 }
-                waits.Add(client.OnAutoSelect(data));
+                waits.Add(Client.OnAutoSelect(data));
                 waits.Add(NotifyMessage(false, message, false));
                 return Task.WhenAll(waits);
             }
@@ -3484,20 +2410,20 @@ namespace Amatsukaze.Server
                 {
                     SetDefaultPath(data.Setting);
                     CheckSetting(null, data.Setting);
-                    appData.setting = data.Setting;
+                    AppData_.setting = data.Setting;
                     scheduler.SetNumParallel(data.Setting.NumParallel);
                     affinityCreator.NumProcess = data.Setting.NumParallel;
                     settingUpdated = true;
                     return Task.WhenAll(
-                        client.OnCommonData(new CommonData() { Setting = appData.setting }),
+                        Client.OnCommonData(new CommonData() { Setting = AppData_.setting }),
                         RequestFreeSpace(),
                         NotifyMessage(false, "設定を更新しました", false));
                 }
                 else if(data.MakeScriptData != null)
                 {
-                    appData.scriptData = data.MakeScriptData;
+                    AppData_.scriptData = data.MakeScriptData;
                     settingUpdated = true;
-                    return client.OnCommonData(new CommonData() {
+                    return Client.OnCommonData(new CommonData() {
                         MakeScriptData = data.MakeScriptData
                     });
                 }
@@ -3563,8 +2489,8 @@ namespace Amatsukaze.Server
 
         public async Task RequestSetting()
         {
-            await client.OnCommonData(new CommonData() {
-                Setting = appData.setting,
+            await Client.OnCommonData(new CommonData() {
+                Setting = AppData_.setting,
                 JlsCommandFiles = JlsCommandFiles,
                 MainScriptFiles = MainScriptFiles,
                 PostScriptFiles = PostScriptFiles,
@@ -3576,26 +2502,26 @@ namespace Amatsukaze.Server
             });
 
             // プロファイル
-            await client.OnProfile(new ProfileUpdate()
+            await Client.OnProfile(new ProfileUpdate()
             {
                 Type = UpdateType.Clear
             });
             foreach (var profile in profiles.Values.ToArray())
             {
-                await client.OnProfile(new ProfileUpdate() {
+                await Client.OnProfile(new ProfileUpdate() {
                     Profile = profile,
                     Type = UpdateType.Update
                 });
             }
 
             // 自動選択
-            await client.OnAutoSelect(new AutoSelectUpdate()
+            await Client.OnAutoSelect(new AutoSelectUpdate()
             {
                 Type = UpdateType.Clear
             });
             foreach (var profile in autoSelects.Values.ToArray())
             {
-                await client.OnAutoSelect(new AutoSelectUpdate()
+                await Client.OnAutoSelect(new AutoSelectUpdate()
                 {
                     Profile = profile,
                     Type = UpdateType.Update
@@ -3604,9 +2530,9 @@ namespace Amatsukaze.Server
 
             // プロファイルがないと関連付けできないため、
             // プロファイルを送った後にこれを送る
-            await client.OnCommonData(new CommonData()
+            await Client.OnCommonData(new CommonData()
             {
-                MakeScriptData = appData.scriptData,
+                MakeScriptData = AppData_.scriptData,
             });
         }
 
@@ -3616,18 +2542,18 @@ namespace Amatsukaze.Server
             {
                 Items = queue
             };
-            return client.OnQueueData(data);
+            return Client.OnQueueData(data);
         }
 
         public Task RequestLog()
         {
-            return client.OnLogData(log);
+            return Client.OnLogData(Log);
         }
 
         public Task RequestConsole()
         {
             return Task.WhenAll(scheduler.Workers.Cast<TranscodeWorker>().Select(w =>
-                client.OnConsole(new ConsoleData() {
+                Client.OnConsole(new ConsoleData() {
                     index = w.id,
                     text = w.consoleText.TextLines as List<string>
                 })));
@@ -3635,7 +2561,7 @@ namespace Amatsukaze.Server
 
         public Task RequestLogFile(LogItem item)
         {
-            return client.OnLogFile(ReadLogFIle(item.EncodeStartDate));
+            return Client.OnLogFile(ReadLogFIle(item.EncodeStartDate));
         }
 
         public Task RequestState()
@@ -3645,7 +2571,7 @@ namespace Amatsukaze.Server
                 Running = nowEncoding,
                 Progress = Progress
             };
-            return client.OnCommonData(new CommonData()
+            return Client.OnCommonData(new CommonData()
             {
                 State = state
             });
@@ -3654,14 +2580,14 @@ namespace Amatsukaze.Server
         public Task RequestFreeSpace()
         {
             RefrechDiskSpace();
-            return client.OnCommonData(new CommonData() {
+            return Client.OnCommonData(new CommonData() {
                 Disks = diskMap.Values.ToList()
             });
         }
 
         public Task RequestDrcsImages()
         {
-            return client.OnDrcsData(new DrcsImageUpdate() {
+            return Client.OnDrcsData(new DrcsImageUpdate() {
                 Type = DrcsUpdateType.Update,
                 ImageList = drcsMap.Values.ToList()
             });
@@ -3669,7 +2595,7 @@ namespace Amatsukaze.Server
 
         public async Task SetServiceSetting(ServiceSettingUpdate update)
         {
-            var serviceMap = appData.services.ServiceMap;
+            var serviceMap = AppData_.services.ServiceMap;
             var message = "サービスが見つかりません";
             if(serviceMap.ContainsKey(update.ServiceId))
             {
@@ -3716,19 +2642,19 @@ namespace Amatsukaze.Server
                 }
                 settingUpdated = true;
             }
-            await client.OnServiceSetting(update);
+            await Client.OnServiceSetting(update);
         }
 
         public async Task RequestServiceSetting()
         {
-            var serviceMap = appData.services.ServiceMap;
-            await client.OnServiceSetting(new ServiceSettingUpdate()
+            var serviceMap = AppData_.services.ServiceMap;
+            await Client.OnServiceSetting(new ServiceSettingUpdate()
             {
                 Type = ServiceSettingUpdateType.Clear
             });
             foreach (var service in serviceMap.Values.ToArray())
             {
-                await client.OnServiceSetting(new ServiceSettingUpdate() {
+                await Client.OnServiceSetting(new ServiceSettingUpdate() {
                     Type = ServiceSettingUpdateType.Update,
                     ServiceId = service.ServiceId,
                     Data = service
@@ -3747,7 +2673,7 @@ namespace Amatsukaze.Server
             try
             {
                 var logofile = new LogoFile(amtcontext, logopath);
-                return client.OnLogoData(new LogoData() {
+                return Client.OnLogoData(new LogoData() {
                     FileName = fileName,
                     ServiceId = logofile.ServiceId,
                     ImageWith = logofile.ImageWidth,
@@ -3794,7 +2720,7 @@ namespace Amatsukaze.Server
             newItem.State = QueueState.LogoPending;
             UpdateQueueItem(newItem, waits, false);
 
-            waits.Add(client.OnQueueUpdate(new QueueUpdate()
+            waits.Add(Client.OnQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
                 DirId = newItem.Dir.Id,
@@ -3802,7 +2728,7 @@ namespace Amatsukaze.Server
             }));
         }
 
-        private static void MoveTSFile(string file, string dstDir, bool withEDCB)
+        internal static void MoveTSFile(string file, string dstDir, bool withEDCB)
         {
             string body = Path.GetFileNameWithoutExtension(file);
             string tsext = Path.GetExtension(file);
@@ -3824,7 +2750,7 @@ namespace Amatsukaze.Server
             {
                 // 全て完了しているのでディレクトリを削除
                 queue.Remove(dir);
-                waits.Add(client.OnQueueUpdate(new QueueUpdate()
+                waits.Add(Client.OnQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = dir.Id
@@ -3836,7 +2762,7 @@ namespace Amatsukaze.Server
             foreach (var item in removeItems)
             {
                 dir.Items.Remove(item);
-                waits.Add(client.OnQueueUpdate(new QueueUpdate()
+                waits.Add(Client.OnQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = item.Dir.Id,
@@ -3881,7 +2807,7 @@ namespace Amatsukaze.Server
                         item.State = QueueState.Canceled;
                     }
                     return Task.WhenAll(
-                        client.OnQueueUpdate(new QueueUpdate()
+                        Client.OnQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Remove,
                             DirId = target.Id
@@ -3985,7 +2911,7 @@ namespace Amatsukaze.Server
                     {
                         target.State = QueueState.Canceled;
                         return Task.WhenAll(
-                            client.OnQueueUpdate(new QueueUpdate()
+                            Client.OnQueueUpdate(new QueueUpdate()
                             {
                                 Type = UpdateType.Update,
                                 DirId = target.Dir.Id,
@@ -4004,7 +2930,7 @@ namespace Amatsukaze.Server
                     target.Priority = data.Priority;
                     scheduler.UpdatePriority(target, target.ActualPriority);
                     return Task.WhenAll(
-                        client.OnQueueUpdate(new QueueUpdate()
+                        Client.OnQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Update,
                             DirId = target.Dir.Id,
@@ -4043,7 +2969,7 @@ namespace Amatsukaze.Server
                     target.State = QueueState.Canceled;
                     dir.Items.Remove(target);
                     return Task.WhenAll(
-                        client.OnQueueUpdate(new QueueUpdate()
+                        Client.OnQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Remove,
                             DirId = target.Dir.Id,
@@ -4128,7 +3054,7 @@ namespace Amatsukaze.Server
                         MoveFileEx(tmppath, filepath, 11);
                     }
 
-                    await client.OnDrcsData(new DrcsImageUpdate() {
+                    await Client.OnDrcsData(new DrcsImageUpdate() {
                         Type = updateType,
                         Image = item
                     });

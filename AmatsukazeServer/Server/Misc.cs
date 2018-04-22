@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
@@ -302,6 +303,30 @@ namespace Amatsukaze.Server
                 catch (IOException) { }
             }
             throw new IOException("出力ファイル作成に失敗");
+        }
+
+        private static Regex escapeFileNameRegex = new Regex("[/:*?\"<>|\\\\]");
+
+        // ファイル名不可文字の置換
+        public static string EscapeFileName(string name, bool escapeYen)
+        {
+            MatchEvaluator eval = match =>
+            {
+                switch (match.Value)
+                {
+                    case "/": return "／";
+                    case ":": return "：";
+                    case "*": return "＊";
+                    case "?": return "？";
+                    case "\"": return "”";
+                    case "<": return "＜";
+                    case ">": return "＞";
+                    case "|": return "｜";
+                    case "\\": return escapeYen ? "￥" : "\\";
+                    default: throw new Exception("Unexpected match!");
+                }
+            };
+            return escapeFileNameRegex.Replace(name, eval);
         }
     }
 

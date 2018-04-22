@@ -123,6 +123,13 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool MoveLogFile { get; set; }
 
+        [DataMember]
+        public bool EnableRename { get; set; }
+        [DataMember]
+        public string RenameFormat { get; set; }
+        [DataMember]
+        public bool EnableGunreFolder { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public int NicoJKFormatMask
@@ -178,6 +185,8 @@ namespace Amatsukaze.Server
         public string NicoConvASSPath { get; set; }
         [DataMember]
         public string TsMuxeRPath { get; set; }
+        [DataMember]
+        public string SCRenamePath { get; set; }
 
         [DataMember]
         public string WorkPath { get; set; }
@@ -374,10 +383,13 @@ namespace Amatsukaze.Server
         [DataMember]
         public string ProfileName { get; set; }
         [DataMember]
+        public string EventName { get; set; }
+        [DataMember]
         public List<GenreItem> Genre { get; set; }
 
         // サーバで使う
         public QueueDirectory Dir { get; set; }
+        public string ActualDstPath { get; set; }
 
         public string FileName { get { return System.IO.Path.GetFileName(SrcPath); } }
 

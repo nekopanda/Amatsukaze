@@ -87,6 +87,7 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NicoConvASSパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="tsMuxeRパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="SCRenameパス"/>
                 </StackPanel>
                 <DockPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel DockPanel.Dock="Right">
@@ -123,6 +124,7 @@
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.JoinLogoScpPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.NicoConvASSPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.TsMuxeRPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.SCRenamePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     </StackPanel>
                 </DockPanel>
 

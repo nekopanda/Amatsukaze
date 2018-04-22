@@ -1205,6 +1205,9 @@ namespace Amatsukaze.Models
                 profile.Mpeg2DecoderInt = (int)data.Profile.Mpeg2Decoder;
                 profile.H264DecoderInt = (int)data.Profile.H264Deocder;
                 profile.OutputFormatInt = (int)data.Profile.OutputFormat;
+                profile.EnableGunreFolder = data.Profile.EnableGunreFolder;
+                profile.EnableRename = data.Profile.EnableRename;
+                profile.RenameFormat = data.Profile.RenameFormat;
 
                 profile.IsModified = false;
 

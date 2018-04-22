@@ -95,6 +95,8 @@ namespace Amatsukaze.Lib
         public int Height;
         public int SarW;
         public int SarH;
+        public string EventName;
+        public string EventText;
         public ContentNibbles[] Content;
     }
 
@@ -152,6 +154,12 @@ namespace Amatsukaze.Lib
 
         [DllImport("Amatsukaze.dll")]
         private static extern IntPtr TsInfo_GetServiceName(IntPtr ptr, int i);
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern IntPtr TsInfo_GetEventName(IntPtr ptr, int i);
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern IntPtr TsInfo_GetEventText(IntPtr ptr, int i);
         #endregion
 
         public TsInfo(AMTContext ctx)
@@ -215,6 +223,8 @@ namespace Amatsukaze.Lib
                         out prog.ServiceId, out prog.HasVideo, out prog.VideoPid, out numContent);
                     TsInfo_GetVideoFormat(Ptr, i,
                         out prog.Stream, out prog.Width, out prog.Height, out prog.SarW, out prog.SarH);
+                    prog.EventName = Marshal.PtrToStringUni(TsInfo_GetEventName(Ptr, i));
+                    prog.EventText = Marshal.PtrToStringUni(TsInfo_GetEventText(Ptr, i));
                     prog.Content = Enumerable.Range(0, numContent)
                         .Select(ci => {
                             ContentNibbles data = new ContentNibbles();

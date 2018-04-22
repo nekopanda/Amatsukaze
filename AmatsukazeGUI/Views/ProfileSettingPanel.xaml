@@ -63,6 +63,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition />
                 </Grid.RowDefinitions>
 
@@ -124,17 +125,38 @@
                           SelectedItem="{Binding Model.SelectedProfile.OutputMask, Mode=TwoWay}"
                        ToolTip="CMカットの精度は100%ではありません"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,62,1,0"/>
-                <CheckBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Content="2パス" Margin="10,62,0,6"
-                          IsChecked="{Binding Model.SelectedProfile.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
+                <StackPanel Grid.Row="3" Grid.Column="0">
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,3" Text="リネーム"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,15" Text="SCRename書式"/>
+                    <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
+                    <TextBlock HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,3"/>
+                </StackPanel>
+                <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,0">
+                    <CheckBox Height="16" Margin="0,3"  Content="SCRenameによるリネームを行う" 
+                              IsChecked="{Binding Model.SelectedProfile.EnableRename, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="SCRenameで適切なファイル名を取得してエンコード後、そのファイル名を設定します" />
 
-                <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
-                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Margin="100,5,0,0" VerticalAlignment="Top" Width="50" Height="23" Grid.RowSpan="2"
+                    <TextBox Margin="0,3" Height="40" TextWrapping="Wrap"
+                             Text="{Binding Model.SelectedProfile.RenameFormat, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalAlignment="Top"
+                             ToolTip="空欄にするとデフォルト書式を設定します"/>
+
+                    <CheckBox Height="16" Margin="0,3"  Content="ジャンルごとにフォルダ分け" 
+                              IsChecked="{Binding Model.SelectedProfile.EnableGunreFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="SCRenameでリネームされる場合はフォルダ分けされません。SCRenameで名前を取得できない場合はフォルダ分けの対象となります" />
+
+                    <CheckBox Margin="0,3" Content="2パス"
+                          IsChecked="{Binding Model.SelectedProfile.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
+                </StackPanel>
+
+                
+                <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
+                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Margin="100,5,0,0" VerticalAlignment="Top" Width="50" Height="23" Grid.RowSpan="2"
                      Text="{Binding Model.SelectedProfile.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"
                      ToolTip="CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。&#xA;QSVEnc,NVEncで通常出力の場合は対応していません。"/>
 
-                <CheckBox x:Name="autoBitrateCheck" Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="9.667,33,0,0"
+                <CheckBox x:Name="autoBitrateCheck" Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="9.667,33,0,0"
                           IsChecked="{Binding Model.SelectedProfile.AutoBuffer, Mode=TwoWay}" Height="19" VerticalAlignment="Top">
                     <CheckBox.ToolTip>
                         <TextBlock>入力ファイルの映像ビットレートからビットレートを計算します。
@@ -145,17 +167,17 @@
                     </CheckBox.ToolTip>
                 </CheckBox>
 
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="a" Margin="4.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
-                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="14.667,53,0,0"
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="a" Margin="4.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
+                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="14.667,53,0,0"
                          IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.SelectedProfile.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="b" Margin="69.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
-                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="79.667,53,0,0"
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="b" Margin="69.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
+                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="79.667,53,0,0"
                          IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.SelectedProfile.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="h264" Margin="134.667,57,0,0" HorizontalAlignment="Left" Width="30" Height="19" VerticalAlignment="Top" />
-                <TextBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="164.667,53,0,0" 
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="h264" Margin="134.667,57,0,0" HorizontalAlignment="Left" Width="30" Height="19" VerticalAlignment="Top" />
+                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="164.667,53,0,0" 
                          IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.SelectedProfile.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
 
-                <Grid Grid.Row="3" Grid.Column="1" Margin="0,85,0,10" Width="240" HorizontalAlignment="Left">
+                <Grid Grid.Row="4" Grid.Column="1" Margin="0,85,0,10" Width="240" HorizontalAlignment="Left">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
                         <ColumnDefinition/>
@@ -187,8 +209,8 @@
                     <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate7H264}" HorizontalAlignment="Center" />
                 </Grid>
 
-                <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ニコニコ実況コメント" VerticalAlignment="Top" Margin="0,45.667,0,0"/>
-                <StackPanel Grid.Row="4" Grid.Column="1" Margin="10,0">
+                <TextBlock Grid.Row="5" HorizontalAlignment="Left" Text="ニコニコ実況コメント" VerticalAlignment="Top" Margin="0,45.667,0,0"/>
+                <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -225,11 +247,11 @@
                         <CheckBox Grid.Row="2" Grid.Column="2" Content="半透明" Margin="3,3" IsChecked="{Binding Model.SelectedProfile.NicoJKFormat1080T, Mode=TwoWay}"/>
                     </Grid>
                 </StackPanel>
-
-                <StackPanel Grid.Row="5" Grid.Column="0">
+                
+                <StackPanel Grid.Row="6" Grid.Column="0">
                     <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,80" Text="その他の設定"/>
                 </StackPanel>
-                <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
+                <StackPanel Grid.Row="6" Grid.Column="1" Margin="10,0">
                     <CheckBox Height="16" Margin="0,3"  Content="関連ファイル(*.err,*.program.txtなど)も処理" 
                               IsChecked="{Binding Model.SelectedProfile.MoveEDCBFiles, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="これらのファイルも一緒にコピー・移動されるようになります。" />

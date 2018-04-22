@@ -481,6 +481,33 @@ private:
 	uint8_t* service_name_;
 };
 
+struct ShortEventDescriptor
+{
+  ShortEventDescriptor(Descriptor desc) : desc(desc) { }
+
+  int ISO_639_language_code() { return read24(payload_.data); }
+
+  MemoryChunk event_name() {
+    return MemoryChunk(event_name_ + 1, *event_name_);
+  }
+  MemoryChunk text() {
+    return MemoryChunk(text_ + 1, *text_);
+  }
+
+  bool parse() {
+    payload_ = desc.payload();
+    event_name_ = &payload_.data[3];
+    text_ = event_name_ + 1 + *event_name_;
+    return (5 + *event_name_ + *text_) <= (int)payload_.length;
+  }
+
+private:
+  Descriptor desc;
+  MemoryChunk payload_;
+  uint8_t* event_name_;
+  uint8_t* text_;
+};
+
 struct StreamIdentifierDescriptor
 {
 	StreamIdentifierDescriptor(Descriptor desc) : desc(desc) { }
@@ -1205,7 +1232,7 @@ private:
 			return;
 		}
 		PAT pat(section);
-		if (pat.parse() && pat.check()) {
+		if (section.current_next_indicator() && pat.parse() && pat.check()) {
 			int patTSID = pat.TSID();
 			std::vector<int> sids;
 			std::vector<int> pids;
@@ -1246,7 +1273,7 @@ private:
 			return;
 		}
 		PMT pmt(section);
-		if (pmt.parse() && pmt.check()) {
+		if (section.current_next_indicator() && pmt.parse() && pmt.check()) {
 
 			printPMT(pmt);
 

@@ -36,6 +36,8 @@ struct ContentNibbles {
 
 struct ContentInfo {
 	int serviceId;
+  std::wstring eventName;
+  std::wstring text;
 	std::vector<ContentNibbles> nibbles;
 };
 
@@ -217,6 +219,11 @@ private:
 	{
 		PAT pat = section;
 		if (pat.parse() && pat.check()) {
+#if 1
+      if (section.current_next_indicator() == 0) {
+        printf("IS NEXT PAT\n");
+      }
+#endif
 			std::vector<PATElement> programs;
 			for (int i = 0; i < pat.numElems(); ++i) {
 				auto elem = pat.get(i);
@@ -245,7 +252,7 @@ private:
 	void onPMT(PsiSection section)
 	{
 		PMT pmt = section;
-		if (pmt.parse() && pmt.check()) {
+		if (section.current_next_indicator() && pmt.parse() && pmt.check()) {
 			// 該当プログラムを探す
 			ProgramItem* item = getProgramItem(pmt.program_number());
 			if (item != nullptr) {
@@ -309,7 +316,7 @@ private:
 	void onSDT(PsiSection section)
 	{
 		SDT sdt(section);
-		if (sdt.parse() && sdt.check()) {
+		if (section.current_next_indicator() && sdt.parse() && sdt.check()) {
 			serviceList.clear();
 			for (int i = 0; i < sdt.numElems(); ++i) {
 				ServiceInfo info;
@@ -335,16 +342,25 @@ private:
 	void onEIT(PsiSection section)
 	{
 		EIT eit(section);
-		if (eit.parse() && eit.check()) {
+		if (section.current_next_indicator() && eit.parse() && eit.check() &&
+      section.section_number() == 0) // 現在の番組のみ
+    {
 			ProgramItem* item = getProgramItem(eit.service_id());
 			if (item != nullptr) {
 				if (eit.numElems() > 0) {
 					auto elem = eit.get(0);
 					startTime = elem.start_time();
 					auto descs = ParseDescriptors(elem.descriptor());
-					std::vector<ContentNibbles> nibbles;
+          ContentInfo info;
 					for (int i = 0; i < (int)descs.size(); ++i) {
-						if (descs[i].tag() == 0x54) { // コンテント記述子
+            if (descs[i].tag() == 0x4D) { // 短形式イベント記述子
+              ShortEventDescriptor seventdesc(descs[i]);
+              if (seventdesc.parse()) {
+                info.eventName = GetAribString(seventdesc.event_name());
+                info.text = GetAribString(seventdesc.text());
+              }
+            }
+						else if (descs[i].tag() == 0x54) { // コンテント記述子
 							ContentDescriptor contentdesc(descs[i]);
 							if (contentdesc.parse()) {
 								int num = contentdesc.numElems();
@@ -355,17 +371,16 @@ private:
 									data.content_nibble_level_2 = data_i.content_nibble_level_2();
 									data.user_nibble_1 = data_i.user_nibble_1();
 									data.user_nibble_2 = data_i.user_nibble_2();
-									nibbles.push_back(data);
+                  info.nibbles.push_back(data);
 								}
-								break;
 							}
 						}
 					}
 					// 同じPIDのプログラムは全て上書き
 					for (int i = 0; i < (int)programList.size(); ++i) {
 						if (programList[i].videoPid == item->videoPid) {
-							programList[i].contentInfo.serviceId = programList[i].programId;
-							programList[i].contentInfo.nibbles = nibbles;
+              programList[i].contentInfo = info;
+              programList[i].contentInfo.serviceId = programList[i].programId;
 							programList[i].eventOK = true;
 						}
 					}
@@ -485,6 +500,14 @@ public:
 		return parser.getServiceList()[i].name.c_str();
 	}
 
+  const wchar_t* GetEventName(int i) {
+    return parser.getContent(i).eventName.c_str();
+  }
+
+  const wchar_t* GetEventText(int i) {
+    return parser.getContent(i).text.c_str();
+  }
+
 	std::vector<int> getSetPids() const {
 		return parser.getSetPids();
 	}
@@ -543,6 +566,8 @@ extern "C" __declspec(dllexport) int TsInfo_GetNumService(TsInfo* ptr) { return 
 extern "C" __declspec(dllexport) int TsInfo_GetServiceId(TsInfo* ptr, int i) { return ptr->GetServiceId(i); }
 extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetProviderName(TsInfo* ptr, int i) { return ptr->GetProviderName(i); }
 extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetServiceName(TsInfo* ptr, int i) { return ptr->GetServiceName(i); }
+extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetEventName(TsInfo* ptr, int i) { return ptr->GetEventName(i); }
+extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetEventText(TsInfo* ptr, int i) { return ptr->GetEventText(i); }
 
 typedef bool(*TS_SLIM_CALLBACK)();
 
