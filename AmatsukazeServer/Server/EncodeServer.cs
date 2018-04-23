@@ -2847,7 +2847,7 @@ namespace Amatsukaze.Server
                             target.State != QueueState.Failed &&
                             target.State != QueueState.Canceled)
                         {
-                            return NotifyMessage(true, "このアイテムは状態リセットできません", false);
+                            return NotifyMessage(true, "完了していないアイテムは状態リセットできません", false);
                         }
                     }
                     else if (data.ChangeType == ChangeItemType.UpdateProfile)
@@ -2863,7 +2863,7 @@ namespace Amatsukaze.Server
                         // バッチモードでアクティブなやつは重複になるのでダメ
                         if (target.Dir.IsBatch && target.IsActive)
                         {
-                            return NotifyMessage(true, "このアイテムは複製できません", false);
+                            return NotifyMessage(true, "通常モードで追加されたアイテムは複製できません", false);
                         }
                     }
 
@@ -2940,10 +2940,11 @@ namespace Amatsukaze.Server
                 }
                 else if (data.ChangeType == ChangeItemType.Profile)
                 {
-                    if (target.State != QueueState.Canceled &&
-                        target.State != QueueState.Failed &&
-                        target.State != QueueState.LogoPending &&
-                        target.State != QueueState.Queue)
+                    if (target.State == QueueState.Encoding)
+                    {
+                        return NotifyMessage(true, "エンコード中はプロファイル変更できません", false);
+                    }
+                    if (target.State == QueueState.PreFailed)
                     {
                         return NotifyMessage(true, "このアイテムはプロファイル変更できません", false);
                     }

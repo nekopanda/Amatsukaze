@@ -1443,12 +1443,12 @@ public:
 				break;
 			}
 			double fps = vfmt.frameRateNum / (double)vfmt.frameRateDenom;
-			sb.append(",\"%s\",fps=%.3f\n", encVideoFile, fps);
+			sb.append(", \"%s\", fps=%.3f\n", encVideoFile, fps);
 			for (auto apath : audioFiles) {
-				sb.append("A_AAC,\"%s\",\n", apath);
+				sb.append("A_AAC, \"%s\"\n", apath);
 			}
 			for (auto spath : subsFiles) {
-				sb.append("S_TEXT/UTF8,\"%s\",fps=%.3f,video-width=%d,video-height=%d\n",
+				sb.append("S_TEXT/UTF8, \"%s\", fps=%.3f, video-width=%d, video-height=%d\n",
 					spath, fps, vfmt.width, vfmt.height);
 			}
 

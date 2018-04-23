@@ -167,7 +167,7 @@
                     </ListBox>
                     <TextBlock Text="備考:" DockPanel.Dock="Top"/>
                     <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             TextWrapping="Wrap" AcceptsReturn="True"/>
+                             TextWrapping="Wrap" AcceptsReturn="True" ToolTip="自由記述欄です。メモとかにどうぞ"/>
                 </DockPanel>
             </Grid>
         </Grid>

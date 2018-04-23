@@ -143,7 +143,7 @@
 
                     <CheckBox Height="16" Margin="0,3"  Content="ジャンルごとにフォルダ分け" 
                               IsChecked="{Binding Model.SelectedProfile.EnableGunreFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              ToolTip="SCRenameでリネームされる場合はフォルダ分けされません。SCRenameで名前を取得できない場合はフォルダ分けの対象となります" />
+                              ToolTip="SCRenameで名前が取得できた場合はフォルダ分けされません。" />
 
                     <CheckBox Margin="0,3" Content="2パス"
                           IsChecked="{Binding Model.SelectedProfile.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
@@ -262,7 +262,10 @@
                     <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS外字は無視する"
                               IsChecked="{Binding Model.SelectedProfile.IgnoreNoDrcsMap, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ロゴ検出判定しきい値を低くする" 
-                              IsChecked="{Binding Model.SelectedProfile.LooseLogoDetection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                              IsChecked="{Binding Model.SelectedProfile.LooseLogoDetection, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="ロゴ区間が短いなどでロゴ無し判定を食らう場合などに有効にすると解決するかもです"/>
+                    <CheckBox Height="16" Margin="0,3"  Content="ロゴ検出に失敗しても処理を続行する" 
+                              IsChecked="{Binding Model.SelectedProfile.IgnoreNoLogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     <CheckBox Height="16" Margin="0,3"  Content="ロゴ消ししない" 
                               IsChecked="{Binding Model.SelectedProfile.NoDelogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない"

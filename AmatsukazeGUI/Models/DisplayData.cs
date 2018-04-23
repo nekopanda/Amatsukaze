@@ -594,6 +594,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region IgnoreNologo変更通知プロパティ
+        public bool IgnoreNologo {
+            get { return Model.IgnoreNoLogo; }
+            set { 
+                if (Model.IgnoreNoLogo == value)
+                    return;
+                Model.IgnoreNoLogo = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region NoDelogo変更通知プロパティ
         public bool NoDelogo
         {
@@ -1660,7 +1672,7 @@ namespace Amatsukaze.Models
         #endregion
     }
 
-    public class DisplayCondition : NotificationObject
+    public class DisplayCondition : ViewModel
     {
         public static readonly SortedList<VideoSizeCondition, string> VIDEO_SIZE_TABLE = new SortedList<VideoSizeCondition, string>()
         {
@@ -1730,6 +1742,15 @@ namespace Amatsukaze.Models
             VideoSizes.Add(NewVideoSize(VideoSizeCondition.FullHD));
             VideoSizes.Add(NewVideoSize(VideoSizeCondition.HD1440));
             VideoSizes.Add(NewVideoSize(VideoSizeCondition.SD));
+
+            CompositeDisposable.Add(new CollectionChangedEventListener(Model.ServiceSettings, (s, e) =>
+            {
+                if(ServiceEnabled)
+                {
+                    // サービスリストが変わったら、表示を変える必要がある可能性があるので更新しておく
+                    ApplyCondition();
+                }
+            }));
 
             ApplyCondition();
         }

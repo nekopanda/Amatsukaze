@@ -436,6 +436,7 @@ namespace Amatsukaze.Server
                 ignoreNoLogo = !logofiles.All(path => path != LogoSetting.NO_LOGO);
                 logopaths = logofiles.Where(path => path != LogoSetting.NO_LOGO).ToArray();
             }
+            ignoreNoLogo |= profile.IgnoreNoLogo;
 
 
             // 出力パス生成

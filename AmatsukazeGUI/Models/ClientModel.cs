@@ -101,6 +101,9 @@ namespace Amatsukaze.Models
         private BufferBlock<string> requestLogoQ = new BufferBlock<string>();
         private Task requestLogoThread;
 
+        private string currentNewProfile;
+        private string currentNewAutoSelect;
+
         public string ServerIP
         {
             get { return appData.ServerIP; }
@@ -227,6 +230,10 @@ namespace Amatsukaze.Models
                 if (_SelectedProfile == value)
                     return;
                 _SelectedProfile = value;
+                if (value != null && Setting.Model != null)
+                {
+                    Setting.Model.LastSelectedProfile = value.Model.Name;
+                }
                 RaisePropertyChanged();
             }
         }
@@ -243,6 +250,10 @@ namespace Amatsukaze.Models
                 if (_SelectedAutoSelect == value)
                     return;
                 _SelectedAutoSelect = value;
+                if (value != null && Setting.Model != null)
+                {
+                    Setting.Model.LastSelectedAutoSelect = value.Model.Name;
+                }
                 RaisePropertyChanged();
             }
         }
@@ -749,6 +760,7 @@ namespace Amatsukaze.Models
 
         public Task AddProfile(ProfileSetting profile)
         {
+            currentNewProfile = profile.Name;
             return Server.SetProfile(new ProfileUpdate()
             {
                 Type = UpdateType.Add,
@@ -774,6 +786,7 @@ namespace Amatsukaze.Models
 
         public Task AddAutoSelect(AutoSelectProfile profile)
         {
+            currentNewAutoSelect = profile.Name;
             return Server.SetAutoSelect(new AutoSelectUpdate()
             {
                 Type = UpdateType.Add,
@@ -1166,12 +1179,19 @@ namespace Amatsukaze.Models
                         ProfileList.Count(s => !s.Model.Name.StartsWith("サンプル_")),
                         profile);
 
-                    if(SelectedProfile != null && SelectedProfile.Model.Name == data.Profile.Name)
+                    if(currentNewProfile != null && data.Profile.Name == currentNewProfile)
+                    {
+                        // 新しく追加したプロファイル
+                        SelectedProfile = profile;
+                    }
+                    else if(SelectedProfile != null && SelectedProfile.Model.Name == data.Profile.Name)
                     {
                         // 選択中のプロファイルが更新された
                         SelectedProfile = profile;
                     }
                 }
+
+                currentNewProfile = null;
 
                 profile.SetEncoderOptions(
                     data.Profile.X264Option, data.Profile.X265Option,
@@ -1232,6 +1252,18 @@ namespace Amatsukaze.Models
             {
                 if(profile != null)
                 {
+                    if (SelectedProfile == profile && ProfileList.Count >= 2)
+                    {
+                        // 選択中だった場合は別のを選択させる
+                        if (ProfileList.Last() == profile)
+                        {
+                            SelectedProfile = ProfileList[ProfileList.Count - 2];
+                        }
+                        else
+                        {
+                            SelectedProfile = ProfileList[ProfileList.IndexOf(profile) + 1];
+                        }
+                    }
                     ProfileList.Remove(profile);
                 }
             }
@@ -1255,12 +1287,19 @@ namespace Amatsukaze.Models
                     };
                     AutoSelectList.Add(profile);
 
-                    if (SelectedAutoSelect != null && SelectedAutoSelect.Model.Name == data.Profile.Name)
+                    if(currentNewAutoSelect != null && data.Profile.Name == currentNewAutoSelect)
+                    {
+                        // 新しく追加した自動選択
+                        SelectedAutoSelect = profile;
+                    }
+                    else if (SelectedAutoSelect != null && SelectedAutoSelect.Model.Name == data.Profile.Name)
                     {
                         // 選択中の自動選択プロファイルが更新された
                         SelectedAutoSelect = profile;
                     }
                 }
+
+                currentNewAutoSelect = null;
 
                 var conds = new ObservableCollection<DisplayCondition>();
                 foreach (var cond in data.Profile.Conditions.Select(s =>
@@ -1302,6 +1341,18 @@ namespace Amatsukaze.Models
             {
                 if (profile != null)
                 {
+                    if(SelectedAutoSelect == profile && AutoSelectList.Count >= 2)
+                    {
+                        // 選択中だった場合は別のを選択させる
+                        if(AutoSelectList.Last() == profile)
+                        {
+                            SelectedAutoSelect = AutoSelectList[AutoSelectList.Count - 2];
+                        }
+                        else
+                        {
+                            SelectedAutoSelect = AutoSelectList[AutoSelectList.IndexOf(profile) + 1];
+                        }
+                    }
                     AutoSelectList.Remove(profile);
                 }
             }

@@ -905,7 +905,8 @@ private:
 	const char* formatToString(ENUM_FORMAT fmt) const {
 		switch (fmt) {
 		case FORMAT_MP4: return "MP4";
-		case FORMAT_MKV: return "Matroska";
+    case FORMAT_MKV: return "Matroska";
+    case FORMAT_M2TS: return "M2TS";
 		}
 		return "unknown";
 	}

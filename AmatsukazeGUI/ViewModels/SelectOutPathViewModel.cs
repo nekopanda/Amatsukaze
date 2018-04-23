@@ -60,7 +60,7 @@ namespace Amatsukaze.ViewModels
         public void Initialize()
         {
             OutPath = Path.Combine(Item.DirPath, "encoded");
-            SelectedProfile = Model.SelectedProfile;
+            SelectedProfile = Model.SelectedAutoSelect;
         }
 
         public bool Succeeded { get; private set; }

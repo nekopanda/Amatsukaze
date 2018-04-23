@@ -299,7 +299,8 @@ namespace Amatsukaze.ViewModels
             var item = obj as DisplayQueueItem;
             return item.Model.ServiceName.IndexOf(_SearchWord) != -1 ||
                 item.Model.FileName.IndexOf(_SearchWord) != -1 ||
-                item.GenreString.IndexOf(_SearchWord) != -1;
+                item.GenreString.IndexOf(_SearchWord) != -1 ||
+                item.StateString.IndexOf(_SearchWord) != -1;
         }
         #endregion
 

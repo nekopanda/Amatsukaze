@@ -103,6 +103,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool LooseLogoDetection { get; set; }
         [DataMember]
+        public bool IgnoreNoLogo { get; set; }
+        [DataMember]
         public bool NoDelogo { get; set; }
         [DataMember]
         public bool SystemAviSynthPlugin { get; set; }

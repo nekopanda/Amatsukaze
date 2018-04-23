@@ -87,7 +87,7 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="JoinLogoScpパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NicoConvASSパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="tsMuxeRパス"/>
-                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="SCRenameパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="SCRename.vbsパス"/>
                 </StackPanel>
                 <DockPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel DockPanel.Dock="Right">
