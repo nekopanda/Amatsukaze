@@ -562,7 +562,8 @@ double presenting_time(PICTURE_TYPE picType, double frameRate) {
 
 struct VideoFormat {
 	VIDEO_STREAM_FORMAT format;
-	int width, height; // 横縦
+	int width, height; // フレームの横縦
+  int displayWidth, displayHeight; // フレームの内表示領域の縦横（表示領域中心オフセットはゼロと仮定）
 	int sarWidth, sarHeight; // アスペクト比
 	int frameRateNum, frameRateDenom; // フレームレート
 	uint8_t colorPrimaries, transferCharacteristics, colorSpace; // カラースペース
@@ -584,8 +585,18 @@ struct VideoFormat {
 		frameRateDenom /= g;
 	}
 
+  void getDAR(int& darWidth, int& darHeight) const {
+    darWidth = displayWidth * sarWidth;
+    darHeight = displayHeight * sarHeight;
+    int denom = gcd(darWidth, darHeight);
+    darWidth /= denom;
+    darHeight /= denom;
+  }
+
 	bool operator==(const VideoFormat& o) const {
 		return (width == o.width && height == o.height
+      && displayWidth == o.displayWidth && displayHeight == o.displayHeight
+      && sarWidth == o.sarWidth && sarHeight == o.sarHeight
 			&& frameRateNum == o.frameRateNum && frameRateDenom == o.frameRateDenom
 			&& progressive == o.progressive);
 	}

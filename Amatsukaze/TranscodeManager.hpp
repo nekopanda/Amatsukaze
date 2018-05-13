@@ -235,12 +235,21 @@ protected:
 
 	virtual void onVideoFormatChanged(VideoFormat fmt) {
 		ctx.info("[映像フォーマット変更]");
+
+    StringBuilder sb;
+    sb.append("サイズ: %dx%d", fmt.width, fmt.height);
+    if (fmt.width != fmt.displayWidth || fmt.height != fmt.displayHeight) {
+      sb.append(" 表示領域: %dx%d", fmt.displayWidth, fmt.displayHeight);
+    }
+    int darW, darH; fmt.getDAR(darW, darH);
+    sb.append(" (%d:%d)", darW, darH);
 		if (fmt.fixedFrameRate) {
-			ctx.info("サイズ: %dx%d FPS: %d/%d", fmt.width, fmt.height, fmt.frameRateNum, fmt.frameRateDenom);
+      sb.append(" FPS: %d/%d", fmt.frameRateNum, fmt.frameRateDenom);
 		}
 		else {
-			ctx.info("サイズ: %dx%d FPS: VFR", fmt.width, fmt.height);
+      sb.append(" FPS: VFR");
 		}
+    ctx.info(sb.str().c_str());
 
 		// 出力ファイルを変更
 		writeHandler.open(setting_.getIntVideoFilePath(videoFileCount_++));
@@ -1608,6 +1617,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	reformInfo.prepare(setting.isSplitSub());
+  
+#if 1
+  ctx.info("とりあえず終了...");
+  getchar();
+  return;
+#endif
 
 	time_t startTime = reformInfo.getFirstFrameTime();
 

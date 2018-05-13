@@ -148,6 +148,12 @@ struct MPEG2SequenceHeader {
 	int height() {
 		return (vertical_size_extension << 12) | vertical_size_value;
 	}
+  int displayWidth() {
+    return has_sequence_display_extension ? display_horizontal_size : width();
+  }
+  int displayHeight() {
+    return has_sequence_display_extension ? display_vertical_size : height();
+  }
 	std::pair<int, int> frame_rate() {
 		auto base = frame_rate_value(frame_rate_code);
 		return std::make_pair(
@@ -166,15 +172,8 @@ struct MPEG2SequenceHeader {
 		getDAR(dar_w, dar_h);
 
 		// DAR対象の領域を取得
-		int dw, dh;
-		if (has_sequence_display_extension) {
-			dw = display_horizontal_size;
-			dh = display_vertical_size;
-		}
-		else {
-			dw = width();
-			dh = height();
-		}
+    int dw = displayWidth();
+    int dh = displayHeight();
 
 		// アスペクト比を計算
 		sar_w = dar_w * dh;
@@ -338,6 +337,8 @@ public:
 				if (sequenceHeader.parse(&frame.data[b], (int)frame.length - b)) {
 					format.width = sequenceHeader.width();
 					format.height = sequenceHeader.height();
+          format.displayWidth = sequenceHeader.displayWidth();
+          format.displayHeight = sequenceHeader.displayHeight();
 					sequenceHeader.getSAR(format.sarWidth, format.sarHeight);
 					auto frameRate = sequenceHeader.frame_rate();
 					format.format = VS_MPEG2;
