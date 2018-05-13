@@ -3,4 +3,4 @@
 	url = https://github.com/nekopanda/googletest.git
 [submodule "TVCaptionMod2"]
 	path = TVCaptionMod2
-	url = https://github.com/xtne6f/TVCaptionMod2.git
+	url = https://github.com/nekopanda/TVCaptionMod2.git
