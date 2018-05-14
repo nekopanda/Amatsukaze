@@ -59,10 +59,6 @@ public:
 	}
 
 	void inputTsPacket(int64_t clock, TsPacket packet) {
-		if (packet.transport_scrambling_control()) {
-			// スクランブルパケットは対応していないので捨てる
-			return;
-		}
 		TsPacketHandler* handler = handlerTable.get(packet.PID());
 		if (handler != NULL) {
 			handler->onTsPacket(clock, packet);
@@ -70,11 +66,31 @@ public:
 	}
 
 	bool isProgramOK() const {
+    if (!patOK) return false;
 		for (int i = 0; i < numPrograms; ++i) {
-			if (programList[i].programOK == false) return false;
+      // 全プログラムのパケットがあるとは限らないので
+      // 1つでも映像のあるプログラムが取得できればOKとする
+			if (programList[i].programOK && programList[i].hasVideo) return true;
 		}
-		return patOK;
+		return false;
 	}
+
+  bool isScrampbled() const {
+    bool hasScrambleNG = false;
+    bool hasOKVideo = false;
+    for (int i = 0; i < numPrograms; ++i) {
+      if (!programList[i].programOK && programList[i].hasVideo && programList[i].hasScramble) {
+        // スクランブルで映像情報が取得できなかった
+        hasScrambleNG = true;
+      }
+      if (programList[i].programOK && programList[i].hasVideo) {
+        // 映像情報が取得できたプログラム
+        hasOKVideo = true;
+      }
+    }
+    // 映像情報が1つも取得できなくて、スクランブル映像があった場合
+    return !hasOKVideo && hasScrambleNG;
+  }
 
 	bool isOK() const {
 		for (int i = 0; i < numPrograms; ++i) {
@@ -126,6 +142,7 @@ private:
 	};
 	struct ProgramItem : ProgramInfo {
 		bool programOK;
+    bool hasScramble;
 		std::unique_ptr<PSIDelegator> pmtHandler;
 		std::unique_ptr<VideoFrameParser> videoHandler;
 
@@ -134,6 +151,7 @@ private:
 
 		ProgramItem()
 			: programOK(false)
+      , hasScramble(false)
 			, eventOK(false)
 		{
 			programId = -1;
@@ -148,6 +166,20 @@ private:
 	public:
 		SpVideoFrameParser(AMTContext&ctx, TsInfoParser& this_, ProgramItem* item)
 			: VideoFrameParser(ctx), this_(this_), item(item) { }
+    virtual void onTsPacket(int64_t clock, TsPacket packet) {
+      if (packet.transport_scrambling_control()) {
+        // スクランブルパケット
+        if (item->hasScramble == false) {
+          for (int i = 0; i < (int)this_.programList.size(); ++i) {
+            if (this_.programList[i].videoPid == item->videoPid) {
+              this_.programList[i].hasScramble = true;
+            }
+          }
+        }
+        return;
+      }
+      PesParser::onTsPacket(clock, packet);
+    }
 	protected:
 		virtual void onVideoPesPacket(int64_t clock, const std::vector<VideoFrameInfo>& frames, PESPacket packet) { }
 		virtual void onVideoFormatChanged(VideoFormat fmt) {
@@ -419,15 +451,23 @@ public:
 			File srcfile(filepath, "rb");
 			// ファイルの真ん中を読む
 			srcfile.seek(srcfile.size() / 2, SEEK_SET);
-			if (ReadTS(srcfile)) {
+      int ret = ReadTS(srcfile);
+			if (ret == 0) {
 				return;
 			}
+      bool isScrampbled = (ret == 2);
 			// ダメだったらファイルの先頭付近を読む
 			srcfile.seek(srcfile.size() / 30, SEEK_SET);
-			if (ReadTS(srcfile)) {
-				return;
-			}
-			THROW(FormatException, "TSファイルに情報がありません");
+      ret = ReadTS(srcfile);
+      if (ret == 0) {
+        return;
+      }
+      if (isScrampbled) {
+        THROW(FormatException, "すべてのプログラムがスクランブルされています");
+      }
+      else {
+        THROW(FormatException, "TSファイルに情報がありません");
+      }
 	}
 
 	bool ReadFileFromC(const char* filepath) {
@@ -527,7 +567,7 @@ private:
 
 	TsInfoParser parser;
 
-	bool ReadTS(File& srcfile) {
+	int ReadTS(File& srcfile) {
 		enum {
 			BUFSIZE = 4 * 1024 * 1024,
 			MAX_BYTES = 100 * 1024 * 1024
@@ -540,11 +580,12 @@ private:
 		do {
 			readBytes = srcfile.read(buffer);
 			packetParser.inputTS(MemoryChunk(buffer.data, readBytes));
-			if (parser.isOK()) return true;
+			if (parser.isOK()) return 0;
 			totalRead += readBytes;
 		} while (readBytes == buffer.length && totalRead < MAX_BYTES);
-		if (parser.isProgramOK()) return true;
-		return false;
+    if (parser.isProgramOK()) return 0;
+    if (parser.isScrampbled()) return 2;
+		return 1;
 	}
 };
 

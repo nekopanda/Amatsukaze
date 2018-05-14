@@ -2265,7 +2265,9 @@ namespace Amatsukaze.Server
                     }
                 }
             }
-            foreach(var item in queue.SelectMany(s => s.Items).Select(s => Path.GetPathRoot(s.DstPath)))
+            foreach(var item in queue.SelectMany(s => s.Items).
+                Where(s => !string.IsNullOrEmpty(s.DstPath)).
+                Select(s => Path.GetPathRoot(s.DstPath)))
             {
                 if (diskMap.ContainsKey(item) == false)
                 {
