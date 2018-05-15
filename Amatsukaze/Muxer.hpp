@@ -17,6 +17,7 @@
 
 struct EncodeFileInfo {
   std::string outPath;
+  std::string tcPath; // タイムコードファイルパス
   std::vector<std::string> outSubs; // 外部ファイルで出力された字幕
   int64_t fileSize;
   double srcBitrate;
@@ -151,14 +152,9 @@ public:
       subsTitles.push_back("SRT");
     }
 
-    // タイムコードファイル
-    std::string timecodeFile;
-    std::pair<int, int> timebase;
-    if (eoInfo.afsTimecode) {
-      timecodeFile = setting_.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
-      // 自動フィールドシフトは120fpsタイミングで出力するので4倍する
-      timebase = std::make_pair(vfmt.frameRateNum * 4, vfmt.frameRateDenom);
-    }
+    // タイムコード用
+    // 自動フィールドシフトは120fpsタイミングで出力するので4倍する
+    std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * 4, vfmt.frameRateDenom);
 
     std::string tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
     outFilePath.outPath = pathgen.getOutFilePath();
@@ -199,7 +195,7 @@ public:
       setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
       encVideoFile, vfmt, audioFiles,
       outFilePath.outPath, tmpOutPath, chapterFile,
-      timecodeFile, timebase, subsFiles, subsTitles, metaFile);
+      outFilePath.tcPath, timebase, subsFiles, subsTitles, metaFile);
 
     for (int i = 0; i < (int)args.size(); ++i) {
       ctx.info(args[i].first.c_str());

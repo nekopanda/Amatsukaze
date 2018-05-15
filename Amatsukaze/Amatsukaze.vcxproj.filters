@@ -132,6 +132,9 @@
     <ClInclude Include="Muxer.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="AMTGenTime.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="AMTDebug.natvis" />

@@ -20,18 +20,20 @@ public:
   { }
 
   void encode(
-    PClip source, VideoFormat outfmt,
+    PClip source, VideoFormat outfmt, const FilterVFRProc& vfrProc,
     const std::vector<std::string>& encoderOptions,
     IScriptEnvironment* env)
   {
     vi_ = source->GetVideoInfo();
     outfmt_ = outfmt;
 
+    auto& frameMap = vfrProc.getFrameMap();
+    int num_frames = vfrProc.isEnabled() ? (int)frameMap.size() : vi_.num_frames;
     int bufsize = outfmt_.width * outfmt_.height * 3;
 
     int npass = (int)encoderOptions.size();
     for (int i = 0; i < npass; ++i) {
-      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, vi_.num_frames);
+      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, num_frames);
 
       const std::string& args = encoderOptions[i];
 
@@ -51,8 +53,9 @@ public:
 
       try {
         // エンコード
-        for (int i = 0; i < vi_.num_frames; ++i) {
-          thread_.put(std::unique_ptr<OutFrame>(new OutFrame(source->GetFrame(i, env), i)), 1);
+        for (int i = 0; i < num_frames; ++i) {
+          int f = vfrProc.isEnabled() ? frameMap[i] : i;
+          thread_.put(std::unique_ptr<OutFrame>(new OutFrame(source->GetFrame(f, env), f)), 1);
         }
       }
       catch (Exception&) {

@@ -642,12 +642,29 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 					AMTFilterSource filterSource(ctx, setting, reformInfo,
 						cma->getZones(), cma->getLogoPath(), videoFileIndex, encoderIndex, cmtype);
 
+          auto getTcPath = [&]() {
+            return setting.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
+          };
+
 					try {
 						PClip filterClip = filterSource.getClip();
 						IScriptEnvironment2* env = filterSource.getEnv();
-						auto& encoderZones = filterSource.getZones();
+            auto& frameFps = filterSource.getFrameFps();
+						auto encoderZones = filterSource.getZones();
 						auto& outfmt = filterSource.getFormat();
 						auto& outvi = filterClip->GetVideoInfo();
+            FilterVFRProc vfrProc(ctx, frameFps, outvi);
+
+            if (vfrProc.isEnabled()) {
+              // フィルタによるVFRが有効
+              if (eoInfo.afsTimecode) {
+                THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
+              }
+              // ゾーンをVFRフレーム番号に修正
+              vfrProc.toVFRZones(encoderZones);
+              // タイムコード生成
+              vfrProc.makeTimecode(getTcPath());
+            }
 
 						std::vector<int> pass;
 						if (setting.isTwoPass()) {
@@ -663,6 +680,10 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						outFileInfo.push_back(argGen->printBitrate(ctx, videoFileIndex, cmtype));
 						outfiles.push_back(outfmt);
 
+            if (vfrProc.isEnabled() || eoInfo.afsTimecode) {
+              outFileInfo.back().tcPath = getTcPath();
+            }
+
 						std::vector<std::string> encoderArgs;
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
@@ -670,7 +691,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 									outfmt, encoderZones, videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}
 						AMTFilterVideoEncoder encoder(ctx);
-						encoder.encode(filterClip, outfmt, encoderArgs, env);
+						encoder.encode(filterClip, outfmt, vfrProc, encoderArgs, env);
 					}
 					catch (const AvisynthError& avserror) {
 						THROWF(AviSynthException, "%s", avserror.msg);

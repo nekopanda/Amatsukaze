@@ -2,7 +2,7 @@
 
 #include <avisynth.h>
 
-struct AMTFrameTiming {
+struct AMTGenTime {
   enum
   {
     VERSION = 1,
@@ -11,24 +11,24 @@ struct AMTFrameTiming {
   int nMagicKey;
   int nVersion;
 
-  AMTFrameTiming()
+  AMTGenTime()
     : nMagicKey(MAGIC_KEY)
     , nVersion(VERSION)
   { }
 
-  static const AMTFrameTiming* GetParam(const VideoInfo& vi)
+  static const AMTGenTime* GetParam(const VideoInfo& vi)
   {
     if (vi.sample_type != MAGIC_KEY) {
       return nullptr;
     }
-    const AMTFrameTiming* param = (const AMTFrameTiming*)(void*)vi.num_audio_samples;
+    const AMTGenTime* param = (const AMTGenTime*)(void*)vi.num_audio_samples;
     if (param->nMagicKey != MAGIC_KEY) {
       return nullptr;
     }
     return param;
   }
 
-  static void SetParam(VideoInfo& vi, const AMTFrameTiming* param)
+  static void SetParam(VideoInfo& vi, const AMTGenTime* param)
   {
     vi.audio_samples_per_second = 0; // kill audio
     vi.sample_type = MAGIC_KEY;

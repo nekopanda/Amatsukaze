@@ -10,10 +10,11 @@
 #include <memory>
 
 #include "StreamUtils.hpp"
+#include "ReaderWriterFFmpeg.hpp"
 #include "TranscodeSetting.hpp"
 #include "StreamReform.hpp"
 #include "AMTSource.hpp"
-#include "AMTFrameTiming.hpp"
+#include "AMTGenTime.hpp"
 
 class RFFExtractor
 {
@@ -150,12 +151,12 @@ public:
         env_->SetVar("AMT_GEN_TIME", true);
         filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
 
-        const AMTFrameTiming* frameTiming = AMTFrameTiming::GetParam(filter_->GetVideoInfo());
-        if (frameTiming) { // is time code clip
-                           // TODO: gen time code
-                           //
+        const AMTGenTime* frameTiming = AMTGenTime::GetParam(filter_->GetVideoInfo());
+        if (frameTiming) {
+          // frameFpsを生成
+          ReadAllFrameFps();
 
-                           // AMT_GEN_TIME=falseで作り直す
+          // AMT_GEN_TIME=falseで作り直す
           InitEnv();
           std::vector<int> outFrames_;
           filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames_, reformInfo, logopath);
@@ -202,7 +203,7 @@ public:
   }
 
   // 各フレームのFPS（FrameTimingがない場合サイズゼロ）
-  const std::vector<int>& getFrameFps() const {
+  const std::vector<AMTFrameFps>& getFrameFps() const {
     return frameFps;
   }
 
@@ -216,7 +217,7 @@ private:
   PClip filter_;
   VideoFormat outfmt_;
   std::vector<EncoderZone> outZones_;
-  std::vector<int> frameFps;
+  std::vector<AMTFrameFps> frameFps;
 
   std::string makePreamble() {
     StringBuilder sb;
@@ -237,6 +238,30 @@ private:
 
     AVSValue avsv;
     env_->LoadPlugin(GetModulePath().c_str(), true, &avsv);
+  }
+
+  void ReadAllFrameFps() {
+    const VideoInfo vi = filter_->GetVideoInfo();
+    frameFps.resize(vi.num_frames);
+
+    ctx.info("フレーム時間情報を取得します。 予定フレーム数: %d", vi.num_frames);
+    Stopwatch sw;
+    sw.start();
+    int prevFrames = 0;
+
+    for (int i = 0; i < vi.num_frames; ++i) {
+      PVideoFrame frame = filter_->GetFrame(i, env_.get());
+      frameFps[i] = *reinterpret_cast<const AMTFrameFps*>(frame->GetReadPtr());
+
+      double elapsed = sw.current();
+      if (elapsed >= 1.0) {
+        double fps = (i - prevFrames) / elapsed;
+        ctx.progress("%dフレーム完了 %.2ffps", i, fps);
+
+        prevFrames = i;
+        sw.start();
+      }
+    }
   }
 
   PClip prefetch(PClip clip, int threads) {
@@ -400,9 +425,10 @@ private:
 };
 
 // 各フレームのFPS情報から、各種データを生成
-class FilterVFRProc
+class FilterVFRProc : public AMTObject
 {
   int fpsNum, fpsDenom; // 60fpsのフレームレート
+  double totalDuration; // 合計時間（チェック用）
   std::vector<int> frameFps_; // 各フレームのFPS
   std::vector<int> frameMap_; // VFRフレーム番号 -> 60fpsフレーム番号のマッピング
 
@@ -455,7 +481,9 @@ class FilterVFRProc
   }
 
 public:
-  FilterVFRProc(const std::vector<AMTFrameFps>& frameFps, const VideoInfo& vi) {
+  FilterVFRProc(AMTContext&ctx, const std::vector<AMTFrameFps>& frameFps, const VideoInfo& vi)
+  : AMTObject(ctx) 
+  {
     fpsNum = vi.fps_numerator;
     fpsDenom = vi.fps_denominator;
 
@@ -493,20 +521,26 @@ public:
         i += 1;
       }
     }
+
+    totalDuration = (double)frameFps.size() * fpsDenom / fpsNum;
   }
 
-  const std::vector<int>& getFrameMap() {
+  bool isEnabled() const {
+    return frameMap_.size() > 0;
+  }
+
+  const std::vector<int>& getFrameMap() const {
     return frameMap_;
   }
 
-  void toVFRZones(std::vector<EncoderZone>& zones) {
+  void toVFRZones(std::vector<EncoderZone>& zones) const {
     for (int i = 0; i < (int)zones.size(); ++i) {
       zones[i].startFrame = (int)(std::lower_bound(frameMap_.begin(), frameMap_.end(), zones[i].startFrame) - frameMap_.begin());
       zones[i].endFrame = (int)(std::lower_bound(frameMap_.begin(), frameMap_.end(), zones[i].endFrame) - frameMap_.begin());
     }
   }
 
-  void makeTimecode(const std::string& filepath) {
+  void makeTimecode(const std::string& filepath) const {
     const double durations[4] = {
       0,
       (fpsNum * 10.0) / (fpsDenom * 4.0), // AMT_FPS_24
@@ -516,9 +550,16 @@ public:
     StringBuilder sb;
     sb.append("# timecode format v2\n");
     double curTime = 0;
+    double maxDiff = 0; // チェック用
     for (int i = 0; i < (int)frameFps_.size(); ++i) {
+      maxDiff = std::max(maxDiff, std::abs(curTime - frameMap_[i] * (double)fpsNum / fpsDenom));
       sb.append("%d\n", (int)std::round(curTime * 1000));
       curTime += durations[frameFps_[i]];
+    }
+    ctx.info("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
+    if (std::abs(curTime - totalDuration) >= 0.000001) {
+      // 1us以上のズレがあったらエラーとする
+      THROWF(RuntimeException, "タイムコードの合計時間と映像時間の合計にズレがあります。(%f != %f)", curTime, totalDuration);
     }
     File file(filepath, "w");
     file.write(sb.getMC());
