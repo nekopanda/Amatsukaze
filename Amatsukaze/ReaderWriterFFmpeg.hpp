@@ -1,5 +1,5 @@
 /**
-* Core transcoder
+* Reader/Writer with FFmpeg
 * Copyright (c) 2017-2018 Nekopanda
 *
 * This software is released under the MIT License.
@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
 #include "StreamUtils.hpp"
 #include "ProcessThread.hpp"

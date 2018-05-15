@@ -162,11 +162,14 @@
     <ClInclude Include="CMAnalyze.hpp" />
     <ClInclude Include="common.h" />
     <ClInclude Include="CoreUtils.hpp" />
+    <ClInclude Include="Encoder.hpp" />
     <ClInclude Include="EncoderOptionParser.hpp" />
+    <ClInclude Include="FilteredSource.hpp" />
     <ClInclude Include="InterProcessComm.hpp" />
     <ClInclude Include="List.hpp" />
     <ClInclude Include="LogoGUISupport.hpp" />
     <ClInclude Include="LogoScan.hpp" />
+    <ClInclude Include="Muxer.hpp" />
     <ClInclude Include="NicoJK.hpp" />
     <ClInclude Include="OSUtil.hpp" />
     <ClInclude Include="PacketCache.hpp" />
@@ -179,7 +182,7 @@
     <ClInclude Include="StreamReform.hpp" />
     <ClInclude Include="StreamUtils.hpp" />
     <ClInclude Include="StringUtils.hpp" />
-    <ClInclude Include="Transcode.hpp" />
+    <ClInclude Include="ReaderWriterFFmpeg.hpp" />
     <ClInclude Include="TranscodeManager.hpp" />
     <ClInclude Include="TranscodeSetting.hpp" />
     <ClInclude Include="Tree.hpp" />
