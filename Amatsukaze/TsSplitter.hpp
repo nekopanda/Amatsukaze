@@ -386,7 +386,7 @@ private:
 
 class TsSplitter : public AMTObject, protected TsPacketSelectorHandler {
 public:
-	TsSplitter(AMTContext& ctx, bool enableAV, bool enableCaption)
+	TsSplitter(AMTContext& ctx, bool enableVideo, bool enableAudio, bool enableCaption)
 		: AMTObject(ctx)
 		, initPhase(PMT_WAITING)
 		, tsPacketHandler(*this)
@@ -395,7 +395,8 @@ public:
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
 		, captionParser(ctx, *this)
-		, enableAV(enableAV)
+    , enableVideo(enableVideo)
+    , enableAudio(enableAudio)
 		, enableCaption(enableCaption)
 		, numTotalPackets(0)
 		, numScramblePackets(0)
@@ -546,7 +547,8 @@ protected:
 	std::vector<SpAudioFrameParser*> audioParsers;
 	SpCaptionParser captionParser;
 
-	bool enableAV;
+  bool enableVideo;
+  bool enableAudio;
 	bool enableCaption;
 	int preferedServiceId;
 	int selectedServiceId;
@@ -618,7 +620,7 @@ protected:
 
 	// TsPacketSelectorでPID Tableが変更された時変更後の情報が送られる
 	virtual void onPidTableChanged(const PMTESInfo video, const std::vector<PMTESInfo>& audio, const PMTESInfo caption) {
-		if (enableAV) {
+		if (enableVideo || enableAudio) {
 			// 映像ストリーム形式をセット
 			switch (video.stype) {
 			case 0x02: // MPEG2-VIDEO
@@ -649,11 +651,11 @@ protected:
 	}
 
 	virtual void onVideoPacket(int64_t clock, TsPacket packet) {
-		if(enableAV && checkScramble(packet)) videoParser.onTsPacket(clock, packet);
+		if(enableVideo && checkScramble(packet)) videoParser.onTsPacket(clock, packet);
 	}
 
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {
-		if (enableAV && checkScramble(packet)) {
+		if (enableAudio && checkScramble(packet)) {
 			ASSERT(audioIdx < (int)audioParsers.size());
 			audioParsers[audioIdx]->onTsPacket(clock, packet);
 		}

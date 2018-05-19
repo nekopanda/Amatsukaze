@@ -27,7 +27,7 @@
 class AMTSplitter : public TsSplitter {
 public:
 	AMTSplitter(AMTContext& ctx, const ConfigWrapper& setting)
-		: TsSplitter(ctx, true, setting.isSubtitlesEnabled())
+		: TsSplitter(ctx, true, true, setting.isSubtitlesEnabled())
 		, setting_(setting)
 		, psWriter(ctx)
 		, writeHandler(*this)
@@ -337,7 +337,7 @@ protected:
 class DrcsSearchSplitter : public TsSplitter {
 public:
 	DrcsSearchSplitter(AMTContext& ctx, const ConfigWrapper& setting)
-		: TsSplitter(ctx, false, true)
+		: TsSplitter(ctx, true, false, true)
 		, setting_(setting)
 	{ }
 
@@ -356,6 +356,7 @@ public:
 
 protected:
 	const ConfigWrapper& setting_;
+  std::vector<VideoFrameInfo> videoFrameList_;
 
 	// TsSplitter仮想関数 //
 
@@ -363,7 +364,12 @@ protected:
 		int64_t clock,
 		const std::vector<VideoFrameInfo>& frames,
 		PESPacket packet)
-	{ }
+	{
+    // 今の所最初のフレームしか必要ないけど
+    for (const VideoFrameInfo& frame : frames) {
+      videoFrameList_.push_back(frame);
+    }
+  }
 
 	virtual void onVideoFormatChanged(VideoFormat fmt) { }
 
@@ -384,7 +390,7 @@ protected:
 
 	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
 		DRCSOutInfo info;
-		info.elapsed = -1;
+    info.elapsed = (videoFrameList_.size() > 0) ? (double)(PTS - videoFrameList_[0].PTS) : -1.0;
 		info.filename = setting_.getDRCSOutPath(md5);
 		return info;
 	}
