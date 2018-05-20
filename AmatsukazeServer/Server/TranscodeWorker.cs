@@ -883,9 +883,7 @@ namespace Amatsukaze.Server
                         }
                     }
 
-                    server.Log.Items.Add(logItem);
-                    server.WriteLog();
-                    waitList.Add(server.Client.OnLogUpdate(server.Log.Items.Last()));
+                    waitList.Add(server.AddEncodeLog(logItem));
                 }
 
                 waitList.Add(server.NotifyQueueItemUpdate(src));
@@ -907,18 +905,28 @@ namespace Amatsukaze.Server
             }
         }
 
-        private async Task<bool> ProcessSearchItem(EncodeServer server, QueueItem src)
+        private async Task<CheckLogItem> ProcessCheckItem(EncodeServer server, QueueItem src)
         {
             if (File.Exists(src.SrcPath) == false)
             {
-                return false;
+                return new CheckLogItem()
+                {
+                    SrcPath = src.SrcPath,
+                    Success = false,
+                    CheckStartDate = DateTime.Now,
+                    CheckFinishDate = DateTime.Now,
+                    ServiceName = src.ServiceName,
+                    ServiceId = src.ServiceId,
+                    TsTime = src.TsTime,
+                    Reason = "TSファイルが見つかりません"
+                };
             }
 
-            string args = server.MakeAmatsukazeSearchArgs(
+            string args = server.MakeAmatsukazeCheckArgs(
                 src.SrcPath, src.ServiceId);
             string exename = server.AppData_.setting.AmatsukazePath;
 
-            Util.AddLog(id, "サーチ開始: " + src.SrcPath);
+            Util.AddLog(id, "外字チェック開始: " + src.SrcPath);
             Util.AddLog(id, "Args: " + exename + " " + args);
 
             var psi = new ProcessStartInfo(exename, args)
@@ -933,6 +941,8 @@ namespace Amatsukaze.Server
 
             int exitCode = -1;
             logText.Clear();
+
+            DateTime start = DateTime.Now;
 
             try
             {
@@ -965,14 +975,30 @@ namespace Amatsukaze.Server
                     exitCode = p.ExitCode;
                 }
 
-                if (exitCode == 0)
+                // ログファイルを専用フォルダに吐く
+                string logbase = server.GetCheckLogFileBase(start);
+                Directory.CreateDirectory(Path.GetDirectoryName(logbase));
+                string dstlog = logbase + ".txt";
+                using (var fs = new StreamWriter(File.Create(dstlog), Encoding.Default))
                 {
-                    return true;
+                    foreach (var str in logText.TextLines)
+                    {
+                        fs.WriteLine(str);
+                    }
                 }
-                else
+
+                var reason = (exitCode == 0) ? "" : "Amatsukaze.exeはコード" + exitCode + "で終了しました。";
+                return new CheckLogItem()
                 {
-                    return false;
-                }
+                    SrcPath = src.SrcPath,
+                    Success = (exitCode == 0),
+                    CheckStartDate = start,
+                    CheckFinishDate = DateTime.Now,
+                    ServiceName = src.ServiceName,
+                    ServiceId = src.ServiceId,
+                    TsTime = src.TsTime,
+                    Reason = reason
+                };
             }
             catch (Win32Exception w32e)
             {
@@ -1003,14 +1029,14 @@ namespace Amatsukaze.Server
 
                 src.State = QueueState.Encoding;
                 waitList.Add(server.NotifyQueueItemUpdate(src));
-                bool result = await ProcessSearchItem(server, src);
-                src.State = result ? QueueState.Complete : QueueState.Failed;
+                var result = await ProcessCheckItem(server, src);
+                src.State = result.Success ? QueueState.Complete : QueueState.Failed;
+                waitList.Add(server.AddCheckLog(result));
                 waitList.Add(server.NotifyQueueItemUpdate(src));
 
                 await Task.WhenAll(waitList);
 
-                return result;
-
+                return result.Success;
             }
             catch (Exception e)
             {

@@ -65,7 +65,8 @@ namespace Amatsukaze.Server
         private List<QueueDirectory> queue = new List<QueueDirectory>();
         private int nextDirId = 1;
         private int nextItemId = 1;
-        internal LogData Log { get; private set; }
+        private LogData logData = new LogData();
+        private CheckLogData checkLogData = new CheckLogData();
         private SortedDictionary<string, DiskItem> diskMap = new SortedDictionary<string, DiskItem>();
 
         internal readonly AffinityCreator affinityCreator = new AffinityCreator();
@@ -97,6 +98,10 @@ namespace Amatsukaze.Server
 
         // プロファイル未選択状態のダミープロファイル
         private ProfileSetting pendingProfile;
+
+        // データファイル
+        private DataFile<LogItem> logFile;
+        private DataFile<CheckLogItem> checkLogFile;
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -160,7 +165,6 @@ namespace Amatsukaze.Server
                 this.Client = clientManager;
                 RaisePropertyChanged("ClientManager");
             }
-            ReadLog();
 
             pendingProfile = new ProfileSetting()
             {
@@ -220,9 +224,19 @@ namespace Amatsukaze.Server
             };
             scheduler.SetNumParallel(AppData_.setting.NumParallel);
             affinityCreator.NumProcess = AppData_.setting.NumParallel;
+        }
 
+        // コンストラクタはasyncにできないのでasyncする処理は分離
+        public async Task Init()
+        {
             // 古いバージョンからの更新処理
             UpdateFromOldVersion();
+
+            logFile = new DataFile<LogItem>(GetHistoryFilePathV2());
+            checkLogFile = new DataFile<CheckLogItem>(GetCheckHistoryFilePath());
+
+            logData.Items = await logFile.Read();
+            checkLogData.Items = await checkLogFile.Read();
 
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
@@ -304,9 +318,14 @@ namespace Amatsukaze.Server
             return "config\\AutoSelectProfile.xml";
         }
 
-        private string GetHistoryFilePath()
+        private string GetHistoryFilePathV1()
         {
             return "data\\EncodeHistory.xml";
+        }
+
+        private string GetHistoryFilePathV2()
+        {
+            return "data\\EncodeHistoryV2.xml";
         }
 
         internal string GetLogFileBase(DateTime start)
@@ -317,6 +336,26 @@ namespace Amatsukaze.Server
         private string ReadLogFIle(DateTime start)
         {
             var logpath = GetLogFileBase(start) + ".txt";
+            if (File.Exists(logpath) == false)
+            {
+                return "ログファイルが見つかりません。パス: " + logpath;
+            }
+            return File.ReadAllText(logpath, Encoding.Default);
+        }
+
+        private string GetCheckHistoryFilePath()
+        {
+            return "data\\CheckHistory.xml";
+        }
+
+        internal string GetCheckLogFileBase(DateTime start)
+        {
+            return "data\\checklogs\\" + start.ToString("yyyy-MM-dd_HHmmss.fff");
+        }
+
+        private string ReadCheckLogFIle(DateTime start)
+        {
+            var logpath = GetCheckLogFileBase(start) + ".txt";
             if (File.Exists(logpath) == false)
             {
                 return "ログファイルが見つかりません。パス: " + logpath;
@@ -443,6 +482,31 @@ namespace Amatsukaze.Server
                         }
                     }
 
+                }
+
+                // ログファイルを移行
+                string path = GetHistoryFilePathV1();
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        using (FileStream fs = new FileStream(path, FileMode.Open))
+                        {
+                            var s = new DataContractSerializer(typeof(LogData));
+                            var data = (LogData)s.ReadObject(fs);
+                            if (data.Items != null)
+                            {
+                                var file = new DataFile<LogItem>(GetHistoryFilePathV2());
+                                file.Delete();
+                                file.Add(data.Items);
+                            }
+                        }
+                        File.Delete(path);
+                    }
+                    catch (IOException e)
+                    {
+                        Util.AddLog("ログファイルの移行に失敗: " + e.Message);
+                    }
                 }
 
                 settingUpdated = true;
@@ -657,50 +721,40 @@ namespace Amatsukaze.Server
             }
         }
 
-        private void ReadLog()
+        internal Task AddEncodeLog(LogItem item)
         {
-            string path = GetHistoryFilePath();
-            if (File.Exists(path) == false)
-            {
-                Log = new LogData() {
-                    Items = new List<LogItem>()
-                };
-                return;
-            }
             try
             {
-                using (FileStream fs = new FileStream(path, FileMode.Open))
+                logData.Items.Add(item);
+                logFile.Add(new List<LogItem>() { item });
+                return Client.OnUIData(new UIData()
                 {
-                    var s = new DataContractSerializer(typeof(LogData));
-                    Log = (LogData)s.ReadObject(fs);
-                    if (Log.Items == null)
-                    {
-                        Log.Items = new List<LogItem>();
-                    }
-                }
-            }
-            catch (IOException e)
-            {
-                Util.AddLog("ログファイルの読み込みに失敗: " + e.Message);
-            }
-        }
-
-        internal void WriteLog()
-        {
-            string path = GetHistoryFilePath();
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
-                using (FileStream fs = new FileStream(path, FileMode.Create))
-                {
-                    var s = new DataContractSerializer(typeof(LogData));
-                    s.WriteObject(fs, Log);
-                }
+                    LogItem = item
+                });
             }
             catch (IOException e)
             {
                 Util.AddLog("ログファイル書き込み失敗: " + e.Message);
             }
+            return Task.FromResult(0);
+        }
+
+        internal Task AddCheckLog(CheckLogItem item)
+        {
+            try
+            {
+                checkLogData.Items.Add(item);
+                checkLogFile.Add(new List<CheckLogItem>() { item });
+                return Client.OnUIData(new UIData()
+                {
+                    CheckLogItem = item
+                });
+            }
+            catch (IOException e)
+            {
+                Util.AddLog("ログファイル書き込み失敗: " + e.Message);
+            }
+            return Task.FromResult(0);
         }
 
         private static string GetEncoderPath(EncoderType encoderType, Setting setting)
@@ -763,7 +817,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        internal string MakeAmatsukazeSearchArgs(string src, int serviceId)
+        internal string MakeAmatsukazeCheckArgs(string src, int serviceId)
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("--mode drcs")
@@ -995,6 +1049,14 @@ namespace Amatsukaze.Server
             Progress = ((enabledCount - remainCount) + 0.1) / (enabledCount + 0.1);
         }
 
+        private Task ClientQueueUpdate(QueueUpdate update)
+        {
+            return Client.OnUIData(new UIData()
+            {
+                QueueUpdate = update
+            });
+        }
+
         internal Task NotifyQueueItemUpdate(QueueItem item)
         {
             UpdateProgress();
@@ -1002,12 +1064,12 @@ namespace Amatsukaze.Server
             {
                 // ないアイテムをUpdateすると追加されてしまうので
                 return Task.WhenAll(
-                    Client.OnQueueUpdate(new QueueUpdate()
-                    {
-                        Type = UpdateType.Update,
-                        DirId = item.Dir.Id,
-                        Item = item
-                    }),
+                    ClientQueueUpdate(new QueueUpdate()
+                        {
+                            Type = UpdateType.Update,
+                            DirId = item.Dir.Id,
+                            Item = item
+                        }),
                     RequestState());
             }
             return Task.FromResult(0);
@@ -1211,11 +1273,11 @@ namespace Amatsukaze.Server
                 }
 
                 queue.Add(target);
-                waitItems.Add(Client.OnQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Add,
-                    Directory = target
-                }));
+                waitItems.Add(ClientQueueUpdate(new QueueUpdate()
+                    {
+                        Type = UpdateType.Add,
+                        Directory = target
+                    }));
             }
 
             return target;
@@ -1371,12 +1433,12 @@ namespace Amatsukaze.Server
                                     // まずは内部だけで状態を更新
                                     UpdateQueueItem(item, waits, false);
                                     // 状態が決まったらクライアント側に追加通知
-                                    waits.Add(Client.OnQueueUpdate(new QueueUpdate()
-                                    {
-                                        Type = UpdateType.Add,
-                                        DirId = item.Dir.Id,
-                                        Item = item
-                                    }));
+                                    waits.Add(ClientQueueUpdate(new QueueUpdate()
+                                            {
+                                                Type = UpdateType.Add,
+                                                DirId = item.Dir.Id,
+                                                Item = item
+                                            }));
                                     ++numItems;
                                     fileOK = true;
                                 }
@@ -1412,12 +1474,12 @@ namespace Amatsukaze.Server
                             };
 
                             target.Items.Add(item);
-                            waits.Add(Client.OnQueueUpdate(new QueueUpdate()
-                            {
-                                Type = UpdateType.Add,
-                                DirId = target.Id,
-                                Item = item
-                            }));
+                            waits.Add(ClientQueueUpdate(new QueueUpdate()
+                                    {
+                                        Type = UpdateType.Add,
+                                        DirId = target.Id,
+                                        Item = item
+                                    }));
                             ++numItems;
                         }
                     }
@@ -1532,7 +1594,7 @@ namespace Amatsukaze.Server
             // RemoveとAddをatomicに行わなければならないのでここをawaitにしないこと
             // ?.の後ろの引数はnullの場合は評価されないことに注意
             // （C#の仕様が分かりにくいけど・・・）
-            waits?.Add(Client.OnQueueUpdate(new QueueUpdate()
+            waits?.Add(ClientQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Remove,
                 DirId = item.Dir.Id,
@@ -1543,7 +1605,7 @@ namespace Amatsukaze.Server
             {
                 // プロファイル未選択ディレクトリは自動的に削除する
                 queue.Remove(item.Dir);
-                waits?.Add(Client.OnQueueUpdate(new QueueUpdate()
+                waits?.Add(ClientQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = item.Dir.Id,
@@ -1552,7 +1614,7 @@ namespace Amatsukaze.Server
 
             item.Dir = newDir;
             item.Dir.Items.Add(item);
-            waits?.Add(Client.OnQueueUpdate(new QueueUpdate()
+            waits?.Add(ClientQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
                 DirId = item.Dir.Id,
@@ -2451,45 +2513,8 @@ namespace Amatsukaze.Server
             await task;
         }
 
-        private bool IsRemoteHost(IPHostEntry iphostentry, IPAddress address)
-        {
-            IPHostEntry other = null;
-            try
-            {
-                other = Dns.GetHostEntry(address);
-            }
-            catch
-            {
-                return true;
-            }
-            foreach (IPAddress addr in other.AddressList)
-            {
-                if (IPAddress.IsLoopback(addr) || Array.IndexOf(iphostentry.AddressList, addr) != -1)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        private byte[] GetMacAddress()
-        {
-            if (ClientManager == null) return null;
-
-            // リモートのクライアントを見つけて、
-            // 接続に使っているNICのMACアドレスを取得する
-            IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
-            foreach (var client in ClientManager.ClientList)
-            {
-                if(IsRemoteHost(iphostentry, client.RemoteIP.Address))
-                {
-                    return ServerSupport.GetMacAddress(client.LocalIP.Address);
-                }
-            }
-            return null;
-        }
-
-        public async Task RequestSetting()
+        #region Request
+        private async Task RequestSetting()
         {
             await Client.OnCommonData(new CommonData() {
                 Setting = AppData_.setting,
@@ -2499,7 +2524,7 @@ namespace Amatsukaze.Server
                 ServerInfo = new ServerInfo()
                 {
                     HostName = Dns.GetHostName(),
-                    MacAddress = GetMacAddress()
+                    MacAddress = ClientManager?.GetMacAddress()
                 }
             });
 
@@ -2538,37 +2563,50 @@ namespace Amatsukaze.Server
             });
         }
 
-        public Task RequestQueue()
+        private Task RequestQueue()
         {
-            QueueData data = new QueueData()
+            return Client.OnUIData(new UIData()
             {
-                Items = queue
-            };
-            return Client.OnQueueData(data);
+                QueueData = new QueueData()
+                {
+                    Items = queue
+                }
+            });
         }
 
-        public Task RequestLog()
+        private Task RequestLog()
         {
-            return Client.OnLogData(Log);
+            return Client.OnUIData(new UIData()
+            {
+                LogData = logData
+            });
         }
 
-        public Task RequestConsole()
+        private Task RequestCheckLog()
+        {
+            return Client.OnUIData(new UIData()
+            {
+                CheckLogData = checkLogData
+            });
+        }
+
+        private Task RequestConsole()
         {
             return Task.WhenAll(scheduler.Workers.Cast<TranscodeWorker>().Select(w =>
-                Client.OnConsole(new ConsoleData() {
-                    index = w.id,
-                    text = w.consoleText.TextLines as List<string>
+                Client.OnUIData(new UIData()
+                {
+                    ConsoleData = new ConsoleData()
+                    {
+                        index = w.id,
+                        text = w.consoleText.TextLines as List<string>
+                    }
                 })));
         }
 
-        public Task RequestLogFile(LogItem item)
+        private Task RequestState()
         {
-            return Client.OnLogFile(ReadLogFIle(item.EncodeStartDate));
-        }
-
-        public Task RequestState()
-        {
-            var state = new State() {
+            var state = new State()
+            {
                 Pause = encodePaused,
                 Running = nowEncoding,
                 Progress = Progress
@@ -2579,13 +2617,74 @@ namespace Amatsukaze.Server
             });
         }
 
-        public Task RequestFreeSpace()
+        private Task RequestFreeSpace()
         {
             RefrechDiskSpace();
-            return Client.OnCommonData(new CommonData() {
+            return Client.OnCommonData(new CommonData()
+            {
                 Disks = diskMap.Values.ToList()
             });
         }
+
+        private async Task RequestServiceSetting()
+        {
+            var serviceMap = AppData_.services.ServiceMap;
+            await Client.OnServiceSetting(new ServiceSettingUpdate()
+            {
+                Type = ServiceSettingUpdateType.Clear
+            });
+            foreach (var service in serviceMap.Values.ToArray())
+            {
+                await Client.OnServiceSetting(new ServiceSettingUpdate()
+                {
+                    Type = ServiceSettingUpdateType.Update,
+                    ServiceId = service.ServiceId,
+                    Data = service
+                });
+            }
+        }
+
+        private Task RequestLogFile(LogItem item)
+        {
+            return Client.OnLogFile(ReadLogFIle(item.EncodeStartDate));
+        }
+
+        public async Task Request(ServerRequest req)
+        {
+            if ((req & ServerRequest.Setting) != 0)
+            {
+                await RequestSetting();
+            }
+            if ((req & ServerRequest.Queue) != 0)
+            {
+                await RequestQueue();
+            }
+            if ((req & ServerRequest.Log) != 0)
+            {
+                await RequestLog();
+            }
+            if ((req & ServerRequest.CheckLog) != 0)
+            {
+                await RequestCheckLog();
+            }
+            if ((req & ServerRequest.Console) != 0)
+            {
+                await RequestConsole();
+            }
+            if ((req & ServerRequest.State) != 0)
+            {
+                await RequestState();
+            }
+            if ((req & ServerRequest.FreeSpace) != 0)
+            {
+                await RequestFreeSpace();
+            }
+            if ((req & ServerRequest.ServiceSetting) != 0)
+            {
+                await RequestServiceSetting();
+            }
+        }
+        #endregion
 
         public Task RequestDrcsImages()
         {
@@ -2647,23 +2746,6 @@ namespace Amatsukaze.Server
             await Client.OnServiceSetting(update);
         }
 
-        public async Task RequestServiceSetting()
-        {
-            var serviceMap = AppData_.services.ServiceMap;
-            await Client.OnServiceSetting(new ServiceSettingUpdate()
-            {
-                Type = ServiceSettingUpdateType.Clear
-            });
-            foreach (var service in serviceMap.Values.ToArray())
-            {
-                await Client.OnServiceSetting(new ServiceSettingUpdate() {
-                    Type = ServiceSettingUpdateType.Update,
-                    ServiceId = service.ServiceId,
-                    Data = service
-                });
-            }
-        }
-
         private AMTContext amtcontext = new AMTContext();
         public Task RequestLogoData(string fileName)
         {
@@ -2722,7 +2804,7 @@ namespace Amatsukaze.Server
             newItem.State = QueueState.LogoPending;
             UpdateQueueItem(newItem, waits, false);
 
-            waits.Add(Client.OnQueueUpdate(new QueueUpdate()
+            waits.Add(ClientQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
                 DirId = newItem.Dir.Id,
@@ -2752,7 +2834,7 @@ namespace Amatsukaze.Server
             {
                 // 全て完了しているのでディレクトリを削除
                 queue.Remove(dir);
-                waits.Add(Client.OnQueueUpdate(new QueueUpdate()
+                waits.Add(ClientQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = dir.Id
@@ -2764,7 +2846,7 @@ namespace Amatsukaze.Server
             foreach (var item in removeItems)
             {
                 dir.Items.Remove(item);
-                waits.Add(Client.OnQueueUpdate(new QueueUpdate()
+                waits.Add(ClientQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
                     DirId = item.Dir.Id,
@@ -2809,7 +2891,7 @@ namespace Amatsukaze.Server
                         item.State = QueueState.Canceled;
                     }
                     return Task.WhenAll(
-                        Client.OnQueueUpdate(new QueueUpdate()
+                        ClientQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Remove,
                             DirId = target.Id
@@ -2913,7 +2995,7 @@ namespace Amatsukaze.Server
                     {
                         target.State = QueueState.Canceled;
                         return Task.WhenAll(
-                            Client.OnQueueUpdate(new QueueUpdate()
+                            ClientQueueUpdate(new QueueUpdate()
                             {
                                 Type = UpdateType.Update,
                                 DirId = target.Dir.Id,
@@ -2932,7 +3014,7 @@ namespace Amatsukaze.Server
                     target.Priority = data.Priority;
                     scheduler.UpdatePriority(target, target.ActualPriority);
                     return Task.WhenAll(
-                        Client.OnQueueUpdate(new QueueUpdate()
+                        ClientQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Update,
                             DirId = target.Dir.Id,
@@ -2972,7 +3054,7 @@ namespace Amatsukaze.Server
                     target.State = QueueState.Canceled;
                     dir.Items.Remove(target);
                     return Task.WhenAll(
-                        Client.OnQueueUpdate(new QueueUpdate()
+                        ClientQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Remove,
                             DirId = target.Dir.Id,

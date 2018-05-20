@@ -178,6 +178,42 @@ namespace Amatsukaze.Server
             }
         }
 
+        private static bool IsRemoteHost(IPHostEntry iphostentry, IPAddress address)
+        {
+            IPHostEntry other = null;
+            try
+            {
+                other = Dns.GetHostEntry(address);
+            }
+            catch
+            {
+                return true;
+            }
+            foreach (IPAddress addr in other.AddressList)
+            {
+                if (IPAddress.IsLoopback(addr) || Array.IndexOf(iphostentry.AddressList, addr) != -1)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public byte[] GetMacAddress()
+        {
+            // リモートのクライアントを見つけて、
+            // 接続に使っているNICのMACアドレスを取得する
+            IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var client in ClientList)
+            {
+                if (IsRemoteHost(iphostentry, client.RemoteIP.Address))
+                {
+                    return ServerSupport.GetMacAddress(client.LocalIP.Address);
+                }
+            }
+            return null;
+        }
+
         private async Task Send(RPCMethodId id, object obj)
         {
             byte[] bytes = RPCTypes.Serialize(id, obj);
@@ -230,29 +266,11 @@ namespace Amatsukaze.Server
                 case RPCMethodId.EndServer:
                     server.EndServer();
                     break;
-                case RPCMethodId.RequestSetting:
-                    server.RequestSetting();
-                    break;
-                case RPCMethodId.RequestQueue:
-                    server.RequestQueue();
-                    break;
-                case RPCMethodId.RequestLog:
-                    server.RequestLog();
-                    break;
-                case RPCMethodId.RequestConsole:
-                    server.RequestConsole();
+                case RPCMethodId.Request:
+                    server.Request((ServerRequest)arg);
                     break;
                 case RPCMethodId.RequestLogFile:
-                    server.RequestLogFile((LogItem)arg);
-                    break;
-                case RPCMethodId.RequestState:
-                    server.RequestState();
-                    break;
-                case RPCMethodId.RequestFreeSpace:
-                    server.RequestFreeSpace();
-                    break;
-                case RPCMethodId.RequestServiceSetting:
-                    server.RequestServiceSetting();
+                    server.RequestLogFile((LogFileRequest)arg);
                     break;
                 case RPCMethodId.RequestLogoData:
                     server.RequestLogoData((string)arg);
@@ -274,29 +292,9 @@ namespace Amatsukaze.Server
         }
 
         #region IUserClient
-        public Task OnQueueData(QueueData data)
+        public Task OnUIData(UIData data)
         {
-            return Send(RPCMethodId.OnQueueData, data);
-        }
-
-        public Task OnQueueUpdate(QueueUpdate update)
-        {
-            return Send(RPCMethodId.OnQueueUpdate, update);
-        }
-
-        public Task OnLogData(LogData data)
-        {
-            return Send(RPCMethodId.OnLogData, data);
-        }
-
-        public Task OnLogUpdate(LogItem newLog)
-        {
-            return Send(RPCMethodId.OnLogUpdate, newLog);
-        }
-
-        public Task OnConsole(ConsoleData str)
-        {
-            return Send(RPCMethodId.OnConsole, str);
+            return Send(RPCMethodId.OnUIData, data);
         }
 
         public Task OnConsoleUpdate(ConsoleUpdate str)

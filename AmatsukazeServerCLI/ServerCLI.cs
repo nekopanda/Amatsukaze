@@ -26,7 +26,15 @@ namespace Amatsukaze.Server
                          TaskSupport.Finish();
                      }))
                     {
+                        var task = server.Init();
+
+                        // この時点でtaskが完了していなくてもEnterMessageLoop()で続きが処理される
+
                         TaskSupport.EnterMessageLoop();
+
+                        // この時点では"継続"を処理する人がいないので、
+                        // task.Wait()はデッドロックするので呼べないことに注意
+                        // あとはプログラムが終了するだけなのでWait()しても意味がない
                     }
                 }
             }

@@ -25,15 +25,8 @@ namespace Amatsukaze.Server
         Task EndServer();
 
         // 情報取得系
-        Task RequestSetting();
-        Task RequestQueue();
-        Task RequestLog();
-        Task RequestConsole();
-        Task RequestLogFile(LogItem item);
-        Task RequestState();
-        Task RequestFreeSpace();
-
-        Task RequestServiceSetting();
+        Task Request(ServerRequest req);
+        Task RequestLogFile(LogFileRequest req);
         Task RequestLogoData(string fileName);
         Task RequestDrcsImages();
 
@@ -42,11 +35,7 @@ namespace Amatsukaze.Server
 
     public interface IUserClient
     {
-        Task OnQueueData(QueueData data);
-        Task OnQueueUpdate(QueueUpdate update);
-        Task OnLogData(LogData data);
-        Task OnLogUpdate(LogItem newLog);
-        Task OnConsole(ConsoleData str);
+        Task OnUIData(UIData data);
         Task OnConsoleUpdate(ConsoleUpdate str);
         Task OnLogFile(string str);
 
@@ -73,22 +62,12 @@ namespace Amatsukaze.Server
         SetServiceSetting,
         AddDrcsMap,
         EndServer,
-        RequestSetting,
-        RequestQueue,
-        RequestLog,
-        RequestConsole,
+        Request,
         RequestLogFile,
-        RequestState,
-        RequestFreeSpace,
-        RequestServiceSetting,
         RequestLogoData,
         RequestDrcsImages,
 
-        OnQueueData = 200,
-        OnQueueUpdate,
-        OnLogData,
-        OnLogUpdate,
-        OnConsole,
+        OnUIData = 200,
         OnConsoleUpdate,
         OnLogFile,
         OnCommonData,
@@ -119,22 +98,12 @@ namespace Amatsukaze.Server
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
             { RPCMethodId.EndServer, null },
-            { RPCMethodId.RequestSetting, null },
-            { RPCMethodId.RequestQueue, null },
-            { RPCMethodId.RequestLog, null },
-            { RPCMethodId.RequestConsole, null },
-            { RPCMethodId.RequestLogFile, typeof(LogItem) },
-            { RPCMethodId.RequestState, null },
-            { RPCMethodId.RequestFreeSpace, null },
-            { RPCMethodId.RequestServiceSetting, null },
+            { RPCMethodId.Request, typeof(ServerRequest) },
+            { RPCMethodId.RequestLogFile, typeof(LogFileRequest) },
             { RPCMethodId.RequestLogoData, typeof(string) },
             { RPCMethodId.RequestDrcsImages, null },
 
-            { RPCMethodId.OnQueueData, typeof(QueueData) },
-            { RPCMethodId.OnQueueUpdate, typeof(QueueUpdate) },
-            { RPCMethodId.OnLogData, typeof(LogData) },
-            { RPCMethodId.OnLogUpdate, typeof(LogItem) },
-            { RPCMethodId.OnConsole, typeof(ConsoleData) },
+            { RPCMethodId.OnUIData, typeof(UIData) },
             { RPCMethodId.OnConsoleUpdate, typeof(ConsoleUpdate) },
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnCommonData, typeof(CommonData) },
@@ -360,13 +329,13 @@ namespace Amatsukaze.Server
         public static Task RefreshRequest(this IEncodeServer server)
         {
             return Task.WhenAll(
-                    server.RequestSetting(),
-                    server.RequestQueue(),
-                    server.RequestLog(),
-                    server.RequestConsole(),
-                    server.RequestState(),
-                    server.RequestFreeSpace(),
-                    server.RequestServiceSetting(),
+                    server.Request(ServerRequest.Setting | 
+                    ServerRequest.Queue |
+                    ServerRequest.Log |
+                    ServerRequest.Console |
+                    ServerRequest.State |
+                    ServerRequest.FreeSpace |
+                    ServerRequest.ServiceSetting),
                     server.RequestDrcsImages());
         }
     }
@@ -391,9 +360,9 @@ namespace Amatsukaze.Server
             client.Finish();
         }
 
-        public Task OnConsole(ConsoleData str)
+        public Task OnUIData(UIData data)
         {
-            return client.OnConsole(Copy(str));
+            return client.OnUIData(Copy(data));
         }
 
         public Task OnConsoleUpdate(ConsoleUpdate str)
@@ -401,24 +370,9 @@ namespace Amatsukaze.Server
             return client.OnConsoleUpdate(Copy(str));
         }
 
-        public Task OnLogData(LogData data)
-        {
-            return client.OnLogData(Copy(data));
-        }
-
         public Task OnLogFile(string str)
         {
-            return client.OnLogFile((string)Copy(str));
-        }
-
-        public Task OnLogoData(LogoData logoData)
-        {
-            return client.OnLogoData(Copy(logoData));
-        }
-
-        public Task OnLogUpdate(LogItem newLog)
-        {
-            return client.OnLogUpdate(Copy(newLog));
+            return client.OnLogFile(Copy(str));
         }
 
         public Task OnOperationResult(OperationResult result)
@@ -426,19 +380,14 @@ namespace Amatsukaze.Server
             return client.OnOperationResult(Copy(result));
         }
 
-        public Task OnQueueData(QueueData data)
-        {
-            return client.OnQueueData(Copy(data));
-        }
-
-        public Task OnQueueUpdate(QueueUpdate update)
-        {
-            return client.OnQueueUpdate(Copy(update));
-        }
-
         public Task OnServiceSetting(ServiceSettingUpdate service)
         {
             return client.OnServiceSetting(Copy(service));
+        }
+
+        public Task OnLogoData(LogoData logoData)
+        {
+            return client.OnLogoData(Copy(logoData));
         }
 
         public Task OnCommonData(CommonData data)
@@ -511,54 +460,19 @@ namespace Amatsukaze.Server
             return Server.PauseEncode(Copy(pause));
         }
 
-        public Task RequestConsole()
+        public Task Request(ServerRequest req)
         {
-            return Server.RequestConsole();
+            return Server.Request(Copy(req));
         }
 
-        public Task RequestDrcsImages()
+        public Task RequestLogFile(LogFileRequest req)
         {
-            return Server.RequestDrcsImages();
-        }
-
-        public Task RequestFreeSpace()
-        {
-            return Server.RequestFreeSpace();
-        }
-
-        public Task RequestLog()
-        {
-            return Server.RequestLog();
-        }
-
-        public Task RequestLogFile(LogItem item)
-        {
-            return Server.RequestLogFile(Copy(item));
+            return Server.RequestLogFile(Copy(req));
         }
 
         public Task RequestLogoData(string fileName)
         {
             return Server.RequestLogoData(Copy(fileName));
-        }
-
-        public Task RequestQueue()
-        {
-            return Server.RequestQueue();
-        }
-
-        public Task RequestServiceSetting()
-        {
-            return Server.RequestServiceSetting();
-        }
-
-        public Task RequestSetting()
-        {
-            return Server.RequestSetting();
-        }
-
-        public Task RequestState()
-        {
-            return Server.RequestState();
         }
 
         public Task SetProfile(ProfileUpdate data)
@@ -579,6 +493,11 @@ namespace Amatsukaze.Server
         public Task SetCommonData(CommonData data)
         {
             return Server.SetCommonData(Copy(data));
+        }
+
+        public Task RequestDrcsImages()
+        {
+            return Server.RequestDrcsImages();
         }
     }
 }

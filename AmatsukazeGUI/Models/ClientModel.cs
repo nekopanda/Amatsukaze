@@ -656,13 +656,20 @@ namespace Amatsukaze.Models
             ClientLog.Add(formatted);
         }
 
-        public void Start()
+        private async Task<EncodeServer> MakeEncodeServer()
+        {
+            var server = new EncodeServer(0, new ClientAdapter(this), null);
+            await server.Init();
+            return server;
+        }
+
+        public async Task Start()
         {
             if (App.Option.LaunchType == LaunchType.Standalone)
             {
                 lockFile = ServerSupport.GetLock();
-                Server = new ServerAdapter(new EncodeServer(0, new ClientAdapter(this), null));
-                Server.RefreshRequest();
+                Server = new ServerAdapter(await MakeEncodeServer());
+                await Server.RefreshRequest();
             }
             else
             {

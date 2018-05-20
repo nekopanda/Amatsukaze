@@ -50,6 +50,21 @@ namespace Amatsukaze.Server
         None, Suspend, Hibernate
     }
 
+    // サーバに要求する情報の識別フラグ
+    [Flags]
+    public enum ServerRequest
+    {
+        Setting = 1,
+        Queue = (1 << 1),
+        Log = (1 << 2),
+        CheckLog = (1 << 3),
+        Console = (1 << 4),
+        State = (1 << 5),
+        FreeSpace = (1 << 6),
+        ServiceSetting = (1 << 7)
+    }
+
+    // プロファイル設定データ
     public class ProfileSetting : IExtensibleDataObject
     {
         [DataMember]
@@ -149,6 +164,7 @@ namespace Amatsukaze.Server
         }
     }
 
+    // プロファイルの更新情報
     [DataContract]
     public class ProfileUpdate
     {
@@ -158,6 +174,7 @@ namespace Amatsukaze.Server
         public ProfileSetting Profile { get; set; }
     }
 
+    // 基本設定データ
     [DataContract]
     public class Setting : IExtensibleDataObject
     {
@@ -221,6 +238,7 @@ namespace Amatsukaze.Server
         }
     }
 
+    // ロゴ設定
     [DataContract]
     public class LogoSetting : IExtensibleDataObject
     {
@@ -250,6 +268,7 @@ namespace Amatsukaze.Server
         public static readonly string NO_LOGO = "### NO LOGO ###";
     }
 
+    // チャンネル設定の1チャンネル分
     [DataContract]
     public class ServiceSettingElement : IExtensibleDataObject
     {
@@ -269,6 +288,7 @@ namespace Amatsukaze.Server
         public ExtensionDataObject ExtensionData { get; set; }
     }
 
+    // チャンネル設定（全チャンネル分）
     [DataContract]
     public class ServiceSetting : IExtensibleDataObject
     {
@@ -337,6 +357,7 @@ namespace Amatsukaze.Server
         CS = 2,
     }
 
+    // ジャンル
     [DataContract]
     public class GenreItem
     {
@@ -521,6 +542,38 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class CheckLogItem : IExtensibleDataObject
+    {
+        [DataMember]
+        public string SrcPath { get; set; }
+        [DataMember]
+        public bool Success { get; set; }
+        [DataMember]
+        public DateTime CheckStartDate { get; set; }
+        [DataMember]
+        public DateTime CheckFinishDate { get; set; }
+        [DataMember]
+        public string ServiceName { get; set; }
+        [DataMember]
+        public int ServiceId { get; set; }
+        [DataMember]
+        public DateTime TsTime { get; set; }
+        [DataMember]
+        public string Reason { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+    [DataContract]
+    public class CheckLogData : IExtensibleDataObject
+    {
+        [DataMember]
+        public List<CheckLogItem> Items { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+    [DataContract]
     public class LogItem : IExtensibleDataObject
     {
         [DataMember]
@@ -679,17 +732,6 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class DiskItem
-    {
-        [DataMember]
-        public string Path { get; set; }
-        [DataMember]
-        public long Capacity { get; set; }
-        [DataMember]
-        public long Free { get; set; }
-    }
-
-    [DataContract]
     public class ConsoleData
     {
         [DataMember]
@@ -705,6 +747,45 @@ namespace Amatsukaze.Server
         public int index { get; set; }
         [DataMember]
         public byte[] data { get; set; }
+    }
+
+    [DataContract]
+    public class UIData
+    {
+        [DataMember]
+        public QueueData QueueData { get; set; }
+        [DataMember]
+        public QueueUpdate QueueUpdate { get; set; }
+        [DataMember]
+        public LogData LogData { get; set; }
+        [DataMember]
+        public LogItem LogItem { get; set; }
+        [DataMember]
+        public CheckLogData CheckLogData { get; set; }
+        [DataMember]
+        public CheckLogItem CheckLogItem { get; set; }
+        [DataMember]
+        public ConsoleData ConsoleData { get; set; }
+    }
+
+    [DataContract]
+    public class LogFileRequest
+    {
+        [DataMember]
+        public LogItem LogItem { get; set; }
+        [DataMember]
+        public CheckLogItem CheckLogItem { get; set; }
+    }
+
+        [DataContract]
+    public class DiskItem
+    {
+        [DataMember]
+        public string Path { get; set; }
+        [DataMember]
+        public long Capacity { get; set; }
+        [DataMember]
+        public long Free { get; set; }
     }
 
     [DataContract]

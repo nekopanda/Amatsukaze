@@ -74,6 +74,7 @@ namespace Amatsukaze.ViewModels
             {
                 await RealCloseWindow();
             });
+            await Server.Init();
             RaisePropertyChanged("Server");
             WindowCaption = "AmatsukazeServer@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
 

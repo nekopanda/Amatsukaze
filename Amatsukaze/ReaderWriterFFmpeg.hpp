@@ -29,6 +29,10 @@ extern "C" {
 
 namespace av {
 
+int GetFFmpegThreads(int preferred) {
+  return std::min(8, std::max(1, preferred));
+}
+
 AVStream* GetVideoStream(AVFormatContext* pCtx)
 {
 	for (int i = 0; i < (int)pCtx->nb_streams; ++i) {
