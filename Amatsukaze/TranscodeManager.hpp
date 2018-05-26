@@ -469,11 +469,13 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	setting.dump();
 
+  bool isNoEncode = (setting.getMode() == "cm");
+
 	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
 	PrintEncoderInfo(ctx, eoInfo);
 
 	// チェック
-	if (setting.getFormat() == FORMAT_M2TS && eoInfo.afsTimecode) {
+	if (!isNoEncode && setting.getFormat() == FORMAT_M2TS && eoInfo.afsTimecode) {
 		THROW(FormatException, "M2TS出力はVFRをサポートしていません");
 	}
 
@@ -505,7 +507,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
-	if(setting.isIgnoreNoDrcsMap() == false) {
+	if(!isNoEncode && setting.isIgnoreNoDrcsMap() == false) {
 		// DRCSマッピングチェック
 		if (ctx.getErrorCount(AMT_ERR_NO_DRCS_MAP) > 0) {
 			THROW(NoDrcsMapException, "マッピングにないDRCS外字あり正常に字幕処理できなかったため終了します");
@@ -513,18 +515,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	reformInfo.prepare(setting.isSplitSub());
-  
-#if 1
-  ctx.info("とりあえず終了...");
-  getchar();
-  return;
-#endif
 
 	time_t startTime = reformInfo.getFirstFrameTime();
 
 	NicoJK nicoJK(ctx, setting);
 	bool nicoOK = false;
-	if (setting.isNicoJKEnabled()) {
+	if (!isNoEncode && setting.isNicoJKEnabled()) {
 		ctx.info("[ニコニコ実況コメント取得]");
 		auto srcDuration = reformInfo.getInDuration() / MPEG_CLOCK_HZ;
 		nicoOK = nicoJK.makeASS(serviceId, startTime, (int)srcDuration);
@@ -588,6 +584,11 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	if (setting.isChapterEnabled()) {
 		ctx.info("ロゴ・CM解析完了: %.2f秒", sw.getAndReset());
 	}
+
+  if (isNoEncode) {
+    // CM解析のみならここで終了
+    return;
+  }
 
 	auto audioDiffInfo = reformInfo.genAudio();
 	audioDiffInfo.printAudioPtsDiff(ctx);

@@ -4,16 +4,36 @@ using Livet;
 using Livet.Commands;
 using Livet.EventListeners;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Data;
 
 namespace Amatsukaze.Models
 {
+    // nullを値として使いたい場合、WPFだとコンボボックスで選択できなかったり等、
+    // 通常の値とは挙動が変わってしまうので、null用のオブジェクトを定義
+    public class NullValue {
+        public static readonly NullValue Value = new NullValue();
+        public static readonly NullValue[] Array = new NullValue[] { Value };
+
+        public override bool Equals(object obj)
+        {
+            // どのNullValueオブジェクトも同じ
+            return obj is NullValue;
+        }
+        public override int GetHashCode()
+        {
+            return 0;
+        }
+    }
+
     public class DisplayQueueDirectory : NotificationObject
     {
         private static readonly string TIME_FORMAT = "yyyy/MM/dd HH:mm:ss";
@@ -22,7 +42,7 @@ namespace Amatsukaze.Models
 
         public string Path { get; set; }
         public ObservableCollection<DisplayQueueItem> Items { get; set; }
-        public string ModeString { get; set; }
+        public ProcMode Mode { get; set; }
         public string Profile { get; set; }
         public string ProfileLastUpdate { get; set; }
 
@@ -80,27 +100,30 @@ namespace Amatsukaze.Models
             get { return Items.Any(s => s.IsSelected); }
         }
 
-        private static string ModeToString(ProcMode mode)
-        {
-            switch (mode)
-            {
-                case ProcMode.AutoBatch:
-                    return "自動追加";
-                case ProcMode.Batch:
-                    return "通常";
-                case ProcMode.Test:
-                    return "テスト";
-                case ProcMode.DrcsSearch:
-                    return "DRCSサーチ";
+        public string ModeString {
+            get {
+                switch (Mode)
+                {
+                    case ProcMode.AutoBatch:
+                        return "自動追加";
+                    case ProcMode.Batch:
+                        return "通常";
+                    case ProcMode.Test:
+                        return "テスト";
+                    case ProcMode.DrcsCheck:
+                        return "DRCSチェック";
+                    case ProcMode.CMCheck:
+                        return "CM解析";
+                }
+                return "不明モード";
             }
-            return "不明モード";
         }
 
         public DisplayQueueDirectory(QueueDirectory dir, ClientModel Parent)
         {
             Id = dir.Id;
             Path = dir.DirPath;
-            ModeString = ModeToString(dir.Mode);
+            Mode = dir.Mode;
             Profile = dir.Profile.Name;
             ProfileLastUpdate = dir.Profile.LastUpdate.ToString(TIME_FORMAT);
 
@@ -108,7 +131,7 @@ namespace Amatsukaze.Models
             itemListener = new Components.CollectionItemListener<DisplayQueueItem>(Items,
                 item => item.PropertyChanged += ItemPropertyChanged,
                 item => item.PropertyChanged -= ItemPropertyChanged);
-            foreach(var item in dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s }))
+            foreach(var item in dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s, Dir = this }))
             {
                 Items.Add(item);
             }
@@ -118,8 +141,8 @@ namespace Amatsukaze.Models
     public class DisplayQueueItem : NotificationObject
     {
         public ClientModel Parent { get; set; }
-
         public QueueItem Model { get; set; }
+        public DisplayQueueDirectory Dir { get; set; }
 
         public bool IsComplete { get { return Model.State == QueueState.Complete; } }
         public bool IsEncoding { get { return Model.State == QueueState.Encoding; } }
@@ -148,7 +171,15 @@ namespace Amatsukaze.Models
                 switch (Model.State)
                 {
                     case QueueState.Queue: return "待ち";
-                    case QueueState.Encoding: return "エンコード中";
+                    case QueueState.Encoding:
+                        switch (Dir.Mode)
+                        {
+                            case ProcMode.CMCheck:
+                                return "CM解析中";
+                            case ProcMode.DrcsCheck:
+                                return "DRCSチェック中";
+                        }
+                        return "エンコード中";
                     case QueueState.Failed: return "失敗";
                     case QueueState.PreFailed: return "失敗";
                     case QueueState.LogoPending: return "ペンディング";
@@ -421,15 +452,42 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region DefaultJLSCommand変更通知プロパティ
-        public string DefaultJLSCommand
+        #region JLSCommandFile変更通知プロパティ
+        public object JLSCommandFile
         {
-            get { return Model.DefaultJLSCommand; }
+            get {
+                return (object)Model.JLSCommandFile ?? NullValue.Value;
+            }
             set
             {
-                if (Model.DefaultJLSCommand == value)
+                var newValue = (value is NullValue) ? null : (value as string);
+                if (Model.JLSCommandFile == newValue)
                     return;
-                Model.DefaultJLSCommand = value;
+                Model.JLSCommandFile = newValue;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region JLSOption変更通知プロパティ
+        public string JLSOption {
+            get { return Model.JLSOption; }
+            set { 
+                if (Model.JLSOption == value)
+                    return;
+                Model.JLSOption = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableJLSOption変更通知プロパティ
+        public bool EnableJLSOption {
+            get { return Model.EnableJLSOption; }
+            set { 
+                if (Model.EnableJLSOption == value)
+                    return;
+                Model.EnableJLSOption = value;
                 RaisePropertyChanged();
             }
         }
@@ -594,8 +652,8 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region IgnoreNologo変更通知プロパティ
-        public bool IgnoreNologo {
+        #region IgnoreNoLogo変更通知プロパティ
+        public bool IgnoreNoLogo {
             get { return Model.IgnoreNoLogo; }
             set { 
                 if (Model.IgnoreNoLogo == value)
@@ -713,12 +771,12 @@ namespace Amatsukaze.Models
         #region MoveLogFile変更通知プロパティ
         public bool MoveLogFile
         {
-            get { return Model.MoveLogFile; }
+            get { return Model.DisableLogFile; }
             set
             {
-                if (Model.MoveLogFile == value)
+                if (Model.DisableLogFile == value)
                     return;
-                Model.MoveLogFile = value;
+                Model.DisableLogFile = value;
                 RaisePropertyChanged();
             }
         }
@@ -1836,6 +1894,32 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region FileNameEnabled変更通知プロパティ
+        public bool FileNameEnabled {
+            get { return Item.FileNameEnabled; }
+            set { 
+                if (Item.FileNameEnabled == value)
+                    return;
+                Item.FileNameEnabled = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region FileName変更通知プロパティ
+        public string FileName {
+            get { return Item.FileName; }
+            set { 
+                if (Item.FileName == value)
+                    return;
+                Item.FileName = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ContentConditionEnabled変更通知プロパティ
         public bool ContentConditionEnabled
         {
@@ -1913,6 +1997,10 @@ namespace Amatsukaze.Models
             bool never = false;
             WarningText = "";
             var conds = new List<string>();
+            if(Item.FileNameEnabled)
+            {
+                conds.Add("ファイル名に「" + Item.FileName + "」を含む");
+            }
             if(Item.ContentConditionEnabled)
             {
                 var cond = string.Join(",", GenreItems.Where(s => s is MainGenreSelectItem)
@@ -2049,4 +2137,7 @@ namespace Amatsukaze.Models
             return Model.Name;
         }
     }
+
+    // デフォルトJLSコマンドファイル選択用のプレースホルダ
+    public class DefaultJLSCommand { }
 }

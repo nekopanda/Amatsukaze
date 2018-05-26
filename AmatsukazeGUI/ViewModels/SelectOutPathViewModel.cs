@@ -165,7 +165,29 @@ namespace Amatsukaze.ViewModels
         public async void Search()
         {
             GetProfileName();
-            Item.Mode = ProcMode.DrcsSearch;
+            Item.Mode = ProcMode.DrcsCheck;
+            Succeeded = true;
+            await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
+        }
+        #endregion
+
+        #region CMCheckCommand
+        private ViewModelCommand _CMCheckCommand;
+
+        public ViewModelCommand CMCheckCommand {
+            get {
+                if (_CMCheckCommand == null)
+                {
+                    _CMCheckCommand = new ViewModelCommand(CMCheck);
+                }
+                return _CMCheckCommand;
+            }
+        }
+
+        public async void CMCheck()
+        {
+            GetProfileName();
+            Item.Mode = ProcMode.CMCheck;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
         }

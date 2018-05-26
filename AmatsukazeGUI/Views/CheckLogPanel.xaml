@@ -1,0 +1,83 @@
+﻿<UserControl x:Class="Amatsukaze.Views.CheckLogPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
+             mc:Ignorable="d" 
+             d:DesignHeight="500" d:DesignWidth="500"
+             d:DataContext="{d:DesignInstance {x:Type vm:CheckLogViewModel}}">
+    <DockPanel>
+        <Grid DockPanel.Dock="Bottom" DataContext="{Binding SelectedLogItem}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel>
+                <TextBlock HorizontalAlignment="Left" Text="結果"/>
+                <TextBlock HorizontalAlignment="Left" Text="メッセージ"/>
+                <TextBlock HorizontalAlignment="Left" Text="フォルダ"/>
+                <TextBlock HorizontalAlignment="Left" Text="ファイル名"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Grid.ColumnSpan="4">
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayResult}"/>
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayReason}"/>
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDirectory}"/>
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileName}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+                <TextBlock HorizontalAlignment="Left" Text="録画日"/>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="2">
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTsTime}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="3">
+                <TextBlock HorizontalAlignment="Left" Text="チャンネル"/>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="5">
+                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
+            </StackPanel>
+        </Grid>
+        
+        <ListView Grid.Row="0"
+                  ItemsSource="{Binding Model.CheckLogItems}" 
+                  SelectedItem="{Binding SelectedLogItem, Mode=TwoWay}" 
+                  c:GridViewSort.AutoSort="True"
+                  MouseDoubleClick="ListView_MouseDoubleClick">
+            <ListView.Resources>
+                <Style TargetType="{x:Type ListViewItem}">
+                    <Style.Resources>
+                        <Style TargetType="{x:Type TextBlock}">
+                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self},Path='Text'}" />
+                        </Style>
+                    </Style.Resources>
+                </Style>
+            </ListView.Resources>
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="モード" DisplayMemberBinding="{Binding DisplayType}" c:GridViewSort.PropertyName="DisplayType"/>
+                    <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}" c:GridViewSort.PropertyName="DisplayEncodeStart"/>
+                    <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}" c:GridViewSort.PropertyName="DisplayResult"/>
+                    <GridViewColumn Header="メッセージ" DisplayMemberBinding="{Binding DisplayReason}" c:GridViewSort.PropertyName="DisplayReason"/>
+                    <GridViewColumn Header="フォルダ" DisplayMemberBinding="{Binding DisplaySrcDirectory}" c:GridViewSort.PropertyName="DisplaySrcDirectory"/>
+                    <GridViewColumn Header="ファイル名" DisplayMemberBinding="{Binding DisplaySrcFileName}" c:GridViewSort.PropertyName="DisplaySrcFileName"/>
+                    <GridViewColumn Header="プロファイル" DisplayMemberBinding="{Binding Profile}" c:GridViewSort.PropertyName="Profile"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+    </DockPanel>
+</UserControl>

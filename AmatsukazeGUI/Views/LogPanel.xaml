@@ -3,167 +3,22 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:v="clr-namespace:Amatsukaze.Views"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:c="clr-namespace:Amatsukaze.Components" 
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:LogViewModel}}">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="{Binding UpperRowLength, Mode=TwoWay}"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
-        </Grid.RowDefinitions>
-        <ListView Grid.Row="0"
-                  ItemsSource="{Binding Model.LogItems}" 
-                  SelectedItem="{Binding SelectedLogItem, Mode=TwoWay}" 
-                  c:GridViewSort.AutoSort="True"
-                  MouseDoubleClick="ListView_MouseDoubleClick">
-            <ListView.Resources>
-                <Style TargetType="{x:Type ListViewItem}">
-                    <Style.Resources>
-                        <Style TargetType="{x:Type TextBlock}">
-                            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self},Path='Text'}" />
-                        </Style>
-                    </Style.Resources>
-                </Style>
-            </ListView.Resources>
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn Header="エンコード開始" DisplayMemberBinding="{Binding DisplayEncodeStart}" c:GridViewSort.PropertyName="DisplayEncodeStart"/>
-                    <GridViewColumn Header="結果" DisplayMemberBinding="{Binding DisplayResult}" c:GridViewSort.PropertyName="DisplayResult"/>
-                    <GridViewColumn Header="メッセージ" DisplayMemberBinding="{Binding DisplayReason}" c:GridViewSort.PropertyName="DisplayReason"/>
-                    <GridViewColumn Header="プロファイル" DisplayMemberBinding="{Binding Profile}" c:GridViewSort.PropertyName="Profile"/>
-                    <GridViewColumn Header="フォルダ" DisplayMemberBinding="{Binding DisplaySrcDirectory}" c:GridViewSort.PropertyName="DisplaySrcDirectory"/>
-                    <GridViewColumn Header="ファイル名" DisplayMemberBinding="{Binding DisplaySrcFileName}" c:GridViewSort.PropertyName="DisplaySrcFileName"/>
-                    <GridViewColumn Header="出力ファイル数" DisplayMemberBinding="{Binding DisplayOutNum}" c:GridViewSort.PropertyName="DisplayOutNum"/>
-                    <GridViewColumn Header="インシデント" DisplayMemberBinding="{Binding DisplayNumIncident}" c:GridViewSort.PropertyName="DisplayNumIncident"/>
-                    <GridViewColumn Header="CM・チャプター解析" DisplayMemberBinding="{Binding DisplayChapter}" c:GridViewSort.PropertyName="DisplayChapter"/>
-                    <!--<GridViewColumn Header="ロゴファイル" DisplayMemberBinding="{Binding DisplayLogo}" c:GridViewSort.PropertyName="DisplayLogo"/>-->
-                    <GridViewColumn Header="エンコード時間" DisplayMemberBinding="{Binding DisplayEncodeDuration}" c:GridViewSort.PropertyName="DisplayEncodeDuration"/>
-                    <GridViewColumn Header="入力ファイル時間" DisplayMemberBinding="{Binding DisplaySrcDurationo}" c:GridViewSort.PropertyName="DisplaySrcDurationo"/>
-                    <GridViewColumn Header="出力サイズ[%]" DisplayMemberBinding="{Binding DisplayCompressionRate}" c:GridViewSort.PropertyName="DisplayCompressionRate"/>
-                    <!--<GridViewColumn Header="ビットレート(Mbps)" DisplayMemberBinding="{Binding DisplayOutBitrate}" c:GridViewSort.PropertyName="DisplayOutBitrate"/>-->
-                </GridView>
-            </ListView.View>
-            <ListView.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="CSV出力" Command="{Binding ExportCSVCommand, Mode=OneWay}" />
-                </ContextMenu>
-            </ListView.ContextMenu>
-        </ListView>
-        <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
-        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <Grid DataContext="{Binding SelectedLogItem}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                
-                <StackPanel>
-                    <TextBlock HorizontalAlignment="Left" Text="結果"/>
-                    <TextBlock HorizontalAlignment="Left" Text="メッセージ"/>
-                    <TextBlock HorizontalAlignment="Left" Text="フォルダ"/>
-                    <TextBlock HorizontalAlignment="Left" Text="ファイル名"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2" Grid.ColumnSpan="4">
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayResult}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayReason}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDirectory}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileName}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1">
-                    <TextBlock HorizontalAlignment="Left" Text="録画日"/>
-                    <TextBlock HorizontalAlignment="Left" Text="チャンネル"/>
-                    <TextBlock HorizontalAlignment="Left" Text="チャプター・CM解析"/>
-                    <TextBlock HorizontalAlignment="Left" Text="ニコニコ実況コメント"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力"/>
-                    <TextBlock HorizontalAlignment="Left" Text="ロゴファイル"/>
-                    <TextBlock HorizontalAlignment="Left" Text="開始"/>
-                    <TextBlock HorizontalAlignment="Left" Text="終了"/>
-                    <TextBlock HorizontalAlignment="Left" Text="入力ファイル時間"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力ファイル時間"/>
-                    <TextBlock HorizontalAlignment="Left" Text="エンコード時間"/>
-                    <TextBlock HorizontalAlignment="Left" Text="エンコード倍速"/>
-                    <TextBlock HorizontalAlignment="Left" Text="ホスト名"/>
-                    <TextBlock HorizontalAlignment="Left" Text="インシデント数"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力ファイル数"/>
-                </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="2">
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTsTime}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayNicoJK}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutputMask}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayLogo}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeStart}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeFinish}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDurationo}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDuration}" />
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeDuration}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeSpeed}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding MachineName}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayNumIncident}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutNum}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1" Grid.Column="3">
-                    <TextBlock HorizontalAlignment="Left" Text="入力サイズ[MB]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力サイズ[MB]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="中間サイズ[MB]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="中間サイズ[%]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="入力ビットレート[Mbps]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力ビットレート[Mbps]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力サイズ[%]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="入力音声フレーム"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力音声フレーム"/>
-                    <TextBlock HorizontalAlignment="Left" Text="平均音ズレ[ms]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="最大音ズレ[ms]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="最大音ズレ位置[ms]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="未出力音声割合[%]"/>
-                </StackPanel>
-                <StackPanel Grid.Row="1" Grid.Column="5">
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileSize}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutFileSize}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntFileSize}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayIntVideoRate}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcBitrate}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutBitrate}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayCompressionRate}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcAudioFrames}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutAudioFrames}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAvgAudioDiff}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioMaxDiff}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioMaxDiffPos}"/>
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayAudioNotIncluded}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="2">
-                    <TextBlock HorizontalAlignment="Left" Text="出力フォルダ"/>
-                    <TextBlock HorizontalAlignment="Left" Text="出力ファイル"/>
-                </StackPanel>
-                <StackPanel Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="4">
-                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDirectory}"/>
-                    <ItemsControl ItemsSource="{Binding DisplayOutFile}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock HorizontalAlignment="Left" Text="{Binding}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-
-            </Grid>
-        </ScrollViewer>
-    </Grid>
+    <DockPanel>
+        <DockPanel.Resources>
+            <DataTemplate DataType="{x:Type vm:EncodeLogViewModel}">
+                <v:EncodeLogPanel />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:CheckLogViewModel}">
+                <v:CheckLogPanel />
+            </DataTemplate>
+        </DockPanel.Resources>
+        <Button DockPanel.Dock="Top" Content="{Binding PanelName}" Command="{Binding TogglePanelCommand}"/>
+        <ContentControl Content="{Binding Panel}"/>
+    </DockPanel>
 </UserControl>

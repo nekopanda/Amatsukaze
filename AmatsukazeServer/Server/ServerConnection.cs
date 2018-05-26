@@ -38,20 +38,8 @@ namespace Amatsukaze.Server
         {
             switch (methodId)
             {
-                case RPCMethodId.OnQueueData:
-                    userClient.OnQueueData((QueueData)arg);
-                    break;
-                case RPCMethodId.OnQueueUpdate:
-                    userClient.OnQueueUpdate((QueueUpdate)arg);
-                    break;
-                case RPCMethodId.OnLogData:
-                    userClient.OnLogData((LogData)arg);
-                    break;
-                case RPCMethodId.OnLogUpdate:
-                    userClient.OnLogUpdate((LogItem)arg);
-                    break;
-                case RPCMethodId.OnConsole:
-                    userClient.OnConsole((ConsoleData)arg);
+                case RPCMethodId.OnUIData:
+                    userClient.OnUIData((UIData)arg);
                     break;
                 case RPCMethodId.OnConsoleUpdate:
                     userClient.OnConsoleUpdate((ConsoleUpdate)arg);
@@ -131,49 +119,19 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.EndServer, null);
         }
 
-        public Task RequestSetting()
+        public Task Request(ServerRequest req)
         {
-            return Send(RPCMethodId.RequestSetting, null);
+            return Send(RPCMethodId.Request, req);
         }
 
-        public Task RequestConsole()
-        {
-            return Send(RPCMethodId.RequestConsole, null);
-        }
-
-        public Task RequestLog()
-        {
-            return Send(RPCMethodId.RequestLog, null);
-        }
-
-        public Task RequestLogFile(LogItem item)
+        public Task RequestLogFile(LogFileRequest item)
         {
             return Send(RPCMethodId.RequestLogFile, item);
-        }
-
-        public Task RequestQueue()
-        {
-            return Send(RPCMethodId.RequestQueue, null);
-        }
-
-        public Task RequestState()
-        {
-            return Send(RPCMethodId.RequestState, null);
-        }
-
-        public Task RequestFreeSpace()
-        {
-            return Send(RPCMethodId.RequestFreeSpace, null);
         }
 
         public Task RequestDrcsImages()
         {
             return Send(RPCMethodId.RequestDrcsImages, null);
-        }
-
-        public Task RequestServiceSetting()
-        {
-            return Send(RPCMethodId.RequestServiceSetting, null);
         }
 
         public Task RequestLogoData(string fileName)

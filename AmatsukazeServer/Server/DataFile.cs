@@ -61,7 +61,8 @@ namespace Amatsukaze.Server
             Directory.CreateDirectory(Path.GetDirectoryName(filepath));
             foreach(var item in list)
             {
-                using (var writer = XmlWriter.Create(new FileStream(filepath, FileMode.Append), setting))
+                using(var fs = new FileStream(filepath, FileMode.Append))
+                using (var writer = XmlWriter.Create(fs, setting))
                 {
                     s.WriteObject(writer, item);
                 }

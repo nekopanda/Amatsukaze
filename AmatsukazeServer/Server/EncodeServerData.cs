@@ -108,7 +108,11 @@ namespace Amatsukaze.Server
         public double BitrateCM { get; set; }
 
         [DataMember]
-        public string DefaultJLSCommand { get; set; }
+        public string JLSCommandFile { get; set; }
+        [DataMember]
+        public string JLSOption { get; set; }
+        [DataMember]
+        public bool EnableJLSOption { get; set; }
         [DataMember]
         public bool DisableChapter { get; set; }
         [DataMember]
@@ -138,7 +142,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool NoRemoveTmp { get; set; }
         [DataMember]
-        public bool MoveLogFile { get; set; }
+        public bool DisableLogFile { get; set; }
 
         [DataMember]
         public bool EnableRename { get; set; }
@@ -300,7 +304,11 @@ namespace Amatsukaze.Server
 
     public enum ProcMode
     {
-        Batch, AutoBatch, Test, DrcsSearch
+        Batch,
+        AutoBatch,
+        Test,
+        DrcsCheck,
+        CMCheck,
     }
 
     [DataContract]
@@ -338,6 +346,7 @@ namespace Amatsukaze.Server
         public string RequestId { get; set; }
 
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
+        public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
     }
 
     public enum QueueState
@@ -456,6 +465,7 @@ namespace Amatsukaze.Server
         public string Succeeded { get { return System.IO.Path.Combine(DirPath, "succeeded"); } }
         public string Failed { get { return System.IO.Path.Combine(DirPath, "failed"); } }
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
+        public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
         public bool IsTest { get { return Mode == ProcMode.Test; } }
     }
 
@@ -541,9 +551,17 @@ namespace Amatsukaze.Server
         public ExtensionDataObject ExtensionData { get; set; }
     }
 
+    public enum CheckType
+    {
+        DRCS, // DRCSサーチ
+        CM    // CM解析
+    }
+
     [DataContract]
     public class CheckLogItem : IExtensibleDataObject
     {
+        [DataMember]
+        public CheckType Type { get; set; }
         [DataMember]
         public string SrcPath { get; set; }
         [DataMember]
@@ -552,6 +570,8 @@ namespace Amatsukaze.Server
         public DateTime CheckStartDate { get; set; }
         [DataMember]
         public DateTime CheckFinishDate { get; set; }
+        [DataMember]
+        public string Profile { get; set; }
         [DataMember]
         public string ServiceName { get; set; }
         [DataMember]
@@ -562,6 +582,24 @@ namespace Amatsukaze.Server
         public string Reason { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
+
+        public string DisplayType {
+            get {
+                if (Type == CheckType.CM) return "CM解析";
+                else if (Type == CheckType.DRCS) return "DRCSチェック";
+                else return "不明";
+            }
+        }
+        public TimeSpan EncodeDuration { get { return CheckFinishDate - CheckStartDate; } }
+        public string DisplayResult { get { return Success ? "〇" : "×"; } }
+        public string DisplaySrcDirectory { get { return Path.GetDirectoryName(SrcPath); } }
+        public string DisplaySrcFileName { get { return Path.GetFileName(SrcPath); } }
+        public string DisplayEncodeStart { get { return CheckStartDate.ToGUIString(); } }
+        public string DisplayEncodeFinish { get { return CheckFinishDate.ToGUIString(); } }
+        public string DisplayEncodeDuration { get { return EncodeDuration.ToGUIString(); } }
+        public string DisplayReason { get { return Reason; } }
+        public string DisplayService { get { return ServiceName + "(" + ServiceId + ")"; } }
+        public string DisplayTsTime { get { return (TsTime == DateTime.MinValue) ? "不明" : TsTime.ToString("yyyy年M月d日"); } }
     }
 
     [DataContract]
@@ -835,13 +873,37 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class DrcsSourceItem
+    {
+        // 当該TSファイル名
+        [DataMember]
+        public string FileName { get; set; }
+
+        // DRCS文字を発見した日時（DRCSチェックやエンコードを走らせた時刻）
+        [DataMember]
+        public DateTime FoundTime { get; set; }
+
+        // 当該DRCS文字出現の映像開始からの時間
+        [DataMember]
+        public TimeSpan Elapsed { get; set; }
+
+        public override string ToString()
+        {
+            return Elapsed.ToString(@"h\:mm\:ss") + "@" + FileName;
+        }
+    }
+
+    [DataContract]
     public class DrcsImage
     {
         [DataMember]
         public string MD5 { get; set; }
-
         [DataMember]
         public string MapStr { get; set; }
+
+        // 出現リスト
+        [DataMember]
+        public DrcsSourceItem[] SourceList { get; set; }
 
         // これはシリアライズできないので、別処理で送信する
         public BitmapFrame Image { get; set; }
@@ -943,6 +1005,10 @@ namespace Amatsukaze.Server
     [DataContract]
     public class AutoSelectCondition
     {
+        [DataMember]
+        public bool FileNameEnabled { get; set; }
+        [DataMember]
+        public string FileName { get; set; }
         [DataMember]
         public bool ContentConditionEnabled { get; set; }
         [DataMember]

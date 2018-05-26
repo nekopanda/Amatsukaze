@@ -17,13 +17,22 @@ using System.Windows.Shapes;
 namespace Amatsukaze.Views
 {
     /// <summary>
-    /// LogPanel.xaml の相互作用ロジック
+    /// EncodeLogPanel.xaml の相互作用ロジック
     /// </summary>
-    public partial class LogPanel : UserControl
+    public partial class EncodeLogPanel : UserControl
     {
-        public LogPanel()
+        public EncodeLogPanel()
         {
             InitializeComponent();
+        }
+
+        private void ListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var vm = DataContext as EncodeLogViewModel;
+            if (vm != null)
+            {
+                vm.GetLogFileOfCurrentSelectedItem();
+            }
         }
     }
 }

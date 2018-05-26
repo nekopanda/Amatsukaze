@@ -87,6 +87,7 @@
     <Compile Include="Components\InsertionCursor.xaml.cs">
       <DependentUpon>InsertionCursor.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Components\InverseBooleanConverter.cs" />
     <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
     <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Components\ObservableViewModelCollection.cs" />
@@ -94,10 +95,12 @@
     <Compile Include="Models\DisplayData.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\AutoSelectSettingViewModel.cs" />
+    <Compile Include="ViewModels\CheckLogViewModel.cs" />
     <Compile Include="ViewModels\ClientLogViewModel.cs" />
     <Compile Include="ViewModels\DiskFreeSpaceViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageListViewModel.cs" />
     <Compile Include="ViewModels\DrcsImageViewModel.cs" />
+    <Compile Include="ViewModels\EncodeLogViewModel.cs" />
     <Compile Include="ViewModels\LogoAnalyzeViewModel.cs" />
     <Compile Include="ViewModels\LogoImageViewModel.cs" />
     <Compile Include="ViewModels\MakeBatchResultViewModel.cs" />
@@ -115,6 +118,9 @@
     <Compile Include="Views\AutoSelectSettingPanel.xaml.cs">
       <DependentUpon>AutoSelectSettingPanel.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\CheckLogPanel.xaml.cs">
+      <DependentUpon>CheckLogPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\ClientLogPanel.xaml.cs">
       <DependentUpon>ClientLogPanel.xaml</DependentUpon>
     </Compile>
@@ -126,6 +132,9 @@
     </Compile>
     <Compile Include="Views\DrcsImageListPanel.xaml.cs">
       <DependentUpon>DrcsImageListPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\EncodeLogPanel.xaml.cs">
+      <DependentUpon>EncodeLogPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\LogoAnalyzeWindow.xaml.cs">
       <DependentUpon>LogoAnalyzeWindow.xaml</DependentUpon>
@@ -184,6 +193,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\CheckLogPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\ClientLogPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -205,6 +218,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\DrcsImageListPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\EncodeLogPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

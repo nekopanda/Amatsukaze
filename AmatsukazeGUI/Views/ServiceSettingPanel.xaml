@@ -62,7 +62,11 @@
                 </DockPanel>
             </GroupBox>
 
-            <TextBlock DockPanel.Dock="Top" Text="ロゴファイル" Margin="3"/>
+            <DockPanel DockPanel.Dock="Top">
+                <Button DockPanel.Dock="Right" Width="130" Content="選択中の「ロゴなし」を削除" Command="{Binding AddNoLogoCommand}"/>
+                <Button DockPanel.Dock="Right" Width="130" Content="「ロゴなし」を追加" Command="{Binding RemoveNoLogoCommand}"/>
+                <TextBlock Text="ロゴファイル" Margin="3"/>
+            </DockPanel>
             <ListBox ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}">
                 <ListBox.ContextMenu>
                     <ContextMenu>

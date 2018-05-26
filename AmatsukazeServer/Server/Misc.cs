@@ -755,7 +755,6 @@ namespace Amatsukaze.Server
             return new ProfileSetting()
             {
                 EncoderType = EncoderType.x264,
-                DefaultJLSCommand = "JL_標準.txt",
                 Bitrate = new BitrateSetting(),
                 BitrateCM = 0.5,
                 OutputMask = 1,
@@ -918,12 +917,19 @@ namespace Amatsukaze.Server
             return VideoSizeCondition.OneSeg;
         }
 
-        public static string AutoSelectProfile(int width, int height,
+        public static string AutoSelectProfile(string fileName, int width, int height,
             List<GenreItem> genre, int serviceId, AutoSelectProfile conds, out int priority)
         {
             var videoSize = GetVideoSize(width, height);
             foreach (var cond in conds.Conditions)
             {
+                if(cond.FileNameEnabled)
+                {
+                    if(fileName.Contains(cond.FileName) == false)
+                    {
+                        continue;
+                    }
+                }
                 if(cond.ContentConditionEnabled)
                 {
                     if (MatchContentConditions(genre, cond.ContentConditions) == false)
@@ -956,7 +962,7 @@ namespace Amatsukaze.Server
 
         public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds, out int priority)
         {
-            return AutoSelectProfile(item.ImageWidth, item.ImageHeight,
+            return AutoSelectProfile(Path.GetFileName(item.SrcPath), item.ImageWidth, item.ImageHeight,
                 item.Genre, item.ServiceId, conds, out priority);
         }
 
@@ -1004,6 +1010,22 @@ namespace Amatsukaze.Server
                     return ".m2ts";
             }
             throw new ArgumentException();
+        }
+
+        public static void MoveTSFile(string file, string dstDir, bool withEDCB)
+        {
+            string body = Path.GetFileNameWithoutExtension(file);
+            string tsext = Path.GetExtension(file);
+            string srcDir = Path.GetDirectoryName(file);
+            foreach (var ext in ServerSupport.GetFileExtentions(tsext, withEDCB))
+            {
+                string srcPath = srcDir + "\\" + body + ext;
+                string dstPath = dstDir + "\\" + body + ext;
+                if (File.Exists(srcPath))
+                {
+                    File.Move(srcPath, dstPath);
+                }
+            }
         }
     }
 
@@ -1075,6 +1097,22 @@ namespace Amatsukaze.Server
             if (val.CompareTo(min) < 0) return min;
             else if (val.CompareTo(max) > 0) return max;
             else return val;
+        }
+    }
+
+    public class Profile
+    {
+        private Stopwatch sw = new Stopwatch();
+
+        public Profile()
+        {
+            sw.Start();
+        }
+
+        public void PrintTime(string name)
+        {
+            System.Diagnostics.Debug.Print(sw.ElapsedMilliseconds + " ms: " + name);
+            sw.Restart();
         }
     }
 }

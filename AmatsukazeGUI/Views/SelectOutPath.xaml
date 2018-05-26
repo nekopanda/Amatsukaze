@@ -87,12 +87,19 @@
                 <Run FontSize="20" Text="テストモード"/><LineBreak/><Run Text="エンコード後、入力ファイルは移動しません。"/><LineBreak/><Run Text="同名ファイルがある場合は上書きせず、別名で出力します。"/>
             </TextBlock>
         </Button>
-
+        
         <Button Margin="2" Height="Auto" Command="{Binding SearchCommand, Mode=OneWay}">
             <TextBlock TextAlignment="Center" TextWrapping="Wrap">
-                <Run FontSize="20" Text="DRCS外字サーチ"/><LineBreak/><Run Text="入力ファイルを読んで未登録のDRCS外字を見つけます。エンコードはしません。DRCS外字登録をまとめて処理したいときに使ってください。"/>
+                <Run FontSize="20" Text="DRCS外字チェック"/><LineBreak/><Run Text="入力ファイルを読んで未登録のDRCS外字を見つけます。エンコードはしません。DRCS外字登録をまとめて処理したいときに使ってください。"/>
             </TextBlock>
         </Button>
+
+        <Button Margin="2" Height="Auto" Command="{Binding CMCheckCommand, Mode=OneWay}">
+            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+                <Run FontSize="20" Text="CM解析のみ"/><LineBreak/><Run Text="CM解析のみ行います。エンコードはしません。結果はログを確認してください。"/>
+            </TextBlock>
+        </Button>
+        
         <Button Margin="2" Height="50" >
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="Click">

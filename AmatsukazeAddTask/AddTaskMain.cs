@@ -392,22 +392,7 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
-        public Task OnConsole(ConsoleData str)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnConsoleUpdate(ConsoleUpdate str)
-        {
-            return Task.FromResult(0);
-        }
-
         public Task OnDrcsData(DrcsImageUpdate update)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnLogData(LogData data)
         {
             return Task.FromResult(0);
         }
@@ -422,24 +407,9 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
-        public Task OnLogUpdate(LogItem newLog)
-        {
-            return Task.FromResult(0);
-        }
-
         public Task OnOperationResult(OperationResult result)
         {
             Console.WriteLine(result.Message);
-            return Task.FromResult(0);
-        }
-
-        public Task OnQueueData(QueueData data)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnQueueUpdate(QueueUpdate update)
-        {
             return Task.FromResult(0);
         }
 
@@ -469,6 +439,16 @@ namespace Amatsukaze.AddTask
         }
 
         public Task OnServerInfo(ServerInfo setting)
+        {
+            return Task.FromResult(0);
+        }
+
+        public Task OnUIData(UIData data)
+        {
+            return Task.FromResult(0);
+        }
+
+        public Task OnConsoleUpdate(ConsoleUpdate str)
         {
             return Task.FromResult(0);
         }

@@ -332,6 +332,7 @@ namespace Amatsukaze.Server
                     server.Request(ServerRequest.Setting | 
                     ServerRequest.Queue |
                     ServerRequest.Log |
+                    ServerRequest.CheckLog |
                     ServerRequest.Console |
                     ServerRequest.State |
                     ServerRequest.FreeSpace |

@@ -266,7 +266,7 @@ namespace Amatsukaze.ViewModels
 
             try
             {
-                Model.Start();
+                await Model.Start();
             }
             catch(MultipleInstanceException)
             {

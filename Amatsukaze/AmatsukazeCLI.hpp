@@ -112,7 +112,8 @@ static void printHelp(const tchar* bin) {
 		"  --no-remove-tmp     一時ファイルを削除せずに残す\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
-		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
+    "                      ts : MPGE2-TSを入力する通常エンコードモード\n"
+    "                      cm : エンコードまで行わず、CM解析までで終了するモード\n"
 		"                      drcs : マッピングのないDRCS外字画像だけ出力するモード\n"
 		"  --dump              処理途中のデータをダンプ（デバッグ用）\n",
 		bin);
@@ -528,7 +529,7 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 		}
 
 		std::string mode = setting.getMode();
-		if (mode == "ts")
+		if (mode == "ts" || mode == "cm")
 			transcodeMain(ctx, setting);
 		else if (mode == "g")
 			transcodeSimpleMain(ctx, setting);

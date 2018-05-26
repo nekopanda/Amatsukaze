@@ -32,64 +32,91 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
         </Grid.RowDefinitions>
-        <ListView Grid.Row="0" Margin="0"
+        <DockPanel>
+            <Grid DockPanel.Dock="Bottom">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Button Content="選択した項目を削除" Height="24" Grid.Column="0"
+                        IsEnabled="{Binding IsQueueDirSelected}" Command="{Binding DeleteQueueDirCommand}"/>
+                <Button Content="完了した項目を削除" Height="24" Grid.Column="1"
+                        Command="{Binding RemoveCompletedAllCommand}"/>
+            </Grid>
+            <Grid Grid.Row="0" Margin="0">
+                <ListView
+                  x:Name="QueueList"
                   ItemsSource="{Binding Model.QueueItems}" 
                   SelectedItem="{Binding SelectedDir, Mode=TwoWay}" 
                   PreviewDragOver="ListBox_PreviewDragOver" 
                   Drop="ListBox_Drop" AllowDrop="True" 
-                  c:GridViewSort.AutoSort="True"
-                  ToolTip="ここにフォルダorファイルをD&amp;D">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn Header="モード" DisplayMemberBinding="{Binding ModeString}" c:GridViewSort.PropertyName="ModeString"/>
-                    <GridViewColumn Header="ディレクトリ" c:GridViewSort.PropertyName="Path">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Path}" ToolTip="{Binding Path}"/>
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                    <GridViewColumn Header="プロファイル" c:GridViewSort.PropertyName="Profile">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Profile}">
-                                    <TextBlock.ToolTip>
-                                        <TextBlock>
+                  c:GridViewSort.AutoSort="True">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="モード" DisplayMemberBinding="{Binding ModeString}" c:GridViewSort.PropertyName="ModeString"/>
+                            <GridViewColumn Header="ディレクトリ" c:GridViewSort.PropertyName="Path">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Path}" ToolTip="{Binding Path}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="プロファイル" c:GridViewSort.PropertyName="Profile">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Profile}">
+                                            <TextBlock.ToolTip>
+                                                <TextBlock>
                                             <Run Text="{Binding Profile}"/>@<Run Text="{Binding ProfileLastUpdate}"/>更新
-                                        </TextBlock>
-                                    </TextBlock.ToolTip>
+                                                </TextBlock>
+                                            </TextBlock.ToolTip>
                                 </TextBlock>
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                    <GridViewColumn Header="最終追加日時" c:GridViewSort.PropertyName="LastAdd">
-                        <GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding LastAdd}" ToolTip="{Binding LastAdd}"/>
-                            </DataTemplate>
-                        </GridViewColumn.CellTemplate>
-                    </GridViewColumn>
-                    <GridViewColumn Header="アイテム数" DisplayMemberBinding="{Binding Items.Count}" c:GridViewSort.PropertyName="Items.Count"/>
-                    <GridViewColumn Header="アクティブ" DisplayMemberBinding="{Binding Active}" c:GridViewSort.PropertyName="Active"/>
-                    <GridViewColumn Header="エンコード中" DisplayMemberBinding="{Binding Encoding}" c:GridViewSort.PropertyName="Encoding"/>
-                    <GridViewColumn Header="完了" DisplayMemberBinding="{Binding Complete}" c:GridViewSort.PropertyName="Complete"/>
-                    <GridViewColumn Header="ロゴ待ち" DisplayMemberBinding="{Binding Pending}" c:GridViewSort.PropertyName="Pending"/>
-                    <GridViewColumn Header="失敗" DisplayMemberBinding="{Binding Fail}" c:GridViewSort.PropertyName="Fail"/>
-                </GridView>
-            </ListView.View>
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="選択した項目を削除" IsEnabled="{Binding IsQueueDirSelected}" Command="{Binding DeleteQueueDirCommand}"/>
-                    <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
-                </ContextMenu>
-            </ListView.ContextMenu>
-        </ListView>
-        
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="最終追加日時" c:GridViewSort.PropertyName="LastAdd">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding LastAdd}" ToolTip="{Binding LastAdd}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="アイテム数" DisplayMemberBinding="{Binding Items.Count}" c:GridViewSort.PropertyName="Items.Count"/>
+                            <GridViewColumn Header="アクティブ" DisplayMemberBinding="{Binding Active}" c:GridViewSort.PropertyName="Active"/>
+                            <GridViewColumn Header="エンコード中" DisplayMemberBinding="{Binding Encoding}" c:GridViewSort.PropertyName="Encoding"/>
+                            <GridViewColumn Header="完了" DisplayMemberBinding="{Binding Complete}" c:GridViewSort.PropertyName="Complete"/>
+                            <GridViewColumn Header="ロゴ待ち" DisplayMemberBinding="{Binding Pending}" c:GridViewSort.PropertyName="Pending"/>
+                            <GridViewColumn Header="失敗" DisplayMemberBinding="{Binding Fail}" c:GridViewSort.PropertyName="Fail"/>
+                        </GridView>
+                    </ListView.View>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="選択した項目を削除" IsEnabled="{Binding IsQueueDirSelected}" Command="{Binding DeleteQueueDirCommand}"/>
+                            <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
+                        </ContextMenu>
+                    </ListView.ContextMenu>
+                </ListView>
+                <TextBlock Text="ここにエンコードするファイルorフォルダをD&amp;D" FontSize="20"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFBDBDBD">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasItems, ElementName=QueueList}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </DockPanel>
+
         <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
 
         <DockPanel Grid.Row="2">
@@ -104,9 +131,12 @@
             <Expander DockPanel.Dock="Top" Header="操作パネル" IsExpanded="{Binding IsPanelOpen, Mode=TwoWay}">
                 <DockPanel>
                     <UniformGrid Columns="3" DockPanel.Dock="Top">
-                        <Button Margin="3" Height="24" Content="状態リセット" Command="{Binding RetryCommand}"/>
-                        <Button Margin="3" Height="24" Content="プロファイル再適用" Command="{Binding RetryUpdateCommand}"/>
-                        <Button Margin="3" Height="24" Content="複製" Command="{Binding ReAddCommand}"/>
+                        <Button Margin="3" Height="24" Content="状態リセット" Command="{Binding RetryCommand}"
+                                ToolTip="アイテムを追加直後の状態に戻します。つまり、再エンコードされます"/>
+                        <Button Margin="3" Height="24" Content="プロファイル再適用" Command="{Binding RetryUpdateCommand}"
+                                ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
+                        <Button Margin="3" Height="24" Content="複製" Command="{Binding ReAddCommand}"
+                                ToolTip="アイテムを同じ設定で複製します"/>
                         <c:DropDownMenuButton Margin="3" Height="24" Content="プロファイル変更">
                             <c:DropDownMenuButton.Style>
                                 <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton"/>
@@ -251,7 +281,7 @@
                         </MenuItem>
                         <Separator />
                         <MenuItem Header="状態リセット" Command="{Binding RetryCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
-                              ToolTip="アイテムを追加直後の状態に戻します" />
+                              ToolTip="アイテムを追加直後の状態に戻します。つまり、再エンコードされます" />
                         <MenuItem Header="プロファイル再適用" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
                               ToolTip="プロファイルが更新されていた場合、新しい設定を適用します" />
                         <MenuItem Header="複製" Command="{Binding ReAddCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"

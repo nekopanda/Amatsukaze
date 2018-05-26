@@ -6,6 +6,7 @@
              xmlns:local="clr-namespace:Amatsukaze.Views"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:DrcsImageViewModel}}">
@@ -13,8 +14,8 @@
     <UserControl.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
     </UserControl.Resources>
-    
-    <StackPanel Orientation="Horizontal">
+
+    <StackPanel Orientation="Horizontal" FlowDirection="LeftToRight">
         <StackPanel.Resources>
             <Style x:Key="AddButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -55,20 +56,30 @@
                 </Style>
             </ContentControl.Style>
         </ContentControl>
-        
+
         <TextBox Text="{Binding MapStr, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />
+            Margin="10,0,0,0" Height="22" Width="80" VerticalAlignment="Center" HorizontalAlignment="Left" />
         <Button Margin="10,0,0,0" Content="マッピング追加" Command="{Binding SetMapStrCommand, Mode=OneWay}"
-                IsTabStop="False"
-                HorizontalAlignment="Left" Width="80" Height="22" VerticalAlignment="Center"
-                Style="{StaticResource AddButtonStyle}" IsEnabled="{Binding IsModified}" />
+            IsTabStop="False"
+            HorizontalAlignment="Left" Width="80" Height="22" VerticalAlignment="Center"
+            Style="{StaticResource AddButtonStyle}" IsEnabled="{Binding IsModified}" />
         <Button Margin="10,0,0,0" Content="変更" Command="{Binding SetMapStrCommand, Mode=OneWay}"
-                IsTabStop="False"
-                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" 
-                Style="{StaticResource ModityButtonStyle}" IsEnabled="{Binding IsModified}" />
+            IsTabStop="False"
+            HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center" 
+            Style="{StaticResource ModityButtonStyle}" IsEnabled="{Binding IsModified}" />
         <Button Margin="10,0,0,0" Content="削除" Command="{Binding DeleteMapStrCommand, Mode=OneWay}"
-                IsTabStop="False"
-                HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center"
-                Style="{StaticResource ModityButtonStyle}" />
+            IsTabStop="False"
+            HorizontalAlignment="Left" Width="50" Height="22" VerticalAlignment="Center"
+            Style="{StaticResource ModityButtonStyle}" />
+        <c:DropDownMenuButton Margin="10,0,0,0" HorizontalAlignment="Left"
+                                Width="60" Height="22" VerticalAlignment="Center"
+                                Content="出現位置">
+            <c:DropDownMenuButton.Style>
+                <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton"/>
+            </c:DropDownMenuButton.Style>
+            <c:DropDownMenuButton.DropDownContextMenu>
+                <ContextMenu ItemsSource="{Binding Image.SourceList}"/>
+            </c:DropDownMenuButton.DropDownContextMenu>
+        </c:DropDownMenuButton>
     </StackPanel>
 </UserControl>

@@ -187,6 +187,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region CheckLogItems変更通知プロパティ
+        private ObservableCollection<CheckLogItem> _CheckLogItems = new ObservableCollection<CheckLogItem>();
+
+        public ObservableCollection<CheckLogItem> CheckLogItems {
+            get { return _CheckLogItems; }
+            set {
+                if (_CheckLogItems == value)
+                    return;
+                _CheckLogItems = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region QueueItems変更通知プロパティ
         private ObservableCollection<DisplayQueueDirectory> _QueueItems = new ObservableCollection<DisplayQueueDirectory>();
 
@@ -880,6 +894,112 @@ namespace Amatsukaze.Models
             sw.Flush();
         }
 
+        public Task OnUIData(UIData data)
+        {
+            if(data.QueueData != null)
+            {
+                QueueItems.Clear();
+                foreach (var item in data.QueueData.Items)
+                {
+                    QueueItems.Add(new DisplayQueueDirectory(item, this));
+                }
+            }
+            if(data.QueueUpdate != null)
+            {
+                var update = data.QueueUpdate;
+                if (update.Item == null)
+                {
+                    // ディレクトリに対する操作
+                    if (update.Type == UpdateType.Add)
+                    {
+                        QueueItems.Add(new DisplayQueueDirectory(update.Directory, this));
+                    }
+                    else
+                    {
+                        var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
+                        if (dir != null)
+                        {
+                            if (update.Type == UpdateType.Remove)
+                            {
+                                QueueItems.Remove(dir);
+                            }
+                            else
+                            {
+                                QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory, this);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // ファイルに対する操作
+                    var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
+                    if (dir != null)
+                    {
+                        if (update.Type == UpdateType.Add)
+                        {
+                            dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item, Dir = dir });
+                            dir.ItemStateUpdated();
+                        }
+                        else
+                        {
+                            var file = dir.Items.FirstOrDefault(f => f.Model.Id == update.Item.Id);
+                            if (file != null)
+                            {
+                                if (update.Type == UpdateType.Remove)
+                                {
+                                    dir.Items.Remove(file);
+                                    dir.ItemStateUpdated();
+                                }
+                                else // Update
+                                {
+                                    var index = dir.Items.IndexOf(file);
+                                    dir.Items[index] = new DisplayQueueItem()
+                                    {
+                                        Parent = this,
+                                        Model = update.Item,
+                                        Dir = dir,
+                                        IsSelected = dir.Items[index].IsSelected
+                                    };
+                                    dir.ItemStateUpdated();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if(data.LogData != null)
+            {
+                LogItems.Clear();
+                foreach (var item in data.LogData.Items.Reverse<LogItem>())
+                {
+                    LogItems.Add(item);
+                }
+            }
+            if(data.LogItem != null)
+            {
+                LogItems.Insert(0, data.LogItem);
+            }
+            if(data.CheckLogData != null)
+            {
+                CheckLogItems.Clear();
+                foreach (var item in data.CheckLogData.Items.Reverse<CheckLogItem>())
+                {
+                    CheckLogItems.Add(item);
+                }
+            }
+            if(data.CheckLogItem != null)
+            {
+                CheckLogItems.Insert(0, data.CheckLogItem);
+            }
+            if(data.ConsoleData != null)
+            {
+                ensureConsoleNum(data.ConsoleData.index);
+                consoleList_[data.ConsoleData.index].SetTextLines(data.ConsoleData.text);
+            }
+            return Task.FromResult(0);
+        }
+
         private string GetDisplayServerNeme()
         {
             if (Server is ServerConnection)
@@ -964,12 +1084,12 @@ namespace Amatsukaze.Models
             }
         }
 
-        public Task OnConsole(ConsoleData data)
-        {
-            ensureConsoleNum(data.index);
-            consoleList_[data.index].SetTextLines(data.text);
-            return Task.FromResult(0);
-        }
+        //public Task OnConsole(ConsoleData data)
+        //{
+        //    ensureConsoleNum(data.index);
+        //    consoleList_[data.index].SetTextLines(data.text);
+        //    return Task.FromResult(0);
+        //}
 
         public Task OnConsoleUpdate(ConsoleUpdate update)
         {
@@ -978,15 +1098,15 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnLogData(LogData data)
-        {
-            LogItems.Clear();
-            foreach (var item in data.Items.Reverse<LogItem>())
-            {
-                LogItems.Add(item);
-            }
-            return Task.FromResult(0);
-        }
+        //public Task OnLogData(LogData data)
+        //{
+        //    LogItems.Clear();
+        //    foreach (var item in data.Items.Reverse<LogItem>())
+        //    {
+        //        LogItems.Add(item);
+        //    }
+        //    return Task.FromResult(0);
+        //}
 
         public Task OnLogFile(string str)
         {
@@ -994,11 +1114,11 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnLogUpdate(LogItem newLog)
-        {
-            LogItems.Insert(0, newLog);
-            return Task.FromResult(0);
-        }
+        //public Task OnLogUpdate(LogItem newLog)
+        //{
+        //    LogItems.Insert(0, newLog);
+        //    return Task.FromResult(0);
+        //}
 
         public Task OnOperationResult(OperationResult result)
         {
@@ -1008,78 +1128,78 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        public Task OnQueueData(QueueData data)
-        {
-            QueueItems.Clear();
-            foreach (var item in data.Items)
-            {
-                QueueItems.Add(new DisplayQueueDirectory(item, this));
-            }
-            return Task.FromResult(0);
-        }
+        //public Task OnQueueData(QueueData data)
+        //{
+        //    QueueItems.Clear();
+        //    foreach (var item in data.Items)
+        //    {
+        //        QueueItems.Add(new DisplayQueueDirectory(item, this));
+        //    }
+        //    return Task.FromResult(0);
+        //}
 
-        public Task OnQueueUpdate(QueueUpdate update)
-        {
-            if (update.Item == null)
-            {
-                // ディレクトリに対する操作
-                if (update.Type == UpdateType.Add)
-                {
-                    QueueItems.Add(new DisplayQueueDirectory(update.Directory, this));
-                }
-                else
-                {
-                    var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
-                    if(dir != null)
-                    {
-                        if (update.Type == UpdateType.Remove)
-                        {
-                            QueueItems.Remove(dir);
-                        }
-                        else
-                        {
-                            QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory, this);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // ファイルに対する操作
-                var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
-                if (dir != null)
-                {
-                    if (update.Type == UpdateType.Add)
-                    {
-                        dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
-                        dir.ItemStateUpdated();
-                    }
-                    else
-                    {
-                        var file = dir.Items.FirstOrDefault(f => f.Model.Id == update.Item.Id);
-                        if (file != null)
-                        {
-                            if (update.Type == UpdateType.Remove)
-                            {
-                                dir.Items.Remove(file);
-                                dir.ItemStateUpdated();
-                            }
-                            else // Update
-                            {
-                                var index = dir.Items.IndexOf(file);
-                                dir.Items[index] = new DisplayQueueItem() {
-                                    Parent = this,
-                                    Model = update.Item,
-                                    IsSelected = dir.Items[index].IsSelected
-                                };
-                                dir.ItemStateUpdated();
-                            }
-                        }
-                    }
-                }
-            }
-            return Task.FromResult(0);
-        }
+        //public Task OnQueueUpdate(QueueUpdate update)
+        //{
+        //    if (update.Item == null)
+        //    {
+        //        // ディレクトリに対する操作
+        //        if (update.Type == UpdateType.Add)
+        //        {
+        //            QueueItems.Add(new DisplayQueueDirectory(update.Directory, this));
+        //        }
+        //        else
+        //        {
+        //            var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
+        //            if(dir != null)
+        //            {
+        //                if (update.Type == UpdateType.Remove)
+        //                {
+        //                    QueueItems.Remove(dir);
+        //                }
+        //                else
+        //                {
+        //                    QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory, this);
+        //                }
+        //            }
+        //        }
+        //    }
+        //    else
+        //    {
+        //        // ファイルに対する操作
+        //        var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
+        //        if (dir != null)
+        //        {
+        //            if (update.Type == UpdateType.Add)
+        //            {
+        //                dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
+        //                dir.ItemStateUpdated();
+        //            }
+        //            else
+        //            {
+        //                var file = dir.Items.FirstOrDefault(f => f.Model.Id == update.Item.Id);
+        //                if (file != null)
+        //                {
+        //                    if (update.Type == UpdateType.Remove)
+        //                    {
+        //                        dir.Items.Remove(file);
+        //                        dir.ItemStateUpdated();
+        //                    }
+        //                    else // Update
+        //                    {
+        //                        var index = dir.Items.IndexOf(file);
+        //                        dir.Items[index] = new DisplayQueueItem() {
+        //                            Parent = this,
+        //                            Model = update.Item,
+        //                            IsSelected = dir.Items[index].IsSelected
+        //                        };
+        //                        dir.ItemStateUpdated();
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //    return Task.FromResult(0);
+        //}
 
         public Task OnServiceSetting(ServiceSettingUpdate update)
         {
@@ -1214,7 +1334,9 @@ namespace Amatsukaze.Models
                 profile.TwoPass = data.Profile.TwoPass;
                 profile.SplitSub = data.Profile.SplitSub;
                 profile.OutputMask = profile.OutputOptionList.FirstOrDefault(s => s.Mask == data.Profile.OutputMask);
-                profile.DefaultJLSCommand = data.Profile.DefaultJLSCommand;
+                profile.JLSCommandFile = data.Profile.JLSCommandFile;
+                profile.JLSOption = data.Profile.JLSOption;
+                profile.EnableJLSOption = data.Profile.EnableJLSOption;
                 profile.DisableChapter = data.Profile.DisableChapter;
                 profile.DisableSubs = data.Profile.DisableSubs;
                 profile.IgnoreNoDrcsMap = data.Profile.IgnoreNoDrcsMap;

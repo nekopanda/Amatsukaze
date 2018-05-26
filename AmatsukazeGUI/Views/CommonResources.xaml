@@ -1,6 +1,7 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:local="clr-namespace:Amatsukaze.Views">
+                    xmlns:local="clr-namespace:Amatsukaze.Views"
+                    xmlns:c="clr-namespace:Amatsukaze.Components">
 
     <Style x:Key="HeaderMenuStyle" TargetType="ListBox">
         <Setter Property="Template">
@@ -274,4 +275,6 @@
         <Setter Property="BorderThickness" Value="0.5"/>
         <Setter Property="Background" Value="Transparent"/>
     </Style>
+
+    <c:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
 </ResourceDictionary>

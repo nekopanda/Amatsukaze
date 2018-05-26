@@ -1,4 +1,5 @@
-﻿using Livet;
+﻿#define PROFILE
+using Livet;
 using Amatsukaze.Lib;
 using Codeplex.Data;
 using System;
@@ -49,22 +50,15 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static Func<char, bool> IsHex = c =>
-                 (c >= '0' && c <= '9') ||
-                 (c >= 'a' && c <= 'f') ||
-                 (c >= 'A' && c <= 'F');
-
         internal IUserClient Client { get; private set; }
         public Task ServerTask { get; private set; }
         internal AppData AppData_ { get; private set; }
 
         private Action finishRequested;
 
+        private QueueManager queueManager;
         private EncodeScheduler<QueueItem> scheduler = null;
 
-        private List<QueueDirectory> queue = new List<QueueDirectory>();
-        private int nextDirId = 1;
-        private int nextItemId = 1;
         private LogData logData = new LogData();
         private CheckLogData checkLogData = new CheckLogData();
         private SortedDictionary<string, DiskItem> diskMap = new SortedDictionary<string, DiskItem>();
@@ -76,8 +70,7 @@ namespace Amatsukaze.Server
         private List<string> JlsCommandFiles = new List<string>();
         private List<string> MainScriptFiles = new List<string>();
         private List<string> PostScriptFiles = new List<string>();
-        private Dictionary<string, BitmapFrame> drcsImageCache = new Dictionary<string, BitmapFrame>();
-        private Dictionary<string, DrcsImage> drcsMap = new Dictionary<string, DrcsImage>();
+        private DRCSManager drcsManager;
 
         // キューに追加されるTSを解析するスレッド
         private Task queueThread;
@@ -97,7 +90,7 @@ namespace Amatsukaze.Server
         private PreventSuspendContext preventSuspend;
 
         // プロファイル未選択状態のダミープロファイル
-        private ProfileSetting pendingProfile;
+        public ProfileSetting PendingProfile { get; private set; }
 
         // データファイル
         private DataFile<LogItem> logFile;
@@ -149,9 +142,28 @@ namespace Amatsukaze.Server
             get { return Client as ClientManager; }
         }
 
+        public Dictionary<int, ServiceSettingElement> ServiceMap { get { return AppData_.services.ServiceMap; } }
+
+        public string LastSelectedProfile {
+            get { return AppData_.setting.LastSelectedProfile; }
+            set {
+                if (AppData_.setting.LastSelectedProfile != value)
+                {
+                    AppData_.setting.LastSelectedProfile = value;
+                    settingUpdated = true;
+                }
+            }
+        }
         public EncodeServer(int port, IUserClient client, Action finishRequested)
         {
+#if PROFILE
+            var prof = new Profile();
+#endif
             this.finishRequested = finishRequested;
+
+            queueManager = new QueueManager(this);
+            drcsManager = new DRCSManager(this);
+
             LoadAppData();
             LoadAutoSelectData();
             if (client != null)
@@ -165,8 +177,10 @@ namespace Amatsukaze.Server
                 this.Client = clientManager;
                 RaisePropertyChanged("ClientManager");
             }
-
-            pendingProfile = new ProfileSetting()
+#if PROFILE
+            prof.PrintTime("EncodeServer 1");
+#endif
+            PendingProfile = new ProfileSetting()
             {
                 Name = "プロファイル未選択",
                 LastUpdate = DateTime.MinValue,
@@ -224,23 +238,52 @@ namespace Amatsukaze.Server
             };
             scheduler.SetNumParallel(AppData_.setting.NumParallel);
             affinityCreator.NumProcess = AppData_.setting.NumParallel;
+#if PROFILE
+            prof.PrintTime("EncodeServer 2");
+#endif
         }
 
         // コンストラクタはasyncにできないのでasyncする処理は分離
         public async Task Init()
         {
+#if PROFILE
+            var prof = new Profile();
+#endif
             // 古いバージョンからの更新処理
             UpdateFromOldVersion();
+#if PROFILE
+            prof.PrintTime("EncodeServer A");
+#endif
 
             logFile = new DataFile<LogItem>(GetHistoryFilePathV2());
             checkLogFile = new DataFile<CheckLogItem>(GetCheckHistoryFilePath());
 
             logData.Items = await logFile.Read();
             checkLogData.Items = await checkLogFile.Read();
+#if PROFILE
+            prof.PrintTime("EncodeServer B");
+#endif
+
+            // DRCS文字情報解析に回す
+            foreach(var item in logData.Items)
+            {
+                drcsManager.AddLogFile(GetLogFileBase(item.EncodeStartDate) + ".txt",
+                    item.SrcPath, item.EncodeFinishDate);
+            }
+            foreach (var item in checkLogData.Items)
+            {
+                drcsManager.AddLogFile(GetCheckLogFileBase(item.CheckStartDate) + ".txt",
+                    item.SrcPath, item.CheckStartDate);
+            }
 
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
             saveSettingThread = SaveSettingThread();
+#if PROFILE
+            prof.PrintTime("EncodeServer C");
+#endif
+
+            // ログを解析
         }
 
         #region IDisposable Support
@@ -383,12 +426,12 @@ namespace Amatsukaze.Server
             return Path.GetFullPath("avs");
         }
 
-        private string GetDRCSDirectoryPath()
+        internal string GetDRCSDirectoryPath()
         {
             return Path.GetFullPath("drcs");
         }
 
-        private string GetDRCSImagePath(string md5)
+        internal string GetDRCSImagePath(string md5)
         {
             return GetDRCSImagePath(GetDRCSDirectoryPath(), md5);
         }
@@ -398,12 +441,12 @@ namespace Amatsukaze.Server
             return dirPath + "\\" + md5 + ".bmp";
         }
 
-        private string GetDRCSMapPath()
+        internal string GetDRCSMapPath()
         {
             return GetDRCSMapPath(GetDRCSDirectoryPath());
         }
 
-        private string GetDRCSMapPath(string dirPath)
+        internal string GetDRCSMapPath(string dirPath)
         {
             return dirPath + "\\drcs_map.txt";
         }
@@ -430,59 +473,13 @@ namespace Amatsukaze.Server
 
         private void UpdateFromOldVersion()
         {
+            int CurrentVersion = 1;
+
             // 古いバージョンからのアップデート処理
-            if(AppData_.Version == 0)
+            if(AppData_.Version < CurrentVersion)
             {
                 // DRCS文字の並びを変更する
-                var dirPath = GetDRCSDirectoryPath();
-                var oldDirPath = dirPath + ".old";
-                if(Directory.Exists(dirPath) && !Directory.Exists(oldDirPath))
-                {
-                    // drcs -> drcs.old にディレクトリ名変更
-                    Directory.Move(dirPath, oldDirPath);
-
-                    // drcsディレクトリを改めて作る
-                    Directory.CreateDirectory(dirPath);
-
-                    Func<string, string> RevertHash = s =>
-                    {
-                        var sb = new StringBuilder();
-                        for (int i = 0; i < 32; i += 2)
-                        {
-                            sb.Append(s[i + 1]).Append(s[i]);
-                        }
-                        return sb.ToString();
-                    };
-
-                    // drcs_map.txtを変換
-                    using (var sw = new StreamWriter(File.OpenWrite(GetDRCSMapPath()), Encoding.UTF8))
-                    {
-                        foreach (var line in File.ReadAllLines(GetDRCSMapPath(oldDirPath)))
-                        {
-                            if (line.Length >= 34 && line.IndexOf('=') == 32)
-                            {
-                                string md5 = line.Substring(0, 32);
-                                string mapStr = line.Substring(33);
-                                if (md5.All(IsHex))
-                                {
-                                    sw.WriteLine(RevertHash(md5) + "=" + mapStr);
-                                }
-                            }
-                        }
-                    }
-
-                    // 文字画像ファイルを変換
-                    foreach (var imgpath in Directory.GetFiles(oldDirPath))
-                    {
-                        var filename = Path.GetFileName(imgpath);
-                        if (filename.Length == 36 && Path.GetExtension(filename).ToLower() == ".bmp")
-                        {
-                            string md5 = filename.Substring(0, 32);
-                            File.Copy(imgpath, dirPath + "\\" + RevertHash(md5) + ".bmp");
-                        }
-                    }
-
-                }
+                drcsManager.UpdateFromOldVersion();
 
                 // ログファイルを移行
                 string path = GetHistoryFilePathV1();
@@ -509,14 +506,16 @@ namespace Amatsukaze.Server
                     }
                 }
 
-                settingUpdated = true;
-            }
+                // 現在バージョンに更新
+                AppData_.Version = CurrentVersion;
 
-            // 現在バージョンに更新
-            AppData_.Version = 1;
+                // 起動処理で落ちると２重に処理することになるので、
+                // ここで設定ファイルに書き込んでおく
+                SaveAppData();
+            }
         }
 
-        private Task NotifyMessage(bool fail, string message, bool log)
+        internal Task NotifyMessage(bool fail, string message, bool log)
         {
             if(log)
             {
@@ -727,6 +726,8 @@ namespace Amatsukaze.Server
             {
                 logData.Items.Add(item);
                 logFile.Add(new List<LogItem>() { item });
+                drcsManager.AddLogFile(GetLogFileBase(item.EncodeStartDate) + ".txt",
+                    item.SrcPath, item.EncodeFinishDate);
                 return Client.OnUIData(new UIData()
                 {
                     LogItem = item
@@ -745,6 +746,8 @@ namespace Amatsukaze.Server
             {
                 checkLogData.Items.Add(item);
                 checkLogFile.Add(new List<CheckLogItem>() { item });
+                drcsManager.AddLogFile(GetCheckLogFileBase(item.CheckStartDate) + ".txt",
+                    item.SrcPath, item.CheckStartDate);
                 return Client.OnUIData(new UIData()
                 {
                     CheckLogItem = item
@@ -817,23 +820,8 @@ namespace Amatsukaze.Server
             }
         }
 
-        internal string MakeAmatsukazeCheckArgs(string src, int serviceId)
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.Append("--mode drcs")
-                .Append(" --subtitles")
-                .Append(" -i \"")
-                .Append(src)
-                .Append("\" -s ")
-                .Append(serviceId)
-                .Append(" --drcs \"")
-                .Append(GetDRCSMapPath())
-                .Append("\"");
-
-            return sb.ToString();
-        }
-
         internal string MakeAmatsukazeArgs(
+            ProcMode mode,
             ProfileSetting profile,
             Setting setting,
             bool isGeneric,
@@ -841,238 +829,233 @@ namespace Amatsukaze.Server
             int serviceId, string[] logofiles,
             bool ignoreNoLogo, string jlscommand, string jlsopt)
         {
-            string encoderPath = GetEncoderPath(profile.EncoderType, setting);
-
-            double bitrateCM = profile.BitrateCM;
-            if (bitrateCM == 0)
-            {
-                bitrateCM = 1;
-            }
-
-            int outputMask = profile.OutputMask;
-            if(outputMask == 0)
-            {
-                outputMask = 1;
-            }
-
             StringBuilder sb = new StringBuilder();
-            if (isGeneric)
+
+            if (mode == ProcMode.CMCheck)
+            {
+                sb.Append("--mode cm ");
+            }
+            else if(mode == ProcMode.DrcsCheck)
+            {
+                sb.Append("--mode drcs ");
+            }
+            else if (isGeneric)
             {
                 sb.Append("--mode g ");
             }
+
             sb.Append("-i \"")
                 .Append(src)
-                .Append("\" -o \"")
-                .Append(dst)
-                .Append("\" -w \"")
-                .Append(setting.WorkPath)
-                .Append("\" -et ")
-                .Append(GetEncoderName(profile.EncoderType))
-                .Append(" -e \"")
-                .Append(encoderPath)
-                .Append("\" -j \"")
-                .Append(json)
-                .Append("\" --chapter-exe \"")
-                .Append(setting.ChapterExePath)
-                .Append("\" --jls \"")
-                .Append(setting.JoinLogoScpPath)
                 .Append("\" -s ")
                 .Append(serviceId)
-                .Append(" --cmoutmask ")
-                .Append(outputMask)
                 .Append(" --drcs \"")
                 .Append(GetDRCSMapPath())
                 .Append("\"");
 
-            if (profile.OutputFormat == FormatType.MP4)
-            {
-                sb.Append(" --mp4box \"")
-                    .Append(setting.MP4BoxPath)
-                    .Append("\" -t \"")
-                    .Append(setting.TimelineEditorPath)
-                    .Append("\"");
-            }
-
-            var encoderOption = GetEncoderOption(profile);
-            if (string.IsNullOrEmpty(encoderOption) == false)
-            {
-                sb.Append(" -eo \"")
-                    .Append(encoderOption)
-                    .Append("\"");
-            }
-
-            if (profile.OutputFormat == FormatType.MP4)
-            {
-                sb.Append(" -fmt mp4 -m \"" + setting.MuxerPath + "\"");
-            }
-            else if(profile.OutputFormat == FormatType.MKV)
-            {
-                sb.Append(" -fmt mkv -m \"" + setting.MKVMergePath + "\"");
-            }
-            else
-            {
-                sb.Append(" -fmt m2ts -m \"" + setting.TsMuxeRPath + "\"");
-            }
-
-            if (bitrateCM != 1)
-            {
-                sb.Append(" -bcm ").Append(bitrateCM);
-            }
-            if(profile.SplitSub)
-            {
-                sb.Append(" --splitsub");
-            }
-            if (!profile.DisableChapter)
-            {
-                sb.Append(" --chapter");
-            }
-            if (!profile.DisableSubs)
+            if (mode == ProcMode.DrcsCheck)
             {
                 sb.Append(" --subtitles");
             }
-            if (profile.EnableNicoJK)
-            {
-                sb.Append(" --nicojk");
-                if(profile.IgnoreNicoJKError)
+            else {
+                int outputMask = profile.OutputMask;
+                if (outputMask == 0)
                 {
-                    sb.Append(" --ignore-nicojk-error");
+                    outputMask = 1;
                 }
-                if (profile.NicoJK18)
+
+                sb.Append(" -w \"")
+                    .Append(setting.WorkPath)
+                    .Append("\" --chapter-exe \"")
+                    .Append(setting.ChapterExePath)
+                    .Append("\" --jls \"")
+                    .Append(setting.JoinLogoScpPath)
+                    .Append("\" --cmoutmask ")
+                    .Append(outputMask);
+
+
+                if (mode != ProcMode.CMCheck)
                 {
-                    sb.Append(" --nicojk18");
-                }
-                sb.Append(" --nicojkmask ")
-                    .Append(profile.NicoJKFormatMask);
-                sb.Append(" --nicoass \"")
-                    .Append(setting.NicoConvASSPath)
-                    .Append("\"");
-            }
+                    string encoderPath = GetEncoderPath(profile.EncoderType, setting);
 
-            if (string.IsNullOrEmpty(jlscommand) == false)
-            {
-                sb.Append(" --jls-cmd \"")
-                    .Append(GetJLDirectoryPath() + "\\" + jlscommand)
-                    .Append("\"");
-            }
-            if (string.IsNullOrEmpty(jlsopt) == false)
-            {
-                sb.Append(" --jls-option \"")
-                    .Append(jlsopt)
-                    .Append("\"");
-            }
+                    double bitrateCM = profile.BitrateCM;
+                    if (bitrateCM == 0)
+                    {
+                        bitrateCM = 1;
+                    }
 
-            if (string.IsNullOrEmpty(profile.FilterPath) == false)
-            {
-                sb.Append(" -f \"")
-                    .Append(GetAvsDirectoryPath() + "\\" + profile.FilterPath)
-                    .Append("\"");
-            }
+                    sb.Append(" -o \"")
+                        .Append(dst)
+                        .Append("\" -et ")
+                        .Append(GetEncoderName(profile.EncoderType))
+                        .Append(" -e \"")
+                        .Append(encoderPath)
+                        .Append("\" -j \"")
+                        .Append(json)
+                        .Append("\"");
 
-            if (string.IsNullOrEmpty(profile.PostFilterPath) == false)
-            {
-                sb.Append(" -pf \"")
-                    .Append(GetAvsDirectoryPath() + "\\" + profile.PostFilterPath)
-                    .Append("\"");
-            }
+                    if (profile.OutputFormat == FormatType.MP4)
+                    {
+                        sb.Append(" --mp4box \"")
+                            .Append(setting.MP4BoxPath)
+                            .Append("\" -t \"")
+                            .Append(setting.TimelineEditorPath)
+                            .Append("\"");
+                    }
 
-            if (profile.AutoBuffer)
-            {
-                sb.Append(" --bitrate ")
-                    .Append(profile.Bitrate.A)
-                    .Append(":")
-                    .Append(profile.Bitrate.B)
-                    .Append(":")
-                    .Append(profile.Bitrate.H264);
-            }
+                    var encoderOption = GetEncoderOption(profile);
+                    if (string.IsNullOrEmpty(encoderOption) == false)
+                    {
+                        sb.Append(" -eo \"")
+                            .Append(encoderOption)
+                            .Append("\"");
+                    }
 
-            string[] decoderNames = new string[] { "default", "QSV", "CUVID" };
-            if (profile.Mpeg2Decoder != DecoderType.Default)
-            {
-                sb.Append("  --mpeg2decoder ");
-                sb.Append(decoderNames[(int)profile.Mpeg2Decoder]);
-            }
-            if (profile.H264Deocder != DecoderType.Default)
-            {
-                sb.Append("  --h264decoder ");
-                sb.Append(decoderNames[(int)profile.H264Deocder]);
-            }
+                    if (profile.OutputFormat == FormatType.MP4)
+                    {
+                        sb.Append(" -fmt mp4 -m \"" + setting.MuxerPath + "\"");
+                    }
+                    else if (profile.OutputFormat == FormatType.MKV)
+                    {
+                        sb.Append(" -fmt mkv -m \"" + setting.MKVMergePath + "\"");
+                    }
+                    else
+                    {
+                        sb.Append(" -fmt m2ts -m \"" + setting.TsMuxeRPath + "\"");
+                    }
 
-            if (profile.TwoPass)
-            {
-                sb.Append(" --2pass");
-            }
-            if (ignoreNoLogo)
-            {
-                sb.Append(" --ignore-no-logo");
-            }
-            if (profile.LooseLogoDetection)
-            {
-                sb.Append(" --loose-logo-detection");
-            }
-            if (profile.IgnoreNoDrcsMap)
-            {
-                sb.Append(" --ignore-no-drcsmap");
-            }
-            if (profile.NoDelogo)
-            {
-                sb.Append(" --no-delogo");
-            }
-            if (profile.NoRemoveTmp)
-            {
-                sb.Append(" --no-remove-tmp");
-            }
+                    if (bitrateCM != 1)
+                    {
+                        sb.Append(" -bcm ").Append(bitrateCM);
+                    }
+                    if (profile.SplitSub)
+                    {
+                        sb.Append(" --splitsub");
+                    }
+                    if (!profile.DisableChapter)
+                    {
+                        sb.Append(" --chapter");
+                    }
+                    if (profile.EnableNicoJK)
+                    {
+                        sb.Append(" --nicojk");
+                        if (profile.IgnoreNicoJKError)
+                        {
+                            sb.Append(" --ignore-nicojk-error");
+                        }
+                        if (profile.NicoJK18)
+                        {
+                            sb.Append(" --nicojk18");
+                        }
+                        sb.Append(" --nicojkmask ")
+                            .Append(profile.NicoJKFormatMask);
+                        sb.Append(" --nicoass \"")
+                            .Append(setting.NicoConvASSPath)
+                            .Append("\"");
+                    }
 
-            if (logofiles != null)
-            {
-                foreach (var logo in logofiles)
+                    if (string.IsNullOrEmpty(profile.FilterPath) == false)
+                    {
+                        sb.Append(" -f \"")
+                            .Append(GetAvsDirectoryPath() + "\\" + profile.FilterPath)
+                            .Append("\"");
+                    }
+
+                    if (string.IsNullOrEmpty(profile.PostFilterPath) == false)
+                    {
+                        sb.Append(" -pf \"")
+                            .Append(GetAvsDirectoryPath() + "\\" + profile.PostFilterPath)
+                            .Append("\"");
+                    }
+
+                    if (profile.AutoBuffer)
+                    {
+                        sb.Append(" --bitrate ")
+                            .Append(profile.Bitrate.A)
+                            .Append(":")
+                            .Append(profile.Bitrate.B)
+                            .Append(":")
+                            .Append(profile.Bitrate.H264);
+                    }
+
+                    if (profile.TwoPass)
+                    {
+                        sb.Append(" --2pass");
+                    }
+                } // if (mode != ProcMode.CMCheck)
+
+                if (!profile.DisableSubs)
                 {
-                    sb.Append(" --logo \"").Append(GetLogoFilePath(logo)).Append("\"");
+                    sb.Append(" --subtitles");
                 }
-            }
-            if (profile.SystemAviSynthPlugin)
-            {
-                sb.Append(" --systemavsplugin");
+
+                if (string.IsNullOrEmpty(jlscommand) == false)
+                {
+                    sb.Append(" --jls-cmd \"")
+                        .Append(GetJLDirectoryPath() + "\\" + jlscommand)
+                        .Append("\"");
+                }
+                if (string.IsNullOrEmpty(jlsopt) == false)
+                {
+                    sb.Append(" --jls-option \"")
+                        .Append(jlsopt)
+                        .Append("\"");
+                }
+
+                string[] decoderNames = new string[] { "default", "QSV", "CUVID" };
+                if (profile.Mpeg2Decoder != DecoderType.Default)
+                {
+                    sb.Append("  --mpeg2decoder ");
+                    sb.Append(decoderNames[(int)profile.Mpeg2Decoder]);
+                }
+
+                if (profile.H264Deocder != DecoderType.Default)
+                {
+                    sb.Append("  --h264decoder ");
+                    sb.Append(decoderNames[(int)profile.H264Deocder]);
+                }
+                if (ignoreNoLogo)
+                {
+                    sb.Append(" --ignore-no-logo");
+                }
+                if (profile.LooseLogoDetection)
+                {
+                    sb.Append(" --loose-logo-detection");
+                }
+                if (profile.IgnoreNoDrcsMap)
+                {
+                    sb.Append(" --ignore-no-drcsmap");
+                }
+                if (profile.NoDelogo)
+                {
+                    sb.Append(" --no-delogo");
+                }
+                if (profile.NoRemoveTmp)
+                {
+                    sb.Append(" --no-remove-tmp");
+                }
+
+                if (logofiles != null)
+                {
+                    foreach (var logo in logofiles)
+                    {
+                        sb.Append(" --logo \"").Append(GetLogoFilePath(logo)).Append("\"");
+                    }
+                }
+                if (profile.SystemAviSynthPlugin)
+                {
+                    sb.Append(" --systemavsplugin");
+                }
             }
 
             return sb.ToString();
         }
 
-        private void UpdateProgress()
-        {
-            // 進捗を更新
-            var items = queue.SelectMany(t => t.Items);
-            double enabledCount = items.Count(s =>
-                s.State != QueueState.LogoPending && s.State != QueueState.PreFailed);
-            double remainCount = items.Count(s =>
-                s.State == QueueState.Queue || s.State == QueueState.Encoding);
-            // 完全にゼロだと分からないので・・・
-            Progress = ((enabledCount - remainCount) + 0.1) / (enabledCount + 0.1);
-        }
-
-        private Task ClientQueueUpdate(QueueUpdate update)
+        public Task ClientQueueUpdate(QueueUpdate update)
         {
             return Client.OnUIData(new UIData()
             {
                 QueueUpdate = update
             });
-        }
-
-        internal Task NotifyQueueItemUpdate(QueueItem item)
-        {
-            UpdateProgress();
-            if(item.Dir.Items.Contains(item))
-            {
-                // ないアイテムをUpdateすると追加されてしまうので
-                return Task.WhenAll(
-                    ClientQueueUpdate(new QueueUpdate()
-                        {
-                            Type = UpdateType.Update,
-                            DirId = item.Dir.Id,
-                            Item = item
-                        }),
-                    RequestState());
-            }
-            return Task.FromResult(0);
         }
 
         private void CleanTmpDir()
@@ -1228,300 +1211,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private QueueDirectory GetQueueDirectory(string  dirPath, ProcMode mode, ProfileSetting profile, List<Task> waitItems)
-        {
-            QueueDirectory target = queue.FirstOrDefault(s =>
-                    s.DirPath == dirPath &&
-                    s.Mode == mode &&
-                    s.Profile.Name == profile.Name &&
-                    s.Profile.LastUpdate == profile.LastUpdate);
-
-            if (target == null)
-            {
-                var profilei = (profile == pendingProfile) ? profile : ServerSupport.DeepCopy(profile);
-                target = new QueueDirectory()
-                {
-                    Id = nextDirId++,
-                    DirPath = dirPath,
-                    Items = new List<QueueItem>(),
-                    Mode = mode,
-                    Profile = profilei
-                };
-
-                // ハッシュリスト取得
-                if (profile != pendingProfile && // ペンディングの場合は決定したときに実行される
-                    mode == ProcMode.Batch &&
-                    profile.DisableHashCheck == false &&
-                    dirPath.StartsWith("\\\\"))
-                {
-                    var hashpath = dirPath + ".hash";
-                    if (File.Exists(hashpath) == false)
-                    {
-                        waitItems.Add(NotifyMessage(true, "ハッシュファイルがありません: " + hashpath + "\r\n" +
-                            "必要ない場合はハッシュチェックを無効化して再度追加してください", false));
-                        return null;
-                    }
-                    try
-                    {
-                        target.HashList = HashUtil.ReadHashFile(hashpath);
-                    }
-                    catch (IOException e)
-                    {
-                        waitItems.Add(NotifyMessage(true, "ハッシュファイルの読み込みに失敗: " + e.Message, false));
-                        return null;
-                    }
-                }
-
-                queue.Add(target);
-                waitItems.Add(ClientQueueUpdate(new QueueUpdate()
-                    {
-                        Type = UpdateType.Add,
-                        Directory = target
-                    }));
-            }
-
-            return target;
-        }
-
-        private async Task InternalAddQueue(AddQueueDirectory dir)
-        {
-            List<Task> waits = new List<Task>();
-
-            // ユーザ操作でない場合はログを記録する
-            bool enableLog = (dir.Mode == ProcMode.AutoBatch);
-
-            if(dir.Outputs.Count == 0)
-            {
-                await NotifyMessage(true, "出力が1つもありません", enableLog);
-                return;
-            }
-
-            // 既に追加されているファイルは除外する
-            var ignores = queue
-                .Where(t => t.DirPath == dir.DirPath);
-
-            // バッチのときは全ファイルが対象だが、バッチじゃなければバッチのみが対象
-            if (!dir.IsBatch)
-            {
-                ignores = ignores.Where(t => t.IsBatch);
-            }
-
-            var ignoreSet = new HashSet<string>(
-                ignores.SelectMany(t => t.Items)
-                .Where(item => item.IsActive)
-                .Select(item => item.SrcPath));
-
-            var items = ((dir.Targets != null)
-                ? dir.Targets
-                : Directory.GetFiles(dir.DirPath)
-                    .Where(s =>
-                    {
-                        string lower = s.ToLower();
-                        return lower.EndsWith(".ts") || lower.EndsWith(".m2t");
-                    })
-                    .Select(f => new AddQueueItem() { Path = f }))
-                    .Where(f => !ignoreSet.Contains(f.Path));
-
-            var map = AppData_.services.ServiceMap;
-            var numItems = 0;
-
-            // TSファイル情報を読む
-            foreach (var additem in items)
-            {
-                using (var info = new TsInfo(amtcontext))
-                {
-                    var fileOK = false;
-                    var failReason = "";
-                    if (await Task.Run(() => info.ReadFile(additem.Path)) == false)
-                    {
-                        failReason = "TS情報取得に失敗: " + amtcontext.GetError();
-                    }
-                    // 1ソースファイルに対するaddはatomicに実行したいので、
-                    // このスコープでは以降awaitしないこと
-                    else
-                    {
-                        failReason = "TSファイルに映像が見つかりませんでした";
-                        var list = info.GetProgramList();
-                        var videopids = new List<int>();
-                        int numFiles = 0;
-                        for (int i = 0; i < list.Length; ++i)
-                        {
-                            var prog = list[i];
-                            if (prog.HasVideo &&
-                                videopids.Contains(prog.VideoPid) == false)
-                            {
-                                videopids.Add(prog.VideoPid);
-
-                                var serviceName = "不明";
-                                var tsTime = DateTime.MinValue;
-                                if (info.HasServiceInfo)
-                                {
-                                    var service = info.GetServiceList().Where(s => s.ServiceId == prog.ServiceId).FirstOrDefault();
-                                    if (service.ServiceId != 0)
-                                    {
-                                        serviceName = service.ServiceName;
-                                    }
-                                    tsTime = info.GetTime();
-                                }
-
-                                var outname = Path.GetFileName(additem.Path);
-                                if (numFiles > 0)
-                                {
-                                    outname = Path.GetFileNameWithoutExtension(outname) + "-マルチ" + numFiles;
-                                }
-
-                                Debug.Print("解析完了: " + additem.Path);
-
-                                foreach (var outitem in dir.Outputs)
-                                {
-                                    var genre = prog.Content.Select(s => ServerSupport.GetGenre(s)).ToList();
-                                    var profile = GetProfile(prog.Width, prog.Height, genre, prog.ServiceId, outitem.Profile);
-                                    var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile?.Profile ?? pendingProfile, waits);
-                                    var priority = (profile != null && profile.Priority > 0) ? profile.Priority : outitem.Priority;
-
-                                    var item = new QueueItem()
-                                    {
-                                        Id = nextItemId++,
-                                        SrcPath = additem.Path,
-                                        Hash = additem.Hash,
-                                        DstPath = outitem.DstPath + "\\" + outname,
-                                        ServiceId = prog.ServiceId,
-                                        ImageWidth = prog.Width,
-                                        ImageHeight = prog.Height,
-                                        TsTime = tsTime,
-                                        ServiceName = serviceName,
-                                        EventName = prog.EventName,
-                                        State = QueueState.LogoPending,
-                                        Priority = priority,
-                                        AddTime = DateTime.Now,
-                                        ProfileName = outitem.Profile,
-                                        Dir = target,
-                                        Genre = genre
-                                    };
-
-                                    if (item.IsOneSeg)
-                                    {
-                                        item.State = QueueState.PreFailed;
-                                        item.FailReason = "映像が小さすぎます(" + prog.Width + "," + prog.Height + ")";
-                                    }
-                                    else
-                                    {
-                                        // ロゴファイルを探す
-                                        if (dir.Mode != ProcMode.DrcsSearch && map.ContainsKey(item.ServiceId) == false)
-                                        {
-                                            // 新しいサービスを登録
-                                            var newElement = new ServiceSettingElement()
-                                            {
-                                                ServiceId = item.ServiceId,
-                                                ServiceName = item.ServiceName,
-                                                LogoSettings = new List<LogoSetting>()
-                                            };
-                                            map.Add(item.ServiceId, newElement);
-                                            serviceListUpdated = true;
-                                            waits.Add(Client.OnServiceSetting(new ServiceSettingUpdate()
-                                            {
-                                                Type = ServiceSettingUpdateType.Update,
-                                                ServiceId = newElement.ServiceId,
-                                                Data = newElement
-                                            }));
-                                        }
-                                        ++numFiles;
-                                    }
-
-                                    // 追加
-                                    target.Items.Add(item);
-                                    // まずは内部だけで状態を更新
-                                    UpdateQueueItem(item, waits, false);
-                                    // 状態が決まったらクライアント側に追加通知
-                                    waits.Add(ClientQueueUpdate(new QueueUpdate()
-                                            {
-                                                Type = UpdateType.Add,
-                                                DirId = item.Dir.Id,
-                                                Item = item
-                                            }));
-                                    ++numItems;
-                                    fileOK = true;
-                                }
-                            }
-                        }
-
-                    }
-
-                    if (fileOK == false)
-                    {
-                        foreach (var outitem in dir.Outputs)
-                        {
-                            bool isAuto = false;
-                            var profileName = ServerSupport.ParseProfileName(outitem.Profile, out isAuto);
-                            var profile = isAuto ? null : profiles.GetOrDefault(profileName);
-                            var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile ?? pendingProfile, waits);
-                            var item = new QueueItem()
-                            {
-                                Id = nextItemId++,
-                                SrcPath = additem.Path,
-                                Hash = additem.Hash,
-                                DstPath = "",
-                                ServiceId = -1,
-                                ImageWidth = -1,
-                                ImageHeight = -1,
-                                TsTime = DateTime.MinValue,
-                                ServiceName = "不明",
-                                State = QueueState.PreFailed,
-                                FailReason = failReason,
-                                AddTime = DateTime.Now,
-                                ProfileName = outitem.Profile,
-                                Dir = target
-                            };
-
-                            target.Items.Add(item);
-                            waits.Add(ClientQueueUpdate(new QueueUpdate()
-                                    {
-                                        Type = UpdateType.Add,
-                                        DirId = target.Id,
-                                        Item = item
-                                    }));
-                            ++numItems;
-                        }
-                    }
-
-                    UpdateProgress();
-                    waits.Add(RequestState());
-                }
-            }
-
-            if (numItems == 0)
-            {
-                waits.Add(NotifyMessage(true,
-                    "エンコード対象ファイルがありませんでした。パス:" + dir.DirPath, enableLog));
-
-                await Task.WhenAll(waits);
-
-                return;
-            }
-            else
-            {
-                waits.Add(NotifyMessage(false, "" + numItems + "件追加しました", false));
-            }
-
-            if(dir.Mode != ProcMode.AutoBatch) {
-                // 最後に使ったプロファイルを記憶しておく
-                bool isAuto = false;
-                var profileName = ServerSupport.ParseProfileName(dir.Outputs[0].Profile, out isAuto);
-                if(!isAuto)
-                {
-                    if (AppData_.setting.LastSelectedProfile != profileName)
-                    {
-                        AppData_.setting.LastSelectedProfile = profileName;
-                        settingUpdated = true;
-                    }
-                }
-            }
-
-            waits.Add(RequestFreeSpace());
-
-            await Task.WhenAll(waits);
-        }
-
         private async Task QueueThread()
         {
             try
@@ -1529,7 +1218,7 @@ namespace Amatsukaze.Server
                 while (await queueQ.OutputAvailableAsync())
                 {
                     AddQueueDirectory dir = await queueQ.ReceiveAsync();
-                    await InternalAddQueue(dir);
+                    await queueManager.AddQueue(dir);
                     await Client.OnAddResult(dir.RequestId);
                 }
             }
@@ -1539,7 +1228,13 @@ namespace Amatsukaze.Server
             }
         }
 
-        private ProfileTuple GetProfile(int width, int height,
+        internal class ProfileTuple
+        {
+            public ProfileSetting Profile;
+            public int Priority;
+        }
+
+        internal ProfileTuple GetProfile(string fileName, int width, int height,
             List<GenreItem> genre, int serviceId, string profileName)
         {
             bool isAuto = false;
@@ -1556,7 +1251,7 @@ namespace Amatsukaze.Server
                     // TS情報がない
                     return null;
                 }
-                var resolvedProfile = ServerSupport.AutoSelectProfile(width, height,
+                var resolvedProfile = ServerSupport.AutoSelectProfile(fileName, width, height,
                     genre, serviceId, autoSelects[profileName], out resolvedPriority);
                 if (resolvedProfile == null)
                 {
@@ -1575,184 +1270,10 @@ namespace Amatsukaze.Server
             };
         }
 
-        private class ProfileTuple
+        internal ProfileTuple GetProfile(QueueItem item, string profileName)
         {
-            public ProfileSetting Profile;
-            public int Priority;
-        }
-
-        private ProfileTuple GetProfile(QueueItem item, string profileName)
-        {
-            return GetProfile(item.ImageWidth, item.ImageHeight,
+            return GetProfile(Path.GetFileName(item.SrcPath), item.ImageWidth, item.ImageHeight,
                 item.Genre, item.ServiceId, profileName);
-        }
-
-        private void MoveItemDirectory(QueueItem item, QueueDirectory newDir, List<Task> waits)
-        {
-            item.Dir.Items.Remove(item);
-
-            // RemoveとAddをatomicに行わなければならないのでここをawaitにしないこと
-            // ?.の後ろの引数はnullの場合は評価されないことに注意
-            // （C#の仕様が分かりにくいけど・・・）
-            waits?.Add(ClientQueueUpdate(new QueueUpdate()
-            {
-                Type = UpdateType.Remove,
-                DirId = item.Dir.Id,
-                Item = item
-            }));
-
-            if (item.Dir.Profile == pendingProfile && item.Dir.Items.Count == 0)
-            {
-                // プロファイル未選択ディレクトリは自動的に削除する
-                queue.Remove(item.Dir);
-                waits?.Add(ClientQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Remove,
-                    DirId = item.Dir.Id,
-                }));
-            }
-
-            item.Dir = newDir;
-            item.Dir.Items.Add(item);
-            waits?.Add(ClientQueueUpdate(new QueueUpdate()
-            {
-                Type = UpdateType.Add,
-                DirId = item.Dir.Id,
-                Item = item
-            }));
-        }
-
-        private bool CheckProfile(QueueItem item, QueueDirectory dir, List<Task> waits, bool notifyItem)
-        {
-            if (dir.Profile != pendingProfile)
-            {
-                return true;
-            }
-
-            bool isAuto = false;
-            int itemPriority = 0;
-            var profileName = ServerSupport.ParseProfileName(item.ProfileName, out isAuto);
-
-            if(isAuto)
-            {
-                if (autoSelects.ContainsKey(profileName) == false)
-                {
-                    item.FailReason = "自動選択「" + profileName + "」がありません";
-                    item.State = QueueState.LogoPending;
-                    return false;
-                }
-
-                var resolvedProfile = ServerSupport.AutoSelectProfile(item, autoSelects[profileName], out itemPriority);
-                if (resolvedProfile == null)
-                {
-                    item.FailReason = "自動選択「" + profileName + "」でプロファイルが選択されませんでした";
-                    item.State = QueueState.LogoPending;
-                    return false;
-                }
-
-                profileName = resolvedProfile;
-            }
-
-            if (profiles.ContainsKey(profileName) == false)
-            {
-                item.FailReason = "プロファイル「" + profileName + "」がありません";
-                item.State = QueueState.LogoPending;
-                return false;
-            }
-
-            var profile = profiles[profileName];
-
-            // プロファイルの選択ができたので、アイテムを適切なディレクトリに移動
-            var newDir = GetQueueDirectory(dir.DirPath, dir.Mode, profile, waits);
-            MoveItemDirectory(item, newDir, notifyItem ? waits : null);
-
-            if(itemPriority > 0)
-            {
-                item.Priority = itemPriority;
-            }
-
-            return true;
-        }
-
-        // ペンディング <=> キュー 状態を切り替える
-        // ペンディングからキューになったらスケジューリングに追加する
-        // notifyItem: trueの場合は、ディレクトリ・アイテム両方の更新通知、falseの場合は、ディレクトリの更新通知のみ
-        // 戻り値: 状態が変わった
-        internal bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
-        {
-            var dir = item.Dir;
-            if(item.State == QueueState.LogoPending || item.State == QueueState.Queue)
-            {
-                var prevState = item.State;
-                if (dir.Mode == ProcMode.DrcsSearch && item.State == QueueState.LogoPending)
-                {
-                    item.FailReason = "";
-                    item.State = QueueState.Queue;
-                    scheduler.QueueItem(item, item.ActualPriority);
-                }
-                else if (CheckProfile(item, dir, waits, notifyItem))
-                {
-                    var map = AppData_.services.ServiceMap;
-                    if (item.ServiceId == -1)
-                    {
-                        item.FailReason = "TS情報取得中";
-                        item.State = QueueState.LogoPending;
-                    }
-                    else if (map.ContainsKey(item.ServiceId) == false)
-                    {
-                        item.FailReason = "このTSに対する設定がありません";
-                        item.State = QueueState.LogoPending;
-                    }
-                    else if (dir.Profile.DisableChapter == false &&
-                        map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
-                    {
-                        item.FailReason = "ロゴ設定がありません";
-                        item.State = QueueState.LogoPending;
-                    }
-                    else
-                    {
-                        // OK
-                        if (item.State == QueueState.LogoPending)
-                        {
-                            item.FailReason = "";
-                            item.State = QueueState.Queue;
-
-                            scheduler.QueueItem(item, item.ActualPriority);
-
-                            if (AppData_.setting.SupressSleep)
-                            {
-                                // サスペンドを抑止
-                                if (preventSuspend == null)
-                                {
-                                    preventSuspend = new PreventSuspendContext();
-                                }
-                            }
-                        }
-                    }
-                }
-                return prevState != item.State;
-            }
-            return false;
-        }
-
-        internal List<Task> UpdateQueueItems(List<Task> waits)
-        {
-            var map = AppData_.services.ServiceMap;
-            foreach (var dir in queue.ToArray())
-            {
-                foreach(var item in dir.Items.ToArray())
-                {
-                    if (item.State != QueueState.LogoPending && item.State != QueueState.Queue)
-                    {
-                        continue;
-                    }
-                    if(UpdateQueueItem(item, waits, true))
-                    {
-                        waits.Add(NotifyQueueItemUpdate(item));
-                    }
-                }
-            }
-            return waits;
         }
 
         private bool ReadLogoFile(LogoSetting setting, string filepath)
@@ -1773,71 +1294,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private BitmapFrame LoadImage(string imgpath)
-        {
-            if(drcsImageCache.ContainsKey(imgpath))
-            {
-                return drcsImageCache[imgpath];
-            }
-            try
-            {
-                var img = BitmapFrame.Create(new MemoryStream(File.ReadAllBytes(imgpath)));
-                drcsImageCache.Add(imgpath, img);
-                return img;
-            }
-            catch (Exception) { }
-
-            return null;
-        }
-
-        private Dictionary<string, DrcsImage> LoadDrcsImages()
-        {
-            var ret = new Dictionary<string, DrcsImage>();
-
-            foreach (var imgpath in Directory.GetFiles(GetDRCSDirectoryPath()))
-            {
-                var filename = Path.GetFileName(imgpath);
-                if (filename.Length == 36 && Path.GetExtension(filename).ToLower() == ".bmp")
-                {
-                    string md5 = filename.Substring(0, 32);
-                    ret.Add(md5, new DrcsImage()
-                    {
-                        MD5 = md5,
-                        MapStr = null,
-                        Image = LoadImage(imgpath)
-                    });
-                }
-            }
-
-            return ret;
-        }
-
-        private Dictionary<string, DrcsImage> LoadDrcsMap()
-        {
-            var ret = new Dictionary<string, DrcsImage>();
-
-            try
-            {
-                foreach (var line in File.ReadAllLines(GetDRCSMapPath()))
-                {
-                    if (line.Length >= 34 && line.IndexOf('=') == 32)
-                    {
-                        string md5 = line.Substring(0, 32);
-                        string mapStr = line.Substring(33);
-                        if (md5.All(IsHex))
-                        {
-                            ret.Add(md5, new DrcsImage() { MD5 = md5, MapStr = mapStr, Image = null });
-                        }
-                    }
-                }
-            }
-            catch(Exception) {
-                // do nothing
-            }
-
-            return ret;
-        }
-
         private async Task WatchFileThread()
         {
             try
@@ -1850,9 +1306,6 @@ namespace Amatsukaze.Server
                 var jlsDirTime = DateTime.MinValue;
                 var avsDirTime = DateTime.MinValue;
                 var profileDirTime = DateTime.MinValue;
-
-                var drcsDirTime = DateTime.MinValue;
-                var drcsTime = DateTime.MinValue;
 
                 // 初期化
                 foreach (var service in AppData_.services.ServiceMap.Values)
@@ -2041,92 +1494,7 @@ namespace Amatsukaze.Server
                         }
                     }
 
-                    string drcspath = GetDRCSDirectoryPath();
-                    string drcsmappath = GetDRCSMapPath();
-                    if(!Directory.Exists(drcspath))
-                    {
-                        Directory.CreateDirectory(drcspath);
-                    }
-                    if(!File.Exists(drcsmappath))
-                    {
-                        using (File.Create(drcsmappath)) { }
-                    }
-                    {
-                        bool needUpdate = false;
-                        var lastModified = Directory.GetLastWriteTime(drcspath);
-                        if (drcsDirTime != lastModified)
-                        {
-                            // ファイルが追加された
-                            needUpdate = true;
-                            drcsDirTime = lastModified;
-                        }
-                        lastModified = File.GetLastWriteTime(drcsmappath);
-                        if (drcsTime != lastModified)
-                        {
-                            // マッピングが更新された
-                            needUpdate = true;
-                            drcsTime = lastModified;
-                        }
-                        if (needUpdate)
-                        {
-                            var newImageMap = LoadDrcsImages();
-                            var newStrMap = LoadDrcsMap();
-
-                            var newDrcsMap = new Dictionary<string, DrcsImage>();
-                            foreach(var key in newImageMap.Keys.Union(newStrMap.Keys))
-                            {
-                                var newItem = new DrcsImage() { MD5 = key };
-                                if (newImageMap.ContainsKey(key))
-                                {
-                                    newItem.Image = newImageMap[key].Image;
-                                }
-                                if(newStrMap.ContainsKey(key))
-                                {
-                                    newItem.MapStr = newStrMap[key].MapStr;
-                                }
-                                newDrcsMap.Add(key, newItem);
-                            }
-
-                            // 更新処理
-                            var updateImages = new List<DrcsImage>();
-                            foreach (var key in newDrcsMap.Keys.Union(drcsMap.Keys))
-                            {
-                                if (newDrcsMap.ContainsKey(key) == false)
-                                {
-                                    // 消えた
-                                    await Client.OnDrcsData(new DrcsImageUpdate() {
-                                        Type = DrcsUpdateType.Remove,
-                                        Image = drcsMap[key]
-                                    });
-                                }
-                                else if (drcsMap.ContainsKey(key) == false)
-                                {
-                                    // 追加された
-                                    updateImages.Add(newDrcsMap[key]);
-                                }
-                                else
-                                {
-                                    var oldItem = drcsMap[key];
-                                    var newItem = newDrcsMap[key];
-                                    if(oldItem.MapStr != newItem.MapStr || oldItem.Image != newItem.Image)
-                                    {
-                                        // 変更された
-                                        updateImages.Add(newDrcsMap[key]);
-                                    }
-                                }
-                            }
-
-                            if(updateImages.Count > 0)
-                            {
-                                await Client.OnDrcsData(new DrcsImageUpdate() {
-                                    Type = DrcsUpdateType.Update,
-                                    ImageList = updateImages.Distinct().ToList()
-                                });
-                            }
-
-                            drcsMap = newDrcsMap;
-                        }
-                    }
+                    await drcsManager.Update();
 
                     string profilepath = GetProfileDirectoryPath();
                     if(!Directory.Exists(profilepath))
@@ -2327,7 +1695,7 @@ namespace Amatsukaze.Server
                     }
                 }
             }
-            foreach(var item in queue.SelectMany(s => s.Items).
+            foreach(var item in queueManager.Queue.SelectMany(s => s.Items).
                 Where(s => !string.IsNullOrEmpty(s.DstPath)).
                 Select(s => Path.GetPathRoot(s.DstPath)))
             {
@@ -2513,6 +1881,112 @@ namespace Amatsukaze.Server
             await task;
         }
 
+        // 指定した名前のプロファイルを取得
+        internal ProfileSetting GetProfile(string name)
+        {
+            return profiles.GetOrDefault(name);
+        }
+
+        // プロファイルがペンディングとなっているアイテムに対して
+        // プロファイルの決定を試みる
+        internal ProfileSetting SelectProfile(QueueItem item, out int itemPriority)
+        {
+            itemPriority = 0;
+
+            bool isAuto = false;
+            var profileName = ServerSupport.ParseProfileName(item.ProfileName, out isAuto);
+
+            if (isAuto)
+            {
+                if (autoSelects.ContainsKey(profileName) == false)
+                {
+                    item.FailReason = "自動選択「" + profileName + "」がありません";
+                    item.State = QueueState.LogoPending;
+                    return null;
+                }
+
+                var resolvedProfile = ServerSupport.AutoSelectProfile(item, autoSelects[profileName], out itemPriority);
+                if (resolvedProfile == null)
+                {
+                    item.FailReason = "自動選択「" + profileName + "」でプロファイルが選択されませんでした";
+                    item.State = QueueState.LogoPending;
+                    return null;
+                }
+
+                profileName = resolvedProfile;
+            }
+
+            if (profiles.ContainsKey(profileName) == false)
+            {
+                item.FailReason = "プロファイル「" + profileName + "」がありません";
+                item.State = QueueState.LogoPending;
+                return null;
+            }
+
+            return profiles[profileName];
+        }
+
+        // 実行できる状態になったアイテムをスケジューラに登録
+        internal void ScheduleQueueItem(QueueItem item)
+        {
+            scheduler.QueueItem(item, item.ActualPriority);
+
+            if (AppData_.setting.SupressSleep)
+            {
+                // サスペンドを抑止
+                if (preventSuspend == null)
+                {
+                    preventSuspend = new PreventSuspendContext();
+                }
+            }
+        }
+
+        // 指定アイテムの新しい優先度を適用
+        internal void UpdatePriority(QueueItem item)
+        {
+            scheduler.UpdatePriority(item, item.ActualPriority);
+        }
+
+        // 新しいサービスを登録
+        internal Task AddService(ServiceSettingElement newElement)
+        {
+            AppData_.services.ServiceMap.Add(newElement.ServiceId, newElement);
+            serviceListUpdated = true;
+            return Client.OnServiceSetting(new ServiceSettingUpdate()
+            {
+                Type = ServiceSettingUpdateType.Update,
+                ServiceId = newElement.ServiceId,
+                Data = newElement
+            });
+        }
+
+        #region QueueManager
+        // アイテム状態の更新をクライアントに通知
+        internal Task NotifyQueueItemUpdate(QueueItem item)
+        {
+            return queueManager.NotifyQueueItemUpdate(item);
+        }
+
+        // ペンディング <=> キュー 状態を切り替える
+        // ペンディングからキューになったらスケジューリングに追加する
+        // notifyItem: trueの場合は、ディレクトリ・アイテム両方の更新通知、falseの場合は、ディレクトリの更新通知のみ
+        // 戻り値: 状態が変わった
+        internal bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
+        {
+            return queueManager.UpdateQueueItem(item, waits, notifyItem);
+        }
+
+        internal List<Task> UpdateQueueItems(List<Task> waits)
+        {
+            return queueManager.UpdateQueueItems(waits);
+        }
+
+        public Task ChangeItem(ChangeItemData data)
+        {
+            return queueManager.ChangeItem(data);
+        }
+        #endregion
+
         #region Request
         private async Task RequestSetting()
         {
@@ -2569,7 +2043,7 @@ namespace Amatsukaze.Server
             {
                 QueueData = new QueueData()
                 {
-                    Items = queue
+                    Items = queueManager.Queue
                 }
             });
         }
@@ -2603,7 +2077,7 @@ namespace Amatsukaze.Server
                 })));
         }
 
-        private Task RequestState()
+        internal Task RequestState()
         {
             var state = new State()
             {
@@ -2617,7 +2091,7 @@ namespace Amatsukaze.Server
             });
         }
 
-        private Task RequestFreeSpace()
+        internal Task RequestFreeSpace()
         {
             RefrechDiskSpace();
             return Client.OnCommonData(new CommonData()
@@ -2642,11 +2116,6 @@ namespace Amatsukaze.Server
                     Data = service
                 });
             }
-        }
-
-        private Task RequestLogFile(LogItem item)
-        {
-            return Client.OnLogFile(ReadLogFIle(item.EncodeStartDate));
         }
 
         public async Task Request(ServerRequest req)
@@ -2686,12 +2155,22 @@ namespace Amatsukaze.Server
         }
         #endregion
 
+        public Task RequestLogFile(LogFileRequest req)
+        {
+            if (req.LogItem != null)
+            {
+                return Client.OnLogFile(ReadLogFIle(req.LogItem.EncodeStartDate));
+            }
+            else if (req.CheckLogItem != null)
+            {
+                return Client.OnLogFile(ReadCheckLogFIle(req.CheckLogItem.CheckStartDate));
+            }
+            return Task.FromResult(0);
+        }
+
         public Task RequestDrcsImages()
         {
-            return Client.OnDrcsData(new DrcsImageUpdate() {
-                Type = DrcsUpdateType.Update,
-                ImageList = drcsMap.Values.ToList()
-            });
+            return drcsManager.RequestDrcsImages();
         }
 
         public async Task SetServiceSetting(ServiceSettingUpdate update)
@@ -2772,379 +2251,9 @@ namespace Amatsukaze.Server
             }
         }
 
-        private void ResetStateItem(QueueItem item, List<Task> waits)
+        public Task AddDrcsMap(DrcsImage recvitem)
         {
-            item.State = QueueState.LogoPending;
-            UpdateQueueItem(item, waits, true);
-            waits.Add(NotifyQueueItemUpdate(item));
-        }
-
-        private void UpdateProfileItem(QueueItem item, List<Task> waits)
-        {
-            var profile = GetProfile(item, item.ProfileName);
-            var newDir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
-            if(newDir != item.Dir)
-            {
-                MoveItemDirectory(item, newDir, waits);
-            }
-            if(profile != null && profile.Priority > 0)
-            {
-                item.Priority = profile.Priority;
-            }
-        }
-
-        private void DuplicateItem(QueueItem item, List<Task> waits)
-        {
-            var newItem = ServerSupport.DeepCopy(item);
-            newItem.Id = nextItemId++;
-            newItem.Dir = item.Dir;
-            newItem.Dir.Items.Add(newItem);
-
-            // 状態はリセットしておく
-            newItem.State = QueueState.LogoPending;
-            UpdateQueueItem(newItem, waits, false);
-
-            waits.Add(ClientQueueUpdate(new QueueUpdate()
-            {
-                Type = UpdateType.Add,
-                DirId = newItem.Dir.Id,
-                Item = newItem
-            }));
-        }
-
-        internal static void MoveTSFile(string file, string dstDir, bool withEDCB)
-        {
-            string body = Path.GetFileNameWithoutExtension(file);
-            string tsext = Path.GetExtension(file);
-            string srcDir = Path.GetDirectoryName(file);
-            foreach (var ext in ServerSupport.GetFileExtentions(tsext, withEDCB))
-            {
-                string srcPath = srcDir + "\\" + body + ext;
-                string dstPath = dstDir + "\\" + body + ext;
-                if (File.Exists(srcPath))
-                {
-                    File.Move(srcPath, dstPath);
-                }
-            }
-        }
-
-        private int RemoveCompleted(QueueDirectory dir, List<Task> waits)
-        {
-            if (dir.Items.All(s => s.State == QueueState.Complete || s.State == QueueState.PreFailed))
-            {
-                // 全て完了しているのでディレクトリを削除
-                queue.Remove(dir);
-                waits.Add(ClientQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Remove,
-                    DirId = dir.Id
-                }));
-                return dir.Items.Count;
-            }
-
-            var removeItems = dir.Items.Where(s => s.State == QueueState.Complete).ToArray();
-            foreach (var item in removeItems)
-            {
-                dir.Items.Remove(item);
-                waits.Add(ClientQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Remove,
-                    DirId = item.Dir.Id,
-                    Item = item
-                }));
-            }
-            return removeItems.Length;
-        }
-
-        public Task ChangeItem(ChangeItemData data)
-        {
-            if(data.ChangeType == ChangeItemType.RemoveCompletedAll)
-            {
-                // 全て対象
-                var waits = new List<Task>();
-                int removeItems = 0;
-                foreach(var dir in queue.ToArray())
-                {
-                    removeItems += RemoveCompleted(dir, waits);
-                }
-                waits.Add(NotifyMessage(false, "" + removeItems + "件削除しました", false));
-                return Task.WhenAll(waits);
-            }
-            else if (data.ChangeType == ChangeItemType.RemoveDir ||
-                data.ChangeType == ChangeItemType.RemoveCompletedItem)
-            {
-                // ディレクトリ操作
-                var target = queue.Find(t => t.Id == data.ItemId);
-                if (target == null)
-                {
-                    return NotifyMessage(true,
-                        "指定されたキューディレクトリが見つかりません", false);
-                }
-
-                if(data.ChangeType == ChangeItemType.RemoveDir)
-                {
-                    // ディレクトリ削除
-                    queue.Remove(target);
-                    // 全てキャンセル
-                    foreach (var item in target.Items)
-                    {
-                        item.State = QueueState.Canceled;
-                    }
-                    return Task.WhenAll(
-                        ClientQueueUpdate(new QueueUpdate()
-                        {
-                            Type = UpdateType.Remove,
-                            DirId = target.Id
-                        }),
-                        NotifyMessage(false, "ディレクトリ「" + target.DirPath + "」を削除しました", false));
-                }
-                else if(data.ChangeType == ChangeItemType.RemoveCompletedItem)
-                {
-                    // ディレクトリの完了削除
-                    var waits = new List<Task>();
-                    int removeItems = RemoveCompleted(target, waits);
-                    waits.Add(NotifyMessage(false, "" + removeItems + "件削除しました", false));
-                    return Task.WhenAll(waits);
-                }
-            }
-            else
-            {
-                // アイテム操作
-                var all = queue.SelectMany(d => d.Items);
-                var target = all.FirstOrDefault(s => s.Id == data.ItemId);
-                if (target == null)
-                {
-                    return NotifyMessage(true,
-                        "指定されたアイテムが見つかりません", false);
-                }
-
-                var dir = target.Dir;
-
-                if (data.ChangeType == ChangeItemType.ResetState ||
-                    data.ChangeType == ChangeItemType.UpdateProfile ||
-                    data.ChangeType == ChangeItemType.Duplicate)
-                {
-                    if (data.ChangeType == ChangeItemType.ResetState)
-                    {
-                        // 状態リセットは終わってるのだけ
-                        if (target.State != QueueState.Complete &&
-                            target.State != QueueState.Failed &&
-                            target.State != QueueState.Canceled)
-                        {
-                            return NotifyMessage(true, "完了していないアイテムは状態リセットできません", false);
-                        }
-                    }
-                    else if (data.ChangeType == ChangeItemType.UpdateProfile)
-                    {
-                        // エンコード中は変更できない
-                        if (target.State == QueueState.Encoding)
-                        {
-                            return NotifyMessage(true, "このアイテムはエンコード中のためプロファイル更新できません", false);
-                        }
-                    }
-                    else if (data.ChangeType == ChangeItemType.Duplicate)
-                    {
-                        // バッチモードでアクティブなやつは重複になるのでダメ
-                        if (target.Dir.IsBatch && target.IsActive)
-                        {
-                            return NotifyMessage(true, "通常モードで追加されたアイテムは複製できません", false);
-                        }
-                    }
-
-                    var waits = new List<Task>();
-
-                    if (dir.IsBatch)
-                    {
-                        // バッチモードでfailed/succeededフォルダに移動されていたら戻す
-                        if (target.State == QueueState.Failed || target.State == QueueState.Complete)
-                        {
-                            if (all.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive) == false)
-                            {
-                                var movedDir = (target.State == QueueState.Failed) ? dir.Failed : dir.Succeeded;
-                                var movedPath = movedDir + "\\" + Path.GetFileName(target.FileName);
-                                if (File.Exists(movedPath))
-                                {
-                                    // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
-                                    MoveTSFile(movedPath, dir.DirPath, true);
-                                }
-                            }
-                        }
-                    }
-
-                    if (data.ChangeType == ChangeItemType.ResetState)
-                    {
-                        ResetStateItem(target, waits);
-                        waits.Add(NotifyMessage(false, "状態リセットします", false));
-                    }
-                    else if (data.ChangeType == ChangeItemType.UpdateProfile)
-                    {
-                        UpdateProfileItem(target, waits);
-                        waits.Add(NotifyMessage(false, "プロファイル再適用します", false));
-                    }
-                    else
-                    {
-                        DuplicateItem(target, waits);
-                        waits.Add(NotifyMessage(false, "複製しました", false));
-                    }
-
-                    return Task.WhenAll(waits);
-                }
-                else if (data.ChangeType == ChangeItemType.Cancel)
-                {
-                    if (target.IsActive)
-                    {
-                        target.State = QueueState.Canceled;
-                        return Task.WhenAll(
-                            ClientQueueUpdate(new QueueUpdate()
-                            {
-                                Type = UpdateType.Update,
-                                DirId = target.Dir.Id,
-                                Item = target
-                            }),
-                            NotifyMessage(false, "キャンセルしました", false));
-                    }
-                    else
-                    {
-                        return NotifyMessage(true,
-                            "このアイテムはアクティブ状態でないため、キャンセルできません", false);
-                    }
-                }
-                else if (data.ChangeType == ChangeItemType.Priority)
-                {
-                    target.Priority = data.Priority;
-                    scheduler.UpdatePriority(target, target.ActualPriority);
-                    return Task.WhenAll(
-                        ClientQueueUpdate(new QueueUpdate()
-                        {
-                            Type = UpdateType.Update,
-                            DirId = target.Dir.Id,
-                            Item = target
-                        }),
-                        NotifyMessage(false, "優先度を変更しました", false));
-                }
-                else if (data.ChangeType == ChangeItemType.Profile)
-                {
-                    if (target.State == QueueState.Encoding)
-                    {
-                        return NotifyMessage(true, "エンコード中はプロファイル変更できません", false);
-                    }
-                    if (target.State == QueueState.PreFailed)
-                    {
-                        return NotifyMessage(true, "このアイテムはプロファイル変更できません", false);
-                    }
-
-                    var waits = new List<Task>();
-                    target.ProfileName = data.Profile;
-                    var profile = GetProfile(target, target.ProfileName);
-                    var newDir = GetQueueDirectory(target.Dir.DirPath, target.Dir.Mode, profile?.Profile ?? pendingProfile, waits);
-                    if (newDir != target.Dir)
-                    {
-                        MoveItemDirectory(target, newDir, waits);
-                        if (UpdateQueueItem(target, waits, true))
-                        {
-                            waits.Add(NotifyQueueItemUpdate(target));
-                        }
-                        waits.Add(NotifyMessage(false, "プロファイルを「" + data.Profile + "」に変更しました", false));
-                    }
-
-                    return Task.WhenAll(waits);
-                }
-                else if (data.ChangeType == ChangeItemType.RemoveItem)
-                {
-                    target.State = QueueState.Canceled;
-                    dir.Items.Remove(target);
-                    return Task.WhenAll(
-                        ClientQueueUpdate(new QueueUpdate()
-                        {
-                            Type = UpdateType.Remove,
-                            DirId = target.Dir.Id,
-                            Item = target
-                        }),
-                        NotifyMessage(false, "アイテムを削除しました", false));
-                }
-            }
-            return Task.FromResult(0);
-        }
-
-        [return: MarshalAs(UnmanagedType.Bool)]
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern bool MoveFileEx(string existingFileName, string newFileName, int flags);
-
-        public async Task AddDrcsMap(DrcsImage recvitem)
-        {
-            if (drcsMap.ContainsKey(recvitem.MD5))
-            {
-                var item = drcsMap[recvitem.MD5];
-
-                if (item.MapStr != recvitem.MapStr)
-                {
-                    var filepath = GetDRCSMapPath();
-                    var updateType = DrcsUpdateType.Update;
-
-                    // データ更新
-                    if (item.MapStr == null)
-                    {
-                        // 既存のマッピングにないので追加
-                        item.MapStr = recvitem.MapStr;
-                        try
-                        {
-                            File.AppendAllLines(filepath,
-                                new string[] { item.MD5 + "=" + recvitem.MapStr },
-                                Encoding.UTF8);
-                        }
-                        catch (Exception e) {
-                            await NotifyMessage(true,
-                                "DRCSマッピングファイル書き込みに失敗: " + e.Message, false);
-                        }
-                    }
-                    else
-                    {
-                        // 既にマッピングにある
-                        item.MapStr = recvitem.MapStr;
-                        if(item.MapStr == null)
-                        {
-                            // 削除
-                            drcsMap.Remove(recvitem.MD5);
-                            updateType = DrcsUpdateType.Remove;
-                            try
-                            {
-                                File.Delete(GetDRCSImagePath(recvitem.MD5));
-                            }
-                            catch(Exception e)
-                            {
-                                await NotifyMessage(true,
-                                    "DRCS画像ファイル削除に失敗: " + e.Message, false);
-                            }
-                        }
-
-                        // まず、一時ファイルに書き込む
-                        var tmppath = filepath + ".tmp";
-                        // BOMありUTF-8
-                        try
-                        {
-                            using (var sw = new StreamWriter(File.OpenWrite(tmppath), Encoding.UTF8))
-                            {
-                                foreach (var s in drcsMap.Values)
-                                {
-                                    sw.WriteLine(s.MD5 + "=" + s.MapStr);
-                                }
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            await NotifyMessage(true,
-                                "DRCSマッピングファイル書き込みに失敗: " + e.Message, false);
-                        }
-                        // ファイル置き換え
-                        MoveFileEx(tmppath, filepath, 11);
-                    }
-
-                    await Client.OnDrcsData(new DrcsImageUpdate() {
-                        Type = updateType,
-                        Image = item
-                    });
-                }
-            }
+            return drcsManager.AddDrcsMap(recvitem);
         }
 
         public Task EndServer()

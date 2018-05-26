@@ -1,12 +1,14 @@
 ﻿<UserControl x:Class="Amatsukaze.Views.ProfileSettingPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
              xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:c="clr-namespace:Amatsukaze.Components" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
              mc:Ignorable="d" 
              d:DesignHeight="900" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:ProfileSettingViewModel}}">
@@ -69,14 +71,19 @@
 
                 <StackPanel>
                     <TextBlock HorizontalAlignment="Right" Text="エンコーダ" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock HorizontalAlignment="Right" Text="追加オプション" VerticalAlignment="Top" Margin="0,37"/>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,28">エンコーダ<LineBreak/>追加オプション</TextBlock>
 
-                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" TextAlignment="Right">JoinLogoScp<LineBreak/>デフォルトコマンドファイル</TextBlock>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" TextAlignment="Right">JoinLogoScp<LineBreak/>コマンドファイル</TextBlock>
+                    <TextBlock HorizontalAlignment="Right" Text="オプション" VerticalAlignment="Top" Margin="0"/>
                     <TextBlock HorizontalAlignment="Right" Text="メインフィルタ" VerticalAlignment="Top" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="ポストフィルタ" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
+                    <StackPanel.Resources>
+                        <CollectionViewSource x:Key="NullList" Source="{x:Static m:NullValue.Array}"/>
+                        <CollectionViewSource x:Key="JLSCommandList" Source="{Binding Model.JlsCommandFiles}"/>
+                    </StackPanel.Resources>
                     <ComboBox Margin="0,3" HorizontalAlignment="Left" VerticalAlignment="Top" Width="120" 
                               ItemsSource="{Binding Model.SelectedProfile.EncoderList}"
                               SelectedIndex="{Binding Model.SelectedProfile.EncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
@@ -87,9 +94,27 @@
                              ToolTip="入力ファイルの解像度、アスペクト比、インタレースフラグ、&#xA;フレームレート、カラーマトリクス等は（自動ビットレートONの場合はビットレート設定も）&#xA;自動で追加されるので不要です。"/>
 
                     <ComboBox Margin="0,3" Height="23" 
-                      ItemsSource="{Binding Model.JlsCommandFiles}"
-                      Text="{Binding Model.SelectedProfile.DefaultJLSCommand, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" 
-                          ToolTip="CM判定に使います。&#xA;コマンドファイルはチャンネルごとに設定できますが、設定がない場合はこれを使います。"/>
+                      SelectedItem="{Binding Model.SelectedProfile.JLSCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" 
+                          ToolTip="CM判定に使います。">
+                        <ComboBox.Resources>
+                            <DataTemplate DataType="{x:Type m:NullValue}">
+                                <TextBlock>チャンネル設定に従う</TextBlock>
+                            </DataTemplate>
+                        </ComboBox.Resources>
+                        <ComboBox.ItemsSource>
+                            <CompositeCollection>
+                                <CollectionContainer Collection="{Binding Source={StaticResource NullList}}"/>
+                                <CollectionContainer Collection="{Binding Source={StaticResource JLSCommandList}}"/>
+                            </CompositeCollection>
+                        </ComboBox.ItemsSource>
+                    </ComboBox>
+                    <DockPanel>
+                        <CheckBox Content="チャンネル設定に従う" DockPanel.Dock="Right" x:Name="JLSOptionEnable" 
+                                  IsChecked="{Binding Model.SelectedProfile.EnableJLSOption, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"/>
+                        <TextBox ToolTip="JoinLogoScpのオプション"
+                                 Text="{Binding Model.SelectedProfile.JLSOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding Model.SelectedProfile.EnableJLSOption, Mode=OneWay}"/>
+                    </DockPanel>
                     <ComboBox Margin="0,3" Height="23"
                       ItemsSource="{Binding Model.MainScriptFiles}"
                       Text="{Binding Model.SelectedProfile.FilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"

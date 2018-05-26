@@ -87,20 +87,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private LogItem FailLogItem(string srcpath, string profile, string reason, DateTime start, DateTime finish)
-        {
-            return new LogItem()
-            {
-                Success = false,
-                Reason = reason,
-                SrcPath = srcpath,
-                MachineName = Dns.GetHostName(),
-                EncodeStartDate = start,
-                EncodeFinishDate = finish,
-                Profile = profile,
-            };
-        }
-
         private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer, int offset, int length)
         {
             if (transcode.logWriter != null)
@@ -326,6 +312,23 @@ namespace Amatsukaze.Server
             }
         }
 
+        private LogItem FailLogItem(QueueItem src, string profile, string reason, DateTime start, DateTime finish)
+        {
+            return new LogItem()
+            {
+                Success = false,
+                Reason = reason,
+                SrcPath = src.SrcPath,
+                MachineName = Dns.GetHostName(),
+                EncodeStartDate = start,
+                EncodeFinishDate = finish,
+                Profile = profile,
+                ServiceName = src.ServiceName,
+                ServiceId = src.ServiceId,
+                TsTime = src.TsTime,
+            };
+        }
+
         private LogItem LogFromJson(bool isGeneric, string profile, string jsonpath, DateTime start, DateTime finish, QueueItem src, int outputMask)
         {
             var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
@@ -406,13 +409,56 @@ namespace Amatsukaze.Server
             };
         }
 
-        private async Task<LogItem> ProcessItem(EncodeServer server, QueueItem src, QueueDirectory dir)
+        private CheckLogItem MakeCheckLogItem(ProcMode mode, bool success,
+            QueueItem src, string profile, string reason, DateTime start, DateTime finish)
+        {
+            return new CheckLogItem()
+            {
+                Type = (mode == ProcMode.DrcsCheck) ? CheckType.DRCS : CheckType.CM,
+                Success = success,
+                Reason = reason,
+                SrcPath = src.SrcPath,
+                CheckStartDate = start,
+                CheckFinishDate = finish,
+                Profile = profile,
+                ServiceName = src.ServiceName,
+                ServiceId = src.ServiceId,
+                TsTime = src.TsTime,
+            };
+        }
+
+        private static string ModeToString(ProcMode mode)
+        {
+            switch(mode)
+            {
+                case ProcMode.AutoBatch:
+                case ProcMode.Batch:
+                    return "エンコード";
+                case ProcMode.Test:
+                    return "エンコード（テスト）";
+                case ProcMode.DrcsCheck:
+                    return "DRCSチェック";
+                case ProcMode.CMCheck:
+                    return "CM解析";
+                default:
+                    return "不明な処理";
+            }
+        }
+
+        private async Task<object> ProcessItem(EncodeServer server, QueueItem src, QueueDirectory dir)
         {
             DateTime now = DateTime.Now;
 
             if (File.Exists(src.SrcPath) == false)
             {
-                return FailLogItem(src.SrcPath, dir.Profile.Name, "入力ファイルが見つかりません", now, now);
+                if(dir.IsCheck)
+                {
+                    return MakeCheckLogItem(dir.Mode, false, src, dir.Profile.Name, "入力ファイルが見つかりません", now, now);
+                }
+                else
+                {
+                    return FailLogItem(src, dir.Profile.Name, "入力ファイルが見つかりません", now, now);
+                }
             }
 
             ProfileSetting profile = dir.Profile;
@@ -421,7 +467,7 @@ namespace Amatsukaze.Server
 
             bool ignoreNoLogo = true;
             string[] logopaths = null;
-            if (profile.DisableChapter == false)
+            if (dir.Mode != ProcMode.DrcsCheck && profile.DisableChapter == false)
             {
                 var logofiles = serviceSetting.LogoSettings
                     .Where(s => s.CanUse(src.TsTime))
@@ -446,7 +492,7 @@ namespace Amatsukaze.Server
             string dstpath = src.DstPath;
             bool renamed = false;
 
-            if (profile.EnableRename)
+            if (dir.IsCheck == false && profile.EnableRename)
             {
                 // SCRenameによるリネーム
                 string newName = null;
@@ -459,7 +505,7 @@ namespace Amatsukaze.Server
                 }
                 catch (Exception)
                 {
-                    return FailLogItem(src.SrcPath, dir.Profile.Name, "SCRenameに失敗", now, now);
+                    return FailLogItem(src, dir.Profile.Name, "SCRenameに失敗", now, now);
                 }
 
                 if (newName != null)
@@ -483,7 +529,7 @@ namespace Amatsukaze.Server
                 }
             }
 
-            if(profile.EnableGunreFolder && renamed == false)
+            if(dir.IsCheck == false && profile.EnableGunreFolder && renamed == false)
             {
                 // ジャンルフォルダに入れる
                 string genreName = null;
@@ -516,7 +562,7 @@ namespace Amatsukaze.Server
                 Directory.CreateDirectory(Path.GetDirectoryName(dstpath));
             }
 
-            if (dir.IsTest)
+            if (dir.IsCheck == false && dir.IsTest)
             {
                 // 同じ名前のファイルがある場合はサフィックス(-A...)を付ける
                 var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
@@ -534,7 +580,8 @@ namespace Amatsukaze.Server
 
             try
             {
-                if (dir.HashList != null || src.Hash != null)
+                bool hashEnabled = (dir.IsCheck == false && (dir.HashList != null || src.Hash != null));
+                if (hashEnabled)
                 {
                     // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
                     // NASとエンコードPCが同じ場合はローカルでのコピーとなってしまうが
@@ -545,7 +592,7 @@ namespace Amatsukaze.Server
                     string name = Path.GetFileName(srcpath);
                     if (dir.HashList != null && dir.HashList.ContainsKey(name) == false)
                     {
-                        return FailLogItem(src.SrcPath, dir.Profile.Name, "入力ファイルのハッシュがありません", now, now);
+                        return FailLogItem(src, dir.Profile.Name, "入力ファイルのハッシュがありません", now, now);
                     }
 
                     byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
@@ -553,7 +600,7 @@ namespace Amatsukaze.Server
                     if (hash.SequenceEqual(refhash) == false)
                     {
                         File.Delete(localsrc);
-                        return FailLogItem(src.SrcPath, dir.Profile.Name, "コピーしたファイルのハッシュが一致しません", now, now);
+                        return FailLogItem(src, dir.Profile.Name, "コピーしたファイルのハッシュが一致しません", now, now);
                     }
 
                     srcpath = localsrc;
@@ -568,14 +615,15 @@ namespace Amatsukaze.Server
                     Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
                 string jlscmd = serviceSetting.DisableCMCheck ?
                     null :
-                    (string.IsNullOrEmpty(serviceSetting.JLSCommand) ?
-                    profile.DefaultJLSCommand :
-                    serviceSetting.JLSCommand);
-                string jlsopt = serviceSetting.DisableCMCheck ?
-                    null : serviceSetting.JLSOption;
+                    (!string.IsNullOrEmpty(profile.JLSCommandFile) ? profile.JLSCommandFile
+                    : !string.IsNullOrEmpty(serviceSetting.JLSCommand) ? serviceSetting.JLSCommand
+                    : "JL_標準.txt");
+                string jlsopt = serviceSetting.DisableCMCheck ? null
+                    : profile.EnableJLSOption ? profile.JLSOption
+                    : serviceSetting.JLSOption;
 
                 string args = server.MakeAmatsukazeArgs(
-                    profile,
+                    dir.Mode, profile,
                     server.AppData_.setting,
                     isMp4,
                     srcpath, localdst, json,
@@ -584,7 +632,7 @@ namespace Amatsukaze.Server
 
                 int outputMask = profile.OutputMask;
 
-                Util.AddLog(id, "エンコード開始: " + src.SrcPath);
+                Util.AddLog(id, ModeToString(dir.Mode) + "開始: " + src.SrcPath);
                 Util.AddLog(id, "Args: " + exename + " " + args);
 
                 DateTime start = DateTime.Now;
@@ -609,11 +657,14 @@ namespace Amatsukaze.Server
                     {
                         try
                         {
-                            // アフィニティを設定
-                            IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
-                            Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
-                            p.ProcessorAffinity = affinityMask;
-                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                            if(dir.IsCheck == false)
+                            {
+                                // アフィニティを設定
+                                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
+                                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
+                                p.ProcessorAffinity = affinityMask;
+                                p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                            }
                         }
                         catch (InvalidOperationException)
                         {
@@ -627,8 +678,13 @@ namespace Amatsukaze.Server
                             process = p,
                         };
 
-                        using (current.logWriter = File.Create(logpath))
+                        try
                         {
+                            if (dir.IsCheck == false && profile.DisableLogFile == false)
+                            {
+                                current.logWriter = File.Create(logpath);
+                            }
+
                             // 起動コマンドをログ出力
                             await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
 
@@ -648,6 +704,10 @@ namespace Amatsukaze.Server
                                         }
                                     }
                                 }));
+                        }
+                        finally
+                        {
+                            current.logWriter?.Close();
                         }
 
                         exitCode = p.ExitCode;
@@ -674,13 +734,30 @@ namespace Amatsukaze.Server
 
                 DateTime finish = DateTime.Now;
 
-                if (dir.HashList != null || src.Hash != null)
+                if (hashEnabled)
                 {
                     File.Delete(localsrc);
                 }
 
                 // ログを整形したテキストに置き換える
-                using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
+                if (dir.IsCheck == false && profile.DisableLogFile == false)
+                {
+                    using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
+                    {
+                        foreach (var str in logText.TextLines)
+                        {
+                            fs.WriteLine(str);
+                        }
+                    }
+                }
+
+                // 専用フォルダにログを出力
+                string logbase = dir.IsCheck
+                    ? server.GetCheckLogFileBase(start)
+                    : server.GetLogFileBase(start);
+                Directory.CreateDirectory(Path.GetDirectoryName(logbase));
+                string dstlog = logbase + ".txt";
+                using (var fs = new StreamWriter(File.Create(dstlog), Encoding.Default))
                 {
                     foreach (var str in logText.TextLines)
                     {
@@ -688,84 +765,89 @@ namespace Amatsukaze.Server
                     }
                 }
 
-                // ログファイルを専用フォルダにコピー
-                if (File.Exists(logpath))
+                if(dir.IsCheck)
                 {
-                    string logbase = server.GetLogFileBase(start);
-                    Directory.CreateDirectory(Path.GetDirectoryName(logbase));
-                    string dstlog = logbase + ".txt";
-                    if (profile.MoveLogFile)
+                    if (exitCode == 0 && isCanceled == false)
                     {
-                        File.Move(logpath, dstlog);
+                        return MakeCheckLogItem(dir.Mode, true, src, dir.Profile.Name, "", start, finish);
+                    }
+                    else if (isCanceled)
+                    {
+                        // キャンセルされた
+                        return MakeCheckLogItem(dir.Mode, false, src, dir.Profile.Name, "キャンセルされました", start, finish);
                     }
                     else
                     {
-                        File.Copy(logpath, dstlog);
+                        // その他
+                        return MakeCheckLogItem(dir.Mode, false, src, dir.Profile.Name,
+                            "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
                     }
-
+                }
+                else
+                {
+                    // 出力Jsonを専用フォルダにコピー
                     if (File.Exists(json))
                     {
                         string dstjson = logbase + ".json";
                         File.Move(json, dstjson);
                         json = dstjson;
                     }
-                }
 
-                if (exitCode == 0 && isCanceled == false)
-                {
-                    // 成功
-                    var log = LogFromJson(isMp4, dir.Profile.Name, json, start, finish, src, outputMask);
-
-                    // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
-                    if (dir.HashList != null || src.Hash != null)
+                    if (exitCode == 0 && isCanceled == false)
                     {
-                        log.SrcPath = src.SrcPath;
-                        string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
-                        string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
-                        for (int i = 0; i < log.OutPath.Count; ++i)
+                        // 成功
+                        var log = LogFromJson(isMp4, dir.Profile.Name, json, start, finish, src, outputMask);
+
+                        // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
+                        if (hashEnabled)
                         {
-                            string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
-                            var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
-                            string name = Path.GetFileName(outpath);
-                            HashUtil.AppendHash(Path.Combine(Path.GetDirectoryName(src.DstPath), "_encoded.hash"), name, hash);
-                            File.Delete(log.OutPath[i]);
-                            log.OutPath[i] = outpath;
+                            log.SrcPath = src.SrcPath;
+                            string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
+                            string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
+                            for (int i = 0; i < log.OutPath.Count; ++i)
+                            {
+                                string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
+                                var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
+                                string name = Path.GetFileName(outpath);
+                                HashUtil.AppendHash(Path.Combine(Path.GetDirectoryName(src.DstPath), "_encoded.hash"), name, hash);
+                                File.Delete(log.OutPath[i]);
+                                log.OutPath[i] = outpath;
+                            }
                         }
+
+                        return log;
                     }
 
-                    return log;
-                }
+                    // 失敗 //
 
-                // 失敗 //
+                    if (dir.IsTest)
+                    {
+                        // 出力ファイルを削除
+                        File.Delete(dstpath);
+                    }
 
-                if (dir.IsTest)
-                {
-                    // 出力ファイルを削除
-                    File.Delete(dstpath);
+                    if (isCanceled)
+                    {
+                        // キャンセルされた
+                        return FailLogItem(src, dir.Profile.Name, "キャンセルされました", start, finish);
+                    }
+                    else if (exitCode == 100)
+                    {
+                        // マッチするロゴがなかった
+                        return FailLogItem(src, dir.Profile.Name, "マッチするロゴがありませんでした", start, finish);
+                    }
+                    else if (exitCode == 101)
+                    {
+                        // DRCSマッピングがなかった
+                        return FailLogItem(src, dir.Profile.Name, "DRCS外字のマッピングがありませんでした", start, finish);
+                    }
+                    else
+                    {
+                        // その他
+                        return FailLogItem(src, dir.Profile.Name,
+                            "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
+                    }
                 }
-
-                if (isCanceled)
-                {
-                    // キャンセルされた
-                    return FailLogItem(src.SrcPath, dir.Profile.Name, "キャンセルされました", start, finish);
-                }
-                else if (exitCode == 100)
-                {
-                    // マッチするロゴがなかった
-                    return FailLogItem(src.SrcPath, dir.Profile.Name, "マッチするロゴがありませんでした", start, finish);
-                }
-                else if (exitCode == 101)
-                {
-                    // DRCSマッピングがなかった
-                    return FailLogItem(src.SrcPath, dir.Profile.Name, "DRCS外字のマッピングがありませんでした", start, finish);
-                }
-                else
-                {
-                    // その他
-                    return FailLogItem(src.SrcPath, dir.Profile.Name,
-                        "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
-                }
-
             }
             finally
             {
@@ -776,7 +858,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private async Task<bool> RunEncodeItem(QueueItem workerItem)
+        public async Task<bool> RunItem(QueueItem workerItem)
         {
             try
             {
@@ -795,12 +877,17 @@ namespace Amatsukaze.Server
                     Directory.CreateDirectory(dir.Failed);
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(src.DstPath));
+                if (dir.IsCheck == false)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(src.DstPath));
+                }
 
                 // 待たなくてもいいタスクリスト
                 waitList = new List<Task>();
 
-                LogItem logItem = null;
+                // 互換性の問題からLogItemとCheckLogItemに
+                // 基底クラスを追加することはできないのでdynamicにする
+                dynamic logItem = null;
                 bool result = true;
 
                 server.UpdateQueueItem(src, waitList, true);
@@ -872,18 +959,25 @@ namespace Amatsukaze.Server
                                 if (sameItems.Any(s => s.State == QueueState.Failed))
                                 {
                                     // 失敗がある
-                                    EncodeServer.MoveTSFile(src.SrcPath, dir.Failed, dir.Profile.MoveEDCBFiles);
+                                    ServerSupport.MoveTSFile(src.SrcPath, dir.Failed, dir.Profile.MoveEDCBFiles);
                                 }
                                 else
                                 {
                                     // 全て成功
-                                    EncodeServer.MoveTSFile(src.SrcPath, dir.Succeeded, dir.Profile.MoveEDCBFiles);
+                                    ServerSupport.MoveTSFile(src.SrcPath, dir.Succeeded, dir.Profile.MoveEDCBFiles);
                                 }
                             }
                         }
                     }
 
-                    waitList.Add(server.AddEncodeLog(logItem));
+                    if (dir.IsCheck)
+                    {
+                        waitList.Add(server.AddCheckLog(logItem));
+                    }
+                    else
+                    {
+                        waitList.Add(server.AddEncodeLog(logItem));
+                    }
                 }
 
                 waitList.Add(server.NotifyQueueItemUpdate(src));
@@ -902,162 +996,6 @@ namespace Amatsukaze.Server
                     Message = "予期せぬエラー: " + e.Message
                 });
                 return false;
-            }
-        }
-
-        private async Task<CheckLogItem> ProcessCheckItem(EncodeServer server, QueueItem src)
-        {
-            if (File.Exists(src.SrcPath) == false)
-            {
-                return new CheckLogItem()
-                {
-                    SrcPath = src.SrcPath,
-                    Success = false,
-                    CheckStartDate = DateTime.Now,
-                    CheckFinishDate = DateTime.Now,
-                    ServiceName = src.ServiceName,
-                    ServiceId = src.ServiceId,
-                    TsTime = src.TsTime,
-                    Reason = "TSファイルが見つかりません"
-                };
-            }
-
-            string args = server.MakeAmatsukazeCheckArgs(
-                src.SrcPath, src.ServiceId);
-            string exename = server.AppData_.setting.AmatsukazePath;
-
-            Util.AddLog(id, "外字チェック開始: " + src.SrcPath);
-            Util.AddLog(id, "Args: " + exename + " " + args);
-
-            var psi = new ProcessStartInfo(exename, args)
-            {
-                UseShellExecute = false,
-                WorkingDirectory = Directory.GetCurrentDirectory(),
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                RedirectStandardInput = false,
-                CreateNoWindow = true
-            };
-
-            int exitCode = -1;
-            logText.Clear();
-
-            DateTime start = DateTime.Now;
-
-            try
-            {
-                using (var p = Process.Start(psi))
-                {
-                    try
-                    {
-                        p.PriorityClass = ProcessPriorityClass.BelowNormal;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // 既にプロセスが終了していると例外が出るが無視する
-                    }
-
-                    current = new TranscodeTask()
-                    {
-                        thread = this,
-                        src = src,
-                        process = p,
-                    };
-
-                    // 起動コマンドをログ出力
-                    await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
-
-                    await Task.WhenAll(
-                        RedirectOut(server, current, p.StandardOutput.BaseStream),
-                        RedirectOut(server, current, p.StandardError.BaseStream),
-                        Task.Run(() => p.WaitForExit()));
-
-                    exitCode = p.ExitCode;
-                }
-
-                // ログファイルを専用フォルダに吐く
-                string logbase = server.GetCheckLogFileBase(start);
-                Directory.CreateDirectory(Path.GetDirectoryName(logbase));
-                string dstlog = logbase + ".txt";
-                using (var fs = new StreamWriter(File.Create(dstlog), Encoding.Default))
-                {
-                    foreach (var str in logText.TextLines)
-                    {
-                        fs.WriteLine(str);
-                    }
-                }
-
-                var reason = (exitCode == 0) ? "" : "Amatsukaze.exeはコード" + exitCode + "で終了しました。";
-                return new CheckLogItem()
-                {
-                    SrcPath = src.SrcPath,
-                    Success = (exitCode == 0),
-                    CheckStartDate = start,
-                    CheckFinishDate = DateTime.Now,
-                    ServiceName = src.ServiceName,
-                    ServiceId = src.ServiceId,
-                    TsTime = src.TsTime,
-                    Reason = reason
-                };
-            }
-            catch (Win32Exception w32e)
-            {
-                Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
-                throw w32e;
-            }
-            finally
-            {
-                current = null;
-            }
-        }
-
-        private async Task<bool> RunSearchItem(QueueItem workerItem)
-        {
-            try
-            {
-                var dir = workerItem.Dir;
-                var src = workerItem;
-
-                // キューじゃなかったらダメ
-                if (src.State != QueueState.Queue)
-                {
-                    return true;
-                }
-
-                // 待たなくてもいいタスクリスト
-                waitList = new List<Task>();
-
-                src.State = QueueState.Encoding;
-                waitList.Add(server.NotifyQueueItemUpdate(src));
-                var result = await ProcessCheckItem(server, src);
-                src.State = result.Success ? QueueState.Complete : QueueState.Failed;
-                waitList.Add(server.AddCheckLog(result));
-                waitList.Add(server.NotifyQueueItemUpdate(src));
-
-                await Task.WhenAll(waitList);
-
-                return result.Success;
-            }
-            catch (Exception e)
-            {
-                await server.Client.OnOperationResult(new OperationResult()
-                {
-                    IsFailed = true,
-                    Message = "予期せぬエラー: " + e.Message
-                });
-                return false;
-            }
-        }
-
-        public Task<bool> RunItem(QueueItem workerItem)
-        {
-            if (workerItem.Dir.Mode == ProcMode.DrcsSearch)
-            {
-                return RunSearchItem(workerItem);
-            }
-            else
-            {
-                return RunEncodeItem(workerItem);
             }
         }
     }

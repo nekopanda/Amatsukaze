@@ -18,7 +18,7 @@ using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
-    public class LogViewModel : NamedViewModel
+    public class EncodeLogViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 
@@ -61,69 +61,88 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
-
         public ClientModel Model { get; set; }
-
-        private string[] panelNames;
-        private ViewModel[] panels;
 
         public void Initialize()
         {
-            panelNames = new string[]
-            {
-                "エンコードログ", "その他のログ"
-            };
-            panels = new ViewModel[]
-            {
-                new EncodeLogViewModel() { Model = Model },
-                new CheckLogViewModel() { Model = Model }
-            };
         }
 
-        #region PanelIndex変更通知プロパティ
-        private int _PanelIndex = 0;
-
-        public int PanelIndex {
-            get { return _PanelIndex; }
-            set { 
-                if (_PanelIndex == value)
-                    return;
-                _PanelIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("Panel");
-                RaisePropertyChanged("PanelName");
+        public void GetLogFileOfCurrentSelectedItem()
+        {
+            var item = SelectedLogItem;
+            if (item != null)
+            {
+                Model.Server.RequestLogFile(new LogFileRequest() { LogItem = item });
             }
         }
-        public ViewModel Panel {
-            get { return panels[_PanelIndex]; }
-        }
-        public string PanelName {
-            get { return panelNames[_PanelIndex]; }
+
+        #region SelectedLogItem変更通知プロパティ
+        private LogItem _SelectedLogItem;
+
+        public LogItem SelectedLogItem {
+            get { return _SelectedLogItem; }
+            set {
+                if (_SelectedLogItem == value)
+                    return;
+                _SelectedLogItem = value;
+                RaisePropertyChanged();
+            }
         }
         #endregion
 
-        #region TogglePanelCommand
-        private ViewModelCommand _TogglePanelCommand;
+        #region ExportCSVCommand
+        private ViewModelCommand _ExportCSVCommand;
 
-        public ViewModelCommand TogglePanelCommand {
+        public ViewModelCommand ExportCSVCommand {
             get {
-                if (_TogglePanelCommand == null)
+                if (_ExportCSVCommand == null)
                 {
-                    _TogglePanelCommand = new ViewModelCommand(TogglePanel);
+                    _ExportCSVCommand = new ViewModelCommand(ExportCSV);
                 }
-                return _TogglePanelCommand;
+                return _ExportCSVCommand;
             }
         }
 
-        public void TogglePanel()
+        public void ExportCSV()
         {
-            if(_PanelIndex + 1 >= panels.Length)
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.FilterIndex = 1;
+            saveFileDialog.Filter = "CSV(.csv)|*.csv|All Files (*.*)|*.*";
+            bool? result = saveFileDialog.ShowDialog();
+            if (result == true)
             {
-                PanelIndex = 0;
+                using (var fs = saveFileDialog.OpenFile())
+                {
+                    Model.ExportLogCSV(fs);
+                }
             }
-            else
-            {
-                PanelIndex = _PanelIndex + 1;
+        }
+        #endregion
+
+        #region UpperRowLength変更通知プロパティ
+        private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength UpperRowLength {
+            get { return _UpperRowLength; }
+            set {
+                if (_UpperRowLength == value)
+                    return;
+                _UpperRowLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region LowerRowLength変更通知プロパティ
+        private GridLength _LowerRowLength = new GridLength(1, GridUnitType.Star);
+
+        public GridLength LowerRowLength {
+            get { return _LowerRowLength; }
+            set {
+                if (_LowerRowLength == value)
+                    return;
+                _LowerRowLength = value;
+                RaisePropertyChanged();
             }
         }
         #endregion
