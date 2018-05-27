@@ -248,6 +248,7 @@ namespace Amatsukaze.Models
                 {
                     Setting.Model.LastSelectedProfile = value.Model.Name;
                 }
+                _SelectedProfile.UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -1341,6 +1342,7 @@ namespace Amatsukaze.Models
                 profile.DisableSubs = data.Profile.DisableSubs;
                 profile.IgnoreNoDrcsMap = data.Profile.IgnoreNoDrcsMap;
                 profile.NoDelogo = data.Profile.NoDelogo;
+                profile.VFR120Fps = data.Profile.VFR120fps;
                 profile.EnableNicoJK = data.Profile.EnableNicoJK;
                 profile.IgnoreNicoJKError = data.Profile.IgnoreNicoJKError;
                 profile.NicoJK18 = data.Profile.NicoJK18;

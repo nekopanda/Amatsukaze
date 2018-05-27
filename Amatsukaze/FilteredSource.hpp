@@ -155,6 +155,7 @@ public:
         if (frameTiming) {
           // frameFpsを生成
           ReadAllFrameFps();
+          filter_ = nullptr; // クリップ解放
 
           // AMT_GEN_TIME=falseで作り直す
           InitEnv();
@@ -173,13 +174,19 @@ public:
         filter_ = env_->Invoke("Import", postpath.c_str(), 0).AsClip();
       }
 
+      if (setting_.isDumpFilter()) {
+          StringBuilder sb;
+          sb.append("DumpFilterGraph(\"%s\", 1)", setting_.getFilterGraphDumpPath());
+          env_->Invoke("Eval", AVSValue(sb.str().c_str()));
+      }
+
       MakeZones(filter_, fileId, encoderId, outFrames, zones, reformInfo);
 
       MakeOutFormat(reformInfo.getFormat(encoderId, fileId).videoFormat);
     }
     catch (const AvisynthError& avserror) {
       // AvisynthErrorはScriptEnvironmentに依存しているので
-      // AviSyntExceptioに変換する
+      // AviSynthExceptionに変換する
       THROWF(AviSynthException, "%s", avserror.msg);
     }
   }
@@ -221,6 +228,9 @@ private:
 
   std::string makePreamble() {
     StringBuilder sb;
+    if (setting_.isDumpFilter()) {
+        sb.append("SetGraphAnalysis(true)\n");
+    }
     // システムのプラグインフォルダを無効化
     if (setting_.isSystemAvsPlugin() == false) {
       sb.append("ClearAutoloadDirs()\n");
@@ -233,6 +243,7 @@ private:
   }
 
   void InitEnv() {
+    env_ = nullptr;
     env_ = make_unique_ptr(CreateScriptEnvironment2());
     env_->Invoke("Eval", AVSValue(makePreamble().c_str()));
 
@@ -296,7 +307,10 @@ private:
       clip = prefetch(clip, 1);
     }
 
-    return trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);
+    clip = trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);
+
+    AVSValue arg[] = { clip, 2 };
+    return env_->Invoke("OnCPU", AVSValue(arg, 2)).AsClip();
   }
 
   PClip trimInput(PClip clip, int fileId, int encoderId, CMType cmtype,
@@ -427,9 +441,10 @@ private:
 // 各フレームのFPS情報から、各種データを生成
 class FilterVFRProc : public AMTObject
 {
+  bool is120fps;  // 120fpsタイミング
   int fpsNum, fpsDenom; // 60fpsのフレームレート
   double totalDuration; // 合計時間（チェック用）
-  std::vector<int> frameFps_; // 各フレームのFPS
+  std::vector<int> frameFps_; // 各フレームのFPS(120fpsの場合)/各フレームの60fpsフレーム数(60fpsの場合)
   std::vector<int> frameMap_; // VFRフレーム番号 -> 60fpsフレーム番号のマッピング
 
   bool is30(const std::vector<AMTFrameFps>& frameFps, int offset) {
@@ -481,44 +496,63 @@ class FilterVFRProc : public AMTObject
   }
 
 public:
-  FilterVFRProc(AMTContext&ctx, const std::vector<AMTFrameFps>& frameFps, const VideoInfo& vi)
+  FilterVFRProc(AMTContext&ctx, const std::vector<AMTFrameFps>& frameFps, const VideoInfo& vi, bool is120fps)
   : AMTObject(ctx) 
+  , is120fps(is120fps)
   {
     fpsNum = vi.fps_numerator;
     fpsDenom = vi.fps_denominator;
 
-    // パターンが出現したところをVFR化
-    // （時間がズレないようにする）
-    for (int i = 0; i < (int)frameFps.size(); ) {
-      frameMap_.push_back(i);
-      if (is30(frameFps, i)) {
-        frameFps_.push_back(AMT_FPS_30);
-        i += 2;
-      }
-      else if (is23(frameFps, i)) {
-        frameFps_.push_back(AMT_FPS_24);
-        frameFps_.push_back(AMT_FPS_24);
-        frameMap_.push_back(i + 2);
-        i += 5;
-      }
-      else if (is32(frameFps, i)) {
-        frameFps_.push_back(AMT_FPS_24);
-        frameFps_.push_back(AMT_FPS_24);
-        frameMap_.push_back(i + 3);
-        i += 5;
-      }
-      else if (is2224(frameFps, i)) {
-        for (int i = 0; i < 4; ++i) {
-          frameFps_.push_back(AMT_FPS_24);
+    if (is120fps) {
+      // パターンが出現したところをVFR化
+      // （時間がズレないようにする）
+      for (int i = 0; i < (int)frameFps.size(); ) {
+        frameMap_.push_back(i);
+        if (is30(frameFps, i)) {
+          frameFps_.push_back(AMT_FPS_30);
+          i += 2;
         }
-        frameMap_.push_back(i + 2);
-        frameMap_.push_back(i + 4);
-        frameMap_.push_back(i + 6);
-        i += 10;
+        else if (is23(frameFps, i)) {
+          frameFps_.push_back(AMT_FPS_24);
+          frameFps_.push_back(AMT_FPS_24);
+          frameMap_.push_back(i + 2);
+          i += 5;
+        }
+        else if (is32(frameFps, i)) {
+          frameFps_.push_back(AMT_FPS_24);
+          frameFps_.push_back(AMT_FPS_24);
+          frameMap_.push_back(i + 3);
+          i += 5;
+        }
+        else if (is2224(frameFps, i)) {
+          for (int i = 0; i < 4; ++i) {
+            frameFps_.push_back(AMT_FPS_24);
+          }
+          frameMap_.push_back(i + 2);
+          frameMap_.push_back(i + 4);
+          frameMap_.push_back(i + 6);
+          i += 10;
+        }
+        else {
+          frameFps_.push_back(AMT_FPS_60);
+          i += 1;
+        }
       }
-      else {
-        frameFps_.push_back(AMT_FPS_60);
-        i += 1;
+    }
+    else {
+      // 60fpsタイミング
+      for (int i = 0; i < (int)frameFps.size(); ) {
+        frameMap_.push_back(i);
+        int fps = frameFps[i].fps;
+        int source = frameFps[i].source;
+        int numCont = 1;
+        for ( ; numCont < 4; ++numCont) {
+          if (frameFps[i + numCont].fps != fps || frameFps[i + numCont].source != source) {
+            break;
+          }
+        }
+        frameFps_.push_back(numCont);
+        i += numCont;
       }
     }
 
@@ -541,25 +575,33 @@ public:
   }
 
   void makeTimecode(const std::string& filepath) const {
-    const double durations[4] = {
-      0,
-      (fpsNum * 10.0) / (fpsDenom * 4.0), // AMT_FPS_24
-      (fpsNum * 2.0) / fpsDenom, // AMT_FPS_30
-      (double)fpsNum / fpsDenom // AMT_FPS_60
-    };
     StringBuilder sb;
     sb.append("# timecode format v2\n");
-    double curTime = 0;
-    double maxDiff = 0; // チェック用
-    for (int i = 0; i < (int)frameFps_.size(); ++i) {
-      maxDiff = std::max(maxDiff, std::abs(curTime - frameMap_[i] * (double)fpsNum / fpsDenom));
-      sb.append("%d\n", (int)std::round(curTime * 1000));
-      curTime += durations[frameFps_[i]];
+    ctx.info("[VFR] %d fpsタイミングでタイムコードを生成します", is120fps ? 120 : 60);
+    if (is120fps) {
+      const double durations[4] = {
+        0,
+        (fpsDenom * 10.0) / (fpsNum * 4.0), // AMT_FPS_24
+        (fpsDenom * 2.0) / fpsNum, // AMT_FPS_30
+        (double)fpsDenom / fpsNum // AMT_FPS_60
+      };
+      double curTime = 0;
+      double maxDiff = 0; // チェック用
+      for (int i = 0; i < (int)frameFps_.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(curTime - frameMap_[i] * (double)fpsDenom / fpsNum));
+        sb.append("%d\n", (int)std::round(curTime * 1000));
+        curTime += durations[frameFps_[i]];
+      }
+      ctx.info("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
+      if (std::abs(curTime - totalDuration) >= 0.000001) {
+        // 1us以上のズレがあったらエラーとする
+        THROWF(RuntimeException, "タイムコードの合計時間と映像時間の合計にズレがあります。(%f != %f)", curTime, totalDuration);
+      }
     }
-    ctx.info("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
-    if (std::abs(curTime - totalDuration) >= 0.000001) {
-      // 1us以上のズレがあったらエラーとする
-      THROWF(RuntimeException, "タイムコードの合計時間と映像時間の合計にズレがあります。(%f != %f)", curTime, totalDuration);
+    else {
+      for (int i = 0; i < (int)frameMap_.size(); ++i) {
+        sb.append("%d\n", (int)std::round(frameMap_[i] * (double)fpsDenom / fpsNum * 1000));
+      }
     }
     File file(filepath, "w");
     file.write(sb.getMC());

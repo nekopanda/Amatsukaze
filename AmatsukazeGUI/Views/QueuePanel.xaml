@@ -102,6 +102,7 @@
                     </ListView.ContextMenu>
                 </ListView>
                 <TextBlock Text="ここにエンコードするファイルorフォルダをD&amp;D" FontSize="20"
+                           IsHitTestVisible="False"
                            HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFBDBDBD">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">

@@ -275,12 +275,15 @@ namespace Amatsukaze.Server
                 drcsManager.AddLogFile(GetCheckLogFileBase(item.CheckStartDate) + ".txt",
                     item.SrcPath, item.CheckStartDate);
             }
+#if PROFILE
+            prof.PrintTime("EncodeServer C");
+#endif
 
             queueThread = QueueThread();
             watchFileThread = WatchFileThread();
             saveSettingThread = SaveSettingThread();
 #if PROFILE
-            prof.PrintTime("EncodeServer C");
+            prof.PrintTime("EncodeServer D");
 #endif
 
             // ログを解析
@@ -844,6 +847,9 @@ namespace Amatsukaze.Server
                 sb.Append("--mode g ");
             }
 
+            // debug
+            sb.Append("--dump-filter ");
+
             sb.Append("-i \"")
                 .Append(src)
                 .Append("\" -s ")
@@ -873,8 +879,11 @@ namespace Amatsukaze.Server
                     .Append(outputMask);
 
 
-                if (mode != ProcMode.CMCheck)
+                if (mode == ProcMode.CMCheck)
                 {
+                    sb.Append(" --chapter");
+                }
+                else {
                     string encoderPath = GetEncoderPath(profile.EncoderType, setting);
 
                     double bitrateCM = profile.BitrateCM;
@@ -934,6 +943,10 @@ namespace Amatsukaze.Server
                     if (!profile.DisableChapter)
                     {
                         sb.Append(" --chapter");
+                    }
+                    if (profile.VFR120fps)
+                    {
+                        sb.Append(" --vfr120fps");
                     }
                     if (profile.EnableNicoJK)
                     {

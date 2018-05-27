@@ -660,7 +660,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						auto encoderZones = filterSource.getZones();
 						auto& outfmt = filterSource.getFormat();
 						auto& outvi = filterClip->GetVideoInfo();
-            FilterVFRProc vfrProc(ctx, frameFps, outvi);
+            FilterVFRProc vfrProc(ctx, frameFps, outvi, setting.isVFR120fps());
 
             if (vfrProc.isEnabled()) {
               // フィルタによるVFRが有効

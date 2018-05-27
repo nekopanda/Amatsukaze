@@ -126,6 +126,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool NoDelogo { get; set; }
         [DataMember]
+        public bool VFR120fps { get; set; }
+        [DataMember]
         public bool SystemAviSynthPlugin { get; set; }
         [DataMember]
         public bool DisableHashCheck { get; set; }

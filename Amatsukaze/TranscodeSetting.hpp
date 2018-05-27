@@ -453,6 +453,7 @@ struct Config {
 	bool ignoreNicoJKError;
 	bool looseLogoDetection;
 	bool noDelogo;
+  bool vfr120fps;
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
@@ -462,6 +463,7 @@ struct Config {
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;
 	bool noRemoveTmp;
+  bool dumpFilter;
 };
 
 class ConfigWrapper : public AMTObject
@@ -617,6 +619,10 @@ public:
 	bool isNoDelogo() const {
 		return conf.noDelogo;
 	}
+
+  bool isVFR120fps() const {
+    return conf.vfr120fps;
+  }
 
 	std::string getChapterExePath() const {
 		return conf.chapterExePath;
@@ -805,6 +811,14 @@ public:
 	std::string getDRCSOutPath(const std::string& md5) const {
 		return StringFormat("%s\\%s.bmp", conf.drcsOutPath, md5);
 	}
+
+    bool isDumpFilter() const {
+        return conf.dumpFilter;
+    }
+
+    std::string getFilterGraphDumpPath() const {
+        return regtmp(StringFormat("%s/graph.txt", tmpDir.path()));
+    }
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,

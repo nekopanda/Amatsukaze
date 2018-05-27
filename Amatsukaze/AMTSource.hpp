@@ -275,31 +275,30 @@ class AMTSource : public IClip, AMTObject
 		}
 	}
 
-	void OnFrameDecoded(Frame& frame, IScriptEnvironment* env) {
+    void OnInitializeFrame(Frame& frame, IScriptEnvironment* env)
+    {
+        // ビット深度取得
+        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame()->format));
+        switch (desc->comp[0].depth) {
+        case 8:
+            vi.pixel_type = VideoInfo::CS_YV12;
+            break;
+        case 10:
+            vi.pixel_type = VideoInfo::CS_YUV420P10;
+            break;
+        case 12:
+            vi.pixel_type = VideoInfo::CS_YUV420P12;
+            break;
+        default:
+            env->ThrowError("対応していないビット深度です");
+            break;
+        }
 
-		if (initialized == false) {
-			// 初期化
+        initialized = true;
+    }
 
-			// ビット深度取得
-			const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame()->format));
-			switch (desc->comp[0].depth) {
-			case 8:
-				vi.pixel_type = VideoInfo::CS_YV12;
-				break;
-			case 10:
-				vi.pixel_type = VideoInfo::CS_YUV420P10;
-				break;
-			case 12:
-				vi.pixel_type = VideoInfo::CS_YUV420P12;
-				break;
-			default:
-				env->ThrowError("対応していないビット深度です");
-				break;
-			}
-
-			initialized = true;
-		}
-
+	void OnFrameDecoded(Frame& frame, IScriptEnvironment* env)
+    {
 		// ffmpegのpts wrapの仕方が謎なので下位33bitのみを見る
 		//（26時間以上ある動画だと重複する可能性はあるが無視）
 		int64_t pts = frame()->pts & ((int64_t(1) << 33) - 1);
@@ -409,7 +408,14 @@ class AMTSource : public IClip, AMTObject
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
 					// 最初はIフレームまでスキップ
 					if (lastDecodeFrame != -1 || frame()->key_frame) {
-						OnFrameDecoded(frame, env);
+                        if (initialized == false) {
+                            OnInitializeFrame(frame, env);
+                            av_packet_unref(&packet);
+                            return;
+                        }
+                        else {
+                            OnFrameDecoded(frame, env);
+                        }
 					}
 				}
 			}
@@ -462,6 +468,7 @@ public:
 			THROW(FormatException, "Could not find video stream ...");
 		}
 
+        // 初期化
 		ResetDecoder();
 		DecodeLoop(0, env);
 	}

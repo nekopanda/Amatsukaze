@@ -298,6 +298,7 @@ namespace Amatsukaze.Models
                     default:
                         return;
                 }
+                UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -678,6 +679,30 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region VFRFps変更通知プロパティ
+        public int VFRFps {
+            get { return Model.VFR120fps ? 1 : 0; }
+            set {
+                bool newValue = (value == 1);
+                if (Model.VFR120fps == newValue)
+                    return;
+                Model.VFR120fps = newValue;
+                RaisePropertyChanged("VFRFps");
+                RaisePropertyChanged("VFR120Fps");
+            }
+        }
+        public bool VFR120Fps {
+            get { return Model.VFR120fps; }
+            set {
+                if (Model.VFR120fps == value)
+                    return;
+                Model.VFR120fps = value;
+                RaisePropertyChanged("VFRFps");
+                RaisePropertyChanged("VFR120Fps");
+            }
+        }
+        #endregion
+
         #region MoveEDCBFiles変更通知プロパティ
         public bool MoveEDCBFiles
         {
@@ -819,6 +844,7 @@ namespace Amatsukaze.Models
                 if ((int)Model.OutputFormat == value)
                     return;
                 Model.OutputFormat = (FormatType)value;
+                UpdateWarningText();
                 RaisePropertyChanged();
             }
         }
@@ -876,6 +902,9 @@ namespace Amatsukaze.Models
         {
             get { return new string[] { "MP4", "MKV", "M2TS" }; }
         }
+        public string[] VFRFpsList {
+            get { return new string[] { "60fps", "120fps" }; }
+        }
 
         #region IsModified変更通知プロパティ
         private bool _IsModified;
@@ -904,7 +933,7 @@ namespace Amatsukaze.Models
             };
         }
 
-        private void UpdateWarningText()
+        public void UpdateWarningText()
         {
             StringBuilder sb = new StringBuilder();
             if (Model.EncoderType == EncoderType.QSVEnc && Model.TwoPass)
@@ -918,6 +947,14 @@ namespace Amatsukaze.Models
             if (Model.EnableNicoJK && Model.NicoJKFormats.Any(s => s) == false)
             {
                 sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
+            }
+            if(Model.OutputFormat == FormatType.M2TS)
+            {
+                if (Model.EncoderType == EncoderType.x265 ||
+                    ((Model.EncoderType != EncoderType.x264) && (EncoderOption?.Contains("hevc") ?? false)))
+                {
+                    sb.Append("tsMuxeR 2.6.12はHEVCを正しくmuxできない不具合があるのでご注意ください。");
+                }
             }
             SettingWarningText = sb.ToString();
         }
