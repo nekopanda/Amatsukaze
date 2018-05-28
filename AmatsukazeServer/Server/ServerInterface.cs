@@ -15,7 +15,7 @@ namespace Amatsukaze.Server
         // 操作系
         Task SetProfile(ProfileUpdate data);
         Task SetAutoSelect(AutoSelectUpdate data);
-        Task AddQueue(AddQueueDirectory dir);
+        Task AddQueue(AddQueueRequest dir);
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
 
@@ -91,7 +91,7 @@ namespace Amatsukaze.Server
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
             { RPCMethodId.SetProfile, typeof(ProfileUpdate) },
             { RPCMethodId.SetAutoSelect, typeof(AutoSelectUpdate) },
-            { RPCMethodId.AddQueue, typeof(AddQueueDirectory) },
+            { RPCMethodId.AddQueue, typeof(AddQueueRequest) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.SetCommonData, typeof(CommonData) },
@@ -436,7 +436,7 @@ namespace Amatsukaze.Server
             return Server.AddDrcsMap(Copy(drcsMap));
         }
 
-        public Task AddQueue(AddQueueDirectory dir)
+        public Task AddQueue(AddQueueRequest dir)
         {
             return Server.AddQueue(Copy(dir));
         }

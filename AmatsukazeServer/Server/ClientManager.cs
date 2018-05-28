@@ -246,7 +246,7 @@ namespace Amatsukaze.Server
                     server.SetAutoSelect((AutoSelectUpdate)arg);
                     break;
                 case RPCMethodId.AddQueue:
-                    server.AddQueue((AddQueueDirectory)arg);
+                    server.AddQueue((AddQueueRequest)arg);
                     break;
                 case RPCMethodId.ChangeItem:
                     server.ChangeItem((ChangeItemData)arg);

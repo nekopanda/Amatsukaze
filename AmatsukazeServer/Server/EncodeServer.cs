@@ -74,7 +74,7 @@ namespace Amatsukaze.Server
 
         // キューに追加されるTSを解析するスレッド
         private Task queueThread;
-        private BufferBlock<AddQueueDirectory> queueQ = new BufferBlock<AddQueueDirectory>();
+        private BufferBlock<AddQueueRequest> queueQ = new BufferBlock<AddQueueRequest>();
 
         // ロゴファイルやJLSコマンドファイルを監視するスレッド
         private Task watchFileThread;
@@ -1230,9 +1230,9 @@ namespace Amatsukaze.Server
             {
                 while (await queueQ.OutputAvailableAsync())
                 {
-                    AddQueueDirectory dir = await queueQ.ReceiveAsync();
-                    await queueManager.AddQueue(dir);
-                    await Client.OnAddResult(dir.RequestId);
+                    AddQueueRequest req = await queueQ.ReceiveAsync();
+                    await queueManager.AddQueue(req);
+                    await Client.OnAddResult(req.RequestId);
                 }
             }
             catch (Exception exception)
@@ -1708,7 +1708,7 @@ namespace Amatsukaze.Server
                     }
                 }
             }
-            foreach(var item in queueManager.Queue.SelectMany(s => s.Items).
+            foreach(var item in queueManager.Queue.
                 Where(s => !string.IsNullOrEmpty(s.DstPath)).
                 Select(s => Path.GetPathRoot(s.DstPath)))
             {
@@ -1880,9 +1880,9 @@ namespace Amatsukaze.Server
             }
         }
 
-        public Task AddQueue(AddQueueDirectory dir)
+        public Task AddQueue(AddQueueRequest req)
         {
-            queueQ.Post(dir);
+            queueQ.Post(req);
             return Task.FromResult(0);
         }
 
@@ -1984,14 +1984,19 @@ namespace Amatsukaze.Server
         // ペンディングからキューになったらスケジューリングに追加する
         // notifyItem: trueの場合は、ディレクトリ・アイテム両方の更新通知、falseの場合は、ディレクトリの更新通知のみ
         // 戻り値: 状態が変わった
-        internal bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
+        internal bool UpdateQueueItem(QueueItem item, List<Task> waits)
         {
-            return queueManager.UpdateQueueItem(item, waits, notifyItem);
+            return queueManager.UpdateQueueItem(item, waits);
         }
 
         internal List<Task> UpdateQueueItems(List<Task> waits)
         {
             return queueManager.UpdateQueueItems(waits);
+        }
+
+        internal QueueItem[] GetQueueItems(string srcPath)
+        {
+            return queueManager.Queue.Where(s => s.SrcPath == srcPath).ToArray();
         }
 
         public Task ChangeItem(ChangeItemData data)

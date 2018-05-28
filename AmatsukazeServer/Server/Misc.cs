@@ -680,6 +680,8 @@ namespace Amatsukaze.Server
 
         public static readonly int DEFAULT_PORT = 32768;
         public static readonly string AUTO_PREFIX = "自動選択_";
+        public static readonly string SUCCESS_DIR = "succeeded";
+        public static readonly string FAIL_DIR = "failed";
 
         public static string GetServerLogPath()
         {

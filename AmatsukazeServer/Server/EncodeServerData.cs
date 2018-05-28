@@ -334,7 +334,7 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class AddQueueDirectory
+    public class AddQueueRequest
     {
         [DataMember]
         public string DirPath { get; set; }
@@ -386,6 +386,10 @@ namespace Amatsukaze.Server
         [DataMember]
         public int Id { get; set; }
         [DataMember]
+        public ProcMode Mode { get; set; }
+        [DataMember]
+        public ProfileSetting Profile { get; set; }
+        [DataMember]
         public string SrcPath { get; set; }
         [DataMember]
         public string DstPath { get; set; }
@@ -422,8 +426,11 @@ namespace Amatsukaze.Server
         public List<GenreItem> Genre { get; set; }
 
         // サーバで使う
-        public QueueDirectory Dir { get; set; }
         public string ActualDstPath { get; set; }
+
+        public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
+        public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
+        public bool IsTest { get { return Mode == ProcMode.Test; } }
 
         public string FileName { get { return System.IO.Path.GetFileName(SrcPath); } }
 
@@ -449,33 +456,10 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
-    public class QueueDirectory
-    {
-        [DataMember]
-        public int Id { get; set; }
-        [DataMember]
-        public string DirPath { get; set; }
-        [DataMember]
-        public ProcMode Mode { get; set; }
-        [DataMember]
-        public ProfileSetting Profile { get; set; }
-        [DataMember]
-        public List<QueueItem> Items { get; set; }
-
-        // サーバで使う
-        public Dictionary<string, byte[]> HashList;
-        public string Succeeded { get { return System.IO.Path.Combine(DirPath, "succeeded"); } }
-        public string Failed { get { return System.IO.Path.Combine(DirPath, "failed"); } }
-        public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
-        public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
-        public bool IsTest { get { return Mode == ProcMode.Test; } }
-    }
-
-    [DataContract]
     public class QueueData
     {
         [DataMember]
-        public List<QueueDirectory> Items { get; set; }
+        public List<QueueItem> Items { get; set; }
     }
 
     public enum UpdateType
@@ -489,10 +473,6 @@ namespace Amatsukaze.Server
         [DataMember]
         public UpdateType Type { get; set; }
         [DataMember]
-        public QueueDirectory Directory { get; set; }
-        [DataMember]
-        public int DirId { get; set; }
-        [DataMember]
         public QueueItem Item { get; set; }
     }
 
@@ -504,10 +484,8 @@ namespace Amatsukaze.Server
         Cancel,     // キャンセル
         Priority,   // 優先度変更
         Profile,    // プロファイル変更
-        RemoveDir,  // ディレクトリ削除
         RemoveItem, // アイテム削除
-        RemoveCompletedAll,  // 全ての完了項目を削除
-        RemoveCompletedItem,  // 指定ディレクトリの完了項目を削除
+        RemoveCompleted,  // 完了項目を削除
     }
 
     [DataContract]

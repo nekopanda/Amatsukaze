@@ -12,10 +12,16 @@ namespace Amatsukaze.Server
     {
         private EncodeServer server;
 
-        private List<QueueDirectory> queue = new List<QueueDirectory>();
-        public List<QueueDirectory> Queue { get { return queue; } }
+        public List<QueueItem> Queue { get; } = new List<QueueItem>();
 
-        private int nextDirId = 1;
+        class DirHash
+        {
+            public string DirPath;
+            public Dictionary<string, byte[]> HashDict = new Dictionary<string, byte[]>();
+        }
+
+        private Dictionary<string, DirHash> hashCache = new Dictionary<string, DirHash>();
+
         private int nextItemId = 1;
 
         public QueueManager(EncodeServer server)
@@ -36,10 +42,9 @@ namespace Amatsukaze.Server
         private void UpdateProgress()
         {
             // 進捗を更新
-            var items = queue.SelectMany(t => t.Items);
-            double enabledCount = items.Count(s =>
+            double enabledCount = Queue.Count(s =>
                 s.State != QueueState.LogoPending && s.State != QueueState.PreFailed);
-            double remainCount = items.Count(s =>
+            double remainCount = Queue.Count(s =>
                 s.State == QueueState.Queue || s.State == QueueState.Encoding);
             // 完全にゼロだと分からないので・・・
             server.Progress = ((enabledCount - remainCount) + 0.1) / (enabledCount + 0.1);
@@ -47,26 +52,23 @@ namespace Amatsukaze.Server
 
         public List<Task> UpdateQueueItems(List<Task> waits)
         {
-            foreach (var dir in queue.ToArray())
+            foreach (var item in Queue.ToArray())
             {
-                foreach (var item in dir.Items.ToArray())
+                if (item.State != QueueState.LogoPending && item.State != QueueState.Queue)
                 {
-                    if (item.State != QueueState.LogoPending && item.State != QueueState.Queue)
-                    {
-                        continue;
-                    }
-                    if (UpdateQueueItem(item, waits, true))
-                    {
-                        waits.Add(NotifyQueueItemUpdate(item));
-                    }
+                    continue;
+                }
+                if (UpdateQueueItem(item, waits))
+                {
+                    waits.Add(NotifyQueueItemUpdate(item));
                 }
             }
             return waits;
         }
 
-        private bool CheckProfile(QueueItem item, QueueDirectory dir, List<Task> waits, bool notifyItem)
+        private bool CheckProfile(QueueItem item, List<Task> waits)
         {
-            if (dir.Profile != server.PendingProfile)
+            if (item.Profile != server.PendingProfile)
             {
                 return true;
             }
@@ -79,119 +81,31 @@ namespace Amatsukaze.Server
                 return false;
             }
 
-            // プロファイルの選択ができたので、アイテムを適切なディレクトリに移動
-            var newDir = GetQueueDirectory(dir.DirPath, dir.Mode, profile, waits);
-            MoveItemDirectory(item, newDir, notifyItem ? waits : null);
-
+            item.Profile = ServerSupport.DeepCopy(profile);
             if (itemPriority > 0)
             {
                 item.Priority = itemPriority;
             }
 
-            return true;
-        }
-
-        private void MoveItemDirectory(QueueItem item, QueueDirectory newDir, List<Task> waits)
-        {
-            item.Dir.Items.Remove(item);
-
-            // RemoveとAddをatomicに行わなければならないのでここをawaitにしないこと
-            // ?.の後ろの引数はnullの場合は評価されないことに注意
-            // （C#の仕様が分かりにくいけど・・・）
             waits?.Add(ClientQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Remove,
-                DirId = item.Dir.Id,
                 Item = item
             }));
 
-            if (item.Dir.Profile == server.PendingProfile && item.Dir.Items.Count == 0)
-            {
-                // プロファイル未選択ディレクトリは自動的に削除する
-                queue.Remove(item.Dir);
-                waits?.Add(ClientQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Remove,
-                    DirId = item.Dir.Id,
-                }));
-            }
-
-            item.Dir = newDir;
-            item.Dir.Items.Add(item);
-            waits?.Add(ClientQueueUpdate(new QueueUpdate()
-            {
-                Type = UpdateType.Add,
-                DirId = item.Dir.Id,
-                Item = item
-            }));
-        }
-
-        private QueueDirectory GetQueueDirectory(string dirPath, ProcMode mode, ProfileSetting profile, List<Task> waitItems)
-        {
-            QueueDirectory target = queue.FirstOrDefault(s =>
-                    s.DirPath == dirPath &&
-                    s.Mode == mode &&
-                    s.Profile.Name == profile.Name &&
-                    s.Profile.LastUpdate == profile.LastUpdate);
-
-            if (target == null)
-            {
-                var profilei = (profile == server.PendingProfile) ? profile : ServerSupport.DeepCopy(profile);
-                target = new QueueDirectory()
-                {
-                    Id = nextDirId++,
-                    DirPath = dirPath,
-                    Items = new List<QueueItem>(),
-                    Mode = mode,
-                    Profile = profilei
-                };
-
-                // ハッシュリスト取得
-                if (profile != server.PendingProfile && // ペンディングの場合は決定したときに実行される
-                    mode == ProcMode.Batch &&
-                    profile.DisableHashCheck == false &&
-                    dirPath.StartsWith("\\\\"))
-                {
-                    var hashpath = dirPath + ".hash";
-                    if (File.Exists(hashpath) == false)
-                    {
-                        waitItems.Add(NotifyMessage(true, "ハッシュファイルがありません: " + hashpath + "\r\n" +
-                            "必要ない場合はハッシュチェックを無効化して再度追加してください", false));
-                        return null;
-                    }
-                    try
-                    {
-                        target.HashList = HashUtil.ReadHashFile(hashpath);
-                    }
-                    catch (IOException e)
-                    {
-                        waitItems.Add(NotifyMessage(true, "ハッシュファイルの読み込みに失敗: " + e.Message, false));
-                        return null;
-                    }
-                }
-
-                queue.Add(target);
-                waitItems.Add(ClientQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Add,
-                    Directory = target
-                }));
-            }
-
-            return target;
+            return true;
         }
 
         // ペンディング <=> キュー 状態を切り替える
         // ペンディングからキューになったらスケジューリングに追加する
         // notifyItem: trueの場合は、ディレクトリ・アイテム両方の更新通知、falseの場合は、ディレクトリの更新通知のみ
         // 戻り値: 状態が変わった
-        public bool UpdateQueueItem(QueueItem item, List<Task> waits, bool notifyItem)
+        public bool UpdateQueueItem(QueueItem item, List<Task> waits)
         {
-            var dir = item.Dir;
             if (item.State == QueueState.LogoPending || item.State == QueueState.Queue)
             {
                 var prevState = item.State;
-                if(dir.Mode == ProcMode.DrcsCheck)
+                if(item.Mode == ProcMode.DrcsCheck)
                 {
                     // DRCSチェックはプロファイルを必要としないので即開始
                     if(item.State == QueueState.LogoPending)
@@ -201,7 +115,7 @@ namespace Amatsukaze.Server
                         server.ScheduleQueueItem(item);
                     }
                 }
-                else if (CheckProfile(item, dir, waits, notifyItem))
+                else if (CheckProfile(item, waits))
                 {
                     var map = server.ServiceMap;
                     if (item.ServiceId == -1)
@@ -214,7 +128,7 @@ namespace Amatsukaze.Server
                         item.FailReason = "このTSに対する設定がありません";
                         item.State = QueueState.LogoPending;
                     }
-                    else if (dir.Profile.DisableChapter == false &&
+                    else if (item.Profile.DisableChapter == false &&
                         map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
                     {
                         item.FailReason = "ロゴ設定がありません";
@@ -238,37 +152,30 @@ namespace Amatsukaze.Server
         }
 
         private AMTContext amtcontext = new AMTContext();
-        public async Task AddQueue(AddQueueDirectory dir)
+        public async Task AddQueue(AddQueueRequest req)
         {
             List<Task> waits = new List<Task>();
 
             // ユーザ操作でない場合はログを記録する
-            bool enableLog = (dir.Mode == ProcMode.AutoBatch);
+            bool enableLog = (req.Mode == ProcMode.AutoBatch);
 
-            if (dir.Outputs.Count == 0)
+            if (req.Outputs.Count == 0)
             {
                 await NotifyMessage(true, "出力が1つもありません", enableLog);
                 return;
             }
 
             // 既に追加されているファイルは除外する
-            var ignores = queue
-                .Where(t => t.DirPath == dir.DirPath);
-
             // バッチのときは全ファイルが対象だが、バッチじゃなければバッチのみが対象
-            if (!dir.IsBatch)
-            {
-                ignores = ignores.Where(t => t.IsBatch);
-            }
+            var ignores = req.IsBatch ? Queue : Queue.Where(t => t.IsBatch);
 
             var ignoreSet = new HashSet<string>(
-                ignores.SelectMany(t => t.Items)
-                .Where(item => item.IsActive)
+                ignores.Where(item => item.IsActive)
                 .Select(item => item.SrcPath));
 
-            var items = ((dir.Targets != null)
-                ? dir.Targets
-                : Directory.GetFiles(dir.DirPath)
+            var items = ((req.Targets != null)
+                ? req.Targets
+                : Directory.GetFiles(req.DirPath)
                     .Where(s =>
                     {
                         string lower = s.ToLower();
@@ -327,17 +234,14 @@ namespace Amatsukaze.Server
 
                                 Debug.Print("解析完了: " + additem.Path);
 
-                                foreach (var outitem in dir.Outputs)
+                                foreach (var outitem in req.Outputs)
                                 {
                                     var genre = prog.Content.Select(s => ServerSupport.GetGenre(s)).ToList();
-                                    var profile = server.GetProfile(Path.GetFileName(additem.Path),
-                                        prog.Width, prog.Height, genre, prog.ServiceId, outitem.Profile);
-                                    var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile?.Profile ?? server.PendingProfile, waits);
-                                    var priority = (profile != null && profile.Priority > 0) ? profile.Priority : outitem.Priority;
 
                                     var item = new QueueItem()
                                     {
                                         Id = nextItemId++,
+                                        Mode = req.Mode,
                                         SrcPath = additem.Path,
                                         Hash = additem.Hash,
                                         DstPath = outitem.DstPath + "\\" + outname,
@@ -348,10 +252,9 @@ namespace Amatsukaze.Server
                                         ServiceName = serviceName,
                                         EventName = prog.EventName,
                                         State = QueueState.LogoPending,
-                                        Priority = priority,
+                                        Priority = outitem.Priority,
                                         AddTime = DateTime.Now,
                                         ProfileName = outitem.Profile,
-                                        Dir = target,
                                         Genre = genre
                                     };
 
@@ -363,7 +266,7 @@ namespace Amatsukaze.Server
                                     else
                                     {
                                         // ロゴファイルを探す
-                                        if (dir.Mode != ProcMode.DrcsCheck && map.ContainsKey(item.ServiceId) == false)
+                                        if (req.Mode != ProcMode.DrcsCheck && map.ContainsKey(item.ServiceId) == false)
                                         {
                                             // 新しいサービスを登録
                                             waits.Add(server.AddService(new ServiceSettingElement()
@@ -376,15 +279,16 @@ namespace Amatsukaze.Server
                                         ++numFiles;
                                     }
 
+                                    // プロファイルを設定
+                                    UpdateProfileItem(item, null);
                                     // 追加
-                                    target.Items.Add(item);
+                                    Queue.Add(item);
                                     // まずは内部だけで状態を更新
-                                    UpdateQueueItem(item, waits, false);
+                                    UpdateQueueItem(item, null);
                                     // 状態が決まったらクライアント側に追加通知
                                     waits.Add(ClientQueueUpdate(new QueueUpdate()
                                     {
                                         Type = UpdateType.Add,
-                                        DirId = item.Dir.Id,
                                         Item = item
                                     }));
                                     ++numItems;
@@ -397,15 +301,17 @@ namespace Amatsukaze.Server
 
                     if (fileOK == false)
                     {
-                        foreach (var outitem in dir.Outputs)
+                        foreach (var outitem in req.Outputs)
                         {
                             bool isAuto = false;
                             var profileName = ServerSupport.ParseProfileName(outitem.Profile, out isAuto);
-                            var profile = isAuto ? null : server.GetProfile(profileName);
-                            var target = GetQueueDirectory(dir.DirPath, dir.Mode, profile ?? server.PendingProfile, waits);
+                            var profile = isAuto ? null : ServerSupport.DeepCopy(server.GetProfile(profileName));
+
                             var item = new QueueItem()
                             {
                                 Id = nextItemId++,
+                                Mode = req.Mode,
+                                Profile = profile,
                                 SrcPath = additem.Path,
                                 Hash = additem.Hash,
                                 DstPath = "",
@@ -418,14 +324,12 @@ namespace Amatsukaze.Server
                                 FailReason = failReason,
                                 AddTime = DateTime.Now,
                                 ProfileName = outitem.Profile,
-                                Dir = target
                             };
 
-                            target.Items.Add(item);
+                            Queue.Add(item);
                             waits.Add(ClientQueueUpdate(new QueueUpdate()
                             {
                                 Type = UpdateType.Add,
-                                DirId = target.Id,
                                 Item = item
                             }));
                             ++numItems;
@@ -440,7 +344,7 @@ namespace Amatsukaze.Server
             if (numItems == 0)
             {
                 waits.Add(NotifyMessage(true,
-                    "エンコード対象ファイルがありませんでした。パス:" + dir.DirPath, enableLog));
+                    "エンコード対象ファイルがありませんでした。パス:" + req.DirPath, enableLog));
 
                 await Task.WhenAll(waits);
 
@@ -451,11 +355,11 @@ namespace Amatsukaze.Server
                 waits.Add(NotifyMessage(false, "" + numItems + "件追加しました", false));
             }
 
-            if (dir.Mode != ProcMode.AutoBatch)
+            if (req.Mode != ProcMode.AutoBatch)
             {
                 // 最後に使ったプロファイルを記憶しておく
                 bool isAuto = false;
-                var profileName = ServerSupport.ParseProfileName(dir.Outputs[0].Profile, out isAuto);
+                var profileName = ServerSupport.ParseProfileName(req.Outputs[0].Profile, out isAuto);
                 if (!isAuto)
                 {
                     server.LastSelectedProfile = profileName;
@@ -470,39 +374,100 @@ namespace Amatsukaze.Server
         private void ResetStateItem(QueueItem item, List<Task> waits)
         {
             item.State = QueueState.LogoPending;
-            UpdateQueueItem(item, waits, true);
+            UpdateQueueItem(item, waits);
             waits.Add(NotifyQueueItemUpdate(item));
         }
 
-        private void UpdateProfileItem(QueueItem item, List<Task> waits)
+        // アイテムのProfileNameからプロファイルを決定して、
+        // オプションでwaits!=nullのときはクライアントに通知
+        // 戻り値: プロファイルが変更された場合（結果、エラーになった場合も含む）
+        private bool UpdateProfileItem(QueueItem item, List<Task> waits)
         {
-            var profile = server.GetProfile(item, item.ProfileName);
-            var newDir = GetQueueDirectory(item.Dir.DirPath, item.Dir.Mode, profile?.Profile ?? server.PendingProfile, waits);
-            if (newDir != item.Dir)
+            var getResult = server.GetProfile(item, item.ProfileName);
+            var profile = (getResult != null) ? ServerSupport.DeepCopy(getResult.Profile) : server.PendingProfile;
+            var priority = (getResult != null && getResult.Priority > 0) ? getResult.Priority : item.Priority;
+
+            if(item.Profile == null ||
+                item.Profile.Name != profile.Name ||
+                item.Profile.LastUpdate != profile.LastUpdate ||
+                item.Priority != priority)
             {
-                MoveItemDirectory(item, newDir, waits);
+                // 変更
+                item.Profile = profile;
+                item.Priority = priority;
+
+                // ハッシュリスト取得
+                if (profile != server.PendingProfile && // ペンディングの場合は決定したときに実行される
+                    item.Mode == ProcMode.Batch &&
+                    profile.DisableHashCheck == false &&
+                    item.FileName.StartsWith("\\\\"))
+                {
+                    var hashpath = Path.GetDirectoryName(item.FileName) + ".hash";
+                    if(hashCache.ContainsKey(hashpath) == false)
+                    {
+                        if (File.Exists(hashpath) == false)
+                        {
+                            item.State = QueueState.PreFailed;
+                            item.FailReason = "ハッシュファイルがありません: " + hashpath;
+                            return true;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                hashCache.Add(hashpath, new DirHash()
+                                {
+                                    DirPath = hashpath,
+                                    HashDict = HashUtil.ReadHashFile(hashpath)
+                                });
+                            }
+                            catch (IOException e)
+                            {
+                                item.State = QueueState.PreFailed;
+                                item.FailReason = "ハッシュファイルの読み込みに失敗: " + e.Message;
+                                return true;
+                            }
+                        }
+                    }
+
+                    var cacheItem = hashCache[hashpath];
+                    var filename = Path.GetFileName(item.FileName);
+
+                    if(cacheItem.HashDict.ContainsKey(filename) == false)
+                    {
+                        item.State = QueueState.PreFailed;
+                        item.FailReason = "ハッシュファイルにこのファイルのハッシュがありません";
+                        return true;
+                    }
+
+                    item.Hash = cacheItem.HashDict[filename];
+                }
+
+                waits?.Add(ClientQueueUpdate(new QueueUpdate()
+                {
+                    Type = UpdateType.Add,
+                    Item = item
+                }));
+
+                return true;
             }
-            if (profile != null && profile.Priority > 0)
-            {
-                item.Priority = profile.Priority;
-            }
+
+            return false;
         }
 
         private void DuplicateItem(QueueItem item, List<Task> waits)
         {
             var newItem = ServerSupport.DeepCopy(item);
             newItem.Id = nextItemId++;
-            newItem.Dir = item.Dir;
-            newItem.Dir.Items.Add(newItem);
+            Queue.Add(newItem);
 
             // 状態はリセットしておく
             newItem.State = QueueState.LogoPending;
-            UpdateQueueItem(newItem, waits, false);
+            UpdateQueueItem(newItem, null);
 
             waits.Add(ClientQueueUpdate(new QueueUpdate()
             {
                 Type = UpdateType.Add,
-                DirId = newItem.Dir.Id,
                 Item = newItem
             }));
         }
@@ -510,14 +475,13 @@ namespace Amatsukaze.Server
         internal Task NotifyQueueItemUpdate(QueueItem item)
         {
             UpdateProgress();
-            if (item.Dir.Items.Contains(item))
+            if (Queue.Contains(item))
             {
                 // ないアイテムをUpdateすると追加されてしまうので
                 return Task.WhenAll(
                     ClientQueueUpdate(new QueueUpdate()
                     {
                         Type = UpdateType.Update,
-                        DirId = item.Dir.Id,
                         Item = item
                     }),
                     server.RequestState());
@@ -525,240 +489,182 @@ namespace Amatsukaze.Server
             return Task.FromResult(0);
         }
 
-        private int RemoveCompleted(QueueDirectory dir, List<Task> waits)
+        private void RemoveCompleted(List<Task> waits)
         {
-            if (dir.Items.All(s => s.State == QueueState.Complete || s.State == QueueState.PreFailed))
-            {
-                // 全て完了しているのでディレクトリを削除
-                queue.Remove(dir);
-                waits.Add(ClientQueueUpdate(new QueueUpdate()
-                {
-                    Type = UpdateType.Remove,
-                    DirId = dir.Id
-                }));
-                return dir.Items.Count;
-            }
-
-            var removeItems = dir.Items.Where(s => s.State == QueueState.Complete).ToArray();
+            var removeItems = Queue.Where(s => s.State == QueueState.Complete || s.State == QueueState.PreFailed).ToArray();
             foreach (var item in removeItems)
             {
-                dir.Items.Remove(item);
+                Queue.Remove(item);
                 waits.Add(ClientQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Remove,
-                    DirId = item.Dir.Id,
                     Item = item
                 }));
             }
-            return removeItems.Length;
+            waits.Add(NotifyMessage(false, "" + removeItems.Length + "件削除しました", false));
         }
 
         public Task ChangeItem(ChangeItemData data)
         {
-            if (data.ChangeType == ChangeItemType.RemoveCompletedAll)
+            if (data.ChangeType == ChangeItemType.RemoveCompleted)
             {
-                // 全て対象
                 var waits = new List<Task>();
-                int removeItems = 0;
-                foreach (var dir in queue.ToArray())
-                {
-                    removeItems += RemoveCompleted(dir, waits);
-                }
-                waits.Add(NotifyMessage(false, "" + removeItems + "件削除しました", false));
+                RemoveCompleted(waits);
                 return Task.WhenAll(waits);
             }
-            else if (data.ChangeType == ChangeItemType.RemoveDir ||
-                data.ChangeType == ChangeItemType.RemoveCompletedItem)
-            {
-                // ディレクトリ操作
-                var target = queue.Find(t => t.Id == data.ItemId);
-                if (target == null)
-                {
-                    return NotifyMessage(true,
-                        "指定されたキューディレクトリが見つかりません", false);
-                }
 
-                if (data.ChangeType == ChangeItemType.RemoveDir)
-                {
-                    // ディレクトリ削除
-                    queue.Remove(target);
-                    // 全てキャンセル
-                    foreach (var item in target.Items)
-                    {
-                        item.State = QueueState.Canceled;
-                    }
-                    return Task.WhenAll(
-                        ClientQueueUpdate(new QueueUpdate()
-                        {
-                            Type = UpdateType.Remove,
-                            DirId = target.Id
-                        }),
-                        NotifyMessage(false, "ディレクトリ「" + target.DirPath + "」を削除しました", false));
-                }
-                else if (data.ChangeType == ChangeItemType.RemoveCompletedItem)
-                {
-                    // ディレクトリの完了削除
-                    var waits = new List<Task>();
-                    int removeItems = RemoveCompleted(target, waits);
-                    waits.Add(NotifyMessage(false, "" + removeItems + "件削除しました", false));
-                    return Task.WhenAll(waits);
-                }
+            // アイテム操作
+            var target = Queue.FirstOrDefault(s => s.Id == data.ItemId);
+            if (target == null)
+            {
+                return NotifyMessage(true,
+                    "指定されたアイテムが見つかりません", false);
             }
-            else
+
+            if (data.ChangeType == ChangeItemType.ResetState ||
+                data.ChangeType == ChangeItemType.UpdateProfile ||
+                data.ChangeType == ChangeItemType.Duplicate)
             {
-                // アイテム操作
-                var all = queue.SelectMany(d => d.Items);
-                var target = all.FirstOrDefault(s => s.Id == data.ItemId);
-                if (target == null)
+                if (data.ChangeType == ChangeItemType.ResetState)
                 {
-                    return NotifyMessage(true,
-                        "指定されたアイテムが見つかりません", false);
+                    // 状態リセットは終わってるのだけ
+                    if (target.State != QueueState.Complete &&
+                        target.State != QueueState.Failed &&
+                        target.State != QueueState.Canceled)
+                    {
+                        return NotifyMessage(true, "完了していないアイテムは状態リセットできません", false);
+                    }
+                }
+                else if (data.ChangeType == ChangeItemType.UpdateProfile)
+                {
+                    // エンコード中は変更できない
+                    if (target.State == QueueState.Encoding)
+                    {
+                        return NotifyMessage(true, "このアイテムはエンコード中のためプロファイル更新できません", false);
+                    }
+                }
+                else if (data.ChangeType == ChangeItemType.Duplicate)
+                {
+                    // バッチモードでアクティブなやつは重複になるのでダメ
+                    if (target.IsBatch && target.IsActive)
+                    {
+                        return NotifyMessage(true, "通常モードで追加されたアイテムは複製できません", false);
+                    }
                 }
 
-                var dir = target.Dir;
+                var waits = new List<Task>();
 
-                if (data.ChangeType == ChangeItemType.ResetState ||
-                    data.ChangeType == ChangeItemType.UpdateProfile ||
-                    data.ChangeType == ChangeItemType.Duplicate)
+                if (target.IsBatch)
                 {
-                    if (data.ChangeType == ChangeItemType.ResetState)
+                    // バッチモードでfailed/succeededフォルダに移動されていたら戻す
+                    if (target.State == QueueState.Failed || target.State == QueueState.Complete)
                     {
-                        // 状態リセットは終わってるのだけ
-                        if (target.State != QueueState.Complete &&
-                            target.State != QueueState.Failed &&
-                            target.State != QueueState.Canceled)
+                        if (Queue.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive) == false)
                         {
-                            return NotifyMessage(true, "完了していないアイテムは状態リセットできません", false);
-                        }
-                    }
-                    else if (data.ChangeType == ChangeItemType.UpdateProfile)
-                    {
-                        // エンコード中は変更できない
-                        if (target.State == QueueState.Encoding)
-                        {
-                            return NotifyMessage(true, "このアイテムはエンコード中のためプロファイル更新できません", false);
-                        }
-                    }
-                    else if (data.ChangeType == ChangeItemType.Duplicate)
-                    {
-                        // バッチモードでアクティブなやつは重複になるのでダメ
-                        if (target.Dir.IsBatch && target.IsActive)
-                        {
-                            return NotifyMessage(true, "通常モードで追加されたアイテムは複製できません", false);
-                        }
-                    }
-
-                    var waits = new List<Task>();
-
-                    if (dir.IsBatch)
-                    {
-                        // バッチモードでfailed/succeededフォルダに移動されていたら戻す
-                        if (target.State == QueueState.Failed || target.State == QueueState.Complete)
-                        {
-                            if (all.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive) == false)
+                            var dirPath = Path.GetDirectoryName(target.FileName);
+                            var movedDir = (target.State == QueueState.Failed) ? 
+                                ServerSupport.FAIL_DIR : 
+                                ServerSupport.SUCCESS_DIR;
+                            var movedPath = dirPath + "\\" + movedDir + "\\" + Path.GetFileName(target.FileName);
+                            if (File.Exists(movedPath))
                             {
-                                var movedDir = (target.State == QueueState.Failed) ? dir.Failed : dir.Succeeded;
-                                var movedPath = movedDir + "\\" + Path.GetFileName(target.FileName);
-                                if (File.Exists(movedPath))
-                                {
-                                    // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
-                                    ServerSupport.MoveTSFile(movedPath, dir.DirPath, true);
-                                }
+                                // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
+                                ServerSupport.MoveTSFile(movedPath, dirPath, true);
                             }
                         }
                     }
+                }
 
-                    if (data.ChangeType == ChangeItemType.ResetState)
+                if (data.ChangeType == ChangeItemType.ResetState)
+                {
+                    ResetStateItem(target, waits);
+                    waits.Add(NotifyMessage(false, "状態リセットします", false));
+                }
+                else if (data.ChangeType == ChangeItemType.UpdateProfile)
+                {
+                    if(UpdateProfileItem(target, waits))
                     {
-                        ResetStateItem(target, waits);
-                        waits.Add(NotifyMessage(false, "状態リセットします", false));
-                    }
-                    else if (data.ChangeType == ChangeItemType.UpdateProfile)
-                    {
-                        UpdateProfileItem(target, waits);
-                        waits.Add(NotifyMessage(false, "プロファイル再適用します", false));
+                        waits.Add(NotifyMessage(false, "新しいプロファイルが適用されました", false));
                     }
                     else
                     {
-                        DuplicateItem(target, waits);
-                        waits.Add(NotifyMessage(false, "複製しました", false));
+                        waits.Add(NotifyMessage(false, "すでに最新のプロファイルが適用されています", false));
                     }
+                }
+                else
+                {
+                    DuplicateItem(target, waits);
+                    waits.Add(NotifyMessage(false, "複製しました", false));
+                }
 
-                    return Task.WhenAll(waits);
-                }
-                else if (data.ChangeType == ChangeItemType.Cancel)
+                return Task.WhenAll(waits);
+            }
+            else if (data.ChangeType == ChangeItemType.Cancel)
+            {
+                if (target.IsActive)
                 {
-                    if (target.IsActive)
-                    {
-                        target.State = QueueState.Canceled;
-                        return Task.WhenAll(
-                            ClientQueueUpdate(new QueueUpdate()
-                            {
-                                Type = UpdateType.Update,
-                                DirId = target.Dir.Id,
-                                Item = target
-                            }),
-                            NotifyMessage(false, "キャンセルしました", false));
-                    }
-                    else
-                    {
-                        return NotifyMessage(true,
-                            "このアイテムはアクティブ状態でないため、キャンセルできません", false);
-                    }
-                }
-                else if (data.ChangeType == ChangeItemType.Priority)
-                {
-                    target.Priority = data.Priority;
-                    server.UpdatePriority(target);
+                    target.State = QueueState.Canceled;
                     return Task.WhenAll(
                         ClientQueueUpdate(new QueueUpdate()
                         {
                             Type = UpdateType.Update,
-                            DirId = target.Dir.Id,
                             Item = target
                         }),
-                        NotifyMessage(false, "優先度を変更しました", false));
+                        NotifyMessage(false, "キャンセルしました", false));
                 }
-                else if (data.ChangeType == ChangeItemType.Profile)
+                else
                 {
-                    if (target.State == QueueState.Encoding)
-                    {
-                        return NotifyMessage(true, "エンコード中はプロファイル変更できません", false);
-                    }
-                    if (target.State == QueueState.PreFailed)
-                    {
-                        return NotifyMessage(true, "このアイテムはプロファイル変更できません", false);
-                    }
-
-                    var waits = new List<Task>();
-                    target.ProfileName = data.Profile;
-                    var profile = server.GetProfile(target, target.ProfileName);
-                    var newDir = GetQueueDirectory(target.Dir.DirPath, target.Dir.Mode, profile?.Profile ?? server.PendingProfile, waits);
-                    if (newDir != target.Dir)
-                    {
-                        MoveItemDirectory(target, newDir, waits);
-                        if (UpdateQueueItem(target, waits, true))
-                        {
-                            waits.Add(NotifyQueueItemUpdate(target));
-                        }
-                        waits.Add(NotifyMessage(false, "プロファイルを「" + data.Profile + "」に変更しました", false));
-                    }
-
-                    return Task.WhenAll(waits);
+                    return NotifyMessage(true,
+                        "このアイテムはアクティブ状態でないため、キャンセルできません", false);
                 }
-                else if (data.ChangeType == ChangeItemType.RemoveItem)
+            }
+            else if (data.ChangeType == ChangeItemType.Priority)
+            {
+                target.Priority = data.Priority;
+                server.UpdatePriority(target);
+                return Task.WhenAll(
+                    ClientQueueUpdate(new QueueUpdate()
+                    {
+                        Type = UpdateType.Update,
+                        Item = target
+                    }),
+                    NotifyMessage(false, "優先度を変更しました", false));
+            }
+            else if (data.ChangeType == ChangeItemType.Profile)
+            {
+                if (target.State == QueueState.Encoding)
                 {
-                    target.State = QueueState.Canceled;
-                    dir.Items.Remove(target);
-                    return Task.WhenAll(
-                        ClientQueueUpdate(new QueueUpdate()
-                        {
-                            Type = UpdateType.Remove,
-                            DirId = target.Dir.Id,
-                            Item = target
-                        }),
-                        NotifyMessage(false, "アイテムを削除しました", false));
+                    return NotifyMessage(true, "エンコード中はプロファイル変更できません", false);
                 }
+                if (target.State == QueueState.PreFailed)
+                {
+                    return NotifyMessage(true, "このアイテムはプロファイル変更できません", false);
+                }
+
+                var waits = new List<Task>();
+                target.ProfileName = data.Profile;
+                if (UpdateProfileItem(target, waits))
+                {
+                    waits.Add(NotifyMessage(false, "プロファイルを「" + data.Profile + "」に変更しました", false));
+                }
+                else
+                {
+                    waits.Add(NotifyMessage(false, "既に同じプロファイルが適用されています", false));
+                }
+
+                return Task.WhenAll(waits);
+            }
+            else if (data.ChangeType == ChangeItemType.RemoveItem)
+            {
+                target.State = QueueState.Canceled;
+                Queue.Remove(target);
+                return Task.WhenAll(
+                    ClientQueueUpdate(new QueueUpdate()
+                    {
+                        Type = UpdateType.Remove,
+                        Item = target
+                    }),
+                    NotifyMessage(false, "アイテムを削除しました", false));
             }
             return Task.FromResult(0);
         }

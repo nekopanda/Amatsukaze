@@ -55,7 +55,7 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
-        public AddQueueDirectory Item { get; set; }
+        public AddQueueRequest Item { get; set; }
 
         public void Initialize()
         {

@@ -84,7 +84,7 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.SetAutoSelect, data);
         }
 
-        public Task AddQueue(AddQueueDirectory dir)
+        public Task AddQueue(AddQueueRequest dir)
         {
             return Send(RPCMethodId.AddQueue, dir);
         }
