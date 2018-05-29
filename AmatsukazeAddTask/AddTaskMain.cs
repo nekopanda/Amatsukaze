@@ -178,7 +178,7 @@ namespace Amatsukaze.AddTask
         public GUIOPtion option;
 
         private CUIServerConnection server;
-        private AddQueueDirectory request;
+        private AddQueueRequest request;
         private bool okReceived;
 
         private bool IsLocal()
@@ -249,7 +249,7 @@ namespace Amatsukaze.AddTask
             }
 
             // リクエストを生成
-            request = new AddQueueDirectory()
+            request = new AddQueueRequest()
             {
                 DirPath = Path.GetDirectoryName(srcpath),
                 Outputs = new List<OutputInfo>()

@@ -307,10 +307,7 @@ private:
       clip = prefetch(clip, 1);
     }
 
-    clip = trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);
-
-    AVSValue arg[] = { clip, 2 };
-    return env_->Invoke("OnCPU", AVSValue(arg, 2)).AsClip();
+    return trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);
   }
 
   PClip trimInput(PClip clip, int fileId, int encoderId, CMType cmtype,

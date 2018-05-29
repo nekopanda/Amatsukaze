@@ -107,7 +107,7 @@
             <Grid.Resources>
                 <DataTemplate x:Key="DetailedItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
-                        <DockPanel Width="150" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                        <DockPanel Width="180" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
                             <TextBlock>
                                 <TextBlock.ToolTip>
                                     <TextBlock>
@@ -176,7 +176,7 @@
                 </DataTemplate>
                 <DataTemplate x:Key="ShortItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
-                        <DockPanel Width="120" Margin="0,0,5,0">
+                        <DockPanel Width="100" Margin="0,0,5,0">
                             <TextBlock DockPanel.Dock="Top">
                                 <TextBlock.ToolTip>
                                     <TextBlock>
