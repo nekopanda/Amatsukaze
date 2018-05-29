@@ -26,171 +26,194 @@
         </l:InteractionMessageTrigger>
     </i:Interaction.Triggers>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="{Binding UpperRowLength, Mode=TwoWay}"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="{Binding LowerRowLength, Mode=TwoWay}"/>
-        </Grid.RowDefinitions>
-        <DockPanel>
-            <Grid DockPanel.Dock="Bottom">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-                <Button Content="選択した項目を削除" Height="24" Grid.Column="0"
-                        IsEnabled="{Binding IsQueueDirSelected}" Command="{Binding DeleteQueueDirCommand}"/>
-                <Button Content="完了した項目を削除" Height="24" Grid.Column="1"
-                        Command="{Binding RemoveCompletedAllCommand}"/>
-            </Grid>
-            <Grid Grid.Row="0" Margin="0">
-                <ListView
-                  x:Name="QueueList"
-                  ItemsSource="{Binding Model.QueueItems}" 
-                  SelectedItem="{Binding SelectedDir, Mode=TwoWay}" 
-                  PreviewDragOver="ListBox_PreviewDragOver" 
-                  Drop="ListBox_Drop" AllowDrop="True" 
-                  c:GridViewSort.AutoSort="True">
-                    <ListView.View>
-                        <GridView>
-                            <GridViewColumn Header="モード" DisplayMemberBinding="{Binding ModeString}" c:GridViewSort.PropertyName="ModeString"/>
-                            <GridViewColumn Header="ディレクトリ" c:GridViewSort.PropertyName="Path">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Path}" ToolTip="{Binding Path}"/>
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="プロファイル" c:GridViewSort.PropertyName="Profile">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Profile}">
-                                            <TextBlock.ToolTip>
-                                                <TextBlock>
-                                            <Run Text="{Binding Profile}"/>@<Run Text="{Binding ProfileLastUpdate}"/>更新
-                                                </TextBlock>
-                                            </TextBlock.ToolTip>
-                                </TextBlock>
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="最終追加日時" c:GridViewSort.PropertyName="LastAdd">
-                                <GridViewColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding LastAdd}" ToolTip="{Binding LastAdd}"/>
-                                    </DataTemplate>
-                                </GridViewColumn.CellTemplate>
-                            </GridViewColumn>
-                            <GridViewColumn Header="アイテム数" DisplayMemberBinding="{Binding Items.Count}" c:GridViewSort.PropertyName="Items.Count"/>
-                            <GridViewColumn Header="アクティブ" DisplayMemberBinding="{Binding Active}" c:GridViewSort.PropertyName="Active"/>
-                            <GridViewColumn Header="エンコード中" DisplayMemberBinding="{Binding Encoding}" c:GridViewSort.PropertyName="Encoding"/>
-                            <GridViewColumn Header="完了" DisplayMemberBinding="{Binding Complete}" c:GridViewSort.PropertyName="Complete"/>
-                            <GridViewColumn Header="ロゴ待ち" DisplayMemberBinding="{Binding Pending}" c:GridViewSort.PropertyName="Pending"/>
-                            <GridViewColumn Header="失敗" DisplayMemberBinding="{Binding Fail}" c:GridViewSort.PropertyName="Fail"/>
-                        </GridView>
-                    </ListView.View>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="選択した項目を削除" IsEnabled="{Binding IsQueueDirSelected}" Command="{Binding DeleteQueueDirCommand}"/>
-                            <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
-                        </ContextMenu>
-                    </ListView.ContextMenu>
-                </ListView>
-                <TextBlock Text="ここにエンコードするファイルorフォルダをD&amp;D" FontSize="20"
-                           IsHitTestVisible="False"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFBDBDBD">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Visible"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasItems, ElementName=QueueList}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Grid>
-        </DockPanel>
-
-        <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
-
-        <DockPanel Grid.Row="2">
-            <DockPanel.Resources>
-                <CollectionViewSource x:Key="ProfileList" Source="{Binding ProfileList}"/>
-                <CollectionViewSource x:Key="AutoSelectList" Source="{Binding AutoSelectList}"/>
-                <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
-                    <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
-                </DataTemplate>
-            </DockPanel.Resources>
-
-            <Expander DockPanel.Dock="Top" Header="操作パネル" IsExpanded="{Binding IsPanelOpen, Mode=TwoWay}">
-                <DockPanel>
-                    <UniformGrid Columns="3" DockPanel.Dock="Top">
-                        <Button Margin="3" Height="24" Content="状態リセット" Command="{Binding RetryCommand}"
-                                ToolTip="アイテムを追加直後の状態に戻します。つまり、再エンコードされます"/>
-                        <Button Margin="3" Height="24" Content="プロファイル再適用" Command="{Binding RetryUpdateCommand}"
-                                ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
-                        <Button Margin="3" Height="24" Content="複製" Command="{Binding ReAddCommand}"
-                                ToolTip="アイテムを同じ設定で複製します"/>
-                        <c:DropDownMenuButton Margin="3" Height="24" Content="プロファイル変更">
-                            <c:DropDownMenuButton.Style>
-                                <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton"/>
-                            </c:DropDownMenuButton.Style>
-                            <c:DropDownMenuButton.DropDownContextMenu>
-                                <ContextMenu>
-                                    <ContextMenu.ItemsSource>
-                                        <CompositeCollection>
-                                            <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
-                                            <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
-                                        </CompositeCollection>
-                                    </ContextMenu.ItemsSource>
-                                    <ContextMenu.ItemContainerStyle>
-                                        <Style TargetType="MenuItem">
-                                            <Setter Property="Header" Value="{Binding Path=Item}"/>
-                                            <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
-                                        </Style>
-                                    </ContextMenu.ItemContainerStyle>
-                                </ContextMenu>
-                            </c:DropDownMenuButton.DropDownContextMenu>
-                        </c:DropDownMenuButton>
-                        <Button Margin="3" Height="24" Content="キャンセル" Command="{Binding CancelCommand}"/>
-                        <Button Margin="3" Height="24" Content="削除" Command="{Binding RemoveCommand}"/>
-                    </UniformGrid>
-                    <DockPanel>
+    <DockPanel>
+        <DockPanel.Resources>
+            <CollectionViewSource x:Key="ProfileList" Source="{Binding ProfileList}"/>
+            <CollectionViewSource x:Key="AutoSelectList" Source="{Binding AutoSelectList}"/>
+            <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
+                <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
+            </DataTemplate>
+        </DockPanel.Resources>
+        
+        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsPanelOpen, Mode=TwoWay}">
+            <Expander.Header>
+                <!-- HeaderのコンテナのHorizontalAlignmentをOneWayToSourceを使ってStretchに書き換えるテク -->
+                <DockPanel HorizontalAlignment="{Binding HorizontalAlignment, RelativeSource={RelativeSource AncestorType=ContentPresenter}, Mode=OneWayToSource}">
+                    <TextBlock Text="操作パネル" VerticalAlignment="Center"/>
+                    <DockPanel Margin="20,0,0,0">
                         <TextBlock Text="検索" VerticalAlignment="Center"/>
                         <Button DockPanel.Dock="Right" Content="☓" Width="18" Command="{Binding ClearSearchWordCommand}" 
-                                IsTabStop="False" Focusable="False"/>
+                        IsTabStop="False" Focusable="False"/>
                         <TextBox Margin="3" Text="{Binding SearchWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
                 </DockPanel>
-            </Expander>
-            
-            <Button DockPanel.Dock="Bottom" Content="キューを凍結" Command="{Binding TogglePauseCommand, Mode=OneWay}"
-                    ToolTip="凍結状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを凍結してください。">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                        <Setter Property="Foreground" Value="#FFA4A4A4"/>
-                        <Setter Property="Background" Value="White"/>
+            </Expander.Header>
+            <DockPanel>
+                <UniformGrid Columns="4" DockPanel.Dock="Top">
+                    <Button Margin="3" Height="24" Content="キャンセル" Command="{Binding CancelCommand}"/>
+                    <Button Margin="3" Height="24" Content="削除" Command="{Binding RemoveCommand}"/>
+                    <Button Margin="3" Height="24" Content="リトライ" Command="{Binding RetryCommand}"
+                            ToolTip="アイテムを追加直後の状態に戻します。"/>
+                    <c:DropDownMenuButton Margin="3" Height="24" Content="プロファイル変更">
+                        <c:DropDownMenuButton.Style>
+                            <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton"/>
+                        </c:DropDownMenuButton.Style>
+                        <c:DropDownMenuButton.DropDownContextMenu>
+                            <ContextMenu>
+                                <ContextMenu.ItemsSource>
+                                    <CompositeCollection>
+                                        <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
+                                        <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
+                                    </CompositeCollection>
+                                </ContextMenu.ItemsSource>
+                                <ContextMenu.ItemContainerStyle>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Header" Value="{Binding Path=Item}"/>
+                                        <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
+                                    </Style>
+                                </ContextMenu.ItemContainerStyle>
+                            </ContextMenu>
+                        </c:DropDownMenuButton.DropDownContextMenu>
+                    </c:DropDownMenuButton>
+                    <Button Margin="3" Height="24" Content="複製" Command="{Binding ReAddCommand}"
+                            ToolTip="アイテムを同じ設定で複製します"/>
+                    <Button Margin="3" Height="24" Content="プロファイル再適用" Command="{Binding RetryUpdateCommand}"
+                            ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
+                    <Button Margin="3" Height="24" Content="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
+                    <Slider Margin="3" Height="24" Maximum="2" Value="{Binding ListStyle, Mode=TwoWay}"
+                            ToolTip="リスト表示形式切り替え"/>
+                </UniformGrid>
+            </DockPanel>
+        </Expander>
+
+        <Button DockPanel.Dock="Bottom" Content="キューを凍結" Command="{Binding TogglePauseCommand, Mode=OneWay}"
+                ToolTip="凍結状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを凍結してください。">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                    <Setter Property="Foreground" Value="#FFA4A4A4"/>
+                    <Setter Property="Background" Value="White"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
+                            <Setter Property="Foreground" Value="Black"/>
+                            <Setter Property="Background" Value="Yellow"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
+
+        <Grid>
+            <Grid.Resources>
+                <DataTemplate x:Key="DetailedItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
+                    <DockPanel>
+                        <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                            <TextBlock DockPanel.Dock="Top">
+                                タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
+                                <LineBreak/><Run Text="{Binding TsTimeString, Mode=OneWay}"/>@<Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                <LineBreak/><Run Text="{Binding Model.Profile.Name}"/>
+                            </TextBlock>
+                        </DockPanel>
+                        <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
+                                ItemsSource="{Binding DataContext.Model.PriorityList, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                SelectedItem="{Binding Priority, Mode=TwoWay}"/>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0">
+                                <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
+                                <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                            <TextBlock.ToolTip>
+                                <TextBlock>
+                                        <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                                        <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
+                                        <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                </TextBlock>
+                            </TextBlock.ToolTip>
+                            </TextBlock>
+                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
+                    </DockPanel>
+                </DataTemplate>
+                <DataTemplate x:Key="NormatlItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
+                    <DockPanel>
+                        <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                            <TextBlock DockPanel.Dock="Top">
+                                    タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
+                                    <LineBreak/><Run Text="{Binding Model.Profile.Name}"/>
+                                <TextBlock.ToolTip>
+                                    <TextBlock>
+                                            <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
+                                            <LineBreak/><Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </TextBlock.ToolTip>
+                                </TextBlock>
+                        </DockPanel>
+                        <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
+                                ItemsSource="{Binding DataContext.Model.PriorityList, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                SelectedItem="{Binding Priority, Mode=TwoWay}"/>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0">
+                                <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                            <TextBlock.ToolTip>
+                                <TextBlock>
+                                        <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
+                                        <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                                        <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
+                                        <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                </TextBlock>
+                            </TextBlock.ToolTip>
+                            </TextBlock>
+                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
+                    </DockPanel>
+                </DataTemplate>
+                <DataTemplate x:Key="ShortItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
+                    <DockPanel>
+                        <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                            <TextBlock DockPanel.Dock="Top">
+                                <TextBlock.ToolTip>
+                                    <TextBlock>
+                                        <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
+                                        <LineBreak/><Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </TextBlock.ToolTip>
+                                <Run Text="{Binding ModeString, Mode=OneWay}"/>:<Run Text="{Binding StateString, Mode=OneWay}" />
+                             </TextBlock>
+                        </DockPanel>
+                        <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
+                                ItemsSource="{Binding DataContext.Model.PriorityList, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                SelectedItem="{Binding Priority, Mode=TwoWay}"/>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0">
+                                <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                            <TextBlock.ToolTip>
+                                <TextBlock>
+                                        <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
+                                        <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                                        <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
+                                        <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                        <LineBreak/><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" />
+                                </TextBlock>
+                            </TextBlock.ToolTip>
+                            </TextBlock>
+                    </DockPanel>
+                </DataTemplate>
+            </Grid.Resources>
+            <ListBox ItemsSource="{Binding Model.QueueItems}"
+                PreviewDragOver="ListBox_PreviewDragOver" 
+                Drop="ListBox_Drop" AllowDrop="True" 
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                SelectionMode="Extended">
+                <ListBox.Style>
+                    <Style TargetType="ListBox">
+                        <Setter Property="ItemTemplate" Value="{StaticResource DetailedItemTemplate}"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
-                                <Setter Property="Foreground" Value="Black"/>
-                                <Setter Property="Background" Value="Yellow"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
+                            <DataTrigger Binding="{Binding ListStyle}" Value="1">
+                                <Setter Property="ItemTemplate" Value="{StaticResource NormatlItemTemplate}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ListStyle}" Value="2">
+                                <Setter Property="ItemTemplate" Value="{StaticResource ShortItemTemplate}"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </Button.Style>
-            </Button>
-
-            <ListBox ItemsSource="{Binding SelectedDir.Items}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 SelectionMode="Extended">
+                </ListBox.Style>
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="{x:Type ListBoxItem}">
                         <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
@@ -226,47 +249,15 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="LightGray" />
                             </Trigger>
-
-                            <MultiDataTrigger>
-                                <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding DataContext.Model.Setting.HideOneSeg, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBox}}}" Value="True" />
-                                    <Condition Binding="{Binding IsTooSmall}" Value="True" />
-                                </MultiDataTrigger.Conditions>
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </MultiDataTrigger>
                         </Style.Triggers>
                     </Style>
                 </ListBox.ItemContainerStyle>
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <DockPanel>
-                            <DockPanel Width="100" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
-                                <TextBlock DockPanel.Dock="Top"><Run Text="{Binding TsTimeString, Mode=OneWay}" /></TextBlock>
-                                <TextBlock Text="{Binding ServiceString, Mode=OneWay}"/>
-                            </DockPanel>
-                            <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                            <ComboBox Height="20" ToolTip="優先度" DockPanel.Dock="Right"
-                                ItemsSource="{Binding DataContext.Model.PriorityList, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
-                                SelectedItem="{Binding Priority, Mode=TwoWay}"/>
-                            <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0" Text="{Binding Model.FileName, Mode=OneWay}">
-                                <TextBlock.ToolTip>
-                                    <TextBlock>
-                                    <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
-                                    <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
-                                    <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
-                                    </TextBlock>
-                                </TextBlock.ToolTip>
-                        </TextBlock>
-                            <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
-                        </DockPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
                 <ListBox.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" />
-                        <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" />
+                        <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
+                        <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
                         <Separator />
-                        <MenuItem Header="プロファイル変更" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}">
+                        <MenuItem Header="プロファイル変更" IsEnabled="{Binding IsQueueItemSelected}">
                             <MenuItem.ItemsSource>
                                 <CompositeCollection>
                                     <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
@@ -281,22 +272,36 @@
                             </MenuItem.ItemContainerStyle>
                         </MenuItem>
                         <Separator />
-                        <MenuItem Header="状態リセット" Command="{Binding RetryCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
-                              ToolTip="アイテムを追加直後の状態に戻します。つまり、再エンコードされます" />
-                        <MenuItem Header="プロファイル再適用" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
-                              ToolTip="プロファイルが更新されていた場合、新しい設定を適用します" />
-                        <MenuItem Header="複製" Command="{Binding ReAddCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"
-                              ToolTip="アイテムを同じ設定で複製します" />
+                        <MenuItem Header="状態リセット" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                            ToolTip="アイテムを追加直後の状態に戻します。つまり、再エンコードされます" />
+                        <MenuItem Header="プロファイル再適用" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                            ToolTip="プロファイルが更新されていた場合、新しい設定を適用します" />
+                        <MenuItem Header="複製" Command="{Binding ReAddCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                            ToolTip="アイテムを同じ設定で複製します" />
                         <Separator />
-                        <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" />
-                        <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}"/>
+                        <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
+                        <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding IsQueueItemSelected}"/>
                         <Separator />
                         <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedItemsCommand}"/>
-                        <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding SelectedDir.IsQueueFileSelected}" Command="{Binding OpenFileInExplorerCommand}" />
+                        <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueItemSelected}" Command="{Binding OpenFileInExplorerCommand}" />
                         <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                     </ContextMenu>
                 </ListBox.ContextMenu>
             </ListBox>
-        </DockPanel>
-    </Grid>
+            <TextBlock Text="ここにエンコードするファイルorフォルダをD&amp;D" FontSize="20"
+                    IsHitTestVisible="False"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFBDBDBD">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Model.QueueItems.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </DockPanel>
 </UserControl>

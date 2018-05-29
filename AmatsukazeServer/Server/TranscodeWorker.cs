@@ -461,9 +461,23 @@ namespace Amatsukaze.Server
                 }
             }
 
+            if (src.Mode != ProcMode.DrcsCheck && server.AppData_.services.ServiceMap.ContainsKey(src.ServiceId) == false)
+            {
+                if (src.IsCheck)
+                {
+                    return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "サービス設定がありません", now, now);
+                }
+                else
+                {
+                    return FailLogItem(src, src.Profile.Name, "サービス設定がありません", now, now);
+                }
+            }
+
             ProfileSetting profile = src.Profile;
             ServiceSettingElement serviceSetting =
-                server.AppData_.services.ServiceMap[src.ServiceId];
+                (src.Mode != ProcMode.DrcsCheck) ?
+                server.AppData_.services.ServiceMap[src.ServiceId] :
+                null;
 
             bool ignoreNoLogo = true;
             string[] logopaths = null;
@@ -608,12 +622,12 @@ namespace Amatsukaze.Server
                 string logpath = Path.Combine(
                     Path.GetDirectoryName(dstpath),
                     Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
-                string jlscmd = serviceSetting.DisableCMCheck ?
+                string jlscmd = (serviceSetting?.DisableCMCheck ?? true) ?
                     null :
                     (!string.IsNullOrEmpty(profile.JLSCommandFile) ? profile.JLSCommandFile
-                    : !string.IsNullOrEmpty(serviceSetting.JLSCommand) ? serviceSetting.JLSCommand
+                    : !string.IsNullOrEmpty(serviceSetting?.JLSCommand ?? null) ? serviceSetting.JLSCommand
                     : "JL_標準.txt");
-                string jlsopt = serviceSetting.DisableCMCheck ? null
+                string jlsopt = (serviceSetting?.DisableCMCheck ?? true) ? null
                     : profile.EnableJLSOption ? profile.JLSOption
                     : serviceSetting.JLSOption;
 

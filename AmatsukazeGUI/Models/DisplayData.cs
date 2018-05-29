@@ -34,115 +34,10 @@ namespace Amatsukaze.Models
         }
     }
 
-    public class DisplayQueueDirectory : NotificationObject
-    {
-        private static readonly string TIME_FORMAT = "yyyy/MM/dd HH:mm:ss";
-
-        public int Id;
-
-        public string Path { get; set; }
-        public ObservableCollection<DisplayQueueItem> Items { get; set; }
-        public ProcMode Mode { get; set; }
-        public string Profile { get; set; }
-        public string ProfileLastUpdate { get; set; }
-
-        private Components.CollectionItemListener<DisplayQueueItem> itemListener;
-
-        #region IsSelected変更通知プロパティ
-        private bool _IsSelected;
-
-        public bool IsSelected {
-            get { return _IsSelected; }
-            set { 
-                if (_IsSelected == value)
-                    return;
-                _IsSelected = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        public string LastAdd
-        {
-            get
-            {
-                if (Items.Count == 0) return "";
-                return Items.Max(s => s.Model.AddTime).ToString(TIME_FORMAT);
-            }
-        }
-
-        public int Active { get { return Items.Count(s => s.Model.IsActive); } }
-        public int Encoding { get { return Items.Count(s => s.Model.State == QueueState.Encoding); } }
-        public int Complete { get { return Items.Count(s => s.Model.State == QueueState.Complete); } }
-        public int Pending { get { return Items.Count(s => s.Model.State == QueueState.LogoPending); } }
-        public int Fail { get { return Items.Count(s => s.Model.State == QueueState.Failed); } }
-
-        public void ItemStateUpdated()
-        {
-            RaisePropertyChanged("LastAdd");
-            RaisePropertyChanged("Active");
-            RaisePropertyChanged("Encoding");
-            RaisePropertyChanged("Complete");
-            RaisePropertyChanged("Pending");
-            RaisePropertyChanged("Fail");
-        }
-
-        private void ItemPropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == "IsSelected")
-            {
-                RaisePropertyChanged("IsQueueFileSelected");
-            }
-        }
-
-        public bool IsQueueFileSelected
-        {
-            get { return Items.Any(s => s.IsSelected); }
-        }
-
-        public string ModeString {
-            get {
-                switch (Mode)
-                {
-                    case ProcMode.AutoBatch:
-                        return "自動追加";
-                    case ProcMode.Batch:
-                        return "通常";
-                    case ProcMode.Test:
-                        return "テスト";
-                    case ProcMode.DrcsCheck:
-                        return "DRCSチェック";
-                    case ProcMode.CMCheck:
-                        return "CM解析";
-                }
-                return "不明モード";
-            }
-        }
-
-        public DisplayQueueDirectory(QueueDirectory dir, ClientModel Parent)
-        {
-            Id = dir.Id;
-            Path = dir.DirPath;
-            Mode = dir.Mode;
-            Profile = dir.Profile.Name;
-            ProfileLastUpdate = dir.Profile.LastUpdate.ToString(TIME_FORMAT);
-
-            Items = new ObservableCollection<DisplayQueueItem>();
-            itemListener = new Components.CollectionItemListener<DisplayQueueItem>(Items,
-                item => item.PropertyChanged += ItemPropertyChanged,
-                item => item.PropertyChanged -= ItemPropertyChanged);
-            foreach(var item in dir.Items.Select(s => new DisplayQueueItem() { Parent = Parent, Model = s, Dir = this }))
-            {
-                Items.Add(item);
-            }
-        }
-    }
-
     public class DisplayQueueItem : NotificationObject
     {
         public ClientModel Parent { get; set; }
         public QueueItem Model { get; set; }
-        public DisplayQueueDirectory Dir { get; set; }
 
         public bool IsComplete { get { return Model.State == QueueState.Complete; } }
         public bool IsEncoding { get { return Model.State == QueueState.Encoding; } }
@@ -172,7 +67,7 @@ namespace Amatsukaze.Models
                 {
                     case QueueState.Queue: return "待ち";
                     case QueueState.Encoding:
-                        switch (Dir.Mode)
+                        switch (Model.Mode)
                         {
                             case ProcMode.CMCheck:
                                 return "CM解析中";
@@ -187,6 +82,27 @@ namespace Amatsukaze.Models
                     case QueueState.Complete: return "完了";
                 }
                 return "不明";
+            }
+        }
+
+        public string ModeString
+        {
+            get
+            {
+                switch (Model.Mode)
+                {
+                    case ProcMode.AutoBatch:
+                        return "自動追加";
+                    case ProcMode.Batch:
+                        return "通常";
+                    case ProcMode.Test:
+                        return "テスト";
+                    case ProcMode.DrcsCheck:
+                        return "DRCSチェック";
+                    case ProcMode.CMCheck:
+                        return "CM解析";
+                }
+                return "不明モード";
             }
         }
 

@@ -432,7 +432,8 @@ namespace Amatsukaze.Server
         public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
         public bool IsTest { get { return Mode == ProcMode.Test; } }
 
-        public string FileName { get { return System.IO.Path.GetFileName(SrcPath); } }
+        public string DirName { get { return Path.GetDirectoryName(SrcPath); } }
+        public string FileName { get { return Path.GetFileName(SrcPath); } }
 
         public bool IsActive {
             get {

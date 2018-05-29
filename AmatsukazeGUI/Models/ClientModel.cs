@@ -202,9 +202,9 @@ namespace Amatsukaze.Models
         #endregion
 
         #region QueueItems変更通知プロパティ
-        private ObservableCollection<DisplayQueueDirectory> _QueueItems = new ObservableCollection<DisplayQueueDirectory>();
+        private ObservableCollection<DisplayQueueItem> _QueueItems = new ObservableCollection<DisplayQueueItem>();
 
-        public ObservableCollection<DisplayQueueDirectory> QueueItems
+        public ObservableCollection<DisplayQueueItem> QueueItems
         {
             get
             { return _QueueItems; }
@@ -457,9 +457,18 @@ namespace Amatsukaze.Models
             set { 
                 if (_Setting == value)
                     return;
+                // SettingのPropertyChangedも波及させる
+                if (_Setting != null)
+                    _Setting.PropertyChanged -= SettingChanged;
                 _Setting = value;
+                _Setting.PropertyChanged += SettingChanged;
                 RaisePropertyChanged();
             }
+        }
+
+        private void SettingChanged(object sender, PropertyChangedEventArgs args)
+        {
+            RaisePropertyChanged("Setting." + args.PropertyName);
         }
         #endregion
 
@@ -902,69 +911,34 @@ namespace Amatsukaze.Models
                 QueueItems.Clear();
                 foreach (var item in data.QueueData.Items)
                 {
-                    QueueItems.Add(new DisplayQueueDirectory(item, this));
+                    QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = item });
                 }
             }
             if(data.QueueUpdate != null)
             {
                 var update = data.QueueUpdate;
-                if (update.Item == null)
+                if (update.Type == UpdateType.Add)
                 {
-                    // ディレクトリに対する操作
-                    if (update.Type == UpdateType.Add)
-                    {
-                        QueueItems.Add(new DisplayQueueDirectory(update.Directory, this));
-                    }
-                    else
-                    {
-                        var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
-                        if (dir != null)
-                        {
-                            if (update.Type == UpdateType.Remove)
-                            {
-                                QueueItems.Remove(dir);
-                            }
-                            else
-                            {
-                                QueueItems[QueueItems.IndexOf(dir)] = new DisplayQueueDirectory(update.Directory, this);
-                            }
-                        }
-                    }
+                    QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
                 }
                 else
                 {
-                    // ファイルに対する操作
-                    var dir = QueueItems.FirstOrDefault(d => d.Id == update.DirId);
-                    if (dir != null)
+                    var item = QueueItems.FirstOrDefault(f => f.Model.Id == update.Item.Id);
+                    if (item != null)
                     {
-                        if (update.Type == UpdateType.Add)
+                        if (update.Type == UpdateType.Remove)
                         {
-                            dir.Items.Add(new DisplayQueueItem() { Parent = this, Model = update.Item, Dir = dir });
-                            dir.ItemStateUpdated();
+                            QueueItems.Remove(item);
                         }
-                        else
+                        else // Update
                         {
-                            var file = dir.Items.FirstOrDefault(f => f.Model.Id == update.Item.Id);
-                            if (file != null)
+                            var index = QueueItems.IndexOf(item);
+                            QueueItems[index] = new DisplayQueueItem()
                             {
-                                if (update.Type == UpdateType.Remove)
-                                {
-                                    dir.Items.Remove(file);
-                                    dir.ItemStateUpdated();
-                                }
-                                else // Update
-                                {
-                                    var index = dir.Items.IndexOf(file);
-                                    dir.Items[index] = new DisplayQueueItem()
-                                    {
-                                        Parent = this,
-                                        Model = update.Item,
-                                        Dir = dir,
-                                        IsSelected = dir.Items[index].IsSelected
-                                    };
-                                    dir.ItemStateUpdated();
-                                }
-                            }
+                                Parent = this,
+                                Model = update.Item,
+                                IsSelected = QueueItems[index].IsSelected
+                            };
                         }
                     }
                 }

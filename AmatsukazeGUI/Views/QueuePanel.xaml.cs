@@ -43,11 +43,6 @@ namespace Amatsukaze.Views
                 {
                     vm.FileDropped(e.Data.GetData(DataFormats.FileDrop) as string[], false);
                 }
-                else if (e.Data.GetDataPresent(DataFormats.Text))
-                {
-                    var text = (string)e.Data.GetData(DataFormats.Text);
-                    vm.FileDropped(text.Split(new[] { '\r', '\n' }), true);
-                }
             }
         }
     }

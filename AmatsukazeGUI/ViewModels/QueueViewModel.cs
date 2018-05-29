@@ -94,119 +94,119 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; set; }
 
-        private CollectionItemListener<DisplayQueueDirectory> queueDirListener;
+        private CollectionItemListener<DisplayQueueItem> queueListener;
+        private CollectionChangedEventListener queueListener2;
+        private ICollectionView itemsView;
+        private PropertyChangedEventListener higeOneSegListener;
 
         public void Initialize()
         {
-            _ProfileList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
+            _ProfileList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
                 Model.ProfileList, s => new QueueMenuProfileViewModel()
                 {
                     QueueVM = this,
                     Item = s
                 });
 
-            _AutoSelectList = new Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
+            _AutoSelectList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
                 Model.AutoSelectList, s => new QueueMenuProfileViewModel()
                 {
                     QueueVM = this,
                     Item = s
                 });
 
-            queueDirListener = new CollectionItemListener<DisplayQueueDirectory>(Model.QueueItems,
-                item => item.PropertyChanged += QueueDirPropertyChanged,
-                item => item.PropertyChanged -= QueueDirPropertyChanged);
+            queueListener = new CollectionItemListener<DisplayQueueItem>(Model.QueueItems,
+                item => item.PropertyChanged += QueueItemPropertyChanged,
+                item => item.PropertyChanged -= QueueItemPropertyChanged);
+
+            queueListener2 = new CollectionChangedEventListener(Model.QueueItems,
+                (sender, e) => ItemStateUpdated());
+
+            itemsView = CollectionViewSource.GetDefaultView(Model.QueueItems);
+            itemsView.Filter = ItemsFilter;
+
+            higeOneSegListener = new PropertyChangedEventListener(Model, (sender, e) =>
+            {
+                if (e.PropertyName == "Setting" || e.PropertyName == "Setting.HideOneSeg")
+                {
+                    itemsView.Refresh();
+                }
+            });
         }
 
-        private void QueueDirPropertyChanged(object sender, PropertyChangedEventArgs e)
+        private bool ItemsFilter(object obj)
+        {
+            var item = obj as DisplayQueueItem;
+            if (Model.Setting.HideOneSeg && item.IsTooSmall) return false;
+            if (string.IsNullOrEmpty(_SearchWord)) return true;
+            return item.Model.ServiceName.IndexOf(_SearchWord) != -1 ||
+                item.Model.FileName.IndexOf(_SearchWord) != -1 ||
+                item.GenreString.IndexOf(_SearchWord) != -1 ||
+                item.StateString.IndexOf(_SearchWord) != -1 ||
+                item.ModeString.IndexOf(_SearchWord) != -1;
+        }
+
+        private void QueueItemPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if(e.PropertyName == "IsSelected")
             {
-                RaisePropertyChanged("IsQueueDirSelected");
+                RaisePropertyChanged("IsQueueItemSelected");
             }
         }
 
         public async void FileDropped(IEnumerable<string> list, bool isText)
         {
-            Dictionary<string, AddQueueDirectory> dirList = new Dictionary<string, AddQueueDirectory>();
-            if (isText)
+            var targets = list.SelectMany(path =>
             {
-                // テキストパスの場合は存在チェックしない
-                foreach (var path in list)
+                if (Directory.Exists(path))
                 {
-                    if (string.IsNullOrWhiteSpace(path) == false)
-                    {
-                        dirList.Add(path, new AddQueueDirectory()
-                        {
-                            DirPath = path
-                        });
-                    }
+                    return Directory.EnumerateFiles(path).Where(s => s.EndsWith("ts"));
                 }
-            }
-            else
+                else
+                {
+                    return new string[] { path };
+                }
+            }).Select(s => new AddQueueItem() { Path = s }).ToList();
+
+            if(targets.Count == 0)
             {
-                foreach (var path in list)
-                {
-                    if (Directory.Exists(path))
-                    {
-                        dirList.Add(path, new AddQueueDirectory()
-                        {
-                            DirPath = path
-                        });
-                    }
-                    else if (File.Exists(path))
-                    {
-                        var dirPath = Path.GetDirectoryName(path);
-                        var fileitem = new AddQueueItem() { Path = path };
-                        AddQueueDirectory item;
-                        if (dirList.TryGetValue(dirPath, out item))
-                        {
-                            if (item.Targets != null)
-                            {
-                                item.Targets.Add(fileitem);
-                            }
-                        }
-                        else
-                        {
-                            dirList.Add(dirPath, new AddQueueDirectory()
-                            {
-                                DirPath = dirPath,
-                                Targets = new List<AddQueueItem>() { fileitem }
-                            });
-                        }
-                    }
-                }
+                return;
             }
 
-            foreach (var item in dirList.Values)
+            var req = new AddQueueRequest()
             {
-                item.Outputs = new List<OutputInfo>() { new OutputInfo()
-                {
-                // デフォルト優先順は3
-                    Priority = 3
-                } };
-
-                // 出力先フォルダ選択
-                var selectPathVM = new SelectOutPathViewModel()
-                {
-                    Model = Model,
-                    Item = item
-                };
-                await Messenger.RaiseAsync(new TransitionMessage(
-                    typeof(Views.SelectOutPath), selectPathVM, TransitionMode.Modal, "FromMain"));
-
-                if (selectPathVM.Succeeded)
-                {
-                    if(selectPathVM.PauseStart)
+                DirPath = Path.GetDirectoryName(targets[0].Path),
+                Targets = targets,
+                Outputs = new List<OutputInfo>() {
+                    new OutputInfo()
                     {
-                        await Model.Server.PauseEncode(true);
+                        // デフォルト優先順は3
+                        Priority = 3
                     }
-                    Model.Server.AddQueue(item).AttachHandler();
                 }
+            };
+
+            // 出力先フォルダ選択
+            var selectPathVM = new SelectOutPathViewModel()
+            {
+                Model = Model,
+                Item = req
+            };
+            await Messenger.RaiseAsync(new TransitionMessage(
+                typeof(Views.SelectOutPath), selectPathVM, TransitionMode.Modal, "FromMain"));
+
+            if (selectPathVM.Succeeded)
+            {
+                if(selectPathVM.PauseStart)
+                {
+                    await Model.Server.PauseEncode(true);
+                }
+                Model.Server.AddQueue(req).AttachHandler();
             }
         }
 
         private IEnumerable<DisplayQueueItem> SelectedQueueItems {
-            get { return SelectedDir?.Items?.Where(s => s.IsSelected); }
+            get { return Model.QueueItems.Where(s => s.IsSelected); }
         }
 
         private void LaunchLogoAnalyze(bool slimts)
@@ -266,43 +266,7 @@ namespace Amatsukaze.ViewModels
             return true;
         }
 
-        public bool IsQueueDirSelected { get { return Model.QueueItems.Any(s => s.IsSelected); } }
-
-        #region SelectedDir変更通知プロパティ
-        private DisplayQueueDirectory _SelectedDir;
-        private ICollectionView _ItemsView;
-
-        public DisplayQueueDirectory SelectedDir {
-            get { return _SelectedDir; }
-            set { 
-                if (_SelectedDir == value)
-                    return;
-                _SelectedDir = value;
-                RaisePropertyChanged();
-
-                if(_SelectedDir == null)
-                {
-                    _ItemsView = null;
-                }
-                else
-                {
-                    _ItemsView = CollectionViewSource.GetDefaultView(_SelectedDir.Items);
-                    _ItemsView.Filter = ItemsFilter;
-                    _ItemsView.Refresh();
-                }
-            }
-        }
-
-        private bool ItemsFilter(object obj)
-        {
-            if (string.IsNullOrEmpty(_SearchWord)) return true;
-            var item = obj as DisplayQueueItem;
-            return item.Model.ServiceName.IndexOf(_SearchWord) != -1 ||
-                item.Model.FileName.IndexOf(_SearchWord) != -1 ||
-                item.GenreString.IndexOf(_SearchWord) != -1 ||
-                item.StateString.IndexOf(_SearchWord) != -1;
-        }
-        #endregion
+        public bool IsQueueItemSelected { get { return Model.QueueItems.Any(s => s.IsSelected); } }
 
         #region ProfileList変更通知プロパティ
         private Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> _ProfileList;
@@ -334,7 +298,7 @@ namespace Amatsukaze.ViewModels
                     return;
                 _SearchWord = value;
                 RaisePropertyChanged();
-                _ItemsView?.Refresh();
+                itemsView.Refresh();
             }
         }
         #endregion
@@ -357,54 +321,6 @@ namespace Amatsukaze.ViewModels
         public void ClearSearchWord()
         {
             SearchWord = null;
-        }
-        #endregion
-
-        #region DeleteQueueDirCommand
-        private ViewModelCommand _DeleteQueueDirCommand;
-
-        public ViewModelCommand DeleteQueueDirCommand
-        {
-            get
-            {
-                if (_DeleteQueueDirCommand == null)
-                {
-                    _DeleteQueueDirCommand = new ViewModelCommand(DeleteQueueDir);
-                }
-                return _DeleteQueueDirCommand;
-            }
-        }
-
-        public async void DeleteQueueDir()
-        {
-            var selectedDirs = Model.QueueItems.Where(s => s.IsSelected).ToArray();
-            var running = selectedDirs.SelectMany(s => s.Items).Where(s => s.Model.IsActive).ToArray();
-            if (running.Length > 0)
-            {
-                var message = new ConfirmationMessage(
-                    "" + running.Length + "件のアクティブなアイテムがあります。\r\n" +
-                    "全てキャンセルされます。\r\n" +
-                    "本当に削除しますか？",
-                    "Amatsukaze キューディレクトリ削除",
-                    MessageBoxImage.Question,
-                    MessageBoxButton.OKCancel,
-                    "Confirm");
-
-                await Messenger.RaiseAsync(message);
-
-                if (message.Response != true)
-                {
-                    return;
-                }
-            }
-            foreach (var item in selectedDirs)
-            {
-                await Model.Server.ChangeItem(new ChangeItemData()
-                {
-                    ChangeType = ChangeItemType.RemoveDir,
-                    ItemId = item.Id
-                });
-            }
         }
         #endregion
 
@@ -435,33 +351,6 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region RemoveCompletedItemsCommand
-        private ViewModelCommand _RemoveCompletedItemsCommand;
-
-        public ViewModelCommand RemoveCompletedItemsCommand {
-            get {
-                if (_RemoveCompletedItemsCommand == null)
-                {
-                    _RemoveCompletedItemsCommand = new ViewModelCommand(RemoveCompletedItems);
-                }
-                return _RemoveCompletedItemsCommand;
-            }
-        }
-
-        public void RemoveCompletedItems()
-        {
-            var dir = SelectedDir;
-            if (dir != null)
-            {
-                Model.Server.ChangeItem(new ChangeItemData()
-                {
-                    ChangeType = ChangeItemType.RemoveCompletedItem,
-                    ItemId = dir.Id
-                });
-            }
-        }
-        #endregion
-
         #region RemoveCompletedAllCommand
         private ViewModelCommand _RemoveCompletedAllCommand;
 
@@ -479,7 +368,7 @@ namespace Amatsukaze.ViewModels
         {
             Model.Server.ChangeItem(new ChangeItemData()
             {
-                ChangeType = ChangeItemType.RemoveCompletedAll
+                ChangeType = ChangeItemType.RemoveCompleted
             });
         }
         #endregion
@@ -774,6 +663,39 @@ namespace Amatsukaze.ViewModels
             Model.Server.PauseEncode(!Model.IsPaused);
         }
         #endregion
+
+        #region ListStyle変更通知プロパティ
+        private int _ListStyle;
+
+        public int ListStyle
+        {
+            get { return _ListStyle; }
+            set
+            {
+                if (_ListStyle == value)
+                    return;
+                _ListStyle = value;
+                RaisePropertyChanged();
+                itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        public int Active { get { return Model.QueueItems.Count(s => s.Model.IsActive); } }
+        public int Encoding { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.Encoding); } }
+        public int Complete { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.Complete); } }
+        public int Pending { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.LogoPending); } }
+        public int Fail { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.Failed); } }
+
+        private void ItemStateUpdated()
+        {
+            RaisePropertyChanged("LastAdd");
+            RaisePropertyChanged("Active");
+            RaisePropertyChanged("Encoding");
+            RaisePropertyChanged("Complete");
+            RaisePropertyChanged("Pending");
+            RaisePropertyChanged("Fail");
+        }
 
         public void ChangeProfile(object profile)
         {
