@@ -874,6 +874,7 @@ namespace Amatsukaze.Server
                 var src = workerItem;
 
                 // キューじゃなかったらダメ
+                // 同じアイテムが複数回スケジューラに登録される事があるのでここで弾く
                 if (src.State != QueueState.Queue)
                 {
                     return true;

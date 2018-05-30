@@ -443,6 +443,8 @@ namespace Amatsukaze.Server
                     item.Hash = cacheItem.HashDict[filename];
                 }
 
+                UpdateQueueItem(item, waits);
+
                 waits?.Add(ClientQueueUpdate(new QueueUpdate()
                 {
                     Type = UpdateType.Add,
@@ -527,12 +529,12 @@ namespace Amatsukaze.Server
             {
                 if (data.ChangeType == ChangeItemType.ResetState)
                 {
-                    // 状態リセットは終わってるのだけ
+                    // リトライは終わってるのだけ
                     if (target.State != QueueState.Complete &&
                         target.State != QueueState.Failed &&
                         target.State != QueueState.Canceled)
                     {
-                        return NotifyMessage(true, "完了していないアイテムは状態リセットできません", false);
+                        return NotifyMessage(true, "完了していないアイテムはリトライできません", false);
                     }
                 }
                 else if (data.ChangeType == ChangeItemType.UpdateProfile)
@@ -578,7 +580,7 @@ namespace Amatsukaze.Server
                 if (data.ChangeType == ChangeItemType.ResetState)
                 {
                     ResetStateItem(target, waits);
-                    waits.Add(NotifyMessage(false, "状態リセットします", false));
+                    waits.Add(NotifyMessage(false, "リトライします", false));
                 }
                 else if (data.ChangeType == ChangeItemType.UpdateProfile)
                 {

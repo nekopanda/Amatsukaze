@@ -484,7 +484,7 @@ namespace Amatsukaze.ViewModels
         public async void Retry()
         {
             var items = SelectedQueueItems.OrEmpty().ToArray();
-            if (await ConfirmRetryCompleted(items, "状態リセット"))
+            if (await ConfirmRetryCompleted(items, "リトライ"))
             {
                 foreach (var item in items)
                 {

@@ -106,6 +106,31 @@ namespace Amatsukaze.Models
             }
         }
 
+        public string ProfileLastUpdate
+        {
+            get
+            {
+                if (Model.Profile.LastUpdate == DateTime.MinValue)
+                {
+                    return "";
+                }
+                var ts = DateTime.Now - Model.Profile.LastUpdate;
+                if (ts.TotalMinutes <= 1)
+                {
+                    return "（" + ((int)ts.TotalSeconds).ToString() + "秒前に更新）";
+                }
+                if (ts.TotalHours <= 1)
+                {
+                    return "（" + ((int)ts.TotalMinutes).ToString() + "分前に更新）";
+                }
+                if (ts.TotalDays <= 1)
+                {
+                    return "（" + ((int)ts.TotalHours).ToString() + "時間前に更新）";
+                }
+                return "（" + ((int)ts.TotalDays).ToString() + "日前に更新）";
+            }
+        }
+
         #region Priority変更通知プロパティ
         public int Priority
         {

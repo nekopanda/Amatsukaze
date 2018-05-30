@@ -917,29 +917,30 @@ namespace Amatsukaze.Models
             if(data.QueueUpdate != null)
             {
                 var update = data.QueueUpdate;
-                if (update.Type == UpdateType.Add)
+                var item = QueueItems.FirstOrDefault(f => f.Model.Id == update.Item.Id);
+                if (update.Type == UpdateType.Remove)
                 {
-                    QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
+                    if (item != null)
+                    {
+                        QueueItems.Remove(item);
+                    }
                 }
                 else
                 {
-                    var item = QueueItems.FirstOrDefault(f => f.Model.Id == update.Item.Id);
-                    if (item != null)
+                    // Add, Updte
+                    if(item != null)
                     {
-                        if (update.Type == UpdateType.Remove)
+                        var index = QueueItems.IndexOf(item);
+                        QueueItems[index] = new DisplayQueueItem()
                         {
-                            QueueItems.Remove(item);
-                        }
-                        else // Update
-                        {
-                            var index = QueueItems.IndexOf(item);
-                            QueueItems[index] = new DisplayQueueItem()
-                            {
-                                Parent = this,
-                                Model = update.Item,
-                                IsSelected = QueueItems[index].IsSelected
-                            };
-                        }
+                            Parent = this,
+                            Model = update.Item,
+                            IsSelected = QueueItems[index].IsSelected
+                        };
+                    }
+                    else
+                    {
+                        QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = update.Item });
                     }
                 }
             }

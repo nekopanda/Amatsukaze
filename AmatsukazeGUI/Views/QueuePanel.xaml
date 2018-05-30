@@ -81,7 +81,7 @@
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
                     <Button Margin="3" Height="24" Content="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
                     <Slider Margin="3" Height="24" Maximum="2" Value="{Binding ListStyle, Mode=TwoWay}"
-                            ToolTip="リスト表示形式切り替え"/>
+                            ToolTip="表示切り替え"/>
                 </UniformGrid>
             </DockPanel>
         </Expander>
@@ -107,11 +107,19 @@
             <Grid.Resources>
                 <DataTemplate x:Key="DetailedItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
-                        <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
-                            <TextBlock DockPanel.Dock="Top">
+                        <DockPanel Width="150" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                            <TextBlock>
+                                <TextBlock.ToolTip>
+                                    <TextBlock>
+                                        タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
+                                        <LineBreak/>放送日時: <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
+                                        <LineBreak/>チャンネル: <Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                        <LineBreak/>プロファイル: <Run Text="{Binding Model.Profile.Name}"/><Run Text="{Binding ProfileLastUpdate, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </TextBlock.ToolTip>
                                 タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
                                 <LineBreak/><Run Text="{Binding TsTimeString, Mode=OneWay}"/>@<Run Text="{Binding ServiceString, Mode=OneWay}"/>
-                                <LineBreak/><Run Text="{Binding Model.Profile.Name}"/>
+                                <LineBreak/><Run Text="{Binding Model.Profile.Name}"/><Run Text="{Binding ProfileLastUpdate, Mode=OneWay}"/>
                             </TextBlock>
                         </DockPanel>
                         <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
@@ -136,14 +144,16 @@
                     <DockPanel>
                         <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
                             <TextBlock DockPanel.Dock="Top">
+                                    <TextBlock.ToolTip>
+                                        <TextBlock>
+                                            タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
+                                            <LineBreak/>放送日時: <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
+                                            <LineBreak/>チャンネル: <Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                            <LineBreak/>プロファイル: <Run Text="{Binding Model.Profile.Name}"/><Run Text="{Binding ProfileLastUpdate, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    </TextBlock.ToolTip>
                                     タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
                                     <LineBreak/><Run Text="{Binding Model.Profile.Name}"/>
-                                <TextBlock.ToolTip>
-                                    <TextBlock>
-                                            <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
-                                            <LineBreak/><Run Text="{Binding ServiceString, Mode=OneWay}"/>
-                                    </TextBlock>
-                                </TextBlock.ToolTip>
                                 </TextBlock>
                         </DockPanel>
                         <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
@@ -166,15 +176,17 @@
                 </DataTemplate>
                 <DataTemplate x:Key="ShortItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
-                        <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
+                        <DockPanel Width="120" Margin="0,0,5,0">
                             <TextBlock DockPanel.Dock="Top">
                                 <TextBlock.ToolTip>
                                     <TextBlock>
-                                        <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
-                                        <LineBreak/><Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                        タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
+                                        <LineBreak/>放送日時: <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
+                                        <LineBreak/>チャンネル: <Run Text="{Binding ServiceString, Mode=OneWay}"/>
+                                        <LineBreak/>プロファイル: <Run Text="{Binding Model.Profile.Name}"/><Run Text="{Binding ProfileLastUpdate, Mode=OneWay}"/>
                                     </TextBlock>
                                 </TextBlock.ToolTip>
-                                <Run Text="{Binding ModeString, Mode=OneWay}"/>:<Run Text="{Binding StateString, Mode=OneWay}" />
+                                <Run Text="{Binding ModeString, Mode=OneWay}"/> <Run Text="{Binding StateString, Mode=OneWay}" />
                              </TextBlock>
                         </DockPanel>
                         <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
@@ -272,8 +284,8 @@
                             </MenuItem.ItemContainerStyle>
                         </MenuItem>
                         <Separator />
-                        <MenuItem Header="状態リセット" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueItemSelected}"
-                            ToolTip="アイテムを追加直後の状態に戻します。つまり、再エンコードされます" />
+                        <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                            ToolTip="アイテムを追加直後の状態に戻します。" />
                         <MenuItem Header="プロファイル再適用" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding IsQueueItemSelected}"
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します" />
                         <MenuItem Header="複製" Command="{Binding ReAddCommand}" IsEnabled="{Binding IsQueueItemSelected}"
@@ -282,7 +294,7 @@
                         <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
                         <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding IsQueueItemSelected}"/>
                         <Separator />
-                        <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedItemsCommand}"/>
+                        <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
                         <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueItemSelected}" Command="{Binding OpenFileInExplorerCommand}" />
                         <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
                     </ContextMenu>

@@ -95,17 +95,17 @@
                             <clr:String x:Key="tooltip">クリア後「適用」するとデフォルト値が入ります。</clr:String>
                         </StackPanel.Resources>
                         <Border Height="28"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearAmatsukazePathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX264PathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX265PathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearAmatsukazePathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX264PathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX265PathCommand}"/>
                         <Border Height="28"/>
                         <Border Height="28"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMuxerPathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMKVMergePathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMP4BoxPathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearTimelineEditorPathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearChapterExepathCommand}"/>
-                        <Button Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearJoinLogoScpPathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMuxerPathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMKVMergePathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMP4BoxPathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearTimelineEditorPathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearChapterExepathCommand}"/>
+                        <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearJoinLogoScpPathCommand}"/>
                         <Border Height="28"/>
                     </StackPanel>
                     <StackPanel>

@@ -8,7 +8,6 @@
              xmlns:v="clr-namespace:Amatsukaze.Views"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
-             xmlns:s="clr-namespace:Amatsukaze.Server" 
              mc:Ignorable="d" 
              d:DesignHeight="400"
              d:DataContext="{d:DesignInstance {x:Type vm:ServiceSettingViewModel}}">
@@ -63,8 +62,8 @@
             </GroupBox>
 
             <DockPanel DockPanel.Dock="Top">
-                <Button DockPanel.Dock="Right" Width="130" Content="選択中の「ロゴなし」を削除" Command="{Binding AddNoLogoCommand}"/>
-                <Button DockPanel.Dock="Right" Width="130" Content="「ロゴなし」を追加" Command="{Binding RemoveNoLogoCommand}"/>
+                <Button DockPanel.Dock="Right" Width="130" Content="選択中の「ロゴなし」を削除" Command="{Binding RemoveNoLogoCommand}"/>
+                <Button DockPanel.Dock="Right" Width="130" Content="「ロゴなし」を追加" Command="{Binding AddNoLogoCommand}"/>
                 <TextBlock Text="ロゴファイル" Margin="3"/>
             </DockPanel>
             <ListBox ItemsSource="{Binding SelectedServiceItem.LogoList}" SelectedIndex="{Binding SelectedLogoIndex, Mode=TwoWay}">
