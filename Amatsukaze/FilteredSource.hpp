@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <numeric>
 
 #include "StreamUtils.hpp"
 #include "ReaderWriterFFmpeg.hpp"
@@ -127,6 +128,12 @@ static PICTURE_TYPE getPictureTypeFromAVFrame(AVFrame* frame)
   }
 }
 
+enum FILTER_PHASE {
+  PHASE_PRE_PROCESS = 0,
+  PHASE_GEN_TIMING = 1,
+  PHASE_GEN_IMAGE = 2,
+};
+
 class AMTFilterSource : public AMTObject {
 public:
   // Main (+ Post)
@@ -139,6 +146,7 @@ public:
     : AMTObject(ctx)
     , setting_(setting)
     , env_(make_unique_ptr((IScriptEnvironment2*)nullptr))
+    , filterTmp(setting.getAvsTmpPath(fileId, encoderId, cmtype))
   {
     try {
       InitEnv();
@@ -147,24 +155,43 @@ public:
 
       std::string mainpath = setting.getFilterScriptPath();
       if (mainpath.size()) {
-        env_->SetVar("AMT_SOURCE", filter_);
-        env_->SetVar("AMT_GEN_TIME", true);
-        filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
+        //Kパスまである場合
+        //<=K-2: 前処理
+        //K-1: タイミング生成
+        //K: 画像生成（タイミングも同時に生成）
+        //PHASE
+        //0: 前処理
+        //1: タイミング生成
+        //2: 画像生成
 
-        const AMTGenTime* frameTiming = AMTGenTime::GetParam(filter_->GetVideoInfo());
-        if (frameTiming) {
-          // frameFpsを生成
-          ReadAllFrameFps();
+        // 最大4パスまで実行
+        for (int pass = 0; pass < 4; ++pass) {
+          env_->SetVar("AMT_SOURCE", filter_);
+          env_->SetVar("AMT_PASS", pass);
+          filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
+          int phase = env_->GetVarDef("AMT_PHASE", 2).AsInt();
+
+          if (phase == 0) {
+            // 前処理を実行
+            ReadAllFrames(pass, phase);
+          }
+          else if (phase == 1) {
+            if (setting.isZoneEnabled()) {
+              // タイミング生成
+              ReadAllFrames(pass, phase);
+            }
+            else {
+              break;
+            }
+          }
+          else {
+            break;
+          }
+
           filter_ = nullptr; // クリップ解放
-
-          // AMT_GEN_TIME=falseで作り直す
           InitEnv();
           std::vector<int> outFrames_;
           filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames_, reformInfo, logopath);
-
-          env_->SetVar("AMT_SOURCE", filter_);
-          env_->SetVar("AMT_GEN_TIME", false);
-          filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
         }
       }
 
@@ -210,8 +237,8 @@ public:
   }
 
   // 各フレームのFPS（FrameTimingがない場合サイズゼロ）
-  const std::vector<AMTFrameFps>& getFrameFps() const {
-    return frameFps;
+  const std::vector<int>& getFrameDurations() const {
+    return frameDurations;
   }
 
   IScriptEnvironment2* getEnv() const {
@@ -224,7 +251,8 @@ private:
   PClip filter_;
   VideoFormat outfmt_;
   std::vector<EncoderZone> outZones_;
-  std::vector<AMTFrameFps> frameFps;
+  std::vector<int> frameDurations;
+  std::string filterTmp;
 
   std::string makePreamble() {
     StringBuilder sb;
@@ -249,21 +277,26 @@ private:
 
     AVSValue avsv;
     env_->LoadPlugin(GetModulePath().c_str(), true, &avsv);
+    env_->SetVar("AMT_TMP", env_->SaveString(filterTmp.c_str()));
   }
 
-  void ReadAllFrameFps() {
+  void ReadAllFrames(int pass, int phase) {
     const VideoInfo vi = filter_->GetVideoInfo();
-    frameFps.resize(vi.num_frames);
 
-    ctx.info("フレーム時間情報を取得します。 予定フレーム数: %d", vi.num_frames);
+    ctx.info("フィルタパス%d 予定フレーム数: %d", pass + 1, vi.num_frames);
     Stopwatch sw;
     sw.start();
     int prevFrames = 0;
 
+    if (phase == PHASE_GEN_TIMING) {
+      frameDurations.resize(vi.num_frames);
+    }
+
     for (int i = 0; i < vi.num_frames; ++i) {
       PVideoFrame frame = filter_->GetFrame(i, env_.get());
-      frameFps[i] = *reinterpret_cast<const AMTFrameFps*>(frame->GetReadPtr());
-
+      if (phase == PHASE_GEN_TIMING) {
+        frameDurations[i] = std::max(1, frame->GetProperty("FrameDuration", 1));
+      }
       double elapsed = sw.current();
       if (elapsed >= 1.0) {
         double fps = (i - prevFrames) / elapsed;
@@ -443,92 +476,75 @@ class FilterVFRProc : public AMTObject
   double totalDuration; // 合計時間（チェック用）
   std::vector<int> frameFps_; // 各フレームのFPS(120fpsの場合)/各フレームの60fpsフレーム数(60fpsの場合)
   std::vector<int> frameMap_; // VFRフレーム番号 -> 60fpsフレーム番号のマッピング
-
-  bool is30(const std::vector<AMTFrameFps>& frameFps, int offset) {
-    auto it = frameFps.begin() + offset;
-    if (offset + 2 <= (int)frameFps.size()) {
-      AMTFrameFps f0 = it[0];
-      AMTFrameFps f1 = it[1];
-      return f0.fps == AMT_FPS_30 && f1.fps == AMT_FPS_30 && f0.source == f1.source;
+  
+  bool is23(const std::vector<int>& durations, int offset) {
+    if (offset + 1 < durations.size()) {
+      return durations[offset] == 2 && durations[offset + 1] == 3;
     }
     return false;
   }
 
-  bool is23(const std::vector<AMTFrameFps>& frameFps, int offset) {
-    auto it = frameFps.begin() + offset;
-    if (offset + 5 <= (int)frameFps.size()) {
-      for (int i = 0; i < 5; ++i) {
-        if (it[i].fps != AMT_FPS_24) return false;
-      }
-      return it[0].source == it[1].source && it[2].source == it[3].source && it[3].source == it[4].source;
+  bool is32(const std::vector<int>& durations, int offset) {
+    if (offset + 1 < durations.size()) {
+      return durations[offset] == 3 && durations[offset + 1] == 2;
     }
     return false;
   }
 
-  bool is32(const std::vector<AMTFrameFps>& frameFps, int offset) {
-    auto it = frameFps.begin() + offset;
-    if (offset + 5 <= (int)frameFps.size()) {
-      for (int i = 0; i < 5; ++i) {
-        if (it[i].fps != AMT_FPS_24) return false;
-      }
-      return it[0].source == it[1].source && it[1].source == it[2].source && it[3].source == it[4].source;
-    }
-    return false;
-  }
-
-  bool is2224(const std::vector<AMTFrameFps>& frameFps, int offset) {
-    auto it = frameFps.begin() + offset;
-    if (offset + 10 <= (int)frameFps.size()) {
-      for (int i = 0; i < 10; ++i) {
-        if (it[i].fps != AMT_FPS_24) return false;
-      }
-      return it[0].source == it[1].source &&
-        it[2].source == it[3].source &&
-        it[4].source == it[5].source &&
-        it[6].source == it[7].source &&
-        it[7].source == it[8].source &&
-        it[8].source == it[9].source;
+  bool is2224(const std::vector<int>& durations, int offset) {
+    if (offset + 3 < durations.size()) {
+      return durations[offset] == 2 &&
+        durations[offset + 1] == 2 &&
+        durations[offset + 2] == 2 &&
+        durations[offset + 3] == 4;
     }
     return false;
   }
 
 public:
-  FilterVFRProc(AMTContext&ctx, const std::vector<AMTFrameFps>& frameFps, const VideoInfo& vi, bool is120fps)
+  FilterVFRProc(AMTContext&ctx, const std::vector<int>& durations, const VideoInfo& vi, bool is120fps)
   : AMTObject(ctx) 
   , is120fps(is120fps)
   {
     fpsNum = vi.fps_numerator;
     fpsDenom = vi.fps_denominator;
 
+    auto it = std::find_if_not(
+      durations.begin(), durations.end(), [](int n) { return n != 1; });
+    if (it == durations.end()) {
+      // すべて1の場合はCFR
+      return;
+    }
+
+    int n = 0;
+    for (int i = 0; i < (int)durations.size(); ++i) {
+      frameMap_.push_back(n);
+      n += durations[i];
+    }
+
     if (is120fps) {
       // パターンが出現したところをVFR化
       // （時間がズレないようにする）
-      for (int i = 0; i < (int)frameFps.size(); ) {
-        frameMap_.push_back(i);
-        if (is30(frameFps, i)) {
+      for (int i = 0; i < (int)durations.size(); ) {
+        if (durations[i] == 2) {
           frameFps_.push_back(AMT_FPS_30);
+          i += 1;
+        }
+        else if (is23(durations, i)) {
+          frameFps_.push_back(AMT_FPS_24);
+          frameFps_.push_back(AMT_FPS_24);
           i += 2;
         }
-        else if (is23(frameFps, i)) {
+        else if (is32(durations, i)) {
           frameFps_.push_back(AMT_FPS_24);
           frameFps_.push_back(AMT_FPS_24);
-          frameMap_.push_back(i + 2);
-          i += 5;
+          i += 2;
         }
-        else if (is32(frameFps, i)) {
-          frameFps_.push_back(AMT_FPS_24);
-          frameFps_.push_back(AMT_FPS_24);
-          frameMap_.push_back(i + 3);
-          i += 5;
-        }
-        else if (is2224(frameFps, i)) {
+        else if (is2224(durations, i)) {
           for (int i = 0; i < 4; ++i) {
             frameFps_.push_back(AMT_FPS_24);
           }
-          frameMap_.push_back(i + 2);
-          frameMap_.push_back(i + 4);
-          frameMap_.push_back(i + 6);
-          i += 10;
+          i += 4;
         }
         else {
           frameFps_.push_back(AMT_FPS_60);
@@ -538,22 +554,11 @@ public:
     }
     else {
       // 60fpsタイミング
-      for (int i = 0; i < (int)frameFps.size(); ) {
-        frameMap_.push_back(i);
-        int fps = frameFps[i].fps;
-        int source = frameFps[i].source;
-        int numCont = 1;
-        for ( ; numCont < 4; ++numCont) {
-          if (frameFps[i + numCont].fps != fps || frameFps[i + numCont].source != source) {
-            break;
-          }
-        }
-        frameFps_.push_back(numCont);
-        i += numCont;
-      }
+      frameFps_ = durations;
     }
 
-    totalDuration = (double)frameFps.size() * fpsDenom / fpsNum;
+    int numFrames60 = std::accumulate(durations.begin(), durations.end(), 0);
+    totalDuration = (double)numFrames60 * fpsDenom / fpsNum;
   }
 
   bool isEnabled() const {

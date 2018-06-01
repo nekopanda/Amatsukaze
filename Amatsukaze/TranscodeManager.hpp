@@ -656,39 +656,38 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 					try {
 						PClip filterClip = filterSource.getClip();
 						IScriptEnvironment2* env = filterSource.getEnv();
-            auto& frameFps = filterSource.getFrameFps();
 						auto encoderZones = filterSource.getZones();
 						auto& outfmt = filterSource.getFormat();
 						auto& outvi = filterClip->GetVideoInfo();
-            FilterVFRProc vfrProc(ctx, frameFps, outvi, setting.isVFR120fps());
-
-            if (vfrProc.isEnabled()) {
-              // フィルタによるVFRが有効
-              if (eoInfo.afsTimecode) {
-                THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
-              }
-              // ゾーンをVFRフレーム番号に修正
-              vfrProc.toVFRZones(encoderZones);
-              // タイムコード生成
-              vfrProc.makeTimecode(getTcPath());
-            }
-
-						std::vector<int> pass;
-						if (setting.isTwoPass()) {
-							pass.push_back(1);
-							pass.push_back(2);
-						}
-						else {
-							pass.push_back(-1);
-						}
+            auto& frameDurationPre = filterSource.getFrameDurations();
+            FilterVFRProc vfrProcPre(ctx, frameDurationPre, outvi, setting.isVFR120fps());
 
 						ctx.info("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
 
 						outFileInfo.push_back(argGen->printBitrate(ctx, videoFileIndex, cmtype));
 						outfiles.push_back(outfmt);
 
-            if (vfrProc.isEnabled() || eoInfo.afsTimecode) {
-              outFileInfo.back().tcPath = getTcPath();
+            bool vfrEnabled = eoInfo.afsTimecode;
+
+            if (vfrProcPre.isEnabled()) {
+              // フィルタによるVFRが有効
+              if (eoInfo.afsTimecode) {
+                THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
+              }
+              vfrEnabled = true;
+              // ゾーンをVFRフレーム番号に修正
+              vfrProcPre.toVFRZones(encoderZones);
+              // タイムコード生成
+              vfrProcPre.makeTimecode(getTcPath());
+            }
+
+            std::vector<int> pass;
+            if (setting.isTwoPass()) {
+              pass.push_back(1);
+              pass.push_back(2);
+            }
+            else {
+              pass.push_back(-1);
             }
 
 						std::vector<std::string> encoderArgs;
@@ -698,7 +697,34 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 									outfmt, encoderZones, videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}
 						AMTFilterVideoEncoder encoder(ctx);
-						encoder.encode(filterClip, outfmt, vfrProc, encoderArgs, env);
+						encoder.encode(filterClip, outfmt, encoderArgs, env);
+
+            auto& frameDurationPost = encoder.getFrameDurations();
+            if (vfrProcPre.isEnabled()) {
+              // エンコード前にも生成している場合
+              // エンコード時と一致しているかチェック
+              if (frameDurationPre != frameDurationPost) {
+                THROW(FormatException, 
+                  "事前生成したフレームタイミングとエンコード時に取得したフレームタイミングにずれがあります");
+              }
+            }
+            else {
+              // エンコード前に生成していない場合
+              FilterVFRProc vfrProcPost(ctx, frameDurationPost, outvi, setting.isVFR120fps());
+              if (vfrProcPost.isEnabled()) {
+                // フィルタによるVFRが有効
+                if (eoInfo.afsTimecode) {
+                  THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
+                }
+                vfrEnabled = true;
+                // タイムコード生成
+                vfrProcPost.makeTimecode(getTcPath());
+              }
+            }
+
+            if (vfrEnabled) {
+              outFileInfo.back().tcPath = getTcPath();
+            }
 					}
 					catch (const AvisynthError& avserror) {
 						THROWF(AviSynthException, "%s", avserror.msg);

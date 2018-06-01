@@ -20,20 +20,20 @@ public:
   { }
 
   void encode(
-    PClip source, VideoFormat outfmt, const FilterVFRProc& vfrProc,
+    PClip source, VideoFormat outfmt, 
     const std::vector<std::string>& encoderOptions,
     IScriptEnvironment* env)
   {
     vi_ = source->GetVideoInfo();
     outfmt_ = outfmt;
 
-    auto& frameMap = vfrProc.getFrameMap();
-    int num_frames = vfrProc.isEnabled() ? (int)frameMap.size() : vi_.num_frames;
+    frameDurations.clear();
+
     int bufsize = outfmt_.width * outfmt_.height * 3;
 
     int npass = (int)encoderOptions.size();
     for (int i = 0; i < npass; ++i) {
-      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, num_frames);
+      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, vi_.num_frames);
 
       const std::string& args = encoderOptions[i];
 
@@ -53,9 +53,17 @@ public:
 
       try {
         // エンコード
-        for (int i = 0; i < num_frames; ++i) {
-          int f = vfrProc.isEnabled() ? frameMap[i] : i;
-          thread_.put(std::unique_ptr<OutFrame>(new OutFrame(source->GetFrame(f, env), f)), 1);
+        bool is_first_pass = (i == 0);
+        for (int f = 0, i = 0; f < vi_.num_frames; ) {
+          auto frame = source->GetFrame(f, env);
+          thread_.put(std::unique_ptr<PVideoFrame>(new PVideoFrame(frame)), 1);
+          if (is_first_pass) {
+            frameDurations.push_back(std::max(1, frame->GetProperty("FrameDuration", 1)));
+            f += frameDurations.back();
+          }
+          else {
+            f += frameDurations[i++];
+          }
         }
       }
       catch (Exception&) {
@@ -80,24 +88,20 @@ public:
     }
   }
 
+  std::vector<int> getFrameDurations() const {
+    return frameDurations;
+  }
+
 private:
-  struct OutFrame {
-    PVideoFrame frame;
-    int n;
 
-    OutFrame(const PVideoFrame& frame, int n)
-      : frame(frame)
-      , n(n) { }
-  };
-
-  class SpDataPumpThread : public DataPumpThread<std::unique_ptr<OutFrame>, true> {
+  class SpDataPumpThread : public DataPumpThread<std::unique_ptr<PVideoFrame>, true> {
   public:
     SpDataPumpThread(AMTFilterVideoEncoder* this_, int bufferingFrames)
       : DataPumpThread(bufferingFrames)
       , this_(this_)
     { }
   protected:
-    virtual void OnDataReceived(std::unique_ptr<OutFrame>&& data) {
+    virtual void OnDataReceived(std::unique_ptr<PVideoFrame>&& data) {
       this_->onFrameReceived(std::move(data));
     }
   private:
@@ -107,6 +111,7 @@ private:
   VideoInfo vi_;
   VideoFormat outfmt_;
   std::unique_ptr<av::EncodeWriter> encoder_;
+  std::vector<int> frameDurations;
 
   SpDataPumpThread thread_;
 
@@ -122,10 +127,10 @@ private:
     return 0;
   }
 
-  void onFrameReceived(std::unique_ptr<OutFrame>&& frame) {
+  void onFrameReceived(std::unique_ptr<PVideoFrame>&& frame) {
 
     // PVideoFrameをav::Frameに変換
-    const PVideoFrame& in = frame->frame;
+    const PVideoFrame& in = *frame;
     av::Frame out;
 
     out()->width = outfmt_.width;

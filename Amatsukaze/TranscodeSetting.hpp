@@ -680,6 +680,14 @@ public:
 		return regtmp(StringFormat("%s/v%d-%d%s.timecode.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
+  std::string getAvsTmpPath(int vindex, int index, CMType cmtype) const {
+    auto str = StringFormat("%s/v%d-%d%s.avstmp", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+    ctx.registerTmpFile(str);
+    // KFMCycleAnalyzeのデバッグダンプファイルも追加
+    ctx.registerTmpFile(str + ".debug");
+    return str;
+  }
+
 	std::string getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
 		auto str = StringFormat("%s/s%d-%d%s.log", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
@@ -820,6 +828,10 @@ public:
         return regtmp(StringFormat("%s/graph.txt", tmpDir.path()));
     }
 
+    bool isZoneEnabled() const {
+      return conf.bitrateCM != 1.0 && conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
+    }
+
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, CMType cmtype) const
@@ -847,7 +859,7 @@ public:
 			sb.append(" --pass %d --stats \"%s\"",
 				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
-		if (zones.size() && conf.bitrateCM != 1.0 && conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC) {
+		if (zones.size() && isZoneEnabled()) {
 			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
