@@ -285,7 +285,7 @@ struct PsEsBuffer {
 	int64_t makeSpace(int sizeInBytes) {
 		int64_t time = -1;
 		if (sizeInBytes > bufferSize) {
-			PRINTF("WARNING: VBV Buffer Underflow !!!\n");
+			//PRINTF("WARNING: VBV Buffer Underflow !!!\n");
 			if (accessUnits.size() > 0) {
 				time = accessUnits.back().DTS;
 				filled = 0;

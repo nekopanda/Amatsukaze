@@ -15,7 +15,6 @@
 #include "TranscodeSetting.hpp"
 #include "StreamReform.hpp"
 #include "AMTSource.hpp"
-#include "AMTGenTime.hpp"
 
 class RFFExtractor
 {
@@ -169,19 +168,16 @@ public:
           env_->SetVar("AMT_SOURCE", filter_);
           env_->SetVar("AMT_PASS", pass);
           filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
-          int phase = env_->GetVarDef("AMT_PHASE", 2).AsInt();
+          int phase = env_->GetVarDef("AMT_PHASE", PHASE_GEN_IMAGE).AsInt();
 
-          if (phase == 0) {
+          if (phase == PHASE_PRE_PROCESS) {
             // 前処理を実行
             ReadAllFrames(pass, phase);
           }
-          else if (phase == 1) {
+          else if (phase == PHASE_GEN_TIMING) {
             if (setting.isZoneEnabled()) {
               // タイミング生成
               ReadAllFrames(pass, phase);
-            }
-            else {
-              break;
             }
           }
           else {
@@ -526,28 +522,24 @@ public:
       // パターンが出現したところをVFR化
       // （時間がズレないようにする）
       for (int i = 0; i < (int)durations.size(); ) {
-        if (durations[i] == 2) {
-          frameFps_.push_back(AMT_FPS_30);
-          i += 1;
-        }
-        else if (is23(durations, i)) {
-          frameFps_.push_back(AMT_FPS_24);
-          frameFps_.push_back(AMT_FPS_24);
+        if (is23(durations, i)) {
+          frameFps_.push_back(-1);
+          frameFps_.push_back(-1);
           i += 2;
         }
         else if (is32(durations, i)) {
-          frameFps_.push_back(AMT_FPS_24);
-          frameFps_.push_back(AMT_FPS_24);
+          frameFps_.push_back(-1);
+          frameFps_.push_back(-1);
           i += 2;
         }
         else if (is2224(durations, i)) {
           for (int i = 0; i < 4; ++i) {
-            frameFps_.push_back(AMT_FPS_24);
+            frameFps_.push_back(-1);
           }
           i += 4;
         }
         else {
-          frameFps_.push_back(AMT_FPS_60);
+          frameFps_.push_back(durations[i]);
           i += 1;
         }
       }
@@ -556,6 +548,8 @@ public:
       // 60fpsタイミング
       frameFps_ = durations;
     }
+
+    assert(frameFps_.size() == frameMap_.size());
 
     int numFrames60 = std::accumulate(durations.begin(), durations.end(), 0);
     totalDuration = (double)numFrames60 * fpsDenom / fpsNum;
@@ -581,18 +575,14 @@ public:
     sb.append("# timecode format v2\n");
     ctx.info("[VFR] %d fpsタイミングでタイムコードを生成します", is120fps ? 120 : 60);
     if (is120fps) {
-      const double durations[4] = {
-        0,
-        (fpsDenom * 10.0) / (fpsNum * 4.0), // AMT_FPS_24
-        (fpsDenom * 2.0) / fpsNum, // AMT_FPS_30
-        (double)fpsDenom / fpsNum // AMT_FPS_60
-      };
+      const double timestep = (double)fpsDenom / fpsNum;
+      const double time24 = (fpsDenom * 10.0) / (fpsNum * 4.0);
       double curTime = 0;
       double maxDiff = 0; // チェック用
       for (int i = 0; i < (int)frameFps_.size(); ++i) {
-        maxDiff = std::max(maxDiff, std::abs(curTime - frameMap_[i] * (double)fpsDenom / fpsNum));
+        maxDiff = std::max(maxDiff, std::abs(curTime - frameMap_[i] * timestep));
         sb.append("%d\n", (int)std::round(curTime * 1000));
-        curTime += durations[frameFps_[i]];
+        curTime += (frameFps_[i] == -1) ? time24 : (frameFps_[i] * timestep);
       }
       ctx.info("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
       if (std::abs(curTime - totalDuration) >= 0.000001) {
