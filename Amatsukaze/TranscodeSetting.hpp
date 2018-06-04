@@ -20,6 +20,23 @@ struct EncoderZone {
 	int endFrame;
 };
 
+struct BitrateZone : EncoderZone {
+  double bitrate;
+
+  BitrateZone()
+    : EncoderZone()
+    , bitrate()
+  { }
+  BitrateZone(EncoderZone zone)
+    : EncoderZone(zone)
+    , bitrate()
+  { }
+  BitrateZone(EncoderZone zone, double bitrate)
+    : EncoderZone(zone)
+    , bitrate(bitrate)
+  { }
+};
+
 namespace av {
 
 // カラースペース3セット
@@ -828,18 +845,30 @@ public:
         return regtmp(StringFormat("%s/graph.txt", tmpDir.path()));
     }
 
-    bool isZoneEnabled() const {
-      return conf.bitrateCM != 1.0 && conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
+    bool isZoneAvailable() const {
+      return conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
+    }
+
+    bool isBitrateCMEnabled() const {
+      return conf.bitrateCM != 1.0 && isZoneAvailable();
+    }
+
+    bool isAdjustBitrateVFR() const {
+      return true;
     }
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
-		int pass, const std::vector<EncoderZone>& zones, int vindex, int index, CMType cmtype) const
+		int pass, const std::vector<BitrateZone>& zones, int vindex, int index, CMType cmtype) const
 	{
 		StringBuilder sb;
 		sb.append("%s", conf.encoderOptions);
 		if (conf.autoBitrate) {
 			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
+      if (zones.size() && isZoneAvailable() == false && isAdjustBitrateVFR()) {
+        // ゾーン設定不可なエンコーダにおけるビットレートのVFR調整
+        targetBitrate *= zones[0].bitrate;
+      }
 			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
 			if (cmtype == CMTYPE_CM) {
 				targetBitrate *= conf.bitrateCM;
@@ -859,11 +888,11 @@ public:
 			sb.append(" --pass %d --stats \"%s\"",
 				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
-		if (zones.size() && isZoneEnabled()) {
+		if (zones.size() && isZoneAvailable() && (isAdjustBitrateVFR() || isBitrateCMEnabled())) {
 			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
-				sb.append("%s%d,%d,b=%3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, conf.bitrateCM);
+				sb.append("%s%d,%d,b=%3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, zone.bitrate);
 			}
 		}
 		return sb.str();

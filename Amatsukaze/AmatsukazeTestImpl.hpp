@@ -631,4 +631,37 @@ static int DecodePerformance(AMTContext& ctx, const ConfigWrapper& setting)
 	return 0;
 }
 
+static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
+{
+  std::vector<int> durations;
+  for (int i = 0; i < 30; ++i) {
+    durations.push_back(2);
+    durations.push_back(3);
+  }
+  for (int i = 0; i < 40; ++i) {
+    durations.push_back(1);
+  }
+  for (int i = 0; i < 50; ++i) {
+    durations.push_back(2);
+  }
+  std::vector<EncoderZone> cmzones;
+  cmzones.push_back(EncoderZone{ 40, 80 });
+  cmzones.push_back(EncoderZone{ 110, 130 });
+
+  auto ret = MakeBitrateZones(durations, cmzones, 0.6, 60000, 1001, 2000);
+
+  if (ret.size() != 3) THROW(TestException, "");
+  if (ret[0].startFrame != 0) THROW(TestException, "");
+  if (ret[0].endFrame != 40) THROW(TestException, "");
+  if (ret[0].bitrate != 2.5) THROW(TestException, "");
+  if (ret[1].startFrame != 40) THROW(TestException, "");
+  if (ret[1].endFrame != 128) THROW(TestException, "");
+  if (std::abs(1.195 - ret[1].bitrate) > 0.01) THROW(TestException, "");
+  if (ret[2].startFrame != 128) THROW(TestException, "");
+  if (ret[2].endFrame != 150) THROW(TestException, "");
+  if (ret[2].bitrate != 2.0) THROW(TestException, "");
+
+  return 0;
+}
+
 } // namespace test

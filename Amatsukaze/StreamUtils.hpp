@@ -32,6 +32,11 @@ enum {
 	MPEG_CLOCK_HZ = 90000, // MPEG2,H264,H265はPTSが90kHz単位となっている
 };
 
+inline static int nblocks(int n, int block)
+{
+  return (n + block - 1) / block;
+}
+
 /** @brief shiftだけ右シフトしてmask数bitだけ返す(bit shift mask) */
 template <typename T>
 T bsm(T v, int shift, int mask) {

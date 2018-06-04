@@ -412,7 +412,7 @@ public:
 
 	std::string GenEncoderOptions(
 		VideoFormat outfmt,
-		std::vector<EncoderZone> zones,
+		std::vector<BitrateZone> zones,
 		int videoFileIndex, int encoderIndex, CMType cmtype, int pass)
 	{
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
@@ -464,6 +464,33 @@ private:
 	const ConfigWrapper& setting_;
 	const StreamReformInfo& reformInfo_;
 };
+
+static std::vector<BitrateZone> MakeBitrateZones(
+  const std::vector<int>& frameDurations,
+  const std::vector<EncoderZone>& cmzones,
+  const ConfigWrapper& setting,
+  VideoInfo outvi)
+{
+  std::vector<BitrateZone> bitrateZones;
+  if (frameDurations.size() > 0) { // VFR
+    // ビットレートゾーン生成
+    if (setting.isZoneAvailable()) {
+      // 1時間辺り最大60個で生成
+      return MakeBitrateZones(
+        frameDurations, cmzones, setting.getBitrateCM(),
+        outvi.fps_numerator, outvi.fps_denominator, 60);
+    }
+    else {
+      bitrateZones.emplace_back(EncoderZone(), AdjustVFRBitrate(frameDurations));
+    }
+  }
+  else {
+    for (int i = 0; i < (int)cmzones.size(); ++i) {
+      bitrateZones.emplace_back(cmzones[i], setting.getBitrateCM());
+    }
+  }
+  return bitrateZones;
+}
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
@@ -690,11 +717,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
               pass.push_back(-1);
             }
 
+            auto bitrateZones = MakeBitrateZones(frameDurationPre, encoderZones, setting, outvi);
 						std::vector<std::string> encoderArgs;
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
-									outfmt, encoderZones, videoFileIndex, encoderIndex, cmtype, pass[i]));
+									outfmt, bitrateZones, videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}
 						AMTFilterVideoEncoder encoder(ctx);
 						encoder.encode(filterClip, outfmt, encoderArgs, env);

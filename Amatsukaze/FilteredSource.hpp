@@ -175,7 +175,7 @@ public:
             ReadAllFrames(pass, phase);
           }
           else if (phase == PHASE_GEN_TIMING) {
-            if (setting.isZoneEnabled()) {
+            if (setting.isBitrateCMEnabled() || setting.isAdjustBitrateVFR()) {
               // タイミング生成
               ReadAllFrames(pass, phase);
             }
@@ -599,3 +599,156 @@ public:
     file.write(sb.getMC());
   }
 };
+
+// VFRでだいたいのレートコントロールを実現する
+// VFRタイミングとCMゾーンからゾーンとビットレートを作成
+std::vector<BitrateZone> MakeBitrateZones(const std::vector<int>& durations,
+    const std::vector<EncoderZone>& cmzones, double bitrateCM, 
+    int fpsNum, int fpsDenom, int blocksPerHour)
+{
+  enum {
+    UNIT_FRAMES = 8
+  };
+  struct Block {
+    int index;   // ブロック先頭のUNITアドレス
+    int next;    // 後ろのブロックの先頭ブロックアドレス（このブロックが存在しない場合は-1）
+    double avg;  // このブロックの平均ビットレート
+    double cost; // 後ろのブロックと結合したときの追加コスト
+  };
+
+  if (durations.size() == 0) {
+    return std::vector<BitrateZone>();
+  }
+  // 8フレームごとの平均ビットレートを計算
+  std::vector<double> units(nblocks((int)durations.size(), UNIT_FRAMES));
+  for (int i = 0; i < (int)units.size(); ++i) {
+    auto start = durations.begin() + i * UNIT_FRAMES;
+    auto end = ((i + 1) * UNIT_FRAMES < durations.size()) ? start + UNIT_FRAMES : durations.end();
+    int sum = std::accumulate(start, end, 0);
+    units[i] = (double)sum / (int)(end - start);
+  }
+  // cmzonesを適用
+  for (int i = 0; i < (int)cmzones.size(); ++i) {
+    // 半端部分はCMゾーンを小さくる方向に丸める
+    int start = nblocks(cmzones[i].startFrame, UNIT_FRAMES);
+    int end = cmzones[i].endFrame / UNIT_FRAMES;
+    for (int k = start; k < end; ++k) {
+      units[k] *= bitrateCM;
+    }
+  }
+  // ここでのunitsは各フレームに適用すべきビットレート
+  // だが、そのままzonesにすると数が多すぎて
+  // コマンドライン引数にできないのである程度まとめる
+  std::vector<Block> blocks;
+  double cur = units[0];
+  blocks.push_back(Block{ 0, 1, cur, 0 });
+  // 同じビットレートの連続はまとめる
+  for (int i = 1; i < (int)units.size(); ++i) {
+    if (units[i] != cur) {
+      cur = units[i];
+      blocks.push_back(Block{ i, (int)blocks.size() + 1, cur, 0 });
+    }
+  }
+  // 最後に番兵を置く
+  blocks.push_back(Block{ (int)units.size(), -1, 0, 0 });
+
+  auto sumDiff = [&](int start, int end, double avg) {
+    double diff = 0;
+    for (int i = start; i < end; ++i) {
+      diff += std::abs(units[i] - avg);
+    }
+    return diff;
+  };
+
+  auto calcCost = [&](Block& cur, const Block&  next) {
+    int start = cur.index;
+    int mid = next.index;
+    int end = blocks[next.next].index;
+    // 現在のコスト
+    
+    double cur_cost = sumDiff(start, mid, cur.avg);
+    double next_cost = sumDiff(mid, end, next.avg);
+    // 連結後の平均ビットレート
+    double avg2 = (cur.avg * (mid - start) + next.avg * (end - mid)) / (end - start);
+    // 連結後のコスト
+    double cost2 = sumDiff(start, end, avg2);
+    // 追加コスト
+    cur.cost = cost2 - (cur_cost + next_cost);
+  };
+
+  // 連結時追加コスト計算
+  for (int i = 0; blocks[i].index < (int)units.size(); i = blocks[i].next) {
+    auto& cur = blocks[i];
+    auto& next = blocks[cur.next];
+    // 次のブロックが存在すれば
+    if (next.index < (int)units.size()) {
+      calcCost(cur, next);
+    }
+  }
+
+  // 最大ブロック数
+  int totalDuration = std::accumulate(durations.begin(), durations.end(), 0);
+  auto totalHours = totalDuration * (double)fpsDenom / fpsNum / 3600.0;
+  int maxBlocks = std::max(1, (int)(blocksPerHour * totalHours));
+
+  // ヒープ作成
+  auto comp = [&](int b0, int b1) {
+    return blocks[b0].cost > blocks[b1].cost;
+  };
+  // 最後のブロックと番兵は連結できないので除く
+  int heap_size = (int)blocks.size() - 2;
+  int num_blocks = heap_size;
+  std::vector<int> indices(heap_size);
+  for (int i = 0; i < heap_size; ++i) indices[i] = i;
+  std::make_heap(indices.begin(), indices.begin() + heap_size, comp);
+  while (num_blocks > maxBlocks) {
+    // 追加コスト最小ブロック
+    int idx = indices.front();
+    std::pop_heap(indices.begin(), indices.begin() + (heap_size--), comp);
+    auto& cur = blocks[idx];
+    // このブロックが既に連結済みでなければ
+    if (cur.next != -1) {
+      auto& next = blocks[cur.next];
+      int start = cur.index;
+      int mid = next.index;
+      int end = blocks[next.next].index;
+      // 連結後の平均ビットレートに更新
+      cur.avg = (cur.avg * (mid - start) + next.avg * (end - mid)) / (end - start);
+      // 連結後のnextに更新
+      cur.next = next.next;
+      // 連結されるブロックは無効化
+      next.next = -1;
+      --num_blocks;
+      // 更に次のブロックがあれば
+      auto& nextnext = blocks[cur.next];
+      if (nextnext.index < (int)units.size()) {
+        // 連結時の追加コストを計算
+        calcCost(cur, nextnext);
+        // 再度ヒープに追加
+        indices[heap_size] = idx;
+        std::push_heap(indices.begin(), indices.begin() + (++heap_size), comp);
+      }
+    }
+  }
+
+  // 結果を生成
+  std::vector<BitrateZone> zones;
+  for (int i = 0; blocks[i].index < (int)units.size(); i = blocks[i].next) {
+    const auto& cur = blocks[i];
+    BitrateZone zone = BitrateZone();
+    zone.startFrame = cur.index * UNIT_FRAMES;
+    zone.endFrame = std::min((int)durations.size(), blocks[cur.next].index * UNIT_FRAMES);
+    zone.bitrate = cur.avg;
+    zones.push_back(zone);
+  }
+
+  return zones;
+}
+
+// ゾーンに対応していないエンコーダでビットレート指定を行うときに
+// 平均フレームレートを考慮したビットレートを計算する
+double AdjustVFRBitrate(const std::vector<int>& durations)
+{
+  int totalDurations = std::accumulate(durations.begin(), durations.end(), 0);
+  return (double)totalDurations / durations.size();
+}

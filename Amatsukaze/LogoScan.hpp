@@ -1040,11 +1040,6 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 		return dst;
 	}
 
-	inline static int nblocks(int n, int block)
-	{
-		return (n + block - 1) / block;
-	}
-
 public:
 	AMTAnalyzeLogo(PClip clip, const std::string& logoPath, float maskratio, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
