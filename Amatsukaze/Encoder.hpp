@@ -20,7 +20,7 @@ public:
   { }
 
   void encode(
-    PClip source, VideoFormat outfmt, 
+    PClip source, VideoFormat outfmt, int numVFRFrames,
     const std::vector<std::string>& encoderOptions,
     IScriptEnvironment* env)
   {
@@ -33,7 +33,8 @@ public:
 
     int npass = (int)encoderOptions.size();
     for (int i = 0; i < npass; ++i) {
-      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, vi_.num_frames);
+      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, 
+        (numVFRFrames > 0) ? numVFRFrames : vi_.num_frames);
 
       const std::string& args = encoderOptions[i];
 
@@ -341,8 +342,8 @@ private:
       setting_.getEncoder(),
       setting_.getEncoderPath(),
       setting_.getOptions(
-        fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 0, 0, CMTYPE_BOTH),
-      fmt,
+        fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
+      fmt, std::string(), false,
       setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
 
     ctx.info("[エンコーダ開始]");

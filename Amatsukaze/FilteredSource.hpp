@@ -175,10 +175,8 @@ public:
             ReadAllFrames(pass, phase);
           }
           else if (phase == PHASE_GEN_TIMING) {
-            if (setting.isBitrateCMEnabled() || setting.isAdjustBitrateVFR()) {
-              // タイミング生成
-              ReadAllFrames(pass, phase);
-            }
+            // タイミング生成
+            ReadAllFrames(pass, phase);
           }
           else {
             break;
@@ -285,13 +283,17 @@ private:
     int prevFrames = 0;
 
     if (phase == PHASE_GEN_TIMING) {
-      frameDurations.resize(vi.num_frames);
+      frameDurations.clear();
     }
 
-    for (int i = 0; i < vi.num_frames; ++i) {
+    for (int i = 0; i < vi.num_frames; ) {
       PVideoFrame frame = filter_->GetFrame(i, env_.get());
       if (phase == PHASE_GEN_TIMING) {
-        frameDurations[i] = std::max(1, frame->GetProperty("FrameDuration", 1));
+        frameDurations.push_back(std::max(1, frame->GetProperty("FrameDuration", 1)));
+        i += frameDurations.back();
+      }
+      else {
+        ++i;
       }
       double elapsed = sw.current();
       if (elapsed >= 1.0) {
@@ -602,12 +604,14 @@ public:
 
 // VFRでだいたいのレートコントロールを実現する
 // VFRタイミングとCMゾーンからゾーンとビットレートを作成
-std::vector<BitrateZone> MakeBitrateZones(const std::vector<int>& durations,
+std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
     const std::vector<EncoderZone>& cmzones, double bitrateCM, 
-    int fpsNum, int fpsDenom, int blocksPerHour)
+    int fpsNum, int fpsDenom, double costLimit)
 {
   enum {
-    UNIT_FRAMES = 8
+    UNIT_FRAMES = 8,
+    HARD_ZONE_LIMIT = 1000, // ゾーン数上限は1000
+    TARGET_ZONES_PER_HOUR = 30 // 目標ゾーン数は1時間あたり30個
   };
   struct Block {
     int index;   // ブロック先頭のUNITアドレス
@@ -689,22 +693,26 @@ std::vector<BitrateZone> MakeBitrateZones(const std::vector<int>& durations,
   // 最大ブロック数
   int totalDuration = std::accumulate(durations.begin(), durations.end(), 0);
   auto totalHours = totalDuration * (double)fpsDenom / fpsNum / 3600.0;
-  int maxBlocks = std::max(1, (int)(blocksPerHour * totalHours));
+  int targetNumZones = std::max(1, (int)(TARGET_ZONES_PER_HOUR * totalHours));
+  double totalCostLimit = units.size() * costLimit;
 
   // ヒープ作成
   auto comp = [&](int b0, int b1) {
     return blocks[b0].cost > blocks[b1].cost;
   };
   // 最後のブロックと番兵は連結できないので除く
-  int heap_size = (int)blocks.size() - 2;
-  int num_blocks = heap_size;
-  std::vector<int> indices(heap_size);
-  for (int i = 0; i < heap_size; ++i) indices[i] = i;
-  std::make_heap(indices.begin(), indices.begin() + heap_size, comp);
-  while (num_blocks > maxBlocks) {
+  int heapSize = (int)blocks.size() - 2;
+  int numZones = heapSize;
+  std::vector<int> indices(heapSize);
+  for (int i = 0; i < heapSize; ++i) indices[i] = i;
+  std::make_heap(indices.begin(), indices.begin() + heapSize, comp);
+  double totalCost = 0;
+  while ((totalCost < totalCostLimit && numZones > targetNumZones) ||
+    numZones > HARD_ZONE_LIMIT)
+  {
     // 追加コスト最小ブロック
     int idx = indices.front();
-    std::pop_heap(indices.begin(), indices.begin() + (heap_size--), comp);
+    std::pop_heap(indices.begin(), indices.begin() + (heapSize--), comp);
     auto& cur = blocks[idx];
     // このブロックが既に連結済みでなければ
     if (cur.next != -1) {
@@ -712,21 +720,22 @@ std::vector<BitrateZone> MakeBitrateZones(const std::vector<int>& durations,
       int start = cur.index;
       int mid = next.index;
       int end = blocks[next.next].index;
+      totalCost += cur.cost;
       // 連結後の平均ビットレートに更新
       cur.avg = (cur.avg * (mid - start) + next.avg * (end - mid)) / (end - start);
       // 連結後のnextに更新
       cur.next = next.next;
       // 連結されるブロックは無効化
       next.next = -1;
-      --num_blocks;
+      --numZones;
       // 更に次のブロックがあれば
       auto& nextnext = blocks[cur.next];
       if (nextnext.index < (int)units.size()) {
         // 連結時の追加コストを計算
         calcCost(cur, nextnext);
         // 再度ヒープに追加
-        indices[heap_size] = idx;
-        std::push_heap(indices.begin(), indices.begin() + (++heap_size), comp);
+        indices[heapSize] = idx;
+        std::push_heap(indices.begin(), indices.begin() + (++heapSize), comp);
       }
     }
   }
@@ -745,10 +754,13 @@ std::vector<BitrateZone> MakeBitrateZones(const std::vector<int>& durations,
   return zones;
 }
 
-// ゾーンに対応していないエンコーダでビットレート指定を行うときに
+// VFRに対応していないエンコーダでビットレート指定を行うとき用の
 // 平均フレームレートを考慮したビットレートを計算する
 double AdjustVFRBitrate(const std::vector<int>& durations)
 {
+  if (durations.size() == 0) {
+    return 1.0;
+  }
   int totalDurations = std::accumulate(durations.begin(), durations.end(), 0);
   return (double)totalDurations / durations.size();
 }

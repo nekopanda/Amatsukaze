@@ -130,6 +130,8 @@ static std::string makeEncoderArgs(
 	const std::string& binpath,
 	const std::string& options,
 	const VideoFormat& fmt,
+  const std::string& timecodepath,
+  bool is120fps,
 	const std::string& outpath)
 {
 	StringBuilder sb;
@@ -183,6 +185,11 @@ static std::string makeEncoderArgs(
 		sb.append(" --format raw --y4m -i -");
 		break;
 	}
+
+  if (timecodepath.size() > 0 && encoder == ENCODER_X264) {
+    std::pair<int, int> timebase = std::make_pair(fmt.frameRateNum * (is120fps ? 4 : 2), fmt.frameRateDenom);
+    sb.append(" --tcfile-in \"%s\" --timebase %d/%d", timecodepath, timebase.second, timebase.first);
+  }
 
 	return sb.str();
 }
@@ -849,6 +856,10 @@ public:
       return conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
     }
 
+    bool isEncoderSupportVFR() const {
+      return conf.encoder == ENCODER_X264;
+    }
+
     bool isBitrateCMEnabled() const {
       return conf.bitrateCM != 1.0 && isZoneAvailable();
     }
@@ -859,15 +870,16 @@ public:
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
-		int pass, const std::vector<BitrateZone>& zones, int vindex, int index, CMType cmtype) const
+		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale, 
+    int vindex, int index, CMType cmtype) const
 	{
 		StringBuilder sb;
 		sb.append("%s", conf.encoderOptions);
 		if (conf.autoBitrate) {
 			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
-      if (zones.size() && isZoneAvailable() == false && isAdjustBitrateVFR()) {
-        // ゾーン設定不可なエンコーダにおけるビットレートのVFR調整
-        targetBitrate *= zones[0].bitrate;
+      if (isEncoderSupportVFR() == false && isAdjustBitrateVFR()) {
+        // タイムコード非対応エンコーダにおけるビットレートのVFR調整
+        targetBitrate *= vfrBitrateScale;
       }
 			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
 			if (cmtype == CMTYPE_CM) {
@@ -888,11 +900,14 @@ public:
 			sb.append(" --pass %d --stats \"%s\"",
 				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
-		if (zones.size() && isZoneAvailable() && (isAdjustBitrateVFR() || isBitrateCMEnabled())) {
+		if (zones.size() && 
+      isZoneAvailable() &&
+      ((isEncoderSupportVFR() == false && isAdjustBitrateVFR()) || isBitrateCMEnabled()))
+    {
 			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
-				sb.append("%s%d,%d,b=%3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, zone.bitrate);
+				sb.append("%s%d,%d,b=%.3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, zone.bitrate);
 			}
 		}
 		return sb.str();

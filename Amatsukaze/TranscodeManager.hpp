@@ -413,6 +413,9 @@ public:
 	std::string GenEncoderOptions(
 		VideoFormat outfmt,
 		std::vector<BitrateZone> zones,
+    double vfrBitrateScale,
+    std::string timecodepath,
+    bool is120fps,
 		int videoFileIndex, int encoderIndex, CMType cmtype, int pass)
 	{
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
@@ -421,9 +424,11 @@ public:
 			setting_.getEncoder(),
 			setting_.getEncoderPath(),
 			setting_.getOptions(
-				srcFormat, srcBitrate, false, pass, zones,
+				srcFormat, srcBitrate, false, pass, zones, vfrBitrateScale,
 				videoFileIndex, encoderIndex, cmtype),
 			outfmt,
+      timecodepath,
+      is120fps,
 			setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype));
 	}
 
@@ -472,21 +477,19 @@ static std::vector<BitrateZone> MakeBitrateZones(
   VideoInfo outvi)
 {
   std::vector<BitrateZone> bitrateZones;
-  if (frameDurations.size() > 0) { // VFR
-    // ビットレートゾーン生成
-    if (setting.isZoneAvailable()) {
-      // 1時間辺り最大60個で生成
-      return MakeBitrateZones(
-        frameDurations, cmzones, setting.getBitrateCM(),
-        outvi.fps_numerator, outvi.fps_denominator, 60);
-    }
-    else {
-      bitrateZones.emplace_back(EncoderZone(), AdjustVFRBitrate(frameDurations));
+  if (frameDurations.size() == 0 || setting.isEncoderSupportVFR()) {
+    // VFRでない、または、エンコーダがVFRをサポートしている -> VFR用に調整する必要がない
+    for (int i = 0; i < (int)cmzones.size(); ++i) {
+      bitrateZones.emplace_back(cmzones[i], setting.getBitrateCM());
     }
   }
   else {
-    for (int i = 0; i < (int)cmzones.size(); ++i) {
-      bitrateZones.emplace_back(cmzones[i], setting.getBitrateCM());
+    if (setting.isZoneAvailable()) {
+      // VFR非対応エンコーダでゾーンに対応していればビットレートゾーン生成
+      return MakeVFRBitrateZones(
+        frameDurations, cmzones, setting.getBitrateCM(),
+        outvi.fps_numerator, outvi.fps_denominator,
+        0.05); // 全体で5%までの差なら許容する
     }
   }
   return bitrateZones;
@@ -686,8 +689,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						auto encoderZones = filterSource.getZones();
 						auto& outfmt = filterSource.getFormat();
 						auto& outvi = filterClip->GetVideoInfo();
-            auto& frameDurationPre = filterSource.getFrameDurations();
-            FilterVFRProc vfrProcPre(ctx, frameDurationPre, outvi, setting.isVFR120fps());
+            auto& frameDurations = filterSource.getFrameDurations();
+            FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
 
 						ctx.info("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
 
@@ -696,16 +699,17 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
             bool vfrEnabled = eoInfo.afsTimecode;
 
-            if (vfrProcPre.isEnabled()) {
+            if (vfrProc.isEnabled()) {
               // フィルタによるVFRが有効
               if (eoInfo.afsTimecode) {
                 THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
               }
               vfrEnabled = true;
               // ゾーンをVFRフレーム番号に修正
-              vfrProcPre.toVFRZones(encoderZones);
+              vfrProc.toVFRZones(encoderZones);
               // タイムコード生成
-              vfrProcPre.makeTimecode(getTcPath());
+              vfrProc.makeTimecode(getTcPath());
+              outFileInfo.back().tcPath = getTcPath();
             }
 
             std::vector<int> pass;
@@ -717,41 +721,29 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
               pass.push_back(-1);
             }
 
-            auto bitrateZones = MakeBitrateZones(frameDurationPre, encoderZones, setting, outvi);
+            auto bitrateZones = MakeBitrateZones(frameDurations, encoderZones, setting, outvi);
+            auto vfrBitrateScale = AdjustVFRBitrate(frameDurations);
+            // VFRフレームタイミングが120fpsか
+            bool is120fps = (eoInfo.afsTimecode || setting.isVFR120fps());
 						std::vector<std::string> encoderArgs;
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
-									outfmt, bitrateZones, videoFileIndex, encoderIndex, cmtype, pass[i]));
+									outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
+                  videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}
 						AMTFilterVideoEncoder encoder(ctx);
-						encoder.encode(filterClip, outfmt, encoderArgs, env);
+						encoder.encode(filterClip, outfmt, 
+              (int)frameDurations.size(), encoderArgs, env);
 
-            auto& frameDurationPost = encoder.getFrameDurations();
-            if (vfrProcPre.isEnabled()) {
+            const auto& frameDurationPost = encoder.getFrameDurations();
+            if (vfrProc.isEnabled()) {
               // エンコード前にも生成している場合
               // エンコード時と一致しているかチェック
-              if (frameDurationPre != frameDurationPost) {
+              if (frameDurations != frameDurationPost) {
                 THROW(FormatException, 
                   "事前生成したフレームタイミングとエンコード時に取得したフレームタイミングにずれがあります");
               }
-            }
-            else {
-              // エンコード前に生成していない場合
-              FilterVFRProc vfrProcPost(ctx, frameDurationPost, outvi, setting.isVFR120fps());
-              if (vfrProcPost.isEnabled()) {
-                // フィルタによるVFRが有効
-                if (eoInfo.afsTimecode) {
-                  THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
-                }
-                vfrEnabled = true;
-                // タイムコード生成
-                vfrProcPost.makeTimecode(getTcPath());
-              }
-            }
-
-            if (vfrEnabled) {
-              outFileInfo.back().tcPath = getTcPath();
             }
 					}
 					catch (const AvisynthError& avserror) {

@@ -648,7 +648,7 @@ static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
   cmzones.push_back(EncoderZone{ 40, 80 });
   cmzones.push_back(EncoderZone{ 110, 130 });
 
-  auto ret = MakeBitrateZones(durations, cmzones, 0.6, 60000, 1001, 2000);
+  auto ret = MakeVFRBitrateZones(durations, cmzones, 0.6, 60000, 1001, 0.15);
 
   if (ret.size() != 3) THROW(TestException, "");
   if (ret[0].startFrame != 0) THROW(TestException, "");

@@ -153,8 +153,8 @@ public:
     }
 
     // タイムコード用
-    // 自動フィールドシフトは120fpsタイミングで出力するので4倍する
-    std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * 4, vfmt.frameRateDenom);
+    bool is120fps = (eoInfo.afsTimecode || setting_.isVFR120fps());
+    std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * (is120fps ? 4 : 2), vfmt.frameRateDenom);
 
     std::string tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
     outFilePath.outPath = pathgen.getOutFilePath();
