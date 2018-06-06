@@ -134,12 +134,24 @@ private:
 		return avspath;
 	}
 
+  std::string makePreamble() {
+    StringBuilder sb;
+    // システムのプラグインフォルダを無効化
+    if (setting_.isSystemAvsPlugin() == false) {
+      sb.append("ClearAutoloadDirs()\n");
+    }
+    // Amatsukaze用オートロードフォルダを追加
+    sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
+    return sb.str();
+  }
+
 	void logoFrame(int videoFileIndex, const std::string& avspath)
 	{
 		ScriptEnvironmentPointer env = make_unique_ptr(CreateScriptEnvironment2());
 
 		try {
 			AVSValue result;
+			env->Invoke("Eval", AVSValue(makePreamble().c_str()));
 			env->LoadPlugin(GetModulePath().c_str(), true, &result);
 			PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
 

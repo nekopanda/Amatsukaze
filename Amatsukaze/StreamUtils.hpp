@@ -468,6 +468,7 @@ private:
 class AMTObject {
 public:
 	AMTObject(AMTContext& ctx) : ctx(ctx) { }
+  virtual ~AMTObject() { }
 	AMTContext& ctx;
 };
 

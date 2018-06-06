@@ -734,17 +734,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						}
 						AMTFilterVideoEncoder encoder(ctx);
 						encoder.encode(filterClip, outfmt, 
-              (int)frameDurations.size(), encoderArgs, env);
-
-            const auto& frameDurationPost = encoder.getFrameDurations();
-            if (vfrProc.isEnabled()) {
-              // エンコード前にも生成している場合
-              // エンコード時と一致しているかチェック
-              if (frameDurations != frameDurationPost) {
-                THROW(FormatException, 
-                  "事前生成したフレームタイミングとエンコード時に取得したフレームタイミングにずれがあります");
-              }
-            }
+              frameDurations, encoderArgs, env);
 					}
 					catch (const AvisynthError& avserror) {
 						THROWF(AviSynthException, "%s", avserror.msg);
