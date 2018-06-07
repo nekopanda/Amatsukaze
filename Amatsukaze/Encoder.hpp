@@ -65,6 +65,10 @@ public:
           f += (frameDurations.size() > 0) ? frameDurations[i++] : 1;
         }
       }
+      catch (const AvisynthError& avserror) {
+        ctx.error("Avisynthフィルタでエラーが発生: %s", avserror.msg);
+        error = true;
+      }
       catch (Exception&) {
         error = true;
       }
