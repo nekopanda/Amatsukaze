@@ -1025,6 +1025,11 @@ namespace Amatsukaze.Server
                 string dstPath = dstDir + "\\" + body + ext;
                 if (File.Exists(srcPath))
                 {
+                    if (File.Exists(dstPath))
+                    {
+                        // 既に存在している同名ファイルは削除
+                        File.Delete(dstPath);
+                    }
                     File.Move(srcPath, dstPath);
                 }
             }

@@ -880,7 +880,7 @@ namespace Amatsukaze.Server
                     return true;
                 }
 
-                var srcDir = Path.GetDirectoryName(src.FileName);
+                var srcDir = Path.GetDirectoryName(src.SrcPath);
                 var succeededDir = srcDir + "\\" + ServerSupport.SUCCESS_DIR;
                 var failedDir = srcDir + "\\" + ServerSupport.FAIL_DIR;
 

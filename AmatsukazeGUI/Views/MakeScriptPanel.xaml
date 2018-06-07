@@ -69,7 +69,7 @@
                                  Text="{Binding Model.MakeScriptData.NasDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             </DockPanel>
                             <CheckBox Margin="3" Content="コピーしたTSファイルをtransferedフォルダに移動する"
-                                      IsChecked="{Binding Model.MakeScriptData.IsNasEnabled, Mode=TwoWay}"
+                                      IsChecked="{Binding Model.MakeScriptData.MoveAfter, Mode=TwoWay}"
                                       ToolTip="コピー元TSファイルをtransferedフォルダに移動します" />
                             <CheckBox Margin="3" Content="コピーする際、コピー先のsucceededフォルダを空にする"
                                       IsChecked="{Binding Model.MakeScriptData.ClearSucceeded, Mode=TwoWay}"

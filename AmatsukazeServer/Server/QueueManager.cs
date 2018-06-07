@@ -563,11 +563,11 @@ namespace Amatsukaze.Server
                     {
                         if (Queue.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive) == false)
                         {
-                            var dirPath = Path.GetDirectoryName(target.FileName);
+                            var dirPath = Path.GetDirectoryName(target.SrcPath);
                             var movedDir = (target.State == QueueState.Failed) ? 
                                 ServerSupport.FAIL_DIR : 
                                 ServerSupport.SUCCESS_DIR;
-                            var movedPath = dirPath + "\\" + movedDir + "\\" + Path.GetFileName(target.FileName);
+                            var movedPath = dirPath + "\\" + movedDir + "\\" + Path.GetFileName(target.SrcPath);
                             if (File.Exists(movedPath))
                             {
                                 // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す

@@ -347,7 +347,15 @@ namespace Amatsukaze.AddTask
                     string trsDir = Path.GetDirectoryName(option.FilePath) + "\\transferred";
                     Directory.CreateDirectory(trsDir);
                     string trsFile = trsDir + "\\" + Path.GetFileName(option.FilePath);
-                    File.Move(option.FilePath, trsDir);
+                    if(File.Exists(option.FilePath))
+                    {
+                        if (File.Exists(trsFile))
+                        {
+                            // 既に存在している同名ファイルは削除
+                            File.Delete(trsFile);
+                        }
+                        File.Move(option.FilePath, trsFile);
+                    }
                     if (option.WithRelated)
                     {
                         var body = Path.GetFileNameWithoutExtension(option.FilePath);
@@ -359,6 +367,11 @@ namespace Amatsukaze.AddTask
                             string dstPath = trsDir + "\\" + body + ext;
                             if (File.Exists(srcPath))
                             {
+                                if (File.Exists(dstPath))
+                                {
+                                    // 既に存在している同名ファイルは削除
+                                    File.Delete(dstPath);
+                                }
                                 File.Move(srcPath, dstPath);
                             }
                         }

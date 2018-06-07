@@ -198,6 +198,7 @@ public:
       if (setting_.isDumpFilter()) {
           StringBuilder sb;
           sb.append("DumpFilterGraph(\"%s\", 1)", setting_.getFilterGraphDumpPath());
+          env_->SetVar("last", filter_);
           env_->Invoke("Eval", AVSValue(sb.str().c_str()));
       }
 
