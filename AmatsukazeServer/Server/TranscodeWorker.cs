@@ -500,9 +500,8 @@ namespace Amatsukaze.Server
 
 
             // 出力パス生成
-            // datpathは拡張子を含んでなくても含んでても可
-            // エンコード後、CLIから取得したファイル名の拡張子を
-            // 使うことになるので拡張子を含んでても無視される
+            // datpathは拡張子を含まないこと
+            //（拡張子があるのかないのか分からないと.tsで終わる名前とかが使えなくなるので）
             string dstpath = src.DstPath;
             bool renamed = false;
 
@@ -533,7 +532,7 @@ namespace Amatsukaze.Server
                         dstpath = Path.Combine(
                             Path.GetDirectoryName(dstpath),
                             "_重複",
-                            Path.GetFileNameWithoutExtension(dstpath));
+                            Path.GetFileName(dstpath));
                     }
                     else
                     {
@@ -557,13 +556,13 @@ namespace Amatsukaze.Server
                     dstpath = Path.Combine(
                         Path.GetDirectoryName(dstpath),
                         "_ジャンル情報なし",
-                        Path.GetFileNameWithoutExtension(dstpath));
+                        Path.GetFileName(dstpath));
                 }
                 else {
                     dstpath = Path.Combine(
                         Path.GetDirectoryName(dstpath),
                         Util.EscapeFileName(genreName, true),
-                        Path.GetFileNameWithoutExtension(dstpath));
+                        Path.GetFileName(dstpath));
                 }
                 renamed = true;
             }
@@ -582,7 +581,7 @@ namespace Amatsukaze.Server
                 var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
                 var baseName = Path.Combine(
                     Path.GetDirectoryName(dstpath),
-                    Path.GetFileNameWithoutExtension(dstpath));
+                    Path.GetFileName(dstpath));
                 dstpath = Util.CreateDstFile(baseName, ext);
             }
 
@@ -613,15 +612,15 @@ namespace Amatsukaze.Server
                     }
 
                     srcpath = localsrc;
-                    localdst = tmpBase + "-out.mp4";
+                    localdst = tmpBase + "-out";
                 }
 
                 string json = Path.Combine(
                     Path.GetDirectoryName(localdst),
-                    Path.GetFileNameWithoutExtension(localdst)) + "-enc.json";
+                    Path.GetFileName(localdst)) + "-enc.json";
                 string logpath = Path.Combine(
                     Path.GetDirectoryName(dstpath),
-                    Path.GetFileNameWithoutExtension(dstpath)) + "-enc.log";
+                    Path.GetFileName(dstpath)) + "-enc.log";
                 string jlscmd = (serviceSetting?.DisableCMCheck ?? true) ?
                     null :
                     (!string.IsNullOrEmpty(profile.JLSCommandFile) ? profile.JLSCommandFile
@@ -811,8 +810,8 @@ namespace Amatsukaze.Server
                         if (hashEnabled)
                         {
                             log.SrcPath = src.SrcPath;
-                            string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileNameWithoutExtension(localdst);
-                            string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
+                            string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileName(localdst);
+                            string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
                             for (int i = 0; i < log.OutPath.Count; ++i)
                             {
                                 string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
@@ -949,8 +948,9 @@ namespace Amatsukaze.Server
                                 // 成功が1つでもあれば関連ファイルをコピー
                                 if (src.Profile.MoveEDCBFiles)
                                 {
+                                    // ソースパスは拡張子を含むがdstは含まない
                                     var srcBody = Path.GetDirectoryName(src.SrcPath) + "\\" + Path.GetFileNameWithoutExtension(src.SrcPath);
-                                    var dstBody = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileNameWithoutExtension(dstpath);
+                                    var dstBody = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
                                     foreach (var ext in ServerSupport
                                         .GetFileExtentions(null, src.Profile.MoveEDCBFiles))
                                     {

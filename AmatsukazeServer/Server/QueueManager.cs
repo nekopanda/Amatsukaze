@@ -226,10 +226,10 @@ namespace Amatsukaze.Server
                                     tsTime = info.GetTime();
                                 }
 
-                                var outname = Path.GetFileName(additem.Path);
+                                var outname = Path.GetFileNameWithoutExtension(additem.Path);
                                 if (numFiles > 0)
                                 {
-                                    outname = Path.GetFileNameWithoutExtension(outname) + "-マルチ" + numFiles;
+                                    outname += "-マルチ" + numFiles;
                                 }
 
                                 Debug.Print("解析完了: " + additem.Path);
