@@ -32,8 +32,11 @@ x264, x265, QSVEnc, NVEnc
 - CMに本編とは別のビットレートを適用（一部エンコーダで制限あり）
 - ロゴあり区間を自動認識してロゴファイル生成
 - TSファイルからチャンネルや日時を取得してロゴを自動選択
+- チャンネルやジャンルからプロファイルを自動選択
+- SCRenameによるリネームやジャンルごとにフォルダ分け
 - 複数映像チャンネルが入ってるTSファイルは全チャンネル認識してエンコード
-- AviSynthスクリプトによるフィルタ機能
+- AviSynthスクリプトによるフィルタ処理
+- マルチパステレシネ判定によるVFR化
 - 高ビットフィルタ処理およびエンコード
 - 複数エンコーダの並列実行
 - EDCBからの録画後自動エンコード
@@ -253,11 +256,15 @@ AviSynthによるフィルタ処理です。インタレ解除やノイズ除去
 
 #### メインフィルタ
 
-メインフィルタはインタレ解除です。以下の3種類のインタレ解除フィルタが利用可能です。
+メインフィルタはインタレ解除です。主に以下の5種類のインタレ解除が利用可能です。
 
-- D3DVP (60p化)
-- QTGMC (60p化)
-- KFM (24p化)
+- D3DVPによる60p化
+- KFMによる24p化
+- KFMによる60p化
+- KFMによるVFR化
+- QTGMCによる60p化
+
+同梱フィルタはGPUで処理されること前提で作られています。CPU版は最適化していないので、かなり遅く、実用的ではありません。CUDA版はNVIDIA GPUが必須です。Compute Capability 3.5以上と、比較的新しいそれなりのGPUが必要です。
 
 #### D3DVP
 
@@ -271,29 +278,27 @@ GPU指定なしの場合は、プライマリディスプレイに接続したGP
 PCが認識したGPUのデバイス名が微妙に違ったりすると見つからなくてエラーになるかもしれません。
 あと、当然ですが、PCにないGPUを指定したらエラーになります。
 
-#### QTGMC
-
-QTGMCは、ソフトウェア処理のインタレ解除フィルタです。
-計算量が多く重いフィルタですが、その分、綺麗にインタレ解除できます。
-
-CUDA版を使えばかなり速くなります(GTX1060でフルHDが110fpsくらい）。
-が、Compute Capability 3.5以上と、比較的新しいそれなりのGPUが必要です。
-CPU版は最適化していないので、かなり遅く、実用的ではありません。
-
-24fps部分の部分の画質を上げたい場合は、「24pありNR」が使えます。
-出力は60fpsですが、24fpsだと分かる部分は、24fps化した上で2項分布マージ版SMDegrainでノイズリダクションします。
-24fps処理が必要ない場合は、「24pなし」を選択してください。NRなし「24pあり」はあまりメリットがありません。
-
 #### KFM
 
-KFMは、上の「24pあり」版の24fps処理の部分だけを抜き出したフィルタです。
-中身は、CUDA化を前提に独自実装した逆テレシネフィルタです。
+KFMは、映像のフレームレートを判別して、24p,30p,60p部分にそれぞれ別処理を施すフィルタです。
+24pは逆テレシネ、30pはソースをそのまま、60pはQTGMCによるインタレ解除を施します。
+出力は24p,60p,VFRの3つから選べます。特に問題がなければインタレ解除は**KFMによるVFR推奨**です。
 
-強制的に全部24fpsにして出力するので、
-24fpsじゃない部分は画質が悪くなりますが、
-フレーム数は減るので圧縮率の向上とエンコ時間が短縮が見込めます。
+#### QTGMC
 
-CPU版は最適化していないので、かなり遅く、実用的ではありません。
+QTGMCは、ソフトウェア処理によるbobベースのインタレ解除フィルタです。
+計算量が多く重いフィルタですが、その分、綺麗にインタレ解除できます。
+ただし、24pや30pの映像に適用すると、本来は存在しない中間フレームが生成されるなどのデメリットがあります。
+
+処理時間に関しては、CUDA版を使えばかなり速くなります(GTX1060でフルHDが110fpsくらい）。
+
+#### UCF,NR
+
+UCF,NRは共にノイズリダクションです。
+
+UCFは[DecombUCF](http://tyottoenc.blog.fc2.com/blog-entry-9.html)のアルゴリズムを使って、フレーム・フィールド置換します。
+
+NRは2項分布マージ版SMDegrainでノイズリダクションします。
 
 #### ポストフィルタ
 
@@ -347,23 +352,23 @@ AviSynthのクリップにはサンプルアスペクト比を保持する機能
 
 #### メインフィルタ
 
-QTGMCによるインタレ解除フィルタは、Preset="Faster"で
-インタレ解除します。CUDA版はKTGMCで動いています。
+D3DVPによるインタレ解除フィルタは、D3DVPをそのまま呼び出しているだけです。
+
+D3DVP以外のメインフィルタは、KFMやQTGMCによるインタレ解除を呼び出す関数 `KFMDeint()` を呼び出しています。
+KFMDeintによるインタレ解除は以下のように動作します。
+
+KFMDeintのQTGMCインタレ解除は、Preset="Faster"（SDの場合は"Slower"）で
+呼び出します。CUDA版はKTGMCを呼び出します。
 
 NNEDI3（Bob化）ベースのQTGMCなので、そのままだと細かい文字等が潰れます。
 KStaticAnalyze+KStaticMergeで止まっている細かい文字等をソースから補間しています。
 
-24pパスありの場合、KFMFrameAnalyze+KFMCycleAnalyze+KTelecineで24p化したクリップを作成し、
-確実に24pであると分かる部分はKFMSwitchでマージしています。
-
-「24pありNR」は、24pクリップに2項分布マージONでKSMDegrainを適用します。
-これはQTGMCのMDegrainに相当する処理です。NRなしの「24pあり」は、24pクリップに
-QTGMCのMDegrain系処理が一切ないため、QTGMCで処理した場合に比べてノイズが目立つようになります。
-24pありにする場合は、NRが必須だと思います。
-
-KFM 24p化フィルタは、同じ手順で24p化した後、KRemoveCombeで残ったインタレ縞を除去して出力しています。
-
-D3DVPによるインタレ解除フィルタは、D3DVPをそのまま呼び出しているだけです。
+KFMDeintに実装されているDecombUCFは、コア部分以外は[オリジナル](http://tyottoenc.blog.fc2.com/blog-entry-9.html)と
+異なった処理となっています。オリジナルは24pにしか適用できませんが、60pにも適用できるように改良されています。
+24pで片フィールドが汚い判定された場合、オリジナルは24pからbobフレームを生成しますが、
+KFMDeintでは、30fpsソース上で、きれいなフィールドが2フィールド以上ある場合は、DoubleWeaveから取得するようになっています。
+また、オリジナルではbobフレームはTDeintで生成していますが、KFMDeintでは除外フィールド指定KTGMCで生成するようになっています。
+なお、除外フィールド指定はKTGMCのみの機能で、QTGMCには実装されていません。なので、CPU版はオリジナルのままTDeintで生成します。
 
 #### ポストフィルタ
 
@@ -443,7 +448,7 @@ BatchHashChecker.exeで出力mp4(or mkv)ファイルのハッシュチェック�
 ### 制限、未実装項目
 
 - VFRな入力（ワンセグなど）には対応していません
-（NVEncのvpp-afsを使ったVFR出力には対応しています。）
+（VFR出力には対応しています。）
 - 「通常」出力でQSVEnc,NVEncを使用した場合、CMビットレート倍率は適用されません
 （x264,x265はzoneオプションで適用します）
 - HEVCはインタレ保持に対応していないので、
@@ -470,7 +475,7 @@ GPLのライブラリを組み込んでいるので、全体にGPLが適用さ�
 - [x265](http://x265.org/)（~~本家版はzonesを多く指定すると落ちるバグがあるので改造しています~~修正されたので今は本家版を入れてます）
 - [Ut Video Codec Suite](http://umezawa.dyndns.info/wordpress/)
 - [AviSynthPlus CUDA](https://github.com/nekopanda/AviSynthPlus)
-- [join_logo_scp ver 2.1](https://www.axfc.net/u/3458102.zip)
+- [join_logo_scp ver 3.06](https://mevius.5ch.net/test/read.cgi/avi/1484985868/794)
 - [chapter_exe 改造版](https://github.com/nekopanda/chapter_exe)（VFWに依存しないでAvisynthスクリプトを読めるように改造しています）
 - [Livet](http://ugaya40.hateblo.jp/entry/Livet)
 - [MP4Box](https://gpac.wp.imt.fr/mp4box/)
@@ -487,11 +492,11 @@ GPLのライブラリを組み込んでいるので、全体にGPLが適用さ�
 - [NNEDI3](https://github.com/jpsdr/NNEDI3)
 - [mvtools](https://github.com/pinterf/mvtools)
 - [masktools](https://github.com/pinterf/masktools)
-- [KTGMC,KNNEDI3,KFM](https://github.com/nekopanda/AviSynthCUDAFilters)
+- [AvsCUDA,KTGMC,KNNEDI3,KFM](https://github.com/nekopanda/AviSynthCUDAFilters)
 - [SMDegrain](http://avisynth.nl/index.php/SMDegrain)
 - [D3DVP](https://github.com/nekopanda/D3DVP)
 
-すべて64bitです。
+Amatsukazeと同梱&依存ライブラリはすべて64bitに統一されています。
 
 ## ビルド方法
 
