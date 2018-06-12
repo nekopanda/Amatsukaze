@@ -26,6 +26,10 @@ namespace Amatsukaze.Views
         public QueuePanel()
         {
             InitializeComponent();
+
+            // コンテキストメニューの外の名前空間を見えるようにする
+            NameScope.SetNameScope(queueMenu, NameScope.GetNameScope(this));
+            NameScope.SetNameScope(buttonProfileMenu, NameScope.GetNameScope(this));
         }
 
         private void ListBox_PreviewDragOver(object sender, DragEventArgs e)

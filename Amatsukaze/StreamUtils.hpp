@@ -451,17 +451,28 @@ private:
 
 	std::map<std::string, std::wstring> drcsMap;
 
+  static std::string format(const char* fmt, va_list arg)
+  {
+    std::string str;
+    size_t size = _vscprintf(fmt, arg);
+    if (size > 0)
+    {
+      str.reserve(size + 1); // nullèIí[Çë´Ç∑
+      str.resize(size);
+      vsnprintf_s(&str[0], size + 1, size + 1, fmt, arg);
+    }
+    return str;
+  }
+
 	void print(const char* fmt, va_list arg, AMT_LOG_LEVEL level) const {
 		static const char* log_levels[] = { "debug", "info", "warn", "error" };
-		char buf[1024];
-		vsnprintf_s(buf, sizeof(buf), fmt, arg);
-		PRINTF("AMT [%s] %s\n", log_levels[level], buf);
+    std::string str = format(fmt, arg);
+		PRINTF("AMT [%s] %s\n", log_levels[level], str.c_str());
 	}
 
 	void printProgress(const char* fmt, va_list arg) const {
-		char buf[1024];
-		vsnprintf_s(buf, sizeof(buf), fmt, arg);
-		PRINTF("AMT %s\r", buf);
+    std::string str = format(fmt, arg);
+		PRINTF("AMT %s\r", str.c_str());
 	}
 };
 

@@ -908,10 +908,26 @@ namespace Amatsukaze.Models
         {
             if(data.QueueData != null)
             {
-                QueueItems.Clear();
-                foreach (var item in data.QueueData.Items)
+                foreach(int id in QueueItems.Select(s => s.Model.Id)
+                    .Concat(data.QueueData.Items.Select(s => s.Id)).Distinct().ToArray())
                 {
-                    QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = item });
+                    var old = QueueItems.FirstOrDefault(s => s.Model.Id == id);
+                    var update = data.QueueData.Items.FirstOrDefault(s => s.Id == id);
+                    if(old != null && update != null)
+                    {
+                        // 更新
+                        old.Model = update;
+                    }
+                    else if(old != null)
+                    {
+                        // 削除
+                        QueueItems.Remove(old);
+                    }
+                    else
+                    {
+                        // 追加
+                        QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = update });
+                    }
                 }
             }
             if(data.QueueUpdate != null)
@@ -930,13 +946,7 @@ namespace Amatsukaze.Models
                     // Add, Updte
                     if(item != null)
                     {
-                        var index = QueueItems.IndexOf(item);
-                        QueueItems[index] = new DisplayQueueItem()
-                        {
-                            Parent = this,
-                            Model = update.Item,
-                            IsSelected = QueueItems[index].IsSelected
-                        };
+                        item.Model = update.Item;
                     }
                     else
                     {

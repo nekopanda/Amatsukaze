@@ -18,6 +18,7 @@ using System.Windows;
 using System.IO;
 using Amatsukaze.Components;
 using System.Windows.Data;
+using System.Collections;
 
 namespace Amatsukaze.ViewModels
 {
@@ -27,23 +28,23 @@ namespace Amatsukaze.ViewModels
         public object Item { get; set; }
 
         #region SelectedCommand
-        private ViewModelCommand _SelectedCommand;
+        private ListenerCommand<IEnumerable> _SelectedCommand;
 
-        public ViewModelCommand SelectedCommand
+        public ListenerCommand<IEnumerable> SelectedCommand
         {
             get
             {
                 if (_SelectedCommand == null)
                 {
-                    _SelectedCommand = new ViewModelCommand(Selected);
+                    _SelectedCommand = new ListenerCommand<IEnumerable>(Selected);
                 }
                 return _SelectedCommand;
             }
         }
 
-        public void Selected()
+        public void Selected(IEnumerable selectedItems)
         {
-            QueueVM.ChangeProfile(Item);
+            QueueVM.ChangeProfile(selectedItems, Item);
         }
         #endregion
     }
@@ -205,13 +206,9 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        private IEnumerable<DisplayQueueItem> SelectedQueueItems {
-            get { return Model.QueueItems.Where(s => s.IsSelected); }
-        }
-
-        private void LaunchLogoAnalyze(bool slimts)
+        private void LaunchLogoAnalyze(IEnumerable selectedItems, bool slimts)
         {
-            var item = SelectedQueueItems?.FirstOrDefault();
+            var item = selectedItems.OfType<DisplayQueueItem>().FirstOrDefault();
             if (item == null)
             {
                 return;
@@ -265,8 +262,6 @@ namespace Amatsukaze.ViewModels
             }
             return true;
         }
-
-        public bool IsQueueItemSelected { get { return Model.QueueItems.Any(s => s.IsSelected); } }
 
         #region ProfileList変更通知プロパティ
         private Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> _ProfileList;
@@ -325,21 +320,21 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region DeleteQueueItemCommand
-        private ViewModelCommand _DeleteQueueItemCommand;
+        private ListenerCommand<IEnumerable> _DeleteQueueItemCommand;
 
-        public ViewModelCommand DeleteQueueItemCommand {
+        public ListenerCommand<IEnumerable> DeleteQueueItemCommand {
             get {
                 if (_DeleteQueueItemCommand == null)
                 {
-                    _DeleteQueueItemCommand = new ViewModelCommand(DeleteQueueItem);
+                    _DeleteQueueItemCommand = new ListenerCommand<IEnumerable>(DeleteQueueItem);
                 }
                 return _DeleteQueueItemCommand;
             }
         }
 
-        public async void DeleteQueueItem()
+        public async void DeleteQueueItem(IEnumerable selectedItems)
         {
-            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
+            foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
                 await Model.Server.ChangeItem(new ChangeItemData()
@@ -352,19 +347,19 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region RemoveCompletedAllCommand
-        private ViewModelCommand _RemoveCompletedAllCommand;
+        private ListenerCommand<IEnumerable> _RemoveCompletedAllCommand;
 
-        public ViewModelCommand RemoveCompletedAllCommand {
+        public ListenerCommand<IEnumerable> RemoveCompletedAllCommand {
             get {
                 if (_RemoveCompletedAllCommand == null)
                 {
-                    _RemoveCompletedAllCommand = new ViewModelCommand(RemoveCompletedAll);
+                    _RemoveCompletedAllCommand = new ListenerCommand<IEnumerable>(RemoveCompletedAll);
                 }
                 return _RemoveCompletedAllCommand;
             }
         }
 
-        public void RemoveCompletedAll()
+        public void RemoveCompletedAll(IEnumerable selectedItems)
         {
             Model.Server.ChangeItem(new ChangeItemData()
             {
@@ -425,65 +420,65 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region OpenLogoAnalyzeCommand
-        private ViewModelCommand _OpenLogoAnalyzeCommand;
+        private ListenerCommand<IEnumerable> _OpenLogoAnalyzeCommand;
 
-        public ViewModelCommand OpenLogoAnalyzeCommand
+        public ListenerCommand<IEnumerable> OpenLogoAnalyzeCommand
         {
             get
             {
                 if (_OpenLogoAnalyzeCommand == null)
                 {
-                    _OpenLogoAnalyzeCommand = new ViewModelCommand(OpenLogoAnalyze);
+                    _OpenLogoAnalyzeCommand = new ListenerCommand<IEnumerable>(OpenLogoAnalyze);
                 }
                 return _OpenLogoAnalyzeCommand;
             }
         }
 
-        public void OpenLogoAnalyze()
+        public void OpenLogoAnalyze(IEnumerable selectedItems)
         {
-            LaunchLogoAnalyze(false);
+            LaunchLogoAnalyze(selectedItems, false);
         }
         #endregion
 
         #region OpenLogoAnalyzeSlimTsCommand
-        private ViewModelCommand _OpenLogoAnalyzeSlimTsCommand;
+        private ListenerCommand<IEnumerable> _OpenLogoAnalyzeSlimTsCommand;
 
-        public ViewModelCommand OpenLogoAnalyzeSlimTsCommand
+        public ListenerCommand<IEnumerable> OpenLogoAnalyzeSlimTsCommand
         {
             get
             {
                 if (_OpenLogoAnalyzeSlimTsCommand == null)
                 {
-                    _OpenLogoAnalyzeSlimTsCommand = new ViewModelCommand(OpenLogoAnalyzeSlimTs);
+                    _OpenLogoAnalyzeSlimTsCommand = new ListenerCommand<IEnumerable>(OpenLogoAnalyzeSlimTs);
                 }
                 return _OpenLogoAnalyzeSlimTsCommand;
             }
         }
 
-        public void OpenLogoAnalyzeSlimTs()
+        public void OpenLogoAnalyzeSlimTs(IEnumerable selectedItems)
         {
-            LaunchLogoAnalyze(true);
+            LaunchLogoAnalyze(selectedItems, true);
         }
         #endregion
 
         #region RetryCommand
-        private ViewModelCommand _RetryCommand;
+        private ListenerCommand<IEnumerable> _RetryCommand;
 
-        public ViewModelCommand RetryCommand
+        public ListenerCommand<IEnumerable> RetryCommand
         {
             get
             {
                 if (_RetryCommand == null)
                 {
-                    _RetryCommand = new ViewModelCommand(Retry);
+                    _RetryCommand = new ListenerCommand<IEnumerable>(Retry);
                 }
                 return _RetryCommand;
             }
         }
 
-        public async void Retry()
+        public async void Retry(IEnumerable selectedItems)
         {
-            var items = SelectedQueueItems.OrEmpty().ToArray();
+            var items = selectedItems.OfType<DisplayQueueItem>().ToArray();
             if (await ConfirmRetryCompleted(items, "リトライ"))
             {
                 foreach (var item in items)
@@ -500,21 +495,21 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region RetryUpdateCommand
-        private ViewModelCommand _RetryUpdateCommand;
+        private ListenerCommand<IEnumerable> _RetryUpdateCommand;
 
-        public ViewModelCommand RetryUpdateCommand {
+        public ListenerCommand<IEnumerable> RetryUpdateCommand {
             get {
                 if (_RetryUpdateCommand == null)
                 {
-                    _RetryUpdateCommand = new ViewModelCommand(RetryUpdate);
+                    _RetryUpdateCommand = new ListenerCommand<IEnumerable>(RetryUpdate);
                 }
                 return _RetryUpdateCommand;
             }
         }
 
-        public async void RetryUpdate()
+        public async void RetryUpdate(IEnumerable selectedItems)
         {
-            var items = SelectedQueueItems.OrEmpty().ToArray();
+            var items = selectedItems.OfType<DisplayQueueItem>().ToArray();
             foreach (var item in items)
             {
                 var file = item.Model;
@@ -528,23 +523,23 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region ReAddCommand
-        private ViewModelCommand _ReAddCommand;
+        private ListenerCommand<IEnumerable> _ReAddCommand;
 
-        public ViewModelCommand ReAddCommand
+        public ListenerCommand<IEnumerable> ReAddCommand
         {
             get
             {
                 if (_ReAddCommand == null)
                 {
-                    _ReAddCommand = new ViewModelCommand(ReAdd);
+                    _ReAddCommand = new ListenerCommand<IEnumerable>(ReAdd);
                 }
                 return _ReAddCommand;
             }
         }
 
-        public async void ReAdd()
+        public async void ReAdd(IEnumerable selectedItems)
         {
-            var items = SelectedQueueItems.OrEmpty().ToArray();
+            var items = selectedItems.OfType<DisplayQueueItem>().ToArray();
             foreach (var item in items)
             {
                 var file = item.Model;
@@ -558,23 +553,23 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region CancelCommand
-        private ViewModelCommand _CancelCommand;
+        private ListenerCommand<IEnumerable> _CancelCommand;
 
-        public ViewModelCommand CancelCommand
+        public ListenerCommand<IEnumerable> CancelCommand
         {
             get
             {
                 if (_CancelCommand == null)
                 {
-                    _CancelCommand = new ViewModelCommand(Cancel);
+                    _CancelCommand = new ListenerCommand<IEnumerable>(Cancel);
                 }
                 return _CancelCommand;
             }
         }
 
-        public void Cancel()
+        public void Cancel(IEnumerable selectedItems)
         {
-            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
+            foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
                 Model.Server.ChangeItem(new ChangeItemData()
@@ -585,23 +580,23 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
-
+        
         #region RemoveCommand
-        private ViewModelCommand _RemoveCommand;
+        private ListenerCommand<IEnumerable> _RemoveCommand;
 
-        public ViewModelCommand RemoveCommand {
+        public ListenerCommand<IEnumerable> RemoveCommand {
             get {
                 if (_RemoveCommand == null)
                 {
-                    _RemoveCommand = new ViewModelCommand(Remove);
+                    _RemoveCommand = new ListenerCommand<IEnumerable>(Remove);
                 }
                 return _RemoveCommand;
             }
         }
 
-        public void Remove()
+        public void Remove(IEnumerable selectedItems)
         {
-            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
+            foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
                 Model.Server.ChangeItem(new ChangeItemData()
@@ -614,23 +609,23 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region OpenFileInExplorerCommand
-        private ViewModelCommand _OpenFileInExplorerCommand;
+        private ListenerCommand<IEnumerable> _OpenFileInExplorerCommand;
 
-        public ViewModelCommand OpenFileInExplorerCommand
+        public ListenerCommand<IEnumerable> OpenFileInExplorerCommand
         {
             get
             {
                 if (_OpenFileInExplorerCommand == null)
                 {
-                    _OpenFileInExplorerCommand = new ViewModelCommand(OpenFileInExplorer);
+                    _OpenFileInExplorerCommand = new ListenerCommand<IEnumerable>(OpenFileInExplorer);
                 }
                 return _OpenFileInExplorerCommand;
             }
         }
 
-        public void OpenFileInExplorer()
+        public void OpenFileInExplorer(IEnumerable selectedItems)
         {
-            var item = SelectedQueueItems?.FirstOrDefault();
+            var item = selectedItems.OfType<DisplayQueueItem>().FirstOrDefault();
             if (item == null)
             {
                 return;
@@ -697,10 +692,10 @@ namespace Amatsukaze.ViewModels
             RaisePropertyChanged("Fail");
         }
 
-        public void ChangeProfile(object profile)
+        public void ChangeProfile(IEnumerable selectedItems, object profile)
         {
             var profileName = DisplayProfile.GetProfileName(profile);
-            foreach (var item in SelectedQueueItems.OrEmpty().ToArray())
+            foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
                 Model.Server.ChangeItem(new ChangeItemData()

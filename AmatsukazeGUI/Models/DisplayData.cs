@@ -37,7 +37,23 @@ namespace Amatsukaze.Models
     public class DisplayQueueItem : NotificationObject
     {
         public ClientModel Parent { get; set; }
-        public QueueItem Model { get; set; }
+
+        #region Model変更通知プロパティ
+        private QueueItem _Model;
+
+        public QueueItem Model
+        {
+            get { return _Model; }
+            set
+            {
+                if (_Model == value)
+                    return;
+                _Model = value;
+                // 全プロパティ変更
+                RaisePropertyChanged(string.Empty);
+            }
+        }
+        #endregion
 
         public bool IsComplete { get { return Model.State == QueueState.Complete; } }
         public bool IsEncoding { get { return Model.State == QueueState.Encoding; } }
@@ -150,21 +166,6 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-
-        #region IsSelected変更通知プロパティ
-        private bool _IsSelected;
-
-        public bool IsSelected {
-            get { return _IsSelected; }
-            set { 
-                if (_IsSelected == value)
-                    return;
-                _IsSelected = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
     }
 
     public class DisplayOutputMask : NotificationObject

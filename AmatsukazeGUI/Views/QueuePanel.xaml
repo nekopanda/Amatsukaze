@@ -33,6 +33,20 @@
             <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
                 <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
             </DataTemplate>
+            <Style x:Key="ButtonForSelectedItems" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ElementName=QueueList, Path=SelectedItems.Count}" Value="0">
+                        <Setter Property="IsEnabled" Value="False"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="MenuForSelectedItems" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ElementName=QueueList, Path=SelectedItems.Count}" Value="0">
+                        <Setter Property="IsEnabled" Value="False"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </DockPanel.Resources>
         
         <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsPanelOpen, Mode=TwoWay}">
@@ -50,16 +64,31 @@
             </Expander.Header>
             <DockPanel>
                 <UniformGrid Columns="4" DockPanel.Dock="Top">
-                    <Button Margin="3" Height="24" Content="キャンセル" Command="{Binding CancelCommand}"/>
-                    <Button Margin="3" Height="24" Content="削除" Command="{Binding RemoveCommand}"/>
-                    <Button Margin="3" Height="24" Content="リトライ" Command="{Binding RetryCommand}"
+                    <Button Margin="3" Height="24" Content="キャンセル"
+                            Style="{StaticResource ButtonForSelectedItems}"
+                            Command="{Binding CancelCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    <Button Margin="3" Height="24" Content="削除"
+                            Style="{StaticResource ButtonForSelectedItems}"
+                            Command="{Binding RemoveCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    <Button Margin="3" Height="24" Content="リトライ"
+                            Style="{StaticResource ButtonForSelectedItems}"
+                            Command="{Binding RetryCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="アイテムを追加直後の状態に戻します。"/>
                     <c:DropDownMenuButton Margin="3" Height="24" Content="プロファイル変更">
                         <c:DropDownMenuButton.Style>
-                            <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton"/>
+                            <Style BasedOn="{StaticResource ButtonStyle}" TargetType="c:DropDownMenuButton">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ElementName=QueueList, Path=SelectedItems.Count}" Value="0">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
                         </c:DropDownMenuButton.Style>
                         <c:DropDownMenuButton.DropDownContextMenu>
-                            <ContextMenu>
+                            <ContextMenu x:Name="buttonProfileMenu">
                                 <ContextMenu.ItemsSource>
                                     <CompositeCollection>
                                         <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
@@ -70,16 +99,25 @@
                                     <Style TargetType="MenuItem">
                                         <Setter Property="Header" Value="{Binding Path=Item}"/>
                                         <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
+                                        <Setter Property="CommandParameter" Value="{Binding SelectedItems, ElementName=QueueList}"/>
                                     </Style>
                                 </ContextMenu.ItemContainerStyle>
                             </ContextMenu>
                         </c:DropDownMenuButton.DropDownContextMenu>
                     </c:DropDownMenuButton>
-                    <Button Margin="3" Height="24" Content="複製" Command="{Binding ReAddCommand}"
+                    <Button Margin="3" Height="24" Content="複製"
+                            Style="{StaticResource ButtonForSelectedItems}"
+                            Command="{Binding ReAddCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="アイテムを同じ設定で複製します"/>
-                    <Button Margin="3" Height="24" Content="プロファイル再適用" Command="{Binding RetryUpdateCommand}"
+                    <Button Margin="3" Height="24" Content="プロファイル再適用"
+                            Style="{StaticResource ButtonForSelectedItems}"
+                            Command="{Binding RetryUpdateCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
-                    <Button Margin="3" Height="24" Content="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
+                    <Button Margin="3" Height="24" Content="完了した項目を削除"
+                            Command="{Binding RemoveCompletedAllCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                     <Slider Margin="3" Height="24" Maximum="2" Value="{Binding ListStyle, Mode=TwoWay}"
                             ToolTip="表示切り替え"/>
                 </UniformGrid>
@@ -208,7 +246,8 @@
                     </DockPanel>
                 </DataTemplate>
             </Grid.Resources>
-            <ListBox ItemsSource="{Binding Model.QueueItems}"
+            <ListBox x:Name="QueueList"
+                ItemsSource="{Binding Model.QueueItems}"
                 PreviewDragOver="ListBox_PreviewDragOver" 
                 Drop="ListBox_Drop" AllowDrop="True" 
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -228,7 +267,6 @@
                 </ListBox.Style>
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="{x:Type ListBoxItem}">
-                        <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
                         <Setter Property="OverridesDefaultStyle" Value="True" />
                         <Setter Property="Template">
                             <Setter.Value>
@@ -265,11 +303,15 @@
                     </Style>
                 </ListBox.ItemContainerStyle>
                 <ListBox.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="ロゴ生成" Command="{Binding OpenLogoAnalyzeCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
-                        <MenuItem Header="ロゴ生成(TS解析あり)" Command="{Binding OpenLogoAnalyzeSlimTsCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
+                    <ContextMenu x:Name="queueMenu">
+                        <MenuItem Header="ロゴ生成" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding OpenLogoAnalyzeCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        <MenuItem Header="ロゴ生成(TS解析あり)" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding OpenLogoAnalyzeSlimTsCommand}" 
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <Separator />
-                        <MenuItem Header="プロファイル変更" IsEnabled="{Binding IsQueueItemSelected}">
+                        <MenuItem Header="プロファイル変更" Style="{StaticResource MenuForSelectedItems}">
                             <MenuItem.ItemsSource>
                                 <CompositeCollection>
                                     <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
@@ -280,23 +322,40 @@
                                 <Style TargetType="MenuItem">
                                     <Setter Property="Header" Value="{Binding Path=Item}"/>
                                     <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
+                                    <Setter Property="CommandParameter" Value="{Binding SelectedItems, ElementName=QueueList}"/>
                                 </Style>
                             </MenuItem.ItemContainerStyle>
                         </MenuItem>
                         <Separator />
-                        <MenuItem Header="リトライ" Command="{Binding RetryCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                        <MenuItem Header="リトライ" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding RetryCommand}" 
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="アイテムを追加直後の状態に戻します。" />
-                        <MenuItem Header="プロファイル再適用" Command="{Binding RetryUpdateCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                        <MenuItem Header="プロファイル再適用" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding RetryUpdateCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します" />
-                        <MenuItem Header="複製" Command="{Binding ReAddCommand}" IsEnabled="{Binding IsQueueItemSelected}"
+                        <MenuItem Header="複製"  Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding ReAddCommand}" 
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="アイテムを同じ設定で複製します" />
                         <Separator />
-                        <MenuItem Header="キャンセル" Command="{Binding CancelCommand}" IsEnabled="{Binding IsQueueItemSelected}" />
-                        <MenuItem Header="削除" Command="{Binding RemoveCommand}" IsEnabled="{Binding IsQueueItemSelected}"/>
+                        <MenuItem Header="キャンセル" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding CancelCommand}" 
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        <MenuItem Header="削除" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding RemoveCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <Separator />
-                        <MenuItem Header="完了した項目を削除" Command="{Binding RemoveCompletedAllCommand}"/>
-                        <MenuItem Header="ファイルの場所を開く" IsEnabled="{Binding IsQueueItemSelected}" Command="{Binding OpenFileInExplorerCommand}" />
-                        <MenuItem Header="ワンセグを表示しない" IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}" IsCheckable="True" />
+                        <MenuItem Header="完了した項目を削除"
+                            Command="{Binding RemoveCompletedAllCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        <MenuItem Header="ファイルの場所を開く" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding OpenFileInExplorerCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}" />
+                        <MenuItem Header="ワンセグを表示しない"
+                                  IsChecked="{Binding Model.Setting.HideOneSeg, Mode=TwoWay}"
+                                  IsCheckable="True" />
                     </ContextMenu>
                 </ListBox.ContextMenu>
             </ListBox>
