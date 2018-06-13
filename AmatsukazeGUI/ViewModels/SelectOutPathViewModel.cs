@@ -6,6 +6,7 @@ using Livet.Messaging;
 using Livet.Messaging.Windows;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.ViewModels
@@ -59,15 +60,25 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
-            OutPath = Path.Combine(Item.DirPath, "encoded");
-            SelectedProfile = Model.SelectedAutoSelect;
+            if(Item.Outputs[0].DstPath == null)
+            {
+                ResetOutPath();
+            }
+            if(Item.Outputs[0].Profile != null)
+            {
+                bool isAuto = false;
+                var profileName = ServerSupport.ParseProfileName(Item.Outputs[0].Profile, out isAuto);
+                SelectedProfile = isAuto
+                    ? (object)Model.AutoSelectList.FirstOrDefault(s => s.Model.Name == profileName)
+                    : Model.ProfileList.FirstOrDefault(s => s.Model.Name == profileName);
+            }
         }
 
         public bool Succeeded { get; private set; }
 
         private async Task<bool> GetOutPath()
         {
-            if (System.IO.Directory.Exists(OutPath) == false)
+            if (System.IO.Directory.Exists(Item.Outputs[0].DstPath) == false)
             {
                 var message = new ConfirmationMessage(
                     "出力先フォルダが存在しません。作成しますか？",
@@ -85,7 +96,7 @@ namespace Amatsukaze.ViewModels
 
                 try
                 {
-                    Directory.CreateDirectory(OutPath);
+                    Directory.CreateDirectory(Item.Outputs[0].DstPath);
                 }
                 catch (Exception e)
                 {
@@ -93,7 +104,6 @@ namespace Amatsukaze.ViewModels
                     return false;
                 }
             }
-            Item.Outputs[0].DstPath = OutPath;
             return true;
         }
 
@@ -208,14 +218,12 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region OutPath変更通知プロパティ
-        private string _OutPath;
-
         public string OutPath {
-            get { return _OutPath; }
+            get { return Item.Outputs[0].DstPath; }
             set { 
-                if (_OutPath == value)
+                if (Item.Outputs[0].DstPath == value)
                     return;
-                _OutPath = value;
+                Item.Outputs[0].DstPath = value;
                 RaisePropertyChanged();
             }
         }
@@ -246,6 +254,25 @@ namespace Amatsukaze.ViewModels
                 _PauseStart = value;
                 RaisePropertyChanged();
             }
+        }
+        #endregion
+
+        #region ResetOutPathCommand
+        private ViewModelCommand _ResetOutPathCommand;
+
+        public ViewModelCommand ResetOutPathCommand {
+            get {
+                if (_ResetOutPathCommand == null)
+                {
+                    _ResetOutPathCommand = new ViewModelCommand(ResetOutPath);
+                }
+                return _ResetOutPathCommand;
+            }
+        }
+
+        public void ResetOutPath()
+        {
+            OutPath = Path.Combine(Item.DirPath, "encoded");
         }
         #endregion
 

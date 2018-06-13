@@ -211,6 +211,8 @@ namespace Amatsukaze.ViewModels
                 Outputs = new List<OutputInfo>() {
                     new OutputInfo()
                     {
+                        DstPath = Model.UIState.Model?.LastOutputPath,
+                        Profile = Model.UIState.Model?.LastUsedProfile,
                         // デフォルト優先順は3
                         Priority = 3
                     }

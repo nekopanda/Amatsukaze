@@ -228,11 +228,6 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool SupressSleep { get; set; }
 
-        [DataMember]
-        public string LastSelectedProfile { get; set; }
-        [DataMember]
-        public string LastSelectedAutoSelect { get; set; }
-
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ActualWorkPath
@@ -244,8 +239,20 @@ namespace Amatsukaze.Server
         }
     }
 
-    // ロゴ設定
+    // 基本設定データ
     [DataContract]
+    public class UIState : IExtensibleDataObject
+    {
+        [DataMember]
+        public string LastUsedProfile { get; set; }
+        [DataMember]
+        public string LastOutputPath { get; set; }
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
+        // ロゴ設定
+        [DataContract]
     public class LogoSetting : IExtensibleDataObject
     {
         [DataMember]
@@ -425,7 +432,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<GenreItem> Genre { get; set; }
 
-        // サーバで使う
+        [DataMember]
         public string ActualDstPath { get; set; }
 
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
@@ -953,6 +960,8 @@ namespace Amatsukaze.Server
     {
         [DataMember]
         public Setting Setting { get; set; }
+        [DataMember]
+        public UIState UIState { get; set; }
         [DataMember]
         public MakeScriptData MakeScriptData { get; set; }
         [DataMember]

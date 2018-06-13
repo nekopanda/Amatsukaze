@@ -1437,6 +1437,11 @@ namespace Amatsukaze.Models
 
     }
 
+    public class DisplayUIState
+    {
+        public UIState Model { get; set; }
+    }
+
     public class DisplayMakeScriptData : NotificationObject
     {
         public MakeScriptData Model { get; set; }

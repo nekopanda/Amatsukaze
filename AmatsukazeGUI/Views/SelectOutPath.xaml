@@ -9,10 +9,6 @@
         xmlns:m="clr-namespace:Amatsukaze.Models" 
         Title="Amatsukaze ファイル追加" SizeToContent="Height" Width="400" Loaded="Window_Loaded">
 
-    <Window.DataContext>
-        <vm:SelectOutPathViewModel/>
-    </Window.DataContext>
-
     <Window.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
     </Window.Resources>

@@ -30,6 +30,8 @@ namespace Amatsukaze.Server
             [DataMember]
             public Setting setting;
             [DataMember]
+            public UIState uiState;
+            [DataMember]
             public MakeScriptData scriptData;
             [DataMember]
             public ServiceSetting services;
@@ -144,16 +146,30 @@ namespace Amatsukaze.Server
 
         public Dictionary<int, ServiceSettingElement> ServiceMap { get { return AppData_.services.ServiceMap; } }
 
-        public string LastSelectedProfile {
-            get { return AppData_.setting.LastSelectedProfile; }
+        public string LastUsedProfile {
+            get { return AppData_.uiState.LastUsedProfile; }
             set {
-                if (AppData_.setting.LastSelectedProfile != value)
+                if (AppData_.uiState.LastUsedProfile != value)
                 {
-                    AppData_.setting.LastSelectedProfile = value;
+                    AppData_.uiState.LastUsedProfile = value;
                     settingUpdated = true;
                 }
             }
         }
+
+        public string LastOutputPath
+        {
+            get { return AppData_.uiState.LastOutputPath; }
+            set
+            {
+                if (AppData_.uiState.LastOutputPath != value)
+                {
+                    AppData_.uiState.LastOutputPath = value;
+                    settingUpdated = true;
+                }
+            }
+        }
+
         public EncodeServer(int port, IUserClient client, Action finishRequested)
         {
 #if PROFILE
@@ -238,6 +254,17 @@ namespace Amatsukaze.Server
             };
             scheduler.SetNumParallel(AppData_.setting.NumParallel);
             affinityCreator.NumProcess = AppData_.setting.NumParallel;
+
+            // キュー状態を戻す
+            queueManager.LoadAppData();
+            if(queueManager.Queue.Count > 0)
+            {
+                // １つ以上ある状態から開始する場合はキューを凍結する
+                EncodePaused = true;
+                scheduler.SetPause(true);
+                queueManager.UpdateQueueItems(null);
+            }
+
 #if PROFILE
             prof.PrintTime("EncodeServer 2");
 #endif
@@ -299,6 +326,9 @@ namespace Amatsukaze.Server
                 if (disposing)
                 {
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
+
+                    // キュー状態を保存する
+                    queueManager.SaveQueueData();
 
                     // 終了時にプロセスが残らないようにする
                     if (scheduler != null)
@@ -362,6 +392,11 @@ namespace Amatsukaze.Server
         private string GetAutoSelectFilePath()
         {
             return "config\\AutoSelectProfile.xml";
+        }
+
+        internal string GetQueueFilePath()
+        {
+            return "data\\Queue.xml";
         }
 
         private string GetHistoryFilePathV1()
@@ -613,6 +648,10 @@ namespace Amatsukaze.Server
                 if (AppData_.setting == null)
                 {
                     AppData_.setting = GetDefaultSetting();
+                }
+                if (AppData_.uiState == null)
+                {
+                    AppData_.uiState = new UIState();
                 }
                 if (AppData_.scriptData == null)
                 {
@@ -2010,6 +2049,7 @@ namespace Amatsukaze.Server
         {
             await Client.OnCommonData(new CommonData() {
                 Setting = AppData_.setting,
+                UIState = AppData_.uiState,
                 JlsCommandFiles = JlsCommandFiles,
                 MainScriptFiles = MainScriptFiles,
                 PostScriptFiles = PostScriptFiles,
@@ -2093,6 +2133,14 @@ namespace Amatsukaze.Server
                         text = w.consoleText.TextLines as List<string>
                     }
                 })));
+        }
+
+        internal Task RequestUIState()
+        {
+            return Client.OnCommonData(new CommonData()
+            {
+                UIState = AppData_.uiState
+            });
         }
 
         internal Task RequestState()

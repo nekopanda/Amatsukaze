@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,7 +13,7 @@ namespace Amatsukaze.Server
     {
         private EncodeServer server;
 
-        public List<QueueItem> Queue { get; } = new List<QueueItem>();
+        public List<QueueItem> Queue { get; private set; } = new List<QueueItem>();
 
         class DirHash
         {
@@ -27,6 +28,43 @@ namespace Amatsukaze.Server
         public QueueManager(EncodeServer server)
         {
             this.server = server;
+        }
+
+        public void LoadAppData()
+        {
+            string path = server.GetQueueFilePath();
+            if (File.Exists(path) == false)
+            {
+                return;
+            }
+            using (FileStream fs = new FileStream(path, FileMode.Open))
+            {
+                var s = new DataContractSerializer(typeof(List<QueueItem>));
+                Queue = (List<QueueItem>)s.ReadObject(fs);
+                // エンコード中だったのアイテムはリセットしておく
+                foreach(var item in Queue)
+                {
+                    if(item.State == QueueState.Encoding)
+                    {
+                        item.State = QueueState.LogoPending;
+                    }
+                    if(item.Profile == null || item.Profile.LastUpdate == DateTime.MinValue)
+                    {
+                        item.Profile = server.PendingProfile;
+                    }
+                }
+            }
+        }
+
+        public void SaveQueueData()
+        {
+            string path = server.GetQueueFilePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using (FileStream fs = new FileStream(path, FileMode.Create))
+            {
+                var s = new DataContractSerializer(typeof(List<QueueItem>));
+                s.WriteObject(fs, Queue);
+            }
         }
 
         private Task NotifyMessage(bool fail, string message, bool log)
@@ -60,7 +98,7 @@ namespace Amatsukaze.Server
                 }
                 if (UpdateQueueItem(item, waits))
                 {
-                    waits.Add(NotifyQueueItemUpdate(item));
+                    waits?.Add(NotifyQueueItemUpdate(item));
                 }
             }
             return waits;
@@ -357,13 +395,10 @@ namespace Amatsukaze.Server
 
             if (req.Mode != ProcMode.AutoBatch)
             {
-                // 最後に使ったプロファイルを記憶しておく
-                bool isAuto = false;
-                var profileName = ServerSupport.ParseProfileName(req.Outputs[0].Profile, out isAuto);
-                if (!isAuto)
-                {
-                    server.LastSelectedProfile = profileName;
-                }
+                // 最後に使った設定を記憶しておく
+                server.LastUsedProfile = req.Outputs[0].Profile;
+                server.LastOutputPath = req.Outputs[0].DstPath;
+                waits.Add(server.RequestUIState());
             }
 
             waits.Add(server.RequestFreeSpace());
