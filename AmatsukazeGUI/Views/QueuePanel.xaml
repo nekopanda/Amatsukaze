@@ -145,6 +145,11 @@
             <Grid.Resources>
                 <DataTemplate x:Key="DetailedItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
+                        <DockPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftDoubleClick"
+                                  Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                  CommandParameter="{Binding}" />
+                        </DockPanel.InputBindings>
                         <DockPanel Width="180" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
                             <TextBlock>
                                 <TextBlock.ToolTip>
@@ -180,6 +185,11 @@
                 </DataTemplate>
                 <DataTemplate x:Key="NormatlItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
+                        <DockPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftDoubleClick"
+                                  Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                  CommandParameter="{Binding}" />
+                        </DockPanel.InputBindings>
                         <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
                             <TextBlock DockPanel.Dock="Top">
                                     <TextBlock.ToolTip>
@@ -214,6 +224,11 @@
                 </DataTemplate>
                 <DataTemplate x:Key="ShortItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
+                        <DockPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftDoubleClick"
+                                  Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                  CommandParameter="{Binding}" />
+                        </DockPanel.InputBindings>
                         <DockPanel Width="100" Margin="0,0,5,0">
                             <TextBlock DockPanel.Dock="Top">
                                 <TextBlock.ToolTip>

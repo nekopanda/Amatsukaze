@@ -121,6 +121,7 @@ namespace Amatsukaze.ViewModels
          */
 
         public ClientModel Model { get; set; }
+        public MainWindowViewModel MainPanel { get; set; }
 
         private CollectionItemListener<DisplayQueueItem> queueListener;
         private CollectionChangedEventListener queueListener2;
@@ -179,9 +180,9 @@ namespace Amatsukaze.ViewModels
 
         private void QueueItemPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if(e.PropertyName == "IsSelected")
+            if(string.IsNullOrEmpty(e.PropertyName))
             {
-                RaisePropertyChanged("IsQueueItemSelected");
+                ItemStateUpdated();
             }
         }
 
@@ -677,6 +678,31 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region ShowItemDetailCommand
+        private ListenerCommand<DisplayQueueItem> _ShowItemDetailCommand;
+
+        public ListenerCommand<DisplayQueueItem> ShowItemDetailCommand {
+            get {
+                if (_ShowItemDetailCommand == null)
+                {
+                    _ShowItemDetailCommand = new ListenerCommand<DisplayQueueItem>(ShowItemDetail);
+                }
+                return _ShowItemDetailCommand;
+            }
+        }
+
+        public void ShowItemDetail(DisplayQueueItem item)
+        {
+            if(item.Model.State == QueueState.Encoding)
+            {
+                if(item.Model.ConsoleId < Model.ConsoleList.Count)
+                {
+                    MainPanel.ConsolePanelSelectedIndex = item.Model.ConsoleId;
+                }
+            }
+        }
+        #endregion
+
         #region ListStyle変更通知プロパティ
         private int _ListStyle;
 
@@ -699,15 +725,16 @@ namespace Amatsukaze.ViewModels
         public int Complete { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.Complete); } }
         public int Pending { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.LogoPending); } }
         public int Fail { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.Failed); } }
+        public int Canceled { get { return Model.QueueItems.Count(s => s.Model.State == QueueState.Canceled); } }
 
         private void ItemStateUpdated()
         {
-            RaisePropertyChanged("LastAdd");
             RaisePropertyChanged("Active");
             RaisePropertyChanged("Encoding");
             RaisePropertyChanged("Complete");
             RaisePropertyChanged("Pending");
             RaisePropertyChanged("Fail");
+            RaisePropertyChanged("Canceled");
         }
 
         public void ChangeProfile(IEnumerable selectedItems, object profile)

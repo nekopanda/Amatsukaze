@@ -434,6 +434,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public string ActualDstPath { get; set; }
+        [DataMember]
+        public int ConsoleId { get; set; }
 
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
         public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }

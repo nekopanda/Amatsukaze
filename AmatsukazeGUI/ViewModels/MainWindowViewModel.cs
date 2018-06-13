@@ -213,10 +213,13 @@ namespace Amatsukaze.ViewModels
 
         public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
 
+        public QueueViewModel QueueVM { get; private set; }
+
         public MainWindowViewModel()
         {
             Model = new ClientModel();
-            MainPanelMenu.Add(new QueueViewModel() { Name = "キュー", Model = Model });
+            QueueVM = new QueueViewModel() { Name = "キュー", Model = Model, MainPanel = this };
+            MainPanelMenu.Add(QueueVM);
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
             MainPanelMenu.Add(new ProfileSettingViewModel() { Name = "エンコード設定", Model = Model });
             MainPanelMenu.Add(new AutoSelectSettingViewModel() { Name = "プロファイル自動選択", Model = Model });

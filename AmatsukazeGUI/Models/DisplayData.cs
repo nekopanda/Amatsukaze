@@ -86,11 +86,11 @@ namespace Amatsukaze.Models
                         switch (Model.Mode)
                         {
                             case ProcMode.CMCheck:
-                                return "CM解析中";
+                                return "CM解析中→" + (Model.ConsoleId + 1);
                             case ProcMode.DrcsCheck:
-                                return "DRCSチェック中";
+                                return "DRCSチェック中→" + (Model.ConsoleId + 1);
                         }
-                        return "エンコード中";
+                        return "エンコード中→" + (Model.ConsoleId + 1);
                     case QueueState.Failed: return "失敗";
                     case QueueState.PreFailed: return "失敗";
                     case QueueState.LogoPending: return "ペンディング";

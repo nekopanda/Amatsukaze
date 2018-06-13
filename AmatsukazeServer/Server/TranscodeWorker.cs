@@ -906,6 +906,7 @@ namespace Amatsukaze.Server
                 if (src.State == QueueState.Queue)
                 {
                     src.State = QueueState.Encoding;
+                    src.ConsoleId = id;
                     waitList.Add(server.NotifyQueueItemUpdate(src));
                     logItem = await ProcessItem(server, src);
                 }

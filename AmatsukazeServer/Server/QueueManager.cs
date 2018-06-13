@@ -41,10 +41,10 @@ namespace Amatsukaze.Server
             {
                 var s = new DataContractSerializer(typeof(List<QueueItem>));
                 Queue = (List<QueueItem>)s.ReadObject(fs);
-                // エンコード中だったのアイテムはリセットしておく
                 foreach(var item in Queue)
                 {
-                    if(item.State == QueueState.Encoding)
+                    // エンコードするアイテムはリセットしておく
+                    if (item.State == QueueState.Encoding || item.State == QueueState.Queue)
                     {
                         item.State = QueueState.LogoPending;
                     }

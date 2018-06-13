@@ -142,7 +142,13 @@
         <DockPanel Grid.Row="4" Grid.ColumnSpan="3">
             <Button DockPanel.Dock="Left" Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
             <Button DockPanel.Dock="Left" Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" />
-            <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60" TextAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60"
+                       TextAlignment="Center" VerticalAlignment="Center" />
+            <ContentControl DockPanel.Dock="Right" DataContext="{Binding QueueVM}" VerticalAlignment="Center">
+                <TextBlock DockPanel.Dock="Bottom">
+                    アクティブ:<Run Text="{Binding Active, Mode=OneWay}"/>（処理中:<Run Text="{Binding Encoding, Mode=OneWay}"/> ペンディング:<Run Text="{Binding Pending, Mode=OneWay}"/>）完了:<Run Text="{Binding Complete, Mode=OneWay}"/> 失敗:<Run Text="{Binding Fail, Mode=OneWay}"/> キャンセル:<Run Text="{Binding Canceled, Mode=OneWay}"/>
+                </TextBlock>
+            </ContentControl>
             <TextBlock x:Name="resultText" Text="{Binding Model.CurrentOperationResult}"
                        Margin="10,0" Grid.Column="1" VerticalAlignment="Center"
                        Foreground="{Binding StatusForeColor}"

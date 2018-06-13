@@ -302,9 +302,11 @@ private:
         ctx.progress("%dフレーム完了 %.2ffps", i, fps);
 
         prevFrames = i;
-        sw.start();
+        sw.stop();
       }
     }
+
+    ctx.info("フィルタパス%d 完了: %.2f秒", pass + 1, sw.getTotal());
   }
 
   PClip prefetch(PClip clip, int threads) {
