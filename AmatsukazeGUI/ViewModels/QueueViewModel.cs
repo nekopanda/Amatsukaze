@@ -49,6 +49,33 @@ namespace Amatsukaze.ViewModels
         #endregion
     }
 
+    public class PriorityItemViewModel : ViewModel
+    {
+        public QueueViewModel QueueVM { get; set; }
+        public int Priority { get; set; }
+
+        #region SelectedCommand
+        private ListenerCommand<IEnumerable> _SelectedCommand;
+
+        public ListenerCommand<IEnumerable> SelectedCommand
+        {
+            get
+            {
+                if (_SelectedCommand == null)
+                {
+                    _SelectedCommand = new ListenerCommand<IEnumerable>(Selected);
+                }
+                return _SelectedCommand;
+            }
+        }
+
+        public void Selected(IEnumerable selectedItems)
+        {
+            QueueVM.ChangePriority(selectedItems, Priority);
+        }
+        #endregion
+    }
+
     public class QueueViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
@@ -102,19 +129,22 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
-            _ProfileList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
+            ProfileList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
                 Model.ProfileList, s => new QueueMenuProfileViewModel()
                 {
                     QueueVM = this,
                     Item = s
                 });
 
-            _AutoSelectList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
+            AutoSelectList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
                 Model.AutoSelectList, s => new QueueMenuProfileViewModel()
                 {
                     QueueVM = this,
                     Item = s
                 });
+
+            PriorityList = new List<PriorityItemViewModel>(
+                Model.PriorityList.Select(p => new PriorityItemViewModel() { QueueVM = this, Priority = p }));
 
             queueListener = new CollectionItemListener<DisplayQueueItem>(Model.QueueItems,
                 item => item.PropertyChanged += QueueItemPropertyChanged,
@@ -263,23 +293,9 @@ namespace Amatsukaze.ViewModels
             return true;
         }
 
-        #region ProfileList変更通知プロパティ
-        private Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> _ProfileList;
-
-        public Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> ProfileList
-        {
-            get { return _ProfileList; }
-        }
-        #endregion
-
-        #region AutoSelectList変更通知プロパティ
-        private Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> _AutoSelectList;
-
-        public Components.ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> AutoSelectList
-        {
-            get { return _AutoSelectList; }
-        }
-        #endregion
+        public ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> ProfileList { get; private set; }
+        public ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> AutoSelectList { get; private set; }
+        public List<PriorityItemViewModel> PriorityList { get; private set; }
 
         #region SearchWord変更通知プロパティ
         private string _SearchWord;
@@ -703,6 +719,20 @@ namespace Amatsukaze.ViewModels
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.Profile,
                     Profile = profileName
+                });
+            }
+        }
+
+        public void ChangePriority(IEnumerable selectedItems, int priority)
+        {
+            foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
+            {
+                var file = item.Model;
+                Model.Server.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.Priority,
+                    Priority = priority
                 });
             }
         }

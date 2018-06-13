@@ -326,6 +326,16 @@
                                 </Style>
                             </MenuItem.ItemContainerStyle>
                         </MenuItem>
+                        <MenuItem Header="優先度変更" Style="{StaticResource MenuForSelectedItems}"
+                                  ItemsSource="{Binding PriorityList}">
+                            <MenuItem.ItemContainerStyle>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Header" Value="{Binding Path=Priority}"/>
+                                    <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
+                                    <Setter Property="CommandParameter" Value="{Binding SelectedItems, ElementName=QueueList}"/>
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                        </MenuItem>
                         <Separator />
                         <MenuItem Header="リトライ" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding RetryCommand}" 
