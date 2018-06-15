@@ -421,3 +421,92 @@ private:
 		}
 	}
 };
+
+enum PROCESSOR_INFO_TAG {
+	PROC_TAG_NONE = 0,
+	PROC_TAG_CORE,
+	PROC_TAG_L2,
+	PROC_TAG_L3,
+	PROC_TAG_NUMA,
+	PROC_TAG_GROUP,
+	PROC_TAG_COUNT
+};
+
+class CPUInfo
+{
+	std::vector<GROUP_AFFINITY> data[PROC_TAG_COUNT];
+public:
+	CPUInfo() {
+		DWORD length = 0;
+		GetLogicalProcessorInformationEx(RelationAll, nullptr, &length);
+		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+			THROW(RuntimeException, "GetLogicalProcessorInformationExがERROR_INSUFFICIENT_BUFFERを返さなかった");
+		}
+		std::unique_ptr<uint8_t[]> buf = std::unique_ptr<uint8_t[]>(new uint8_t[length]);
+		uint8_t* ptr = buf.get();
+		uint8_t* end = ptr + length;
+		if (GetLogicalProcessorInformationEx(
+			RelationAll, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr, &length) == 0) {
+			THROW(RuntimeException, "GetLogicalProcessorInformationExに失敗");
+		}
+		while (ptr < end) {
+			auto info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
+			switch (info->Relationship) {
+			case RelationCache:
+				// 必要なのはL2,L3のみ
+				if (info->Cache.Level == 2 || info->Cache.Level == 3) {
+					data[(info->Cache.Level == 2) ? PROC_TAG_L2 : PROC_TAG_L3].push_back(info->Cache.GroupMask);
+				}
+				break;
+			case RelationGroup:
+				for (int i = 0; i < info->Group.ActiveGroupCount; ++i) {
+					GROUP_AFFINITY af = GROUP_AFFINITY();
+					af.Group = i;
+					af.Mask = info->Group.GroupInfo[i].ActiveProcessorMask;
+					data[PROC_TAG_GROUP].push_back(af);
+				}
+				break;
+			case RelationNumaNode:
+				data[PROC_TAG_NUMA].push_back(info->NumaNode.GroupMask);
+				break;
+			case RelationProcessorCore:
+				if (info->Processor.GroupCount != 1) {
+					THROW(RuntimeException, "GetLogicalProcessorInformationExで予期しないデータ");
+				}
+				data[PROC_TAG_CORE].push_back(info->Processor.GroupMask[0]);
+				break;
+			default:
+				break;
+			}
+			ptr += info->Size;
+		}
+	}
+	const GROUP_AFFINITY* GetData(PROCESSOR_INFO_TAG tag, int* count) {
+		*count = (int)data[tag].size();
+		return data[tag].data();
+	}
+};
+
+extern "C" __declspec(dllexport) void* CPUInfo_Create(AMTContext* ctx) {
+	try {
+		return new CPUInfo();
+	}
+	catch (const Exception& exception) {
+		ctx->setError(exception);
+	}
+	return nullptr;
+}
+extern "C" __declspec(dllexport) void CPUInfo_Delete(CPUInfo* ptr) { delete ptr; }
+extern "C" __declspec(dllexport) const GROUP_AFFINITY* CPUInfo_GetData(CPUInfo* ptr, int tag, int* count)
+{ return ptr->GetData((PROCESSOR_INFO_TAG)tag, count); }
+
+bool SetCPUAffinity(int group, uint64_t mask)
+{
+	if (mask == 0) {
+		return true;
+	}
+	GROUP_AFFINITY gf = GROUP_AFFINITY();
+	gf.Group = group;
+	gf.Mask = (KAFFINITY)mask;
+	return (SetThreadGroupAffinity(GetCurrentThread(), &gf, nullptr) != FALSE);
+}

@@ -8,16 +8,13 @@
 #pragma once
 
 // ターゲットを Windows Vista に設定
-#define _WIN32_WINNT 0x0600 // _WIN32_WINNT_VISTA
+#define _WIN32_WINNT 0x0601 // _WIN32_WINNT_WIN7
 #include <SDKDDKVer.h>
 
 #define WIN32_LEAN_AND_MEAN             // Windows ヘッダーから使用されていない部分を除外します。
+#define NOMINMAX
 // Windows ヘッダー ファイル:
 #include <windows.h>
-
-// min, maxマクロは必要ないので削除
-#undef min
-#undef max
 
 #include <cstdint>
 #include <stdio.h>

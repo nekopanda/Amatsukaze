@@ -1,12 +1,16 @@
 ﻿<Window x:Class="Amatsukaze.Views.SelectOutPath"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
         xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
         xmlns:ei="http://schemas.microsoft.com/expression/2010/interactions"
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:m="clr-namespace:Amatsukaze.Models" 
+        mc:Ignorable="d" 
+        d:DataContext="{d:DesignInstance {x:Type vm:SelectOutPathViewModel}}"
         Title="Amatsukaze ファイル追加" SizeToContent="Height" Width="400" Loaded="Window_Loaded">
 
     <Window.Resources>
@@ -64,9 +68,11 @@
                 </ComboBox.ItemsSource>
             </ComboBox>
         </DockPanel>
-        <DockPanel>
+        <DockPanel Margin="0,5,0,0">
+            <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Center"/>
+            <Button Content="デフォルト" Margin="5,0" Command="{Binding ResetOutPathCommand}" />
             <CheckBox Content="キューを凍結して追加" IsChecked="{Binding PauseStart, Mode=TwoWay}" DockPanel.Dock="Right" VerticalAlignment="Center"/>
-            <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Top" />
+            <Border/>
         </DockPanel>
         <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
         

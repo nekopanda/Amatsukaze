@@ -233,9 +233,9 @@ namespace Amatsukaze.ViewModels
             {
                 if(selectPathVM.PauseStart)
                 {
-                    await Model.Server.PauseEncode(true);
+                    await Model.Server?.PauseEncode(true);
                 }
-                Model.Server.AddQueue(req).AttachHandler();
+                Model.Server?.AddQueue(req).AttachHandler();
             }
         }
 
@@ -356,7 +356,7 @@ namespace Amatsukaze.ViewModels
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
-                await Model.Server.ChangeItem(new ChangeItemData()
+                await Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.RemoveItem
@@ -380,7 +380,7 @@ namespace Amatsukaze.ViewModels
 
         public void RemoveCompletedAll(IEnumerable selectedItems)
         {
-            Model.Server.ChangeItem(new ChangeItemData()
+            Model.Server?.ChangeItem(new ChangeItemData()
             {
                 ChangeType = ChangeItemType.RemoveCompleted
             });
@@ -503,7 +503,7 @@ namespace Amatsukaze.ViewModels
                 foreach (var item in items)
                 {
                     var file = item.Model;
-                    await Model.Server.ChangeItem(new ChangeItemData()
+                    await Model.Server?.ChangeItem(new ChangeItemData()
                     {
                         ItemId = file.Id,
                         ChangeType = ChangeItemType.ResetState
@@ -532,7 +532,7 @@ namespace Amatsukaze.ViewModels
             foreach (var item in items)
             {
                 var file = item.Model;
-                await Model.Server.ChangeItem(new ChangeItemData()
+                await Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.UpdateProfile
@@ -562,7 +562,7 @@ namespace Amatsukaze.ViewModels
             foreach (var item in items)
             {
                 var file = item.Model;
-                await Model.Server.ChangeItem(new ChangeItemData()
+                await Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.Duplicate
@@ -591,7 +591,7 @@ namespace Amatsukaze.ViewModels
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
-                Model.Server.ChangeItem(new ChangeItemData()
+                Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.Cancel
@@ -618,10 +618,37 @@ namespace Amatsukaze.ViewModels
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
-                Model.Server.ChangeItem(new ChangeItemData()
+                Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.RemoveItem
+                });
+            }
+        }
+        #endregion
+
+        #region ForceStartCommand
+        private ListenerCommand<IEnumerable> _ForceStartCommand;
+
+        public ListenerCommand<IEnumerable> ForceStartCommand {
+            get {
+                if (_ForceStartCommand == null)
+                {
+                    _ForceStartCommand = new ListenerCommand<IEnumerable>(ForceStart);
+                }
+                return _ForceStartCommand;
+            }
+        }
+
+        public void ForceStart(IEnumerable selectedItems)
+        {
+            foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
+            {
+                var file = item.Model;
+                Model.Server?.ChangeItem(new ChangeItemData()
+                {
+                    ItemId = file.Id,
+                    ChangeType = ChangeItemType.ForceStart
                 });
             }
         }
@@ -674,7 +701,7 @@ namespace Amatsukaze.ViewModels
 
         public void TogglePause()
         {
-            Model.Server.PauseEncode(!Model.IsPaused);
+            Model.Server?.PauseEncode(!Model.IsPaused);
         }
         #endregion
 
@@ -743,7 +770,7 @@ namespace Amatsukaze.ViewModels
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
-                Model.Server.ChangeItem(new ChangeItemData()
+                Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.Profile,
@@ -757,7 +784,7 @@ namespace Amatsukaze.ViewModels
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;
-                Model.Server.ChangeItem(new ChangeItemData()
+                Model.Server?.ChangeItem(new ChangeItemData()
                 {
                     ItemId = file.Id,
                     ChangeType = ChangeItemType.Priority,

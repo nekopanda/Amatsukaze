@@ -61,6 +61,8 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; set; }
 
+        public string ShortName { get { return Name; } }
+
         #region ServerHostName変更通知プロパティ
         private bool _IsLargeFile;
 

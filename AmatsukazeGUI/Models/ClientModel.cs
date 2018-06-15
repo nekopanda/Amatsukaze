@@ -124,6 +124,8 @@ namespace Amatsukaze.Models
 
         public int[] PriorityList { get { return new int[]{ 1, 2, 3, 4, 5 }; } }
 
+        public string[] AffinityList { get { return new string[] { "なし", "コア", "L2", "L3", "NUMA", "Group" }; } }
+
         #region ServerHostName変更通知プロパティ
         private string _ServerHostName;
 
@@ -442,7 +444,7 @@ namespace Amatsukaze.Models
         #endregion
 
         #region Setting変更通知プロパティ
-        private DisplaySetting _Setting = new DisplaySetting();
+        private DisplaySetting _Setting = new DisplaySetting() { Model = new Amatsukaze.Server.Setting() };
 
         public DisplaySetting Setting {
             get { return _Setting; }
@@ -454,6 +456,7 @@ namespace Amatsukaze.Models
                     _Setting.PropertyChanged -= SettingChanged;
                 _Setting = value;
                 _Setting.PropertyChanged += SettingChanged;
+                RaisePropertyChanged("CurrentClusters");
                 RaisePropertyChanged();
             }
         }
@@ -461,6 +464,11 @@ namespace Amatsukaze.Models
         private void SettingChanged(object sender, PropertyChangedEventArgs args)
         {
             RaisePropertyChanged("Setting." + args.PropertyName);
+
+            if(args.PropertyName == "AffinitySetting")
+            {
+                RaisePropertyChanged("CurrentClusters");
+            }
         }
         #endregion
 
@@ -490,6 +498,31 @@ namespace Amatsukaze.Models
                     return;
                 _MakeScriptData = value;
                 RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region CpuClusters変更通知プロパティ
+        private List<int> _AffinityClusters;
+
+        public List<int> CpuClusters {
+            get { return _AffinityClusters; }
+            set { 
+                if (_AffinityClusters == value)
+                    return;
+                _AffinityClusters = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("CurrentClusters");
+            }
+        }
+
+        public int CurrentClusters {
+            get {
+                if(CpuClusters == null)
+                {
+                    return 0;
+                }
+                return CpuClusters[Setting.AffinitySetting];
             }
         }
         #endregion
@@ -611,7 +644,7 @@ namespace Amatsukaze.Models
                 while (await requestLogoQ.OutputAvailableAsync())
                 {
                     var file = await requestLogoQ.ReceiveAsync();
-                    await Server.RequestLogoData(file);
+                    await Server?.RequestLogoData(file);
                 }
             }
             catch (Exception exception)
@@ -635,7 +668,7 @@ namespace Amatsukaze.Models
                 .FirstOrDefault(s => s.Data.ServiceId == serviceId);
             if (service != null)
             {
-                return Server.SetServiceSetting(new ServiceSettingUpdate() {
+                return Server?.SetServiceSetting(new ServiceSettingUpdate() {
                     Type = ServiceSettingUpdateType.Update,
                     ServiceId = service.Data.ServiceId,
                     Data = service.Data
@@ -658,7 +691,7 @@ namespace Amatsukaze.Models
                 int index = service.Data.LogoSettings.IndexOf(logo.Setting);
                 if (index != -1)
                 {
-                    return Server.SetServiceSetting(new ServiceSettingUpdate() {
+                    return Server?.SetServiceSetting(new ServiceSettingUpdate() {
                         Type = ServiceSettingUpdateType.RemoveLogo,
                         ServiceId = logo.Setting.ServiceId,
                         RemoveLogoIndex = index
@@ -788,19 +821,19 @@ namespace Amatsukaze.Models
 
         public Task SendSetting()
         {
-            return Server.SetCommonData(new CommonData() { Setting = Setting.Model });
+            return Server?.SetCommonData(new CommonData() { Setting = Setting.Model });
         }
 
         public Task SendMakeScriptData()
         {
             MakeScriptData.Model.Profile = DisplayProfile.GetProfileName(MakeScriptData.SelectedProfile);
-            return Server.SetCommonData(new CommonData() { MakeScriptData = MakeScriptData.Model });
+            return Server?.SetCommonData(new CommonData() { MakeScriptData = MakeScriptData.Model });
         }
 
         public Task AddProfile(ProfileSetting profile)
         {
             currentNewProfile = profile.Name;
-            return Server.SetProfile(new ProfileUpdate()
+            return Server?.SetProfile(new ProfileUpdate()
             {
                 Type = UpdateType.Add,
                 Profile = profile
@@ -809,14 +842,14 @@ namespace Amatsukaze.Models
 
         public Task UpdateProfile(ProfileSetting profile)
         {
-            return Server.SetProfile(new ProfileUpdate() {
+            return Server?.SetProfile(new ProfileUpdate() {
                 Type = UpdateType.Update, Profile = profile
             });
         }
 
         public Task RemoveProfile(ProfileSetting profile)
         {
-            return Server.SetProfile(new ProfileUpdate()
+            return Server?.SetProfile(new ProfileUpdate()
             {
                 Type = UpdateType.Remove,
                 Profile = profile
@@ -826,7 +859,7 @@ namespace Amatsukaze.Models
         public Task AddAutoSelect(AutoSelectProfile profile)
         {
             currentNewAutoSelect = profile.Name;
-            return Server.SetAutoSelect(new AutoSelectUpdate()
+            return Server?.SetAutoSelect(new AutoSelectUpdate()
             {
                 Type = UpdateType.Add,
                 Profile = profile
@@ -835,7 +868,7 @@ namespace Amatsukaze.Models
 
         public Task UpdateAutoSelect(AutoSelectProfile profile)
         {
-            return Server.SetAutoSelect(new AutoSelectUpdate()
+            return Server?.SetAutoSelect(new AutoSelectUpdate()
             {
                 Type = UpdateType.Update,
                 Profile = profile
@@ -844,7 +877,7 @@ namespace Amatsukaze.Models
 
         public Task RemoveAutoSelect(AutoSelectProfile profile)
         {
-            return Server.SetAutoSelect(new AutoSelectUpdate()
+            return Server?.SetAutoSelect(new AutoSelectUpdate()
             {
                 Type = UpdateType.Remove,
                 Profile = profile
@@ -1008,6 +1041,7 @@ namespace Amatsukaze.Models
             if(data.Setting != null)
             {
                 Setting = new DisplaySetting() { Model = data.Setting };
+                Setting.RefrechGPUResources();
             }
             if (data.UIState != null)
             {
@@ -1051,6 +1085,10 @@ namespace Amatsukaze.Models
                         TmpDiskSpaceGB = (int)(diskItem.Capacity / (1024 * 1024 * 1024L));
                     }
                 }
+            }
+            if(data.CpuClusters != null)
+            {
+                CpuClusters = data.CpuClusters;
             }
             if(data.ServerInfo != null)
             {
@@ -1293,7 +1331,11 @@ namespace Amatsukaze.Models
             {
                 if(profile == null)
                 {
-                    profile = new DisplayProfile() { Model = data.Profile };
+                    profile = new DisplayProfile() {
+                        Model = data.Profile,
+                        Resources = Enumerable.Range(0, DisplayResource.MAX).Select(
+                            s => new DisplayResource() { Model = data.Profile, Phase = s }).ToArray()
+                    };
                     ProfileList.Insert(
                         ProfileList.Count(s => !s.Model.Name.StartsWith("サンプル_")),
                         profile);
@@ -1350,6 +1392,10 @@ namespace Amatsukaze.Models
                 profile.EnableGunreFolder = data.Profile.EnableGunreFolder;
                 profile.EnableRename = data.Profile.EnableRename;
                 profile.RenameFormat = data.Profile.RenameFormat;
+                for(int i = 0; i < DisplayResource.MAX; ++i)
+                {
+                    profile.Resources[i].Resource = data.Profile.ReqResources[i];
+                }
 
                 profile.IsModified = false;
 

@@ -509,6 +509,9 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		THROW(FormatException, "M2TS出力はVFRをサポートしていません");
 	}
 
+  ResourceManger rm(ctx, setting.getInPipe(), setting.getOutPipe());
+  rm.wait(HOST_CMD_TSAnalyze);
+
 	Stopwatch sw;
 	sw.start();
 	auto splitter = std::unique_ptr<AMTSplitter>(new AMTSplitter(ctx, setting));
@@ -572,6 +575,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	std::vector<std::unique_ptr<CMAnalyze>> cmanalyze;
 
 	// ロゴ・CM解析
+  rm.wait(HOST_CMD_CMAnalyze);
 	sw.start();
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
 		// チャプター解析は300フレーム（約10秒）以上ある場合だけ
@@ -677,7 +681,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						continue;
 
 					AMTFilterSource filterSource(ctx, setting, reformInfo,
-						cma->getZones(), cma->getLogoPath(), videoFileIndex, encoderIndex, cmtype);
+						cma->getZones(), cma->getLogoPath(),
+            videoFileIndex, encoderIndex, cmtype, rm);
 
           auto getTcPath = [&]() {
             return setting.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
@@ -747,6 +752,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 	argGen = nullptr;
 
+  rm.wait(HOST_CMD_Mux);
 	sw.start();
 	int64_t totalOutSize = 0;
 	auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));

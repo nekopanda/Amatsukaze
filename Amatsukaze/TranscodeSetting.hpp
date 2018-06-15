@@ -483,6 +483,11 @@ struct Config {
 	std::string joinLogoScpCmdPath;
 	std::string joinLogoScpOptions;
 	int cmoutmask;
+  // ホストプロセスとの通信用
+  HANDLE inPipe;
+  HANDLE outPipe;
+  int affinityGroup;
+  uint64_t affinityMask;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;
@@ -672,6 +677,22 @@ public:
 		return nicojktypes;
 	}
 
+  HANDLE getInPipe() const {
+    return conf.inPipe;
+  }
+
+  HANDLE getOutPipe() const {
+    return conf.outPipe;
+  }
+
+	int getAffinityGroup() const {
+		return conf.affinityGroup;
+	}
+
+	uint64_t getAffinityMask() const {
+		return conf.affinityMask;
+	}
+
 	bool isDumpStreamInfo() const {
 		return conf.dumpStreamInfo;
 	}
@@ -789,7 +810,8 @@ public:
 	}
 
 	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/t%d-%d%s.mp4", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+		return regtmp(StringFormat("%s/t%d-%d%s.%s", 
+			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), getOutputExtention()));
 	}
 
 	std::string getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {

@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.Server
@@ -55,6 +57,7 @@ namespace Amatsukaze.Server
         public TranscodeWorker thread;
         public QueueItem src;
         public FileStream logWriter;
+        public CancellationTokenSource resourceCancel;
         public Process process;
     }
 
@@ -69,10 +72,14 @@ namespace Amatsukaze.Server
 
         private List<Task> waitList;
 
-        public void KillProcess()
+        public void CancelCurrentItem()
         {
             if (current != null)
             {
+                // キャンセル状態にする
+                current.src.State = QueueState.Canceled;
+
+                // プロセスが残っていたら終了
                 if (current.process != null)
                 {
                     try
@@ -84,6 +91,20 @@ namespace Amatsukaze.Server
                         // プロセスが既に終了していた場合
                     }
                 }
+
+                // リソース待ちだったらキャンセル
+                if(current.resourceCancel != null)
+                {
+                    current.resourceCancel.Cancel();
+                }
+            }
+        }
+
+        public void CancelItem(QueueItem item)
+        {
+            if(item == current?.src)
+            {
+                CancelCurrentItem();
             }
         }
 
@@ -265,18 +286,7 @@ namespace Amatsukaze.Server
                     await Task.WhenAll(
                         GetRenamed(server, result, p.StandardOutput),
                         RedirectOut(server, current, p.StandardError),
-                        Task.Run(() =>
-                        {
-                            while (p.WaitForExit(1000) == false)
-                            {
-                                if (src.State == QueueState.Canceled)
-                                {
-                                    // キャンセルされた
-                                    p.Kill();
-                                    break;
-                                }
-                            }
-                        }));
+                        Task.Run(() => p.WaitForExit()));
                 }
 
                 // なぜか標準出力だと取得できないのでリネームされたファイルを探す
@@ -445,7 +455,127 @@ namespace Amatsukaze.Server
             }
         }
 
-        private async Task<object> ProcessItem(EncodeServer server, QueueItem src)
+        // Client -> Server: 開始要求
+        // Server -> Client: 開始OK
+        enum ResourcePhase
+        {
+            TSAnalyze = 0,
+            CMAnalyze,
+            Filter,
+            Encode,
+            Mux,
+
+            NoWait = 0x100,
+        }
+
+        private async Task ReadBytes(PipeStream readPipe, byte[] buf)
+        {
+            int readBytes = 0;
+            while (readBytes < buf.Length)
+            {
+                readBytes += await readPipe.ReadAsync(buf, readBytes, buf.Length - readBytes);
+            }
+        }
+
+        private async Task<ResourcePhase> ReadCommand(PipeStream readPipe)
+        {
+            byte[] buf = new byte[4];
+            await ReadBytes(readPipe, buf);
+            return (ResourcePhase)BitConverter.ToInt32(buf, 0);
+        }
+
+        private Task WriteBytes(PipeStream writePipe, byte[] buf)
+        {
+            return writePipe.WriteAsync(buf, 0, buf.Length);
+        }
+
+        private async Task WriteCommand(PipeStream writePipe, ResourcePhase phase, int gpuIndex)
+        {
+            await WriteBytes(writePipe, BitConverter.GetBytes((int)phase));
+            await WriteBytes(writePipe, BitConverter.GetBytes(gpuIndex));
+        }
+
+        private async Task HostThread(EncodeServer server, TranscodeTask transcode,
+            PipeStream readPipe, PipeStream writePipe, bool ignoreResource)
+        {
+            if (!server.AppData_.setting.SchedulingEnabled)
+            {
+                return;
+            }
+
+            var ress = transcode.src.Profile.ReqResources;
+
+            // 現在専有中のリソース
+            Resource resource = null;
+
+            Util.AddLog("ホストスレッド開始@" + id);
+
+            try
+            {
+                // 子プロセスが終了するまでループ
+                while (true)
+                {
+                    var cmd = await ReadCommand(readPipe);
+
+                    if (resource != null)
+                    {
+                        server.ResourceManager.ReleaseResource(resource);
+                        resource = null;
+                    }
+
+                    // リソース確保
+                    if (ignoreResource)
+                    {
+                        // リソース上限無視なのでNoWaitは関係ない
+                        cmd &= ~ResourcePhase.NoWait;
+                        Util.AddLog("フェーズ移行リクエスト（上限無視）: " + cmd + "@" + id);
+                        resource = server.ResourceManager.ForceGetResource(ress[(int)cmd]);
+                    }
+                    else if ((cmd & ResourcePhase.NoWait) != 0)
+                    {
+                        // NoWait指定の場合は待たない
+                        cmd &= ~ResourcePhase.NoWait;
+                        Util.AddLog("フェーズ移行NoWaitリクエスト: " + cmd + "@" + id);
+                        resource = server.ResourceManager.TryGetResource(ress[(int)cmd]);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            transcode.resourceCancel = new CancellationTokenSource();
+                            Util.AddLog("フェーズ移行リクエスト: " + cmd + "@" + id);
+                            resource = await server.ResourceManager.GetResource(ress[(int)cmd], transcode.resourceCancel.Token);
+                        }
+                        finally
+                        {
+                            // GetResourceを抜けてるならもう必要ない
+                            transcode.resourceCancel = null;
+                        }
+                    }
+
+                    // 確保したリソースを通知
+                    // 確保に失敗したら-1
+                    Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
+                    await WriteCommand(writePipe, cmd, resource?.GpuIndex ?? -1);
+                }
+            }
+            catch(Exception)
+            {
+                // 子プロセスが終了すると例外を吐く
+            }
+            finally
+            {
+                Util.AddLog("ホストスレッド終了@" + id);
+                // 専有中のリソースがあったら解放
+                if (resource != null)
+                {
+                    server.ResourceManager.ReleaseResource(resource);
+                    resource = null;
+                }
+            }
+        }
+
+        private async Task<object> ProcessItem(EncodeServer server, QueueItem src, bool ignoreResource)
         {
             DateTime now = DateTime.Now;
 
@@ -502,6 +632,7 @@ namespace Amatsukaze.Server
             // 出力パス生成
             // datpathは拡張子を含まないこと
             //（拡張子があるのかないのか分からないと.tsで終わる名前とかが使えなくなるので）
+            var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
             string dstpath = src.DstPath;
             bool renamed = false;
 
@@ -523,7 +654,6 @@ namespace Amatsukaze.Server
 
                 if (newName != null)
                 {
-                    var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
                     var newPath = Path.Combine(
                         Path.GetDirectoryName(dstpath), newName);
                     if (File.Exists(newPath + ext))
@@ -578,7 +708,6 @@ namespace Amatsukaze.Server
             if (src.IsCheck == false && src.IsTest)
             {
                 // 同じ名前のファイルがある場合はサフィックス(-A...)を付ける
-                var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
                 var baseName = Path.Combine(
                     Path.GetDirectoryName(dstpath),
                     Path.GetFileName(dstpath));
@@ -615,6 +744,17 @@ namespace Amatsukaze.Server
                     localdst = tmpBase + "-out";
                 }
 
+                // リソース管理用
+                AnonymousPipeServerStream readPipe = null, writePipe = null;
+                string outHandle = null, inHandle = null;
+                if (server.AppData_.setting.SchedulingEnabled)
+                {
+                    readPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+                    writePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+                    outHandle = readPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                    inHandle = writePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                }
+
                 string json = Path.Combine(
                     Path.GetDirectoryName(localdst),
                     Path.GetFileName(localdst)) + "-enc.json";
@@ -634,8 +774,9 @@ namespace Amatsukaze.Server
                     src.Mode, profile,
                     server.AppData_.setting,
                     isMp4,
-                    srcpath, localdst, json,
-                    src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt);
+                    srcpath, localdst + ext, json,
+                    src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt,
+                    inHandle, outHandle, id);
                 string exename = server.AppData_.setting.AmatsukazePath;
 
                 int outputMask = profile.OutputMask;
@@ -656,7 +797,6 @@ namespace Amatsukaze.Server
                 };
 
                 int exitCode = -1;
-                bool isCanceled = false;
                 logText.Clear();
 
                 try
@@ -667,10 +807,7 @@ namespace Amatsukaze.Server
                         {
                             if(src.IsCheck == false)
                             {
-                                // アフィニティを設定
-                                IntPtr affinityMask = new IntPtr((long)server.affinityCreator.GetMask(id));
-                                Util.AddLog(id, "AffinityMask: " + affinityMask.ToInt64());
-                                p.ProcessorAffinity = affinityMask;
+                                // 優先度を設定
                                 p.PriorityClass = ProcessPriorityClass.BelowNormal;
                             }
                         }
@@ -678,6 +815,10 @@ namespace Amatsukaze.Server
                         {
                             // 既にプロセスが終了していると例外が出るが無視する
                         }
+
+                        // これをやらないと子プロセスが終了してもreadが帰って来ないので注意
+                        readPipe?.DisposeLocalCopyOfClientHandle();
+                        writePipe?.DisposeLocalCopyOfClientHandle();
 
                         current = new TranscodeTask()
                         {
@@ -696,22 +837,20 @@ namespace Amatsukaze.Server
                             // 起動コマンドをログ出力
                             await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
 
-                            await Task.WhenAll(
-                                RedirectOut(server, current, p.StandardOutput.BaseStream),
-                                RedirectOut(server, current, p.StandardError.BaseStream),
-                                Task.Run(() =>
-                                {
-                                    while (p.WaitForExit(1000) == false)
-                                    {
-                                        if (src.State == QueueState.Canceled)
-                                        {
-                                            // キャンセルされた
-                                            p.Kill();
-                                            isCanceled = true;
-                                            break;
-                                        }
-                                    }
-                                }));
+                            // キャンセルチェック
+                            if (src.State == QueueState.Canceled)
+                            {
+                                CancelCurrentItem();
+                            }
+                            else
+                            {
+                                await Task.WhenAll(
+                                    RedirectOut(server, current, p.StandardOutput.BaseStream),
+                                    RedirectOut(server, current, p.StandardError.BaseStream),
+                                    HostThread(server, current, readPipe, writePipe, ignoreResource),
+                                    Task.Run(() => p.WaitForExit()));
+                            }
+
                         }
                         finally
                         {
@@ -775,11 +914,11 @@ namespace Amatsukaze.Server
 
                 if(src.IsCheck)
                 {
-                    if (exitCode == 0 && isCanceled == false)
+                    if (exitCode == 0 && src.State != QueueState.Canceled)
                     {
                         return MakeCheckLogItem(src.Mode, true, src, src.Profile.Name, "", start, finish);
                     }
-                    else if (isCanceled)
+                    else if (src.State == QueueState.Canceled)
                     {
                         // キャンセルされた
                         return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "キャンセルされました", start, finish);
@@ -801,7 +940,7 @@ namespace Amatsukaze.Server
                         json = dstjson;
                     }
 
-                    if (exitCode == 0 && isCanceled == false)
+                    if (exitCode == 0 && src.State != QueueState.Canceled)
                     {
                         // 成功
                         var log = LogFromJson(isMp4, src.Profile.Name, json, start, finish, src, outputMask);
@@ -831,10 +970,10 @@ namespace Amatsukaze.Server
                     if (src.IsTest)
                     {
                         // 出力ファイルを削除
-                        File.Delete(dstpath);
+                        File.Delete(dstpath + ext);
                     }
 
-                    if (isCanceled)
+                    if (src.State == QueueState.Canceled)
                     {
                         // キャンセルされた
                         return FailLogItem(src, src.Profile.Name, "キャンセルされました", start, finish);
@@ -866,7 +1005,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        public async Task<bool> RunItem(QueueItem workerItem)
+        public async Task<bool> RunItem(QueueItem workerItem, bool forceStart)
         {
             try
             {
@@ -908,7 +1047,7 @@ namespace Amatsukaze.Server
                     src.State = QueueState.Encoding;
                     src.ConsoleId = id;
                     waitList.Add(server.NotifyQueueItemUpdate(src));
-                    logItem = await ProcessItem(server, src);
+                    logItem = await ProcessItem(server, src, forceStart);
                 }
 
                 if (logItem == null)

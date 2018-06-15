@@ -13,6 +13,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
 
 namespace Amatsukaze.Models
@@ -179,9 +180,72 @@ namespace Amatsukaze.Models
         }
     }
 
+    public class DisplayResource : NotificationObject
+    {
+        private static readonly string[] PhaseNames = new string[]
+        {
+            "TS解析", "CM解析", "フィルタ前処理", "エンコード", "Mux"
+        };
+
+        public static readonly int MAX = 5;
+
+        public ProfileSetting Model { get; set; }
+        public int Phase { get; set; }
+
+        public ReqResource Resource {
+            set {
+                CPU = value.CPU;
+                HDD = value.HDD;
+                GPU = value.GPU;
+            }
+        }
+
+        public string Name {
+            get { return PhaseNames[Phase]; }
+        }
+
+        #region CPU変更通知プロパティ
+        public int CPU {
+            get { return Model.ReqResources[Phase].CPU; }
+            set { 
+                if (Model.ReqResources[Phase].CPU == value)
+                    return;
+                Model.ReqResources[Phase].CPU = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region HDD変更通知プロパティ
+        public int HDD {
+            get { return Model.ReqResources[Phase].HDD; }
+            set { 
+                if (Model.ReqResources[Phase].HDD == value)
+                    return;
+                Model.ReqResources[Phase].HDD = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region GPU変更通知プロパティ
+        public int GPU {
+            get { return Model.ReqResources[Phase].GPU; }
+            set { 
+                if (Model.ReqResources[Phase].GPU == value)
+                    return;
+                Model.ReqResources[Phase].GPU = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
     public class DisplayProfile : NotificationObject
     {
         public ProfileSetting Model { get; set; }
+
+        public DisplayResource[] Resources { get; set; }
 
         #region EncoderTypeInt変更通知プロパティ
         public int EncoderTypeInt
@@ -875,6 +939,80 @@ namespace Amatsukaze.Models
             };
         }
 
+        public string GetResourceString()
+        {
+            var sb = new StringBuilder();
+            foreach (var res in Resources)
+            {
+                sb.Append(res.CPU).Append(":")
+                    .Append(res.HDD).Append(":")
+                    .Append(res.GPU).AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        public void SetResourceFromString(string res)
+        {
+            var raw = res.Split(new string[] { "\r\n", "\r", "\n", ":" }, StringSplitOptions.None)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => int.Parse(s)).ToArray();
+            if (raw.Length == DisplayResource.MAX * 3)
+            {
+                for (int i = 0; i < DisplayResource.MAX; ++i)
+                {
+                    Resources[i].CPU = raw[i * 3 + 0];
+                    Resources[i].HDD = raw[i * 3 + 1];
+                    Resources[i].GPU = raw[i * 3 + 2];
+                }
+            }
+        }
+
+        #region CopyResourceCommand
+        private ViewModelCommand _CopyResourceCommand;
+
+        public ViewModelCommand CopyResourceCommand {
+            get {
+                if (_CopyResourceCommand == null)
+                {
+                    _CopyResourceCommand = new ViewModelCommand(CopyResource);
+                }
+                return _CopyResourceCommand;
+            }
+        }
+
+        public void CopyResource()
+        {
+            try
+            {
+                Clipboard.SetText(GetResourceString());
+            }
+            catch { }
+        }
+        #endregion
+
+        #region PasteResourceCommand
+        private ViewModelCommand _PasteResourceCommand;
+
+        public ViewModelCommand PasteResourceCommand {
+            get {
+                if (_PasteResourceCommand == null)
+                {
+                    _PasteResourceCommand = new ViewModelCommand(PastResource);
+                }
+                return _PasteResourceCommand;
+            }
+        }
+
+        public void PastResource()
+        {
+            try
+            {
+                SetResourceFromString(Clipboard.GetText());
+            }
+            catch { }
+        }
+        #endregion
+
         public void UpdateWarningText()
         {
             StringBuilder sb = new StringBuilder();
@@ -1153,9 +1291,45 @@ namespace Amatsukaze.Models
         }
     }
 
+    public class DisplayGPUResource : NotificationObject
+    {
+        public Setting Model { get; set; }
+        public int Index { get; set; }
+        public int DisplayIndex { get { return Index + 1; } }
+
+        #region Max変更通知プロパティ
+        public int Max {
+            get {
+                if(Model?.MaxGPUResources == null)
+                {
+                    return 0;
+                }
+                return Model.MaxGPUResources[Index];
+            }
+            set {
+                if (Model?.MaxGPUResources == null)
+                    return;
+                if (Model.MaxGPUResources[Index] == value)
+                    return;
+                Model.MaxGPUResources[Index] = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
     public class DisplaySetting : NotificationObject
     {
         public Setting Model { get; set; }
+
+        public DisplayGPUResource[] GPUResources { get; private set; }
+
+        public void RefrechGPUResources()
+        {
+            GPUResources = Enumerable.Range(0, Model.NumGPU).Select(
+                i => new DisplayGPUResource() { Model = Model, Index = i }).ToArray();
+            RaisePropertyChanged("GPUResources");
+        }
 
         #region WorkPath変更通知プロパティ
         public string WorkPath
@@ -1180,6 +1354,23 @@ namespace Amatsukaze.Models
                 if (Model.NumParallel == value)
                     return;
                 Model.NumParallel = value;
+                RaisePropertyChanged("NumParallelIndex");
+                RaisePropertyChanged();
+            }
+        }
+
+        private List<int> NumParallelList = new List<int>() {
+            1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 100, 120
+        };
+
+        public int NumParallelIndex {
+            get { return NumParallelList.IndexOf(Model.NumParallel); }
+            set {
+                var numParallel = NumParallelList[value];
+                if (Model.NumParallel == numParallel)
+                    return;
+                Model.NumParallel = numParallel;
+                RaisePropertyChanged("NumParallel");
                 RaisePropertyChanged();
             }
         }
@@ -1430,6 +1621,43 @@ namespace Amatsukaze.Models
                 if (Model.SupressSleep == value)
                     return;
                 Model.SupressSleep = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region AffinitySetting変更通知プロパティ
+        public int AffinitySetting {
+            get { return (int)Model.AffinitySetting; }
+            set { 
+                if (Model.AffinitySetting == value)
+                    return;
+                Model.AffinitySetting = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SchedulingEnabled変更通知プロパティ
+        public bool SchedulingEnabled {
+            get { return Model.SchedulingEnabled; }
+            set { 
+                if (Model.SchedulingEnabled == value)
+                    return;
+                Model.SchedulingEnabled = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NumGPU変更通知プロパティ
+        public int NumGPU {
+            get { return Model.NumGPU; }
+            set { 
+                if (Model.NumGPU == value)
+                    return;
+                Model.NumGPU = value;
+                RefrechGPUResources();
                 RaisePropertyChanged();
             }
         }

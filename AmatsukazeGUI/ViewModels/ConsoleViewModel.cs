@@ -61,6 +61,8 @@ namespace Amatsukaze.ViewModels
 
         public ConsoleText Model { get; set; }
 
+        public string ShortName { get; set; }
+
         public void Initialize()
         {
         }

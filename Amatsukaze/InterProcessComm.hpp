@@ -80,20 +80,22 @@ static std::string toJsonString(const std::string str) {
 	return std::string(ret.begin(), ret.end());
 }
 
-class HostProcessComm : AMTObject
-{
-	enum PipeCommand {
-		FinishAnalyze = 1,
-		StartFilter = 2,
-		FinishFilter = 3,
-		FinishEncode = 4,
-		Error = 5
-	};
+enum PipeCommand {
+  HOST_CMD_TSAnalyze = 0,
+  HOST_CMD_CMAnalyze,
+  HOST_CMD_Filter,
+  HOST_CMD_Encode,
+  HOST_CMD_Mux,
 
+	HOST_CMD_NoWait = 0x100,
+};
+
+class ResourceManger : AMTObject
+{
 	HANDLE inPipe;
 	HANDLE outPipe;
 
-	void write(MemoryChunk mc) {
+	void write(MemoryChunk mc) const {
 		DWORD bytesWritten = 0;
 		if (WriteFile(outPipe, mc.data, (DWORD)mc.length, &bytesWritten, NULL) == 0) {
 			THROW(RuntimeException, "failed to write to stdin pipe");
@@ -103,84 +105,66 @@ class HostProcessComm : AMTObject
 		}
 	}
 
-	void writeCommand(int cmd) {
+	void read(MemoryChunk mc) const {
+		int offset = 0;
+		while (offset < mc.length) {
+			DWORD bytesRead = 0;
+			if (ReadFile(inPipe, mc.data + offset, (int)mc.length - offset, &bytesRead, NULL) == 0) {
+				THROW(RuntimeException, "failed to read from pipe");
+			}
+			offset += bytesRead;
+		}
+	}
+
+	void writeCommand(int cmd) const {
 		write(MemoryChunk((uint8_t*)&cmd, 4));
 	}
 
+  /*
 	void write(int cmd, const std::string& json) {
 		write(MemoryChunk((uint8_t*)&cmd, 4));
 		int sz = (int)json.size();
 		write(MemoryChunk((uint8_t*)&sz, 4));
 		write(MemoryChunk((uint8_t*)json.data(), sz));
 	}
+  */
 
-	int readCommand() {
+	int readCommand(int expected) const {
 		DWORD bytesRead = 0;
-		int32_t cmd;
-		if (ReadFile(inPipe, &cmd, 4, &bytesRead, NULL) == 0) {
-			THROW(RuntimeException, "failed to read from pipe");
-		}
-		if (bytesRead != 4) {
-			THROW(RuntimeException, "failed to read from pipe");
-		}
-		return cmd;
+		int32_t cmd[2];
+		read(MemoryChunk((uint8_t*)cmd, sizeof(cmd)));
+    if (cmd[0] != expected) {
+      THROW(RuntimeException, "invalid return command");
+    }
+		return cmd[1];
 	}
 
 public:
-	HostProcessComm(AMTContext& ctx, HANDLE inPipe, HANDLE outPipe)
+	ResourceManger(AMTContext& ctx, HANDLE inPipe, HANDLE outPipe)
 		: AMTObject(ctx)
 		, inPipe(inPipe)
 		, outPipe(outPipe)
 	{ }
 
-	void postAnalyzeFinished(const std::string& json) {
-		write(FinishAnalyze, json);
-	}
-	void waitStartFilter() {
-		int cmd = readCommand();
-		if (cmd != StartFilter) {
-			if(cmd == Error) THROW(RuntimeException, "Canceled");
-			THROWF(RuntimeException, "Unexpected command %d", cmd);
+	// リソース確保できなかったら-1
+	int request(PipeCommand phase) const {
+		if (inPipe == INVALID_HANDLE_VALUE) {
+			return 0;
 		}
+		writeCommand(phase | HOST_CMD_NoWait);
+		return readCommand(phase);
 	}
-	void postFilterFinished() {
-		writeCommand(FinishFilter);
-	}
-	void waitFinish() {
-		int cmd = readCommand();
-		if (cmd != FinishEncode) {
-			if (cmd == Error) THROW(RuntimeException, "Canceled");
-			THROWF(RuntimeException, "Unexpected command %d", cmd);
-		}
+
+	// リソース確保できるまで待つ
+	int wait(PipeCommand phase) const {
+    if (inPipe == INVALID_HANDLE_VALUE) {
+      return 0;
+    }
+    writeCommand(phase);
+    ctx.progress("リソース待ち ...");
+		Stopwatch sw; sw.start();
+    int ret = readCommand(phase);
+		ctx.info("リソース待ち %.2f秒", sw.getAndReset());
+		return ret;
 	}
 };
-
-struct EncodeTaskInfo
-{
-	std::vector<std::string> encoderArgs;
-	VideoFormat infmt;
-};
-
-void SaveEncodeTaskInfo(const std::string& path,
-	const std::vector<std::string>& encoderArgs,
-	const VideoFormat& infmt)
-{
-	File file(path, "wb");
-	file.writeValue(infmt);
-	file.writeValue((int)encoderArgs.size());
-	for (int i = 0; i < (int)encoderArgs.size(); ++i) {
-		file.writeString(encoderArgs[i]);
-	}
-}
-
-std::unique_ptr<EncodeTaskInfo> LoadEncodeTaskInfo(const std::string& path)
-{
-	File file(path, "rb");
-	auto info = std::unique_ptr<EncodeTaskInfo>(new EncodeTaskInfo());
-	info->infmt = file.readValue<VideoFormat>();
-	info->encoderArgs.resize(file.readValue<int>());
-	for (int i = 0; i < (int)info->encoderArgs.size(); ++i) {
-		info->encoderArgs[i] = file.readString();
-	}
-	return info;
-}

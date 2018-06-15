@@ -559,4 +559,95 @@ namespace Amatsukaze.Lib
             }
         }
     }
+
+    public struct ProcessGroup
+    {
+        public int Group;
+        public ulong Mask;
+    }
+
+    public enum ProcessGroupKind
+    {
+        None, Core, L2, L3, NUMA, Group, Count
+    }
+
+    public class CPUInfo : IDisposable
+    {
+        public AMTContext Ctx { private set; get; }
+        public IntPtr Ptr { private set; get; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct GROUP_AFFINITY
+        {
+            public UIntPtr Mask;
+            public ushort Group;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+            public ushort[] Reserved;
+        }
+
+        #region Natives
+        [DllImport("Amatsukaze.dll")]
+        private static extern IntPtr CPUInfo_Create();
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern void CPUInfo_Delete(IntPtr ptr);
+
+        [DllImport("Amatsukaze.dll")]
+        private static extern IntPtr CPUInfo_GetData(IntPtr ptr, int tag, out int count);
+        #endregion
+
+        public CPUInfo(AMTContext ctx)
+        {
+            Ctx = ctx;
+            Ptr = CPUInfo_Create();
+            if (Ptr == IntPtr.Zero)
+            {
+                throw new IOException(Ctx.GetError());
+            }
+        }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // 重複する呼び出しを検出するには
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                CPUInfo_Delete(Ptr);
+                Ptr = IntPtr.Zero;
+                disposedValue = true;
+            }
+        }
+
+        ~CPUInfo()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(false);
+        }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
+        public ProcessGroup[] Get(ProcessGroupKind kind)
+        {
+            int count;
+            var ptr = CPUInfo_GetData(Ptr, (int)kind, out count);
+            var ret = new ProcessGroup[count];
+            int size = Marshal.SizeOf(typeof(GROUP_AFFINITY));
+            for(int i = 0; i < count; ++i)
+            {
+                var item = (GROUP_AFFINITY)Marshal.PtrToStructure(ptr, typeof(GROUP_AFFINITY));
+                ret[i].Group = item.Group;
+                ret[i].Mask = item.Mask.ToUInt64();
+                ptr += size;
+            }
+            return ret;
+        }
+    }
 }

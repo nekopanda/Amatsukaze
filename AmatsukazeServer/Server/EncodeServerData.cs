@@ -64,6 +64,11 @@ namespace Amatsukaze.Server
         ServiceSetting = (1 << 7)
     }
 
+    public struct ReqResource
+    {
+        public int CPU, HDD, GPU;
+    }
+
     // プロファイル設定データ
     public class ProfileSetting : IExtensibleDataObject
     {
@@ -152,6 +157,8 @@ namespace Amatsukaze.Server
         public string RenameFormat { get; set; }
         [DataMember]
         public bool EnableGunreFolder { get; set; }
+        [DataMember]
+        public ReqResource[] ReqResources { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -220,6 +227,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public int NumParallel { get; set; }
+        [DataMember]
+        public int AffinitySetting { get; set; } // 中身はProcessGroupKind
 
         [DataMember]
         public bool ClearWorkDirOnStart { get; set; }
@@ -227,6 +236,14 @@ namespace Amatsukaze.Server
         public bool HideOneSeg { get; set; }
         [DataMember]
         public bool SupressSleep { get; set; }
+        [DataMember]
+        public bool DumpFilter { get; set; }
+        [DataMember]
+        public bool SchedulingEnabled { get; set; }
+        [DataMember]
+        public int NumGPU { get; set; }
+        [DataMember]
+        public int[] MaxGPUResources { get; set; } // 長さは常に16
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -496,6 +513,7 @@ namespace Amatsukaze.Server
         Profile,    // プロファイル変更
         RemoveItem, // アイテム削除
         RemoveCompleted,  // 完了項目を削除
+        ForceStart, // アイテムを強制的に開始
     }
 
     [DataContract]
@@ -974,6 +992,8 @@ namespace Amatsukaze.Server
         public List<string> PostScriptFiles { get; set; }
         [DataMember]
         public List<DiskItem> Disks { get; set; }
+        [DataMember]
+        public List<int> CpuClusters { get; set; }
         [DataMember]
         public ServerInfo ServerInfo { get; set; }
         [DataMember]

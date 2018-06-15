@@ -10,7 +10,7 @@
              xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
              mc:Ignorable="d" 
-             d:DesignHeight="900" d:DesignWidth="500"
+             d:DesignHeight="1500" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:ProfileSettingViewModel}}">
 
     <UserControl.Resources>
@@ -66,6 +66,8 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                     <RowDefinition />
                 </Grid.RowDefinitions>
 
@@ -311,6 +313,97 @@
                               IsChecked="{Binding Model.SelectedProfile.NoRemoveTmp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
 
+                <StackPanel Grid.Row="7" Grid.Column="0">
+                    <TextBlock HorizontalAlignment="Left" Margin="0,40">
+                        スケジューリング<LineBreak/>リソース設定
+                    </TextBlock>
+                </StackPanel>
+
+                <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,5,0,0">
+                    <DockPanel.Resources>
+                        <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
+                                                         ConvertWhenTrue="Visible" ConvertWhenFalse="Collapsed"/>
+                    </DockPanel.Resources>
+                    <DockPanel DockPanel.Dock="Top">
+                        <Border Width="80"/>
+                        <TextBlock Width="50" Text="CPU" TextAlignment="Center"/>
+                        <TextBlock Width="50" Text="HDD" TextAlignment="Center"/>
+                        <TextBlock Width="50" Text="GPU" TextAlignment="Center"/>
+                        <Border/>
+                    </DockPanel>
+                    <RichTextBox IsReadOnly="True" Margin="0,5" DockPanel.Dock="Bottom"
+                                 BorderThickness="0" Background="Transparent"
+                                 Visibility="{Binding ResourceDescriptionVisible, Converter={StaticResource VisibilityAndBooleanConverter}}">
+                        <FlowDocument>
+                            <Paragraph TextAlignment="Center">
+                                <Bold>リソース設定の説明</Bold>
+                            </Paragraph>
+                            <Paragraph>
+                                リソースはエンコード並列実行時のスケジューリングに用いられます。
+                                「基本設定」でリソーススケジューリングをONにした場合のみ有効です。
+                                エンコードの各フェーズごとに使用するCPUリソース、HDDリソース、GPUリソースを%で指定します。
+                                これはスケジューリングに用いられるだけであって、他の何かに影響するわけではありません。
+                                システム内で何かを専有するわけでも、確保するわけでもありません。
+                            </Paragraph>
+                            <Paragraph>
+                                以下のような仕組みで動作します。
+                            </Paragraph>
+                            <Paragraph>
+                                エンコードインスタンスが各フェーズに入るときに、プロファイルに設定されたリソースの確保を試みます。
+                                このとき、並列実行している他のインスタンスと合わせて、CPU,HDD,GPUの各リソースが上限の100を超えなけば、
+                                すぐ実行されますが、100を超える場合、リソースが確保できるようになるまでエンコードが中断されます。
+                            </Paragraph>
+                            <Paragraph>
+                                例えば、TS解析のHDDリソースを100と設定した場合、
+                                そのプロファイルのエンコードのTS解析は同時に１つしか走らなくなります。
+                                TS解析以外のフェーズのHDDリソースを0に設定すれば、他のフェーズはTS解析と同時に実行可能です。
+                                TS解析のHDDリソースを50と設定すれば、同時に2つまで同時実行可能になります。
+                                同じように30と設定すれば3つまで同時実行可能になります。
+                            </Paragraph>
+                            <Paragraph>
+                                リソースはCPU,HDD,GPUで別にカウントしているので、CPUを30%、HDDを100%、GPUを50%使うというような設定も可能です。
+                            </Paragraph>
+                            <Paragraph>
+                                また、上では単純化して説明しましたが、GPUだけはマルチGPUに対応しているので少し挙動が違います。
+                                CPUとHDDは上限100のリソースが１つずつしかありませんが、GPUの数と各GPUのリソース上限は
+                                「基本設定」で設定可能です。異なるGPUはリソースが別にカウントされます。
+                            </Paragraph>
+                            <Paragraph>
+                                <Bold>重要: </Bold>「基本設定」で設定されるエンコード並列数は、
+                                リソース制限により中断されているエンコードインスタンスもカウントされます。
+                                リソース設定で並列実行数を制御する場合は、エンコード並列数は多めに設定してください。
+                            </Paragraph>
+                        </FlowDocument>
+                    </RichTextBox>
+                    <ItemsControl DockPanel.Dock="Left" ItemsSource="{Binding Model.SelectedProfile.Resources}">
+                        <ItemsControl.Template>
+                            <ControlTemplate>
+                                <ItemsPresenter />
+                            </ControlTemplate>
+                        </ItemsControl.Template>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Vertical"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type m:DisplayResource}">
+                                <DockPanel>
+                                    <TextBlock Width="80" Text="{Binding Name, Mode=OneWay}"/>
+                                    <TextBox Width="50" Text="{Binding CPU, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Width="50" Text="{Binding HDD, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Width="50" Text="{Binding GPU, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Border/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Width="80" HorizontalAlignment="Left">
+                        <Button Content="コピー" Margin="5" Height="20" Command="{Binding Model.SelectedProfile.CopyResourceCommand}"/>
+                        <Button Content="貼り付け" Margin="5" Height="20" Command="{Binding Model.SelectedProfile.PasteResourceCommand}"/>
+                        <Button Content="使い方" Margin="5" Height="20" Command="{Binding ToggleResourceDescriptionCommand}"/>
+                    </StackPanel>
+                </DockPanel>
 
             </Grid>
         </ScrollViewer>

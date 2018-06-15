@@ -166,7 +166,7 @@ namespace Amatsukaze.ViewModels
             var service = SelectedServiceItem;
             if(service != null)
             {
-                Model.Server.SetServiceSetting(new ServiceSettingUpdate() {
+                Model.Server?.SetServiceSetting(new ServiceSettingUpdate() {
                     Type = ServiceSettingUpdateType.AddNoLogo,
                     ServiceId = service.Data.ServiceId
                 });
@@ -218,7 +218,7 @@ namespace Amatsukaze.ViewModels
             var service = SelectedServiceItem;
             if (service != null)
             {
-                Model.Server.SetServiceSetting(new ServiceSettingUpdate() {
+                Model.Server?.SetServiceSetting(new ServiceSettingUpdate() {
                     Type = ServiceSettingUpdateType.Remove,
                     ServiceId = service.Data.ServiceId
                 });

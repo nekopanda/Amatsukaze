@@ -42,14 +42,14 @@ std::string GetDirectoryPath(const std::string& name) {
 	return buf;
 }
 
-// プロセスに設定されているコア数を取得
+// 現在のスレッドに設定されているコア数を取得
 int GetProcessorCount()
 {
-	DWORD_PTR procMask, sysMask;
-	if (GetProcessAffinityMask(GetCurrentProcess(), &procMask, &sysMask)) {
+	GROUP_AFFINITY gaffinity;
+	if (GetThreadGroupAffinity(GetCurrentThread(), &gaffinity)) {
 		int cnt = 0;
 		for (int i = 0; i < 64; ++i) {
-			if (procMask & (DWORD_PTR(1) << i)) cnt++;
+			if (gaffinity.Mask & (DWORD_PTR(1) << i)) cnt++;
 		}
 		return cnt;
 	}

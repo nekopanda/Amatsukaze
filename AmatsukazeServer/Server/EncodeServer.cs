@@ -94,6 +94,8 @@ namespace Amatsukaze.Server
         // プロファイル未選択状態のダミープロファイル
         public ProfileSetting PendingProfile { get; private set; }
 
+        internal ResourceManager ResourceManager { get; private set; } = new ResourceManager();
+
         // データファイル
         private DataFile<LogItem> logFile;
         private DataFile<CheckLogItem> checkLogFile;
@@ -253,7 +255,7 @@ namespace Amatsukaze.Server
                 OnError = message => NotifyMessage(true, message, true)
             };
             scheduler.SetNumParallel(AppData_.setting.NumParallel);
-            affinityCreator.NumProcess = AppData_.setting.NumParallel;
+            ResourceManager.SetGPUResources(AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
 
             // キュー状態を戻す
             queueManager.LoadAppData();
@@ -337,7 +339,7 @@ namespace Amatsukaze.Server
                         {
                             if (worker != null)
                             {
-                                worker.KillProcess();
+                                worker.CancelCurrentItem();
                             }
                         }
                         scheduler.Finish();
@@ -649,6 +651,15 @@ namespace Amatsukaze.Server
                 {
                     AppData_.setting = GetDefaultSetting();
                 }
+                if (AppData_.setting.NumGPU == 0)
+                {
+                    AppData_.setting.NumGPU = 1;
+                }
+                if (AppData_.setting.MaxGPUResources == null ||
+                    AppData_.setting.MaxGPUResources.Length < ResourceManager.MAX_GPU)
+                {
+                    AppData_.setting.MaxGPUResources = Enumerable.Repeat(100, ResourceManager.MAX_GPU).ToArray();
+                }
                 if (AppData_.uiState == null)
                 {
                     AppData_.uiState = new UIState();
@@ -747,6 +758,11 @@ namespace Amatsukaze.Server
                 if (profile.NicoJKFormats == null)
                 {
                     profile.NicoJKFormats = new bool[4] { true, false, false, false };
+                }
+                if(profile.ReqResources == null)
+                {
+                    // 5個でいいけど予備を3つ置いておく
+                    profile.ReqResources = new ReqResource[8];
                 }
                 return profile;
             }
@@ -869,33 +885,54 @@ namespace Amatsukaze.Server
             bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles,
-            bool ignoreNoLogo, string jlscommand, string jlsopt)
+            bool ignoreNoLogo, string jlscommand, string jlsopt,
+            string inHandle, string outHandle, int pid)
         {
             StringBuilder sb = new StringBuilder();
 
             if (mode == ProcMode.CMCheck)
             {
-                sb.Append("--mode cm ");
+                sb.Append("--mode cm");
             }
             else if(mode == ProcMode.DrcsCheck)
             {
-                sb.Append("--mode drcs ");
+                sb.Append("--mode drcs");
             }
             else if (isGeneric)
             {
-                sb.Append("--mode g ");
+                sb.Append("--mode g");
             }
 
-            // debug
-            sb.Append("--dump-filter ");
+            if(setting.DumpFilter)
+            {
+                sb.Append(" --dump-filter");
+            }
 
-            sb.Append("-i \"")
+            sb.Append(" -i \"")
                 .Append(src)
                 .Append("\" -s ")
                 .Append(serviceId)
                 .Append(" --drcs \"")
                 .Append(GetDRCSMapPath())
                 .Append("\"");
+
+            if(inHandle != null)
+            {
+                sb.Append(" --resource-manager ")
+                    .Append(inHandle)
+                    .Append(':')
+                    .Append(outHandle);
+            }
+
+            if(setting.AffinitySetting != (int)ProcessGroupKind.None)
+            {
+                var mask = affinityCreator.GetMask(
+                    (ProcessGroupKind)setting.AffinitySetting, pid);
+                sb.Append(" --affinity ")
+                    .Append(mask.Group)
+                    .Append(':')
+                    .Append(mask.Mask);
+            }
 
             if (mode == ProcMode.DrcsCheck)
             {
@@ -1896,7 +1933,7 @@ namespace Amatsukaze.Server
                     CheckSetting(null, data.Setting);
                     AppData_.setting = data.Setting;
                     scheduler.SetNumParallel(data.Setting.NumParallel);
-                    affinityCreator.NumProcess = data.Setting.NumParallel;
+                    ResourceManager.SetGPUResources(AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
                     settingUpdated = true;
                     return Task.WhenAll(
                         Client.OnCommonData(new CommonData() { Setting = AppData_.setting }),
@@ -1993,10 +2030,27 @@ namespace Amatsukaze.Server
             }
         }
 
+        // 指定アイテムをキャンセルする
+        internal void CancelItem(QueueItem item)
+        {
+            foreach (var worker in scheduler.Workers.Cast<TranscodeWorker>())
+            {
+                if (worker != null)
+                {
+                    worker.CancelItem(item);
+                }
+            }
+        }
+
         // 指定アイテムの新しい優先度を適用
         internal void UpdatePriority(QueueItem item)
         {
             scheduler.UpdatePriority(item, item.ActualPriority);
+        }
+
+        internal void ForceStartItem(QueueItem item)
+        {
+            scheduler.ForceStart(item);
         }
 
         // 新しいサービスを登録
@@ -2053,6 +2107,7 @@ namespace Amatsukaze.Server
                 JlsCommandFiles = JlsCommandFiles,
                 MainScriptFiles = MainScriptFiles,
                 PostScriptFiles = PostScriptFiles,
+                CpuClusters = affinityCreator.GetClusters(),
                 ServerInfo = new ServerInfo()
                 {
                     HostName = Dns.GetHostName(),

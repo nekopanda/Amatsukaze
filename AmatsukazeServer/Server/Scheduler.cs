@@ -10,14 +10,15 @@ namespace Amatsukaze.Server
 {
     interface IScheduleWorker<ITEM>
     {
-        Task<bool> RunItem(ITEM item);
+        Task<bool> RunItem(ITEM item, bool forceStart);
     }
 
-    class EncodeScheduler<ITEM>
+    class EncodeScheduler<ITEM> where ITEM : class
     {
         private class Worker
         {
             public bool IsSleeping;
+            public ITEM WorkItem; // 強制的に実行するアイテム
             public BufferBlock<int> NotifyQ;
             public IScheduleWorker<ITEM> TargetWorker;
         }
@@ -61,12 +62,16 @@ namespace Amatsukaze.Server
 
                     running.Add(w);
 
-                    int failCount = 0;
+                    int failCount = 0; // 今は使ってない...
                     int runCount = 0;
-                    while (id < numActive)
+                    while (id < numActive || w.WorkItem != null)
                     {
                         ITEM item;
-                        if(queue.Count > 0)
+                        if(w.WorkItem != null)
+                        {
+                            item = w.WorkItem;
+                        }
+                        else if(queue.Count > 0)
                         {
                             item = queue.Dequeue();
                         }
@@ -87,7 +92,7 @@ namespace Amatsukaze.Server
                             await OnStart();
                         }
                         ++runCount;
-                        if (await w.TargetWorker.RunItem(item))
+                        if (await w.TargetWorker.RunItem(item, w.WorkItem != null))
                         {
                             failCount = 0;
                         }
@@ -98,6 +103,7 @@ namespace Amatsukaze.Server
                                 OnError("エンコードに失敗したので" + waitSec + "秒待機します。(parallel=" + id + ")"),
                                 Task.Delay(waitSec * 1000));
                         }
+                        w.WorkItem = null;
                     }
 
                     if(id >= numActive)
@@ -115,30 +121,42 @@ namespace Amatsukaze.Server
             }
         }
 
+        private void ActivateOneWorker(ITEM item)
+        {
+            var worker = workers.First(w => w.IsSleeping);
+            worker.IsSleeping = false;
+            worker.WorkItem = item;
+            parking.Add(worker);
+            worker.NotifyQ.Post(0);
+        }
+
         private void SetActive(int active)
         {
             while (running.Count + parking.Count < active)
             {
-                var worker = workers.First(w => w.IsSleeping);
-                worker.IsSleeping = false;
-                parking.Add(worker);
-                worker.NotifyQ.Post(0);
+                ActivateOneWorker(null);
             }
             numActive = active;
         }
 
-        public void SetNumParallel(int parallel)
+        private void EnsureNumWorkers(int numWorkers)
         {
-            while (workers.Count < parallel)
+            while (workers.Count < numWorkers)
             {
                 int id = workers.Count;
-                workers.Add(new Worker() {
+                workers.Add(new Worker()
+                {
                     IsSleeping = true,
                     NotifyQ = new BufferBlock<int>(),
                     TargetWorker = NewWorker(id)
                 });
                 workerThreads.Add(WorkerThread(id));
             }
+        }
+
+        public void SetNumParallel(int parallel)
+        {
+            EnsureNumWorkers(parallel);
             numParallel = parallel;
             if(isPause == false)
             {
@@ -169,6 +187,13 @@ namespace Amatsukaze.Server
         {
             if (priority > 0) throw new Exception("エラー");
             queue.TryUpdatePriority(item, priority + 10);
+        }
+
+        // アイテムを１つだけ強制的に開始する
+        public void ForceStart(ITEM item)
+        {
+            EnsureNumWorkers(running.Count + parking.Count + 1);
+            ActivateOneWorker(item);
         }
 
         // タスクを待たずに終了させる

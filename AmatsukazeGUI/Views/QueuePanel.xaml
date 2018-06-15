@@ -372,6 +372,11 @@
                             Command="{Binding RemoveCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <Separator />
+                        <MenuItem Header="強制的に実行" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding ForceStartCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
+                            ToolTip="並列数制限やリソース制限を無視して強制的に実行します" />
+                        <Separator />
                         <MenuItem Header="完了した項目を削除"
                             Command="{Binding RemoveCompletedAllCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>

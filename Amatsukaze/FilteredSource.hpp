@@ -15,6 +15,7 @@
 #include "TranscodeSetting.hpp"
 #include "StreamReform.hpp"
 #include "AMTSource.hpp"
+#include "InterProcessComm.hpp"
 
 class RFFExtractor
 {
@@ -141,53 +142,56 @@ public:
     const StreamReformInfo& reformInfo,
     const std::vector<EncoderZone>& zones,
     const std::string& logopath,
-    int fileId, int encoderId, CMType cmtype)
+    int fileId, int encoderId, CMType cmtype,
+    const ResourceManger& rm)
     : AMTObject(ctx)
     , setting_(setting)
     , env_(make_unique_ptr((IScriptEnvironment2*)nullptr))
     , filterTmp(setting.getAvsTmpPath(fileId, encoderId, cmtype))
   {
     try {
-      InitEnv();
-      std::vector<int> outFrames;
-      filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+			// フィルタ前処理用リソース確保
+			int gpuIndex = rm.wait(HOST_CMD_Filter);
+			std::vector<int> outFrames;
 
-      std::string mainpath = setting.getFilterScriptPath();
-      if (mainpath.size()) {
-        //Kパスまである場合
-        //<=K-2: 前処理
-        //K-1: タイミング生成
-        //K: 画像生成（タイミングも同時に生成）
-        //PHASE
-        //0: 前処理
-        //1: タイミング生成
-        //2: 画像生成
+			//Kパスまである場合
+			//<=K-2: 前処理
+			//K-1: タイミング生成
+			//K: 画像生成（タイミングも同時に生成）
+			//PHASE
+			//0: 前処理
+			//1: タイミング生成
+			//2: 画像生成
+			int pass = 0;
+			for (; pass < 4; ++pass) {
+				int phase = FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+				if (phase == PHASE_PRE_PROCESS) {
+					// 前処理を実行
+					ReadAllFrames(pass, phase);
+				}
+				else if (phase == PHASE_GEN_TIMING) {
+					// タイミング生成
+					ReadAllFrames(pass, phase);
+				}
+				else {
+					break;
+				}
+			}
 
-        // 最大4パスまで実行
-        for (int pass = 0; pass < 4; ++pass) {
-          env_->SetVar("AMT_SOURCE", filter_);
-          env_->SetVar("AMT_PASS", pass);
-          filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
-          int phase = env_->GetVarDef("AMT_PHASE", PHASE_GEN_IMAGE).AsInt();
-
-          if (phase == PHASE_PRE_PROCESS) {
-            // 前処理を実行
-            ReadAllFrames(pass, phase);
-          }
-          else if (phase == PHASE_GEN_TIMING) {
-            // タイミング生成
-            ReadAllFrames(pass, phase);
-          }
-          else {
-            break;
-          }
-
-          filter_ = nullptr; // クリップ解放
-          InitEnv();
-          std::vector<int> outFrames_;
-          filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames_, reformInfo, logopath);
-        }
-      }
+			// エンコード用リソース確保
+			int encodeIndex = rm.request(HOST_CMD_Encode);
+			if (encodeIndex == -1 || encodeIndex != gpuIndex) {
+				// 確保できなかった or GPUが変更されたら 一旦解放する
+				filter_ = nullptr;
+				env_ = nullptr;
+				if (encodeIndex == -1) {
+					// リソースが確保できていなかったら確保できるまで待つ
+					encodeIndex = rm.wait(HOST_CMD_Encode);
+				}
+				// 再生成
+				gpuIndex = encodeIndex;
+				FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+			}
 
       std::string postpath = setting.getPostFilterScriptPath();
       if (postpath.size()) {
@@ -395,6 +399,29 @@ private:
 
     return clip;
   }
+
+	int FilterPass(int pass, int gpuIndex,
+		int fileId, int encoderId, CMType cmtype,
+		std::vector<int>& outFrames,
+		const StreamReformInfo& reformInfo,
+		const std::string& logopath)
+	{
+		outFrames.clear();
+
+		filter_ = nullptr; // クリップ解放
+		InitEnv();
+		filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+		env_->SetVar("AMT_SOURCE", filter_);
+		env_->SetVar("AMT_PASS", pass);
+		env_->SetVar("AMT_DEV", gpuIndex);
+
+		std::string mainpath = setting_.getFilterScriptPath();
+		if (mainpath.size()) {
+			filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
+			return env_->GetVarDef("AMT_PHASE", PHASE_GEN_IMAGE).AsInt();
+		}
+		return PHASE_GEN_IMAGE;
+	}
 
   void MakeZones(
     PClip postClip,

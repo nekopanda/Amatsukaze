@@ -107,7 +107,7 @@ namespace Amatsukaze.ViewModels
         public void SetMapStr()
         {
             Image.MapStr = _MapStr;
-            Model.Server.AddDrcsMap(Image);
+            Model.Server?.AddDrcsMap(Image);
         }
         #endregion
 
@@ -130,7 +130,7 @@ namespace Amatsukaze.ViewModels
                 "AmatsukazeGUI", MessageBoxButton.OKCancel) == MessageBoxResult.OK)
             {
                 Image.MapStr = null;
-                Model.Server.AddDrcsMap(Image);
+                Model.Server?.AddDrcsMap(Image);
             }
         }
         #endregion

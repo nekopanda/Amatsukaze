@@ -72,7 +72,7 @@ namespace Amatsukaze.ViewModels
             var item = SelectedLogItem;
             if (item != null)
             {
-                Model.Server.RequestLogFile(new LogFileRequest() { LogItem = item });
+                Model.Server?.RequestLogFile(new LogFileRequest() { LogItem = item });
             }
         }
 

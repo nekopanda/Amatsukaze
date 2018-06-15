@@ -17,12 +17,16 @@
 namespace std { typedef wstring tstring; }
 typedef wchar_t tchar;
 #define stscanf swscanf_s
+#define tcslen wcslen
+#define stricmp _wcsicmp
 #define PRITSTR "ls"
 #define _T(s) L ## s
 #else
 namespace std { typedef string tstring; }
 typedef char tchar;
 #define stscanf sscanf
+#define tcslen strlen
+#define stricmp _stricmp
 #define PRITSTR "s"
 #define _T(s) s
 #endif
@@ -117,6 +121,9 @@ static void printHelp(const tchar* bin) {
     "                      ts : MPGE2-TSを入力する通常エンコードモード\n"
     "                      cm : エンコードまで行わず、CM解析までで終了するモード\n"
 		"                      drcs : マッピングのないDRCS外字画像だけ出力するモード\n"
+    "  --resource-manager <入力パイプ>:<出力パイプ> リソース管理ホストとの通信パイプ\n"
+    "  --affinity <グループ>:<マスク> CPUアフィニティ\n"
+		"                      グループはプロセッサグループ（64論理コア以下のシステムでは0のみ）\n"
 		"  --dump              処理途中のデータをダンプ（デバッグ用）\n",
 		bin);
 }
@@ -163,13 +170,17 @@ static std::tstring pathGetDirectory(const std::tstring& path) {
 }
 
 static std::tstring pathRemoveExtension(const std::tstring& path) {
-	return path.substr(0, pathGetExtensionSplitPos(path));
-}
-
-static std::string pathGetExtension(const std::string& path) {
-	auto ext = path.substr(pathGetExtensionSplitPos(path));
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-	return ext;
+	const tchar* exts[] = { _T(".mp4"), _T(".mkv"), _T(".m2ts"), nullptr };
+	const tchar* c_path = path.c_str();
+	for (int i = 0; exts[i]; ++i) {
+		size_t extlen = tcslen(exts[i]);
+		if (path.size() > extlen) {
+			if (_wcsicmp(c_path + (path.size() - extlen), exts[i]) == 0) {
+				return path.substr(0, path.size() - extlen);
+			}
+		}
+	}
+	return path;
 }
 
 static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
@@ -223,6 +234,8 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.serviceId = -1;
 	conf.cmoutmask = 1;
 	conf.nicojkmask = 1;
+	conf.inPipe = INVALID_HANDLE_VALUE;
+	conf.outPipe = INVALID_HANDLE_VALUE;
 	bool nicojk = false;
 
 	for (int i = 1; i < argc; ++i) {
@@ -413,9 +426,26 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--no-remove-tmp")) {
 			conf.noRemoveTmp = true;
 		}
-        else if (key == _T("--dump-filter")) {
-            conf.dumpFilter = true;
-        }
+		else if (key == _T("--dump-filter")) {
+				conf.dumpFilter = true;
+		}
+		else if (key == _T("--resource-manager")) {
+      const auto arg = getParam(argc, argv, i++);
+      size_t inPipe, outPipe;
+      int ret = stscanf(arg.c_str(), _T("%zu:%zu"), &inPipe, &outPipe);
+      if (ret < 2) {
+        THROWF(ArgumentException, "--resource-managerの指定が間違っています");
+      }
+      conf.inPipe = (HANDLE)inPipe;
+      conf.outPipe = (HANDLE)outPipe;
+		}
+		else if (key == _T("--affinity")) {
+			const auto arg = getParam(argc, argv, i++);
+			int ret = stscanf(arg.c_str(), _T("%d:%lld"), &conf.affinityGroup, &conf.affinityMask);
+			if (ret < 2) {
+				THROWF(ArgumentException, "--affinityの指定が間違っています");
+			}
+		}
 		else if (key.size() == 0) {
 			continue;
 		}
@@ -615,6 +645,11 @@ __declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
 		ctx.setDefaultCP();
 
 		auto setting = parseArgs(ctx, argc, argv);
+
+		// CPUアフィニティを設定
+		if (!SetCPUAffinity(setting->getAffinityGroup(), setting->getAffinityMask())) {
+			ctx.error("CPUアフィニティを設定できませんでした");
+		}
 
 		// FFMPEGライブラリ初期化
 		InitializeCriticalSection(&g_log_crisec);

@@ -211,6 +211,10 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        public bool IsManyConsole {
+            get { return ConsolePanelMenu.Count > 6; }
+        }
+
         public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
 
         public QueueViewModel QueueVM { get; private set; }
@@ -304,7 +308,12 @@ namespace Amatsukaze.ViewModels
             {
                 int index = ConsolePanelMenu.Count - 1;
                 ConsolePanelMenu.Insert(index,
-                    new ConsoleViewModel() { Name = "コンソール" + (index + 1), Model = Model.ConsoleList[index] });
+                    new ConsoleViewModel() {
+                        Name = "コンソール" + (index + 1),
+                        ShortName = (index + 1).ToString(),
+                        Model = Model.ConsoleList[index]
+                    });
+                RaisePropertyChanged("IsManyConsole");
             }
         }
 
@@ -341,7 +350,7 @@ namespace Amatsukaze.ViewModels
 
         public void Refresh()
         {
-            Model.Server.RefreshRequest();
+            Model.Server?.RefreshRequest();
         }
         #endregion
 

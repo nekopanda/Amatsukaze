@@ -127,7 +127,32 @@
         </DockPanel>
 
         <DockPanel Grid.Column="2" >
-            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}" />
+            <ListBox DockPanel.Dock="Top" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}">
+                <ListBox.Style>
+                    <Style TargetType="ListBox" BasedOn="{StaticResource HeaderMenuStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsManyConsole}" Value="True">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ItemsControl">
+                                            <Border Background="Azure">
+                                                <WrapPanel IsItemsHost="True" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="ItemTemplate">
+                                    <Setter.Value>
+                                        <DataTemplate>
+                                            <TextBlock Margin="3" Text="{Binding ShortName}" TextAlignment="Center" MinWidth="20"/>
+                                        </DataTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListBox.Style>
+            </ListBox>
             <ContentControl Grid.Row="1" Content="{Binding ConsolePanel}" />
         </DockPanel>
 

@@ -52,6 +52,8 @@ namespace Amatsukaze.Server
                     {
                         item.Profile = server.PendingProfile;
                     }
+                    // IDを振り直す
+                    item.Id = nextItemId++;
                 }
             }
         }
@@ -640,6 +642,10 @@ namespace Amatsukaze.Server
             {
                 if (target.IsActive)
                 {
+                    if(target.State == QueueState.Encoding)
+                    {
+                        server.CancelItem(target);
+                    }
                     target.State = QueueState.Canceled;
                     return Task.WhenAll(
                         ClientQueueUpdate(new QueueUpdate()
@@ -693,6 +699,10 @@ namespace Amatsukaze.Server
             }
             else if (data.ChangeType == ChangeItemType.RemoveItem)
             {
+                if (target.State == QueueState.Encoding)
+                {
+                    server.CancelItem(target);
+                }
                 target.State = QueueState.Canceled;
                 Queue.Remove(target);
                 return Task.WhenAll(
@@ -702,6 +712,17 @@ namespace Amatsukaze.Server
                         Item = target
                     }),
                     NotifyMessage(false, "アイテムを削除しました", false));
+            }
+            else if(data.ChangeType == ChangeItemType.ForceStart)
+            {
+                if(target.State != QueueState.Queue)
+                {
+                    return NotifyMessage(true, "待ち状態にないアイテムは開始できません", false);
+                }
+                else
+                {
+                    server.ForceStartItem(target);
+                }
             }
             return Task.FromResult(0);
         }

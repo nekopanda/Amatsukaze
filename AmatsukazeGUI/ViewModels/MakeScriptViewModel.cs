@@ -271,7 +271,7 @@ namespace Amatsukaze.ViewModels
 
                 if (message.Response == true)
                 {
-                    await Model.Server.EndServer();
+                    await Model.Server?.EndServer();
                 }
             }
             else

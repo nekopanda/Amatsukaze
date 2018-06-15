@@ -81,6 +81,7 @@
     <Compile Include="Server\GenreData.cs" />
     <Compile Include="Server\Misc.cs" />
     <Compile Include="Server\QueueManager.cs" />
+    <Compile Include="Server\ResourceManager.cs" />
     <Compile Include="Server\Scheduler.cs" />
     <Compile Include="Server\ServerConnection.cs" />
     <Compile Include="Server\ServerInterface.cs" />

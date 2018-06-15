@@ -1,5 +1,6 @@
 ﻿using Amatsukaze.Models;
 using Amatsukaze.Server;
+using Livet;
 using Livet.Commands;
 using Livet.Messaging;
 
@@ -145,6 +146,39 @@ namespace Amatsukaze.ViewModels
                     await Model.RemoveProfile(profile);
                 }
             }
+        }
+        #endregion
+
+        #region ResourceDescriptionVisible変更通知プロパティ
+        private bool _ResourceDescriptionVisible;
+
+        public bool ResourceDescriptionVisible {
+            get { return _ResourceDescriptionVisible; }
+            set { 
+                if (_ResourceDescriptionVisible == value)
+                    return;
+                _ResourceDescriptionVisible = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ToggleResourceDescriptionCommand
+        private ViewModelCommand _ToggleResourceDescriptionCommand;
+
+        public ViewModelCommand ToggleResourceDescriptionCommand {
+            get {
+                if (_ToggleResourceDescriptionCommand == null)
+                {
+                    _ToggleResourceDescriptionCommand = new ViewModelCommand(ToggleResourceDescription);
+                }
+                return _ToggleResourceDescriptionCommand;
+            }
+        }
+
+        public void ToggleResourceDescription()
+        {
+            ResourceDescriptionVisible = !ResourceDescriptionVisible;
         }
         #endregion
 

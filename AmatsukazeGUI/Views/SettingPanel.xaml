@@ -5,9 +5,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:clr="clr-namespace:System;assembly=mscorlib"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
-             d:DesignHeight="550" d:DesignWidth="500"
+             d:DesignHeight="900" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
     
     <UserControl.Resources>
@@ -39,29 +40,17 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコード並列数" VerticalAlignment="Top" Margin="0,4"/>
-                    <TextBlock HorizontalAlignment="Right" Text="一時フォルダ" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock HorizontalAlignment="Right" Text="一時フォルダ (重要)" VerticalAlignment="Top" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Margin="3"
-                                SmallChange="1" Maximum="8" Minimum="1"
-                                Value="{Binding Model.Setting.NumParallel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。"/>
-                        <TextBlock Grid.Column="1" TextWrapping="Wrap" Width="7" VerticalAlignment="Center"
-                                   Text="{Binding Model.Setting.NumParallel}"/>
-                    </Grid>
-
                     <TextBox Margin="0,3" Height="23" 
                              Text="{Binding Model.Setting.WorkPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop" 
@@ -128,6 +117,90 @@
                     </StackPanel>
                 </DockPanel>
 
+                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                    <TextBlock HorizontalAlignment="Right" Text="エンコード最大並列数" VerticalAlignment="Top" Margin="0,4"/>
+                    <TextBlock HorizontalAlignment="Right" Text="CPUアフィニティ" VerticalAlignment="Top" Margin="0,4"/>
+                    <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,4"/>
+                    <TextBlock HorizontalAlignment="Right" Text="スケジューリング" VerticalAlignment="Top" Margin="0,4"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,10,0,0">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="22" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                   Text="{Binding Model.Setting.NumParallel}"/>
+                        <Slider Margin="3"
+                                SmallChange="1" Maximum="22" Minimum="0"
+                                Value="{Binding Model.Setting.NumParallelIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。&#xA;リソーススケジューリングで中断しているインスタンスも並列数にカウントされるので&#xA;リソーススケジューリングを使う場合は多めに設定してください。"/>
+                    </DockPanel>
+                    <DockPanel>
+                        <DockPanel.Resources>
+                            <ControlTemplate x:Key="ShowPartitions">
+                                <DockPanel>
+                                    <TextBlock Text="ごと→分割数"/>
+                                    <TextBlock Text="{Binding Model.CurrentClusters, Mode=OneWay}"/>
+                                </DockPanel>
+                            </ControlTemplate>
+                            <ControlTemplate x:Key="ParitionsDisabled">
+                                <Border />
+                            </ControlTemplate>
+                        </DockPanel.Resources>
+                        <ComboBox IsReadOnly="True" Width="70"
+                                  ItemsSource="{Binding Model.AffinityList}"
+                                  SelectedIndex="{Binding Model.Setting.AffinitySetting, Mode=TwoWay}"
+                                  ToolTip="コア数の多いCPUではアフィニティを設定したほうが性能が良くなる場合があります。&#xA;L3キャッシュごとに割り当てれば、だいだいベストな性能が出ます。&#xA;GroupはWindowsのプロセッサーグループです。"/>
+                        <ContentControl Margin="5,0,0,0" VerticalAlignment="Center">
+                            <ContentControl.Style>
+                                <Style TargetType="ContentControl">
+                                    <Setter Property="Template" Value="{StaticResource ShowPartitions}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Model.Setting.AffinitySetting}" Value="0">
+                                            <Setter Property="Template" Value="{StaticResource ParitionsDisabled}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ContentControl.Style>
+                        </ContentControl>
+                    </DockPanel>
+                    <CheckBox Height="16" Margin="0,5"  Content="リソーススケジューリングを有効にする" 
+                              IsChecked="{Binding Model.Setting.SchedulingEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ToolTip="エンコードフェーズごとにCPU,HDD,GPUの各資源の使用量を考慮したスケジューリングを行います。&#xA;プロファイル設定で使用リソースを設定する必要があります。" />
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" IsEnabled="{Binding Model.Setting.SchedulingEnabled}">
+                            <TextBlock Text="GPU数:" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Model.Setting.NumGPU, Mode=OneWay}"
+                                   VerticalAlignment="Center" Width="20" TextAlignment="Center"/>
+                            <Slider Margin="3"
+                                SmallChange="1" Maximum="16" Minimum="1"
+                                Value="{Binding Model.Setting.NumGPU, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding Model.Setting.GPUResources}"
+                                      IsEnabled="{Binding Model.Setting.SchedulingEnabled}">
+                            <ItemsControl.Template>
+                                <ControlTemplate>
+                                    <ItemsPresenter />
+                                </ControlTemplate>
+                            </ItemsControl.Template>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:DisplayGPUResource}">
+                                    <DockPanel Margin="2">
+                                        <TextBlock Width="40"
+                                                    VerticalAlignment="Center" TextAlignment="Center">
+                                            GPU<Run Text="{Binding DisplayIndex, Mode=OneWay}"/>
+                                        </TextBlock>
+                                        <TextBox Text="{Binding Max, Mode=TwoWay}"
+                                                    Width="50"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                </StackPanel>
             </Grid>
         </ScrollViewer>
     </DockPanel>
