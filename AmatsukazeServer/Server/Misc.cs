@@ -290,7 +290,7 @@ namespace Amatsukaze.Server
         private AMTContext amtcontext = new AMTContext();
         public AffinityCreator()
         {
-            Util.AddLog(" CPU構成を検出");
+            //Util.AddLog(" CPU構成を検出");
             using (var cpuInfo = new CPUInfo(amtcontext))
             {
                 masks[(int)ProcessGroupKind.Core] = cpuInfo.Get(ProcessGroupKind.Core);

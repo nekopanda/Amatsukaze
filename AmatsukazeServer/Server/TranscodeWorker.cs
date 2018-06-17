@@ -508,7 +508,7 @@ namespace Amatsukaze.Server
             // 現在専有中のリソース
             Resource resource = null;
 
-            Util.AddLog("ホストスレッド開始@" + id);
+            //Util.AddLog("ホストスレッド開始@" + id);
 
             try
             {
@@ -528,14 +528,14 @@ namespace Amatsukaze.Server
                     {
                         // リソース上限無視なのでNoWaitは関係ない
                         cmd &= ~ResourcePhase.NoWait;
-                        Util.AddLog("フェーズ移行リクエスト（上限無視）: " + cmd + "@" + id);
+                        //Util.AddLog("フェーズ移行リクエスト（上限無視）: " + cmd + "@" + id);
                         resource = server.ResourceManager.ForceGetResource(ress[(int)cmd]);
                     }
                     else if ((cmd & ResourcePhase.NoWait) != 0)
                     {
                         // NoWait指定の場合は待たない
                         cmd &= ~ResourcePhase.NoWait;
-                        Util.AddLog("フェーズ移行NoWaitリクエスト: " + cmd + "@" + id);
+                        //Util.AddLog("フェーズ移行NoWaitリクエスト: " + cmd + "@" + id);
                         resource = server.ResourceManager.TryGetResource(ress[(int)cmd]);
                     }
                     else
@@ -543,7 +543,7 @@ namespace Amatsukaze.Server
                         try
                         {
                             transcode.resourceCancel = new CancellationTokenSource();
-                            Util.AddLog("フェーズ移行リクエスト: " + cmd + "@" + id);
+                            //Util.AddLog("フェーズ移行リクエスト: " + cmd + "@" + id);
                             resource = await server.ResourceManager.GetResource(ress[(int)cmd], transcode.resourceCancel.Token);
                         }
                         finally
@@ -555,7 +555,7 @@ namespace Amatsukaze.Server
 
                     // 確保したリソースを通知
                     // 確保に失敗したら-1
-                    Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
+                    //Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
                     await WriteCommand(writePipe, cmd, resource?.GpuIndex ?? -1);
                 }
             }
@@ -565,7 +565,7 @@ namespace Amatsukaze.Server
             }
             finally
             {
-                Util.AddLog("ホストスレッド終了@" + id);
+                //Util.AddLog("ホストスレッド終了@" + id);
                 // 専有中のリソースがあったら解放
                 if (resource != null)
                 {
@@ -627,7 +627,6 @@ namespace Amatsukaze.Server
                 logopaths = logofiles.Where(path => path != LogoSetting.NO_LOGO).ToArray();
             }
             ignoreNoLogo |= profile.IgnoreNoLogo;
-
 
             // 出力パス生成
             // datpathは拡張子を含まないこと

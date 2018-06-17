@@ -129,11 +129,11 @@ namespace Amatsukaze.Server
                 var res = TryGetResource(req);
                 if(res != null)
                 {
-                    Util.AddLog("リソース確保成功: " + req.CPU + ":" + req.HDD + ":" + req.GPU);
+                    //Util.AddLog("リソース確保成功: " + req.CPU + ":" + req.HDD + ":" + req.GPU);
                     return res;
                 }
                 // リソースに空きがないので待つ
-                Util.AddLog("リソース待ち: " + req.CPU + ":" + req.HDD + ":" + req.GPU);
+                //Util.AddLog("リソース待ち: " + req.CPU + ":" + req.HDD + ":" + req.GPU);
                 await waitTask.Task;
                 // キャンセルされてたら例外を投げる
                 cancelToken.ThrowIfCancellationRequested();
@@ -150,7 +150,7 @@ namespace Amatsukaze.Server
 
         public void ReleaseResource(Resource res)
         {
-            Util.AddLog("リソース解放: " + res.Req.CPU + ":" + res.Req.HDD + ":" + res.Req.GPU);
+            //Util.AddLog("リソース解放: " + res.Req.CPU + ":" + res.Req.HDD + ":" + res.Req.GPU);
             // リソースを解放
             DoRelResource(res);
             // 待っている人全員に通知
