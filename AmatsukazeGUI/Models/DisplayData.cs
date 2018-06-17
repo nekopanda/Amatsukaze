@@ -1324,7 +1324,7 @@ namespace Amatsukaze.Models
 
         public DisplayGPUResource[] GPUResources { get; private set; }
 
-        public void RefrechGPUResources()
+        public void RefreshGPUResources()
         {
             GPUResources = Enumerable.Range(0, Model.NumGPU).Select(
                 i => new DisplayGPUResource() { Model = Model, Index = i }).ToArray();
@@ -1657,12 +1657,23 @@ namespace Amatsukaze.Models
                 if (Model.NumGPU == value)
                     return;
                 Model.NumGPU = value;
-                RefrechGPUResources();
+                RefreshGPUResources();
                 RaisePropertyChanged();
             }
         }
         #endregion
 
+        #region X265VFRTimeFactor変更通知プロパティ
+        public double X265VFRTimeFactor {
+            get { return Model.X265VFRTimeFactor; }
+            set {
+                if (Model.X265VFRTimeFactor == value)
+                    return;
+                Model.X265VFRTimeFactor = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
     }
 
     public class DisplayUIState

@@ -116,6 +116,7 @@ static void printHelp(const tchar* bin) {
     "  --no-remove-tmp     一時ファイルを削除せずに残す\n"
     "  --vfr120fps         VFR時120fpsタイミングでフレーム時刻を生成\n"
     "                      デフォルトは60fpsタイミングで生成\n"
+		"  --x265-timefactor     x265で疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
     "                      ts : MPGE2-TSを入力する通常エンコードモード\n"
@@ -231,6 +232,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.mode = "ts";
 	conf.modeArgs = "";
 	conf.bitrateCM = 1.0;
+	conf.x265TimeFactor = 0.25;
 	conf.serviceId = -1;
 	conf.cmoutmask = 1;
 	conf.nicojkmask = 1;
@@ -382,6 +384,13 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
     else if (key == _T("--vfr120fps")) {
       conf.vfr120fps = true;
     }
+		else if (key == _T("--x265-timefactor")) {
+			const auto arg = getParam(argc, argv, i++);
+			int ret = stscanf(arg.c_str(), _T("%lf"), &conf.x265TimeFactor);
+			if (ret == 0) {
+				THROWF(ArgumentException, "--x265-timefactorの指定が間違っています");
+			}
+		}
 		else if (key == _T("--logo")) {
 			conf.logoPath.push_back(to_string(getParam(argc, argv, i++)));
 		}

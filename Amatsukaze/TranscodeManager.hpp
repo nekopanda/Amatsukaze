@@ -489,7 +489,7 @@ static std::vector<BitrateZone> MakeBitrateZones(
       return MakeVFRBitrateZones(
         frameDurations, cmzones, setting.getBitrateCM(),
         outvi.fps_numerator, outvi.fps_denominator,
-        0.05); // 全体で5%までの差なら許容する
+        setting.getX265TimeFactor(), 0.05); // 全体で5%までの差なら許容する
     }
   }
   return bitrateZones;

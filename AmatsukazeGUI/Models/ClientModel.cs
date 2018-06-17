@@ -1041,7 +1041,7 @@ namespace Amatsukaze.Models
             if(data.Setting != null)
             {
                 Setting = new DisplaySetting() { Model = data.Setting };
-                Setting.RefrechGPUResources();
+                Setting.RefreshGPUResources();
             }
             if (data.UIState != null)
             {

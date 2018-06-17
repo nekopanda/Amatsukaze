@@ -1012,6 +1012,11 @@ namespace Amatsukaze.Server
                     {
                         sb.Append(" -bcm ").Append(bitrateCM);
                     }
+                    if (profile.EncoderType == EncoderType.x265)
+                    {
+                        sb.Append(" --x265-timefactor ")
+                            .Append(setting.X265VFRTimeFactor.ToString("N2"));
+                    }
                     if (profile.SplitSub)
                     {
                         sb.Append(" --splitsub");

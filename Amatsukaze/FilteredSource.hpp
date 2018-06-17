@@ -636,7 +636,7 @@ public:
 // VFRタイミングとCMゾーンからゾーンとビットレートを作成
 std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
     const std::vector<EncoderZone>& cmzones, double bitrateCM, 
-    int fpsNum, int fpsDenom, double costLimit)
+    int fpsNum, int fpsDenom, double timeFactor, double costLimit)
 {
   enum {
     UNIT_FRAMES = 8,
@@ -659,7 +659,8 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
     auto start = durations.begin() + i * UNIT_FRAMES;
     auto end = ((i + 1) * UNIT_FRAMES < durations.size()) ? start + UNIT_FRAMES : durations.end();
     int sum = std::accumulate(start, end, 0);
-    units[i] = (double)sum / (int)(end - start);
+		double invfps = (double)sum / (int)(end - start);
+    units[i] = (invfps - 1.0) * timeFactor + 1.0;
   }
   // cmzonesを適用
   for (int i = 0; i < (int)cmzones.size(); ++i) {

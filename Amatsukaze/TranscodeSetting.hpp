@@ -468,6 +468,7 @@ struct Config {
 	bool nicojk18;
 	BitrateSetting bitrate;
 	double bitrateCM;
+	double x265TimeFactor;
 	int serviceId;
 	DecoderSetting decoderSetting;
 	// CM‰ğÍ—pİ’è
@@ -615,6 +616,10 @@ public:
 
 	double getBitrateCM() const {
 		return conf.bitrateCM;
+	}
+
+	double getX265TimeFactor() const {
+		return conf.x265TimeFactor;
 	}
 
 	int getServiceId() const {

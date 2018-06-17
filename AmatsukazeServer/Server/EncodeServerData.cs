@@ -245,6 +245,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public int[] MaxGPUResources { get; set; } // 長さは常に16
 
+        [DataMember]
+        public double X265VFRTimeFactor { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ActualWorkPath
