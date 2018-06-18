@@ -20,8 +20,10 @@ using System.Windows.Shell;
 
 namespace Amatsukaze.Models
 {
-    public class ConsoleText : ConsoleTextBase
+    public class DisplayConsole : ConsoleTextBase
     {
+        public int Id { get; set; }
+
         #region TextLines変更通知プロパティ
         private ObservableCollection<string> _TextLines = new ObservableCollection<string>();
 
@@ -34,9 +36,74 @@ namespace Amatsukaze.Models
                 if (_TextLines == value)
                     return;
                 _TextLines = value;
+                RaisePropertyChanged("LastLine");
                 RaisePropertyChanged();
             }
         }
+
+        public string LastLine {
+            get {
+                return TextLines.LastOrDefault();
+            }
+        }
+        #endregion
+
+        #region Phase変更通知プロパティ
+        private ResourcePhase _Phase;
+
+        public ResourcePhase Phase {
+            get { return _Phase; }
+            set { 
+                if (_Phase == value)
+                    return;
+                _Phase = value;
+                RaisePropertyChanged("PhaseString");
+                RaisePropertyChanged();
+            }
+        }
+
+        public string PhaseString {
+            get {
+                switch(Phase)
+                {
+                    case ResourcePhase.TSAnalyze:
+                        return "TS解析";
+                    case ResourcePhase.CMAnalyze:
+                        return "CM解析";
+                    case ResourcePhase.Filter:
+                        return "前処理";
+                    case ResourcePhase.Encode:
+                        return "エンコード";
+                    case ResourcePhase.Mux:
+                        return "Mux";
+                    default:
+                        return "";
+                }
+            }
+        }
+        #endregion
+
+        #region Resource変更通知プロパティ
+        private Resource _Resource;
+
+        public Resource Resource {
+            get { return _Resource; }
+            set { 
+                if (_Resource == value)
+                    return;
+                _Resource = value;
+                RaisePropertyChanged("CPU");
+                RaisePropertyChanged("HDD");
+                RaisePropertyChanged("GPU");
+                RaisePropertyChanged("GpuIndex");
+                RaisePropertyChanged();
+            }
+        }
+
+        public int CPU { get { return _Resource?.Req.CPU ?? 0; } }
+        public int HDD { get { return _Resource?.Req.HDD ?? 0; } }
+        public int GPU { get { return _Resource?.Req.GPU ?? 0; } }
+        public int GpuIndex { get { return _Resource?.GpuIndex ?? -1; } }
         #endregion
 
         public override void OnAddLine(string text)
@@ -46,6 +113,7 @@ namespace Amatsukaze.Models
                 TextLines.RemoveAt(0);
             }
             TextLines.Add(text);
+            RaisePropertyChanged("LastLine");
         }
 
         public override void OnReplaceLine(string text)
@@ -58,6 +126,7 @@ namespace Amatsukaze.Models
             {
                 TextLines[TextLines.Count - 1] = text;
             }
+            RaisePropertyChanged("LastLine");
         }
 
         public void SetTextLines(List<string> lines)
@@ -68,6 +137,7 @@ namespace Amatsukaze.Models
             {
                 TextLines.Add(s);
             }
+            RaisePropertyChanged("LastLine");
         }
     }
 
@@ -141,9 +211,9 @@ namespace Amatsukaze.Models
         #endregion
 
         #region ConsoleTextLines変更通知プロパティ
-        private ObservableCollection<ConsoleText> consoleList_ = new ObservableCollection<ConsoleText>();
+        private ObservableCollection<DisplayConsole> consoleList_ = new ObservableCollection<DisplayConsole>();
 
-        public ObservableCollection<ConsoleText> ConsoleList
+        public ObservableCollection<DisplayConsole> ConsoleList
         {
             get { return consoleList_; }
             set {
@@ -1110,7 +1180,7 @@ namespace Amatsukaze.Models
             int numRequire = index + 1;
             while (consoleList_.Count < numRequire)
             {
-                consoleList_.Add(new ConsoleText());
+                consoleList_.Add(new DisplayConsole() { Id = consoleList_.Count + 1 });
             }
         }
 
@@ -1125,6 +1195,15 @@ namespace Amatsukaze.Models
         {
             ensureConsoleNum(update.index);
             consoleList_[update.index].AddBytes(update.data, 0, update.data.Length);
+            return Task.FromResult(0);
+        }
+
+        public Task OnEncodeState(EncodeState state)
+        {
+            ensureConsoleNum(state.ConsoleId);
+            var console = consoleList_[state.ConsoleId];
+            console.Phase = state.Phase;
+            console.Resource = state.Resource;
             return Task.FromResult(0);
         }
 

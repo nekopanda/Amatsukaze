@@ -387,40 +387,6 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region UpperRowLength変更通知プロパティ
-        private GridLength _UpperRowLength = new GridLength(1, GridUnitType.Star);
-
-        public GridLength UpperRowLength
-        {
-            get
-            { return _UpperRowLength; }
-            set
-            {
-                if (_UpperRowLength == value)
-                    return;
-                _UpperRowLength = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region LowerRowLength変更通知プロパティ
-        private GridLength _LowerRowLength = new GridLength(1, GridUnitType.Star);
-
-        public GridLength LowerRowLength
-        {
-            get
-            { return _LowerRowLength; }
-            set
-            {
-                if (_LowerRowLength == value)
-                    return;
-                _LowerRowLength = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region IsPanelOpen変更通知プロパティ
         private bool _IsPanelOpen;
 

@@ -14,6 +14,7 @@ using Livet.Messaging.Windows;
 using Amatsukaze.Models;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using Amatsukaze.Components;
 
 namespace Amatsukaze.ViewModels
 {
@@ -62,44 +63,17 @@ namespace Amatsukaze.ViewModels
          */
 
         public ClientModel Model { get; set; }
+        public MainWindowViewModel MainPanel { get; set; }
 
-        private CollectionChangedEventListener consoleListListener;
-        private List<CollectionChangedEventListener> consoleTextListener = new List<CollectionChangedEventListener>();
-
-        #region ConsoleLastStringList変更通知プロパティ
-        private ObservableCollection<SummaryItemViewModel> _ConsoleLastStringList = new ObservableCollection<SummaryItemViewModel>();
-
-        public ObservableCollection<SummaryItemViewModel> ConsoleLastStringList {
-            get { return _ConsoleLastStringList; }
-            set { 
-                if (_ConsoleLastStringList == value)
-                    return;
-                _ConsoleLastStringList = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
+        public ObservableViewModelCollection<SummaryItemViewModel, DisplayConsole> ConsoleList { get; private set; }
 
         public void Initialize()
         {
-            consoleListListener = new CollectionChangedEventListener(Model.ConsoleList, (_, __) => {
-                while (_ConsoleLastStringList.Count < Model.ConsoleList.Count)
-                {
-                    int index = _ConsoleLastStringList.Count;
-                    var src = Model.ConsoleList[index];
-                    var tgt = new SummaryItemViewModel() { Id = index + 1 };
-                    _ConsoleLastStringList.Add(tgt);
-                    consoleTextListener.Add(
-                        new CollectionChangedEventListener(
-                        src.TextLines, (___, ____) => {
-                            var lines = src.TextLines;
-                            if (lines.Count > 0)
-                            {
-                                tgt.LastText = lines[lines.Count - 1];
-                                tgt.LastUpdated = DateTime.Now;
-                            }
-                        }));
-                }
+            ConsoleList = new ObservableViewModelCollection<SummaryItemViewModel, DisplayConsole>(Model.ConsoleList, s =>
+            {
+                var vm = new SummaryItemViewModel() { Data = s };
+                vm.Initialize();
+                return vm;
             });
 
             UpdateThread();
@@ -111,11 +85,35 @@ namespace Amatsukaze.ViewModels
             {
                 await Task.Delay(1 * 1000);
 
-                foreach(var item in _ConsoleLastStringList)
+                foreach(var item in ConsoleList)
                 {
                     item.Update();
                 }
             }
         }
+
+        #region ShowItemDetailCommand
+        private ListenerCommand<SummaryItemViewModel> _ShowItemDetailCommand;
+
+        public ListenerCommand<SummaryItemViewModel> ShowItemDetailCommand {
+            get {
+                if (_ShowItemDetailCommand == null)
+                {
+                    _ShowItemDetailCommand = new ListenerCommand<SummaryItemViewModel>(ShowItemDetail);
+                }
+                return _ShowItemDetailCommand;
+            }
+        }
+
+        public void ShowItemDetail(SummaryItemViewModel item)
+        {
+            if (item.Data.Id - 1 < Model.ConsoleList.Count)
+            {
+                MainPanel.ConsolePanelSelectedIndex = item.Data.Id - 1;
+                (MainPanel.ConsolePanel as ConsoleViewModel).AutoScroll = true;
+            }
+        }
+        #endregion
+
     }
 }

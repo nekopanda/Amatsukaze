@@ -84,6 +84,12 @@ namespace Amatsukaze.Server
         }
     }
 
+    public class Resource
+    {
+        public ReqResource Req;
+        public int GpuIndex;
+    }
+
     // プロファイル設定データ
     public class ProfileSetting : IExtensibleDataObject
     {
@@ -826,6 +832,17 @@ namespace Amatsukaze.Server
         public CheckLogItem CheckLogItem { get; set; }
         [DataMember]
         public ConsoleData ConsoleData { get; set; }
+    }
+
+    [DataContract]
+    public class EncodeState
+    {
+        [DataMember]
+        public int ConsoleId { get; set; }
+        [DataMember]
+        public ResourcePhase Phase { get; set; }
+        [DataMember]
+        public Resource Resource { get; set; }
     }
 
     [DataContract]

@@ -289,7 +289,7 @@ namespace Amatsukaze.Server
             {
                 var level = queue[i];
                 var priority = i + 1;
-                foreach (var key in level.Keys)
+                foreach (var key in level.Keys.ToArray())
                 {
                     // 削除アイテムがある？
                     if(level[key].Any(
@@ -312,6 +312,15 @@ namespace Amatsukaze.Server
             foreach(var item in tmp)
             {
                 AddQueue(item);
+            }
+            // ないkeyは消す
+            for (int i = 0; i < queue.Length; ++i)
+            {
+                var level = queue[i];
+                foreach(var key in level.Keys.Where(key => !level[key].Any()).ToArray())
+                {
+                    level.Remove(key);
+                }
             }
             // フラグを消す
             isDirty = false;

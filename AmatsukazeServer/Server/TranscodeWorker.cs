@@ -544,6 +544,13 @@ namespace Amatsukaze.Server
                     // 確保に失敗したら-1
                     //Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
                     await WriteCommand(writePipe, cmd, resource?.GpuIndex ?? -1);
+
+                    // UIクライアントに通知
+                    await server.Client.OnEncodeState(new EncodeState() {
+                        ConsoleId = id,
+                        Phase = (resource != null) ? cmd : ResourcePhase.Max,
+                        Resource = resource
+                    });
                 }
             }
             catch(Exception)
@@ -559,6 +566,14 @@ namespace Amatsukaze.Server
                     server.ResourceManager.ReleaseResource(resource);
                     resource = null;
                 }
+
+                // UIクライアントに通知
+                await server.Client.OnEncodeState(new EncodeState()
+                {
+                    ConsoleId = id,
+                    Phase = ResourcePhase.Max,
+                    Resource = null
+                });
             }
         }
 

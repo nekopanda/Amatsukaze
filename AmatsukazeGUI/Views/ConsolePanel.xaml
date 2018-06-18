@@ -9,14 +9,24 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:ConsoleViewModel}}">
-    <ListBox x:Name="lst" ItemsSource="{Binding Model.TextLines}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Extended">
-        <i:Interaction.Behaviors>
-            <c:ListBoxAutoScrollBehavior AutoScroll="{Binding AutoScroll}" />
-        </i:Interaction.Behaviors>
+    <ListBox x:Name="lst" ItemsSource="{Binding Model.TextLines}" SelectionMode="Extended">
+        <ListBox.Template>
+            <ControlTemplate>
+                <c:LogScrollViewer BindableVerticalOffset="{Binding ScrollOffset, Mode=TwoWay}"
+                                   AutoScroll="{Binding AutoScroll, Mode=TwoWay}"
+                                   HorizontalScrollBarVisibility="Disabled" CanContentScroll="True">
+                    <ItemsPresenter/>
+                </c:LogScrollViewer>
+            </ControlTemplate>
+        </ListBox.Template>
+        <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel IsVirtualizing="True"/>
+            </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
         <ListBox.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="選択項目をコピー" Click="MenuItem_Click" />
-                <MenuItem IsCheckable="True" IsChecked="{Binding AutoScroll, Mode=TwoWay}" Header="オートスクロール" />
             </ContextMenu>
         </ListBox.ContextMenu>
         <ListBox.ItemTemplate>

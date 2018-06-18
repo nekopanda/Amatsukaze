@@ -59,7 +59,7 @@ namespace Amatsukaze.ViewModels
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
 
-        public ConsoleText Model { get; set; }
+        public DisplayConsole Model { get; set; }
 
         public string ShortName { get; set; }
 
@@ -68,11 +68,11 @@ namespace Amatsukaze.ViewModels
         }
 
         #region AutoScroll変更通知プロパティ
-        private bool _AutoScroll = true;
+        private bool _AutoScroll;
 
         public bool AutoScroll {
             get { return _AutoScroll; }
-            set { 
+            set {
                 if (_AutoScroll == value)
                     return;
                 _AutoScroll = value;
@@ -80,5 +80,20 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
+
+        #region ScrollOffset変更通知プロパティ
+        private double _ScrollOffset;
+
+        public double ScrollOffset {
+            get { return _ScrollOffset; }
+            set { 
+                if (_ScrollOffset == value)
+                    return;
+                _ScrollOffset = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 }

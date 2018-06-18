@@ -44,6 +44,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.OnConsoleUpdate:
                     userClient.OnConsoleUpdate((ConsoleUpdate)arg);
                     break;
+                case RPCMethodId.OnEncodeState:
+                    userClient.OnEncodeState((EncodeState)arg);
+                    break;
                 case RPCMethodId.OnLogFile:
                     userClient.OnLogFile((string)arg);
                     break;

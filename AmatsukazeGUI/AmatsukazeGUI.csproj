@@ -88,7 +88,7 @@
       <DependentUpon>InsertionCursor.xaml</DependentUpon>
     </Compile>
     <Compile Include="Components\InverseBooleanConverter.cs" />
-    <Compile Include="Components\ListBoxAutoScrollBehavior.cs" />
+    <Compile Include="Components\LogScrollViewer.cs" />
     <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Components\ObservableViewModelCollection.cs" />
     <Compile Include="Components\TaskbarInfoBehavior.cs" />

@@ -37,6 +37,7 @@ namespace Amatsukaze.Server
     {
         Task OnUIData(UIData data);
         Task OnConsoleUpdate(ConsoleUpdate str);
+        Task OnEncodeState(EncodeState state);
         Task OnLogFile(string str);
 
         Task OnCommonData(CommonData data);
@@ -69,6 +70,7 @@ namespace Amatsukaze.Server
 
         OnUIData = 200,
         OnConsoleUpdate,
+        OnEncodeState,
         OnLogFile,
         OnCommonData,
         OnProfile,
@@ -105,6 +107,7 @@ namespace Amatsukaze.Server
 
             { RPCMethodId.OnUIData, typeof(UIData) },
             { RPCMethodId.OnConsoleUpdate, typeof(ConsoleUpdate) },
+            { RPCMethodId.OnEncodeState, typeof(EncodeState) },
             { RPCMethodId.OnLogFile, typeof(string) },
             { RPCMethodId.OnCommonData, typeof(CommonData) },
             { RPCMethodId.OnProfile, typeof(ProfileUpdate) },
@@ -369,6 +372,11 @@ namespace Amatsukaze.Server
         public Task OnConsoleUpdate(ConsoleUpdate str)
         {
             return client.OnConsoleUpdate(Copy(str));
+        }
+
+        public Task OnEncodeState(EncodeState state)
+        {
+            return client.OnEncodeState(Copy(state));
         }
 
         public Task OnLogFile(string str)

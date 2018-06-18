@@ -8,12 +8,6 @@ using System.Threading.Tasks.Dataflow;
 
 namespace Amatsukaze.Server
 {
-    class Resource
-    {
-        public ReqResource Req;
-        public int GpuIndex;
-    }
-
     /// <summary>
     /// リソース管理
     /// </summary>

@@ -302,6 +302,11 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.OnConsoleUpdate, str);
         }
 
+        public Task OnEncodeState(EncodeState state)
+        {
+            return Send(RPCMethodId.OnEncodeState, state);
+        }
+
         public Task OnLogFile(string str)
         {
             return Send(RPCMethodId.OnLogFile, str);

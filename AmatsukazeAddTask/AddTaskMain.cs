@@ -466,6 +466,11 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
+        public Task OnEncodeState(EncodeState state)
+        {
+            return Task.FromResult(0);
+        }
+
         #endregion
     }
 

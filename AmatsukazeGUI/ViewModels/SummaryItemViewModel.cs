@@ -64,21 +64,7 @@ namespace Amatsukaze.ViewModels
         private Brush middle = new SolidColorBrush(Colors.Gray);
         private Brush black = new SolidColorBrush(Colors.Black);
 
-        public int Id { get; set; }
-
-        #region LastText変更通知プロパティ
-        private string _LastText;
-
-        public string LastText {
-            get { return _LastText; }
-            set { 
-                if (_LastText == value)
-                    return;
-                _LastText = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
+        public DisplayConsole Data { get; set; }
 
         #region ForeColor変更通知プロパティ
         private Brush _ForeColor;
@@ -94,11 +80,19 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        public DateTime LastUpdated = new DateTime();
+        private DateTime LastUpdated = DateTime.Now;
 
         public void Initialize()
         {
             _ForeColor = black;
+
+            CompositeDisposable.Add(new PropertyChangedEventListener(Data, (sender, e) =>
+            {
+                if (e.PropertyName == "LastLine")
+                {
+                    LastUpdated = DateTime.Now;
+                }
+            }));
         }
 
         public void Update()

@@ -102,7 +102,7 @@ namespace Amatsukaze.Server
 
     // Client -> Server: 開始要求
     // Server -> Client: 開始OK
-    enum ResourcePhase
+    public enum ResourcePhase
     {
         TSAnalyze = 0,
         CMAnalyze,

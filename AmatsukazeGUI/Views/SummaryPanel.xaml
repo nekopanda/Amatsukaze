@@ -7,10 +7,48 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:SummaryViewModel}}">
-    <ListBox ItemsSource="{Binding ConsoleLastStringList}">
+    <ListBox ItemsSource="{Binding ConsoleList}"
+             HorizontalContentAlignment="Stretch"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <ListBox.ItemTemplate>
             <DataTemplate DataType="vm:SummaryItemViewModel">
-                <TextBlock Foreground="{Binding ForeColor}"><Run Text="["/><Run Text="{Binding Id}"/><Run Text="] "/><Run Text="{Binding LastText}"/></TextBlock>
+                <DockPanel>
+                    <DockPanel.InputBindings>
+                        <MouseBinding MouseAction="LeftDoubleClick"
+                                  Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                  CommandParameter="{Binding}" />
+                    </DockPanel.InputBindings>
+                    <TextBlock Text="{Binding Data.Id, Mode=OneWay}" VerticalAlignment="Center" TextAlignment="Center" MinWidth="14"/>
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                    <TextBlock FontWeight="Bold" Text="{Binding Data.PhaseString, Mode=OneWay}" 
+                               VerticalAlignment="Center" TextAlignment="Center"
+                               Width="50" Margin="3,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
+                                        <Setter Property="Visibility" Value="Hidden"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock DockPanel.Dock="Right" Margin="5,0,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                        CPU:<Run Text="{Binding Data.CPU, Mode=OneWay}"/>
+                        HDD:<Run Text="{Binding Data.HDD, Mode=OneWay}"/>
+                        GPU:<Run Text="{Binding Data.GPU, Mode=OneWay}"/>@<Run Text="{Binding Data.GpuIndex, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Data.LastLine, Mode=OneWay}" Foreground="{Binding ForeColor, Mode=OneWay}" VerticalAlignment="Center"/>
+                </DockPanel>
             </DataTemplate>
         </ListBox.ItemTemplate>
     </ListBox>

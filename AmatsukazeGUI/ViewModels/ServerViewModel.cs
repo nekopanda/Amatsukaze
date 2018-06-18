@@ -215,16 +215,28 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region AutoScroll変更通知プロパティ
-        private bool _AutoScroll = true;
+        private bool _AutoScroll;
 
-        public bool AutoScroll
-        {
+        public bool AutoScroll {
             get { return _AutoScroll; }
-            set
-            {
+            set { 
                 if (_AutoScroll == value)
                     return;
                 _AutoScroll = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ScrollOffset変更通知プロパティ
+        private double _ScrollOffset;
+
+        public double ScrollOffset {
+            get { return _ScrollOffset; }
+            set { 
+                if (_ScrollOffset == value)
+                    return;
+                _ScrollOffset = value;
                 RaisePropertyChanged();
             }
         }

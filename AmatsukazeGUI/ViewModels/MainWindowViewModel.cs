@@ -232,7 +232,7 @@ namespace Amatsukaze.ViewModels
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
             InfoPanelMenu.Add(new DrcsImageListViewModel() { Name = "DRCS外字", Model = Model });
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
-            InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model });
+            InfoPanelMenu.Add(new SummaryViewModel() { Name = "サマリー", Model = Model, MainPanel = this });
             InfoPanelMenu.Add(new MakeScriptViewModel() { Name = "その他", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
         }
