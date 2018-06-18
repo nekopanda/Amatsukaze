@@ -20,6 +20,7 @@ namespace Amatsukaze.Server
     class ResourceManager
     {
         public static readonly int MAX_GPU = 16;
+        public static readonly int MAX = 100;
 
         private TaskCompletionSource<int> waitTask = new TaskCompletionSource<int>();
         private int curHDD, curCPU;
@@ -63,6 +64,15 @@ namespace Amatsukaze.Server
             return GPUSpace.IndexOf(GPUSpace.Max());
         }
 
+        public int ResourceCost(ReqResource req)
+        {
+            int gpuIndex = MostCapableGPU();
+            int nextCPU = curCPU + req.CPU;
+            int nextHDD = curHDD + req.HDD;
+            int nextGPU = curGPU[gpuIndex] + req.GPU;
+            return Math.Max(Math.Max(nextCPU - MAX, nextHDD - MAX), nextGPU - maxGPU[gpuIndex]);
+        }
+
         // 上限を無視してリソースを確保
         public Resource ForceGetResource(ReqResource req)
         {
@@ -80,7 +90,6 @@ namespace Amatsukaze.Server
 
         public Resource TryGetResource(ReqResource req)
         {
-            const int MAX = 100;
 
             // CPU,HDDをチェック
             int nextCPU = curCPU + req.CPU;

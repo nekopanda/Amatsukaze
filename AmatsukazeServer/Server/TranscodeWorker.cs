@@ -61,7 +61,7 @@ namespace Amatsukaze.Server
         public Process process;
     }
 
-    internal class TranscodeWorker : IScheduleWorker<QueueItem>
+    internal class TranscodeWorker : IScheduleWorker
     {
         public int id;
         public EncodeServer server;
@@ -453,19 +453,6 @@ namespace Amatsukaze.Server
                 default:
                     return "不明な処理";
             }
-        }
-
-        // Client -> Server: 開始要求
-        // Server -> Client: 開始OK
-        enum ResourcePhase
-        {
-            TSAnalyze = 0,
-            CMAnalyze,
-            Filter,
-            Encode,
-            Mux,
-
-            NoWait = 0x100,
         }
 
         private async Task ReadBytes(PipeStream readPipe, byte[] buf)

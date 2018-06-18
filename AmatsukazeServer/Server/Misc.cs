@@ -100,6 +100,20 @@ namespace Amatsukaze.Server
         }
     }
 
+    // Client -> Server: 開始要求
+    // Server -> Client: 開始OK
+    enum ResourcePhase
+    {
+        TSAnalyze = 0,
+        CMAnalyze,
+        Filter,
+        Encode,
+        Mux,
+        Max,
+
+        NoWait = 0x100,
+    }
+
     public class Debug
     {
         [Conditional("DEBUG")]

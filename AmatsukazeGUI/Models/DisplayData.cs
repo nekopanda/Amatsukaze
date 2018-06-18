@@ -1663,6 +1663,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region EnableX265VFRTimeFactor変更通知プロパティ
+        public bool EnableX265VFRTimeFactor
+        {
+            get { return Model.EnableX265VFRTimeFactor; }
+            set
+            {
+                if (Model.EnableX265VFRTimeFactor == value)
+                    return;
+                Model.EnableX265VFRTimeFactor = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region X265VFRTimeFactor変更通知プロパティ
         public double X265VFRTimeFactor {
             get { return Model.X265VFRTimeFactor; }

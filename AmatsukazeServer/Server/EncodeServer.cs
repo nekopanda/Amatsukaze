@@ -59,7 +59,8 @@ namespace Amatsukaze.Server
         private Action finishRequested;
 
         private QueueManager queueManager;
-        private EncodeScheduler<QueueItem> scheduler = null;
+        private ScheduledQueue scheduledQueue;
+        private WorkerPool workerPool;
 
         private LogData logData = new LogData();
         private CheckLogData checkLogData = new CheckLogData();
@@ -204,7 +205,10 @@ namespace Amatsukaze.Server
                 LastUpdate = DateTime.MinValue,
             };
 
-            scheduler = new EncodeScheduler<QueueItem>() {
+            scheduledQueue = new ScheduledQueue();
+            workerPool = new WorkerPool()
+            {
+                Queue = scheduledQueue,
                 NewWorker = id => new TranscodeWorker() {
                     id = id,
                     server = this,
@@ -254,16 +258,19 @@ namespace Amatsukaze.Server
                 },
                 OnError = message => NotifyMessage(true, message, true)
             };
-            scheduler.SetNumParallel(AppData_.setting.NumParallel);
-            ResourceManager.SetGPUResources(AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
+            workerPool.SetNumParallel(AppData_.setting.NumParallel);
+            scheduledQueue.WorkerPool = workerPool;
+            
+            SetScheduleParam(AppData_.setting.SchedulingEnabled, 
+                AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
 
             // キュー状態を戻す
             queueManager.LoadAppData();
-            if(queueManager.Queue.Count > 0)
+            if(queueManager.Queue.Any(s => s.IsActive))
             {
-                // １つ以上ある状態から開始する場合はキューを凍結する
+                // アクティブなアイテムがある状態から開始する場合はキューを凍結する
                 EncodePaused = true;
-                scheduler.SetPause(true);
+                workerPool.SetPause(true);
                 queueManager.UpdateQueueItems(null);
             }
 
@@ -333,16 +340,16 @@ namespace Amatsukaze.Server
                     queueManager.SaveQueueData();
 
                     // 終了時にプロセスが残らないようにする
-                    if (scheduler != null)
+                    if (workerPool != null)
                     {
-                        foreach (var worker in scheduler.Workers.Cast<TranscodeWorker>())
+                        foreach (var worker in workerPool.Workers.Cast<TranscodeWorker>())
                         {
                             if (worker != null)
                             {
                                 worker.CancelCurrentItem();
                             }
                         }
-                        scheduler.Finish();
+                        workerPool.Finish();
                     }
 
                     queueQ.Complete();
@@ -509,6 +516,13 @@ namespace Amatsukaze.Server
                 Client.Finish();
                 Client = null;
             }
+        }
+
+        private void SetScheduleParam(bool enable, int numGPU, int[] maxGPU)
+        {
+            ResourceManager.SetGPUResources(numGPU, maxGPU);
+            scheduledQueue.SetGPUResources(numGPU, maxGPU);
+            scheduledQueue.EnableResourceScheduling = enable;
         }
 
         private void UpdateFromOldVersion()
@@ -1012,7 +1026,8 @@ namespace Amatsukaze.Server
                     {
                         sb.Append(" -bcm ").Append(bitrateCM);
                     }
-                    if (profile.EncoderType == EncoderType.x265)
+                    if (setting.EnableX265VFRTimeFactor &&
+                        profile.EncoderType == EncoderType.x265)
                     {
                         sb.Append(" --x265-timefactor ")
                             .Append(setting.X265VFRTimeFactor.ToString("N2"));
@@ -1937,8 +1952,9 @@ namespace Amatsukaze.Server
                     SetDefaultPath(data.Setting);
                     CheckSetting(null, data.Setting);
                     AppData_.setting = data.Setting;
-                    scheduler.SetNumParallel(data.Setting.NumParallel);
-                    ResourceManager.SetGPUResources(AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
+                    workerPool.SetNumParallel(data.Setting.NumParallel);
+                    SetScheduleParam(AppData_.setting.SchedulingEnabled,
+                        AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
                     settingUpdated = true;
                     return Task.WhenAll(
                         Client.OnCommonData(new CommonData() { Setting = AppData_.setting }),
@@ -1971,7 +1987,7 @@ namespace Amatsukaze.Server
         {
             EncodePaused = pause;
             Task task = RequestState();
-            scheduler.SetPause(pause);
+            workerPool.SetPause(pause);
             await task;
         }
 
@@ -2023,7 +2039,7 @@ namespace Amatsukaze.Server
         // 実行できる状態になったアイテムをスケジューラに登録
         internal void ScheduleQueueItem(QueueItem item)
         {
-            scheduler.QueueItem(item, item.ActualPriority);
+            scheduledQueue.AddQueue(item);
 
             if (AppData_.setting.SupressSleep)
             {
@@ -2038,7 +2054,7 @@ namespace Amatsukaze.Server
         // 指定アイテムをキャンセルする
         internal void CancelItem(QueueItem item)
         {
-            foreach (var worker in scheduler.Workers.Cast<TranscodeWorker>())
+            foreach (var worker in workerPool.Workers.Cast<TranscodeWorker>())
             {
                 if (worker != null)
                 {
@@ -2047,15 +2063,21 @@ namespace Amatsukaze.Server
             }
         }
 
+        // プロファイル更新を適用
+        internal void UpdateProfile(QueueItem item)
+        {
+            scheduledQueue.MakeDirty();
+        }
+
         // 指定アイテムの新しい優先度を適用
         internal void UpdatePriority(QueueItem item)
         {
-            scheduler.UpdatePriority(item, item.ActualPriority);
+            scheduledQueue.MakeDirty();
         }
 
         internal void ForceStartItem(QueueItem item)
         {
-            scheduler.ForceStart(item);
+            workerPool.ForceStart(item);
         }
 
         // 新しいサービスを登録
@@ -2184,7 +2206,7 @@ namespace Amatsukaze.Server
 
         private Task RequestConsole()
         {
-            return Task.WhenAll(scheduler.Workers.Cast<TranscodeWorker>().Select(w =>
+            return Task.WhenAll(workerPool.Workers.Cast<TranscodeWorker>().Select(w =>
                 Client.OnUIData(new UIData()
                 {
                     ConsoleData = new ConsoleData()

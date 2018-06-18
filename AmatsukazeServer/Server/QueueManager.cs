@@ -480,6 +480,7 @@ namespace Amatsukaze.Server
                     item.Hash = cacheItem.HashDict[filename];
                 }
 
+                server.UpdateProfile(item);
                 UpdateQueueItem(item, waits);
 
                 waits?.Add(ClientQueueUpdate(new QueueUpdate()

@@ -7,9 +7,6 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         Title="ロゴ解析" Height="600" Width="800">
-    <Window.Resources>
-        <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"/>
-    </Window.Resources>
 
     <Window.DataContext>
         <vm:LogoAnalyzeViewModel/>

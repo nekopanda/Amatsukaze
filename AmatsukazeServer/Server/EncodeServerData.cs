@@ -67,6 +67,21 @@ namespace Amatsukaze.Server
     public struct ReqResource
     {
         public int CPU, HDD, GPU;
+
+        public int Canonical()
+        {
+            return (CPU << 16) + (HDD << 8) + GPU;
+        }
+
+        public static ReqResource FromCanonical(int c)
+        {
+            return new ReqResource()
+            {
+                CPU = (c >> 16) & 0xFF,
+                HDD = (c >> 8) & 0xFF,
+                GPU = c & 0xFF
+            };
+        }
     }
 
     // プロファイル設定データ
@@ -245,6 +260,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public int[] MaxGPUResources { get; set; } // 長さは常に16
 
+        [DataMember]
+        public bool EnableX265VFRTimeFactor { get; set; }
         [DataMember]
         public double X265VFRTimeFactor { get; set; }
 
@@ -475,12 +492,6 @@ namespace Amatsukaze.Server
         public bool IsOneSeg {
             get {
                 return ImageWidth <= 320 || ImageHeight <= 260;
-            }
-        }
-
-        public float ActualPriority {
-            get {
-                return - Priority;
             }
         }
     }

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
              xmlns:clr="clr-namespace:System;assembly=mscorlib"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
@@ -126,13 +127,23 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,4,0,0">
-                    <DockPanel Margin="0,6">
-                        <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="30" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    <DockPanel Margin="0,6"
+                               ToolTip="x265で擬似VFRレートコントロールするときの時間レートファクター。 デフォルト値: 0.25&#xA;VFRで24fpsや30fps部分のビットレートがこの値に連動します。&#xA;CRFモードでVFRで出力したときと60fpsで出力したときでビットレートが一致するように調整するのが理想です。">
+                        <DockPanel.Resources>
+                            <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
+                                                         ConvertWhenTrue="Visible" ConvertWhenFalse="Hidden"/>
+                        </DockPanel.Resources>
+                        <CheckBox DockPanel.Dock="Left" VerticalAlignment="Center" Content="デフォルト値を使う" Margin="0,0,5,0"
+                                  IsChecked="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"/>
+                        <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="30"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                   Visibility="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=OneWay, Converter={StaticResource VisibilityAndBooleanConverter}}"
                                    Text="{Binding Model.Setting.X265VFRTimeFactor, StringFormat=N2}"/>
                         <Slider Margin="3"
                                 SmallChange="0.01" Maximum="1" Minimum="0"
                                 Value="{Binding Model.Setting.X265VFRTimeFactor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTip="x265で擬似VFRレートコントロールするときの時間レートファクター。 参考値: 0.25&#xA;VFRで24fpsや30fps部分のビットレートがこの値に連動します。&#xA;CRFモードでVFRで出力したときと60fpsで出力したときでビットレートが一致するように調整するのが理想です。"/>
+                                   IsEnabled="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=OneWay}"
+                                LargeChange="0.01" TickFrequency="0.1"/>
                     </DockPanel>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="22" VerticalAlignment="Center" HorizontalAlignment="Center"
