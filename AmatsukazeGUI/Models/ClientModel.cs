@@ -71,7 +71,7 @@ namespace Amatsukaze.Models
                     case ResourcePhase.CMAnalyze:
                         return "CM解析";
                     case ResourcePhase.Filter:
-                        return "前処理";
+                        return "映像解析";
                     case ResourcePhase.Encode:
                         return "エンコード";
                     case ResourcePhase.Mux:

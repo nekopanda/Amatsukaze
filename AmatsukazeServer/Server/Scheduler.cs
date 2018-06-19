@@ -379,7 +379,11 @@ namespace Amatsukaze.Server
 
         public void StartItem(QueueItem item)
         {
-            resourceManager.ForceGetResource(item.Profile.ReqResources[EncodePhase]);
+            actives.Add(new ItemPair()
+            {
+                Item = item,
+                Resource = resourceManager.ForceGetResource(item.Profile.ReqResources[EncodePhase])
+            });
         }
 
         public void ReleaseItem(QueueItem item)

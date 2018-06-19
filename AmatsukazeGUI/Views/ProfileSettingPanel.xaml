@@ -325,7 +325,7 @@
                                                          ConvertWhenTrue="Visible" ConvertWhenFalse="Collapsed"/>
                     </DockPanel.Resources>
                     <DockPanel DockPanel.Dock="Top">
-                        <Border Width="80"/>
+                        <Border Width="90"/>
                         <TextBlock Width="50" Text="CPU" TextAlignment="Center"/>
                         <TextBlock Width="50" Text="HDD" TextAlignment="Center"/>
                         <TextBlock Width="50" Text="GPU" TextAlignment="Center"/>
@@ -389,7 +389,7 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type m:DisplayResource}">
                                 <DockPanel>
-                                    <TextBlock Width="80" Text="{Binding Name, Mode=OneWay}"/>
+                                    <TextBlock Width="90" Text="{Binding Name, Mode=OneWay}" TextAlignment="Right" Margin="0,0,5,0"/>
                                     <TextBox Width="50" Text="{Binding CPU, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBox Width="50" Text="{Binding HDD, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBox Width="50" Text="{Binding GPU, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

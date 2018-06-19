@@ -156,15 +156,18 @@ public:
 	}
 
 	// リソース確保できるまで待つ
-	int wait(PipeCommand phase) const {
+  int wait(PipeCommand phase) const {
     if (inPipe == INVALID_HANDLE_VALUE) {
       return 0;
     }
-    writeCommand(phase);
-    ctx.progress("リソース待ち ...");
-		Stopwatch sw; sw.start();
-    int ret = readCommand(phase);
-		ctx.info("リソース待ち %.2f秒", sw.getAndReset());
+    int ret = request(phase);
+    if (ret == -1) {
+      writeCommand(phase);
+      ctx.progress("リソース待ち ...");
+      Stopwatch sw; sw.start();
+      ret = readCommand(phase);
+      ctx.info("リソース待ち %.2f秒", sw.getAndReset());
+    }
 		return ret;
 	}
 };

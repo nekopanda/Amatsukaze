@@ -184,7 +184,7 @@ namespace Amatsukaze.Models
     {
         private static readonly string[] PhaseNames = new string[]
         {
-            "TS解析", "CM解析", "フィルタ前処理", "エンコード", "Mux"
+            "TS解析", "CM解析", "フィルタ映像解析", "エンコード", "Mux"
         };
 
         public static readonly int MAX = 5;
