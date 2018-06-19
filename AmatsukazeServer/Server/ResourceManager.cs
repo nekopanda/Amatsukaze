@@ -42,6 +42,9 @@ namespace Amatsukaze.Server
             }
             this.numGPU = numGPU;
             this.maxGPU = maxGPU;
+
+            // 待っている人全員に通知
+            SignalAll();
         }
 
         private void DoRelResource(Resource res)
