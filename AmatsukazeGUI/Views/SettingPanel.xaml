@@ -119,7 +119,8 @@
                 </DockPanel>
 
                 <StackPanel Grid.Row="2" Margin="0,4,0,0">
-                    <TextBlock HorizontalAlignment="Right" Text="x265VFR時間レート" VerticalAlignment="Top" Margin="0,10"/>
+                  <TextBlock HorizontalAlignment="Right" Text="x265VFR時間レート" VerticalAlignment="Top" Margin="0,10,0,4"/>
+                  <TextBlock HorizontalAlignment="Right" Text="フィルタグラフ出力" VerticalAlignment="Top" Margin="0,4,0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="エンコード最大並列数" VerticalAlignment="Top" Margin="0,4"/>
                     <TextBlock HorizontalAlignment="Right" Text="CPUアフィニティ" VerticalAlignment="Top" Margin="0,4"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,4"/>
@@ -127,7 +128,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,4,0,0">
-                    <DockPanel Margin="0,6"
+                    <DockPanel Margin="0,6,0,3"
                                ToolTip="x265で擬似VFRレートコントロールするときの時間レートファクター。 デフォルト値: 0.25&#xA;VFRで24fpsや30fps部分のビットレートがこの値に連動します。&#xA;CRFモードでVFRで出力したときと60fpsで出力したときでビットレートが一致するように調整するのが理想です。">
                         <DockPanel.Resources>
                             <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
@@ -145,6 +146,7 @@
                                    IsEnabled="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=OneWay}"
                                 LargeChange="0.01" TickFrequency="0.1"/>
                     </DockPanel>
+                    <CheckBox Margin="0,3,0,6" Content="フィルタグラフを出力する" IsChecked="{Binding Model.Setting.DumpFilter, Mode=TwoWay}"/>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="22" VerticalAlignment="Center" HorizontalAlignment="Center"
                                    Text="{Binding Model.Setting.NumParallel}"/>

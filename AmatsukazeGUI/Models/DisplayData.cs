@@ -1688,6 +1688,20 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+
+        #region DumpFilter変更通知プロパティ
+        public bool DumpFilter
+        {
+            get { return Model.DumpFilter; }
+            set
+            {
+                if (Model.DumpFilter == value)
+                    return;
+                Model.DumpFilter = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
     }
 
     public class DisplayUIState
