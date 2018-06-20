@@ -643,53 +643,51 @@ namespace Amatsukaze.Server
             return SetDefaultPath(new Setting() { NumParallel = 1 });
         }
 
+
+
         private void LoadAppData()
         {
             string path = GetSettingFilePath();
             if (File.Exists(path) == false)
             {
-                AppData_ = new AppData() {
-                    setting = GetDefaultSetting(),
-                    scriptData = new MakeScriptData(),
-                    services = new ServiceSetting() {
-                        ServiceMap = new Dictionary<int, ServiceSettingElement>()
-                    }
-                };
-                return;
+                AppData_ = new AppData();
             }
-            using (FileStream fs = new FileStream(path, FileMode.Open))
+            else
             {
-                var s = new DataContractSerializer(typeof(AppData));
-                AppData_ = (AppData)s.ReadObject(fs);
-                if (AppData_.setting == null)
+                using (FileStream fs = new FileStream(path, FileMode.Open))
                 {
-                    AppData_.setting = GetDefaultSetting();
+                    var s = new DataContractSerializer(typeof(AppData));
+                    AppData_ = (AppData)s.ReadObject(fs);
                 }
-                if (AppData_.setting.NumGPU == 0)
-                {
-                    AppData_.setting.NumGPU = 1;
-                }
-                if (AppData_.setting.MaxGPUResources == null ||
-                    AppData_.setting.MaxGPUResources.Length < ResourceManager.MAX_GPU)
-                {
-                    AppData_.setting.MaxGPUResources = Enumerable.Repeat(100, ResourceManager.MAX_GPU).ToArray();
-                }
-                if (AppData_.uiState == null)
-                {
-                    AppData_.uiState = new UIState();
-                }
-                if (AppData_.scriptData == null)
-                {
-                    AppData_.scriptData = new MakeScriptData();
-                }
-                if (AppData_.services == null)
-                {
-                    AppData_.services = new ServiceSetting();
-                }
-                if (AppData_.services.ServiceMap == null)
-                {
-                    AppData_.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
-                }
+            }
+            if (AppData_.setting == null)
+            {
+                AppData_.setting = GetDefaultSetting();
+            }
+            if (AppData_.setting.NumGPU == 0)
+            {
+                AppData_.setting.NumGPU = 1;
+            }
+            if (AppData_.setting.MaxGPUResources == null ||
+                AppData_.setting.MaxGPUResources.Length < ResourceManager.MAX_GPU)
+            {
+                AppData_.setting.MaxGPUResources = Enumerable.Repeat(100, ResourceManager.MAX_GPU).ToArray();
+            }
+            if (AppData_.uiState == null)
+            {
+                AppData_.uiState = new UIState();
+            }
+            if (AppData_.scriptData == null)
+            {
+                AppData_.scriptData = new MakeScriptData();
+            }
+            if (AppData_.services == null)
+            {
+                AppData_.services = new ServiceSetting();
+            }
+            if (AppData_.services.ServiceMap == null)
+            {
+                AppData_.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
             }
         }
 

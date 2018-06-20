@@ -37,7 +37,7 @@ namespace Amatsukaze.Server
 
         public static string GetUnknownName(GenreItem a)
         {
-            return "不明" + (a.Space == GenreSpace.CS ? "CS" : "") + "(" + a.Level1 + ")";
+            return "不明" + (a.Space == (int)GenreSpace.CS ? "CS" : "") + "(" + a.Level1 + ")";
         }
     }
 
@@ -47,7 +47,8 @@ namespace Amatsukaze.Server
         public string Name { get; set; }
         public GenreItem Item { get; set; }
 
-        public static readonly SortedList<GenreSpace, SpaceGenre> GENRE_TABLE;
+        // キーはGenreSpace
+        public static readonly SortedList<int, SpaceGenre> GENRE_TABLE;
 
         static SubGenre()
         {
@@ -440,7 +441,7 @@ namespace Amatsukaze.Server
                 }
             };
 
-            GENRE_TABLE = new SortedList<GenreSpace, SpaceGenre>();
+            GENRE_TABLE = new SortedList<int, SpaceGenre>();
             foreach (var a in data)
             {
                 var spaceData = new SpaceGenre()
@@ -456,7 +457,7 @@ namespace Amatsukaze.Server
                     {
                         Item = new GenreItem()
                         {
-                            Space = a.Space,
+                            Space = (int)a.Space,
                             Level1 = l1,
                             Level2 = -1
                         },
@@ -473,7 +474,7 @@ namespace Amatsukaze.Server
                                 Name = b.Table[l2],
                                 Item = new GenreItem()
                                 {
-                                    Space = a.Space,
+                                    Space = (int)a.Space,
                                     Level1 = l1,
                                     Level2 = l2
                                 }
@@ -483,15 +484,15 @@ namespace Amatsukaze.Server
                     }
                     spaceData.MainGenres.Add(l1, l1Data);
                 }
-                GENRE_TABLE.Add(a.Space, spaceData);
+                GENRE_TABLE.Add((int)a.Space, spaceData);
             }
 
             // その他 - その他 を追加
-            GENRE_TABLE[GenreSpace.ARIB].MainGenres.Add(0xF, new MainGenre()
+            GENRE_TABLE[(int)GenreSpace.ARIB].MainGenres.Add(0xF, new MainGenre()
             {
                 Item = new GenreItem()
                 {
-                    Space = GenreSpace.ARIB,
+                    Space = (int)GenreSpace.ARIB,
                     Level1 = 0xF,
                     Level2 = -1
                 },
@@ -505,7 +506,7 @@ namespace Amatsukaze.Server
                             Name = "その他",
                             Item = new GenreItem()
                             {
-                                Space = GenreSpace.ARIB,
+                                Space = (int)GenreSpace.ARIB,
                                 Level1 = 0xF,
                                 Level2 = 0xF
                             }
@@ -544,7 +545,20 @@ namespace Amatsukaze.Server
 
         public static string GetUnknownFullName(GenreItem a)
         {
-            return "不明" + (a.Space == GenreSpace.CS ? "CS" : "") + "(" + a.Level1 + "-" + a.Level2 + ")";
+            string space;
+            if(a.Space == (int)GenreSpace.ARIB)
+            {
+                space = "ARIB";
+            }
+            else if(a.Space == (int)GenreSpace.CS)
+            {
+                space = "CS";
+            }
+            else
+            {
+                space = "事業者定義(" + (a.Space - 1) + ")";
+            }
+            return "不明な" + space + "ジャンル(" + a.Level1 + "-" + a.Level2 + ")";
         }
 
         public override string ToString()

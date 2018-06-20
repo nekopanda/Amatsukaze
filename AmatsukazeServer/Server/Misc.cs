@@ -535,14 +535,14 @@ namespace Amatsukaze.Server
             }
         }
 
-        public static void LaunchLocalServer(int port)
+        public static void LaunchLocalServer(int port, string rootDir)
         {
             var exename = Path.GetDirectoryName(typeof(ServerSupport).Assembly.Location) + "\\" +
                 (Environment.UserInteractive ? "AmatsukazeGUI.exe" : "AmatsukazeServerCLI.exe");
             var args = "-l server -p " + port;
             Process.Start(new ProcessStartInfo(exename, args)
             {
-                WorkingDirectory = Directory.GetCurrentDirectory(),
+                WorkingDirectory = rootDir,
             });
         }
 
@@ -811,14 +811,14 @@ namespace Amatsukaze.Server
         {
             var genre = new GenreItem()
             {
-                Space = GenreSpace.ARIB,
+                Space = (int)GenreSpace.ARIB,
                 Level1 = nibbles.Level1,
                 Level2 = nibbles.Level2
             };
             if(nibbles.Level1 == 0xE)
             {
                 // 拡張
-                genre.Space = (GenreSpace)(nibbles.Level2 + 1);
+                genre.Space = nibbles.Level2 + 1;
                 genre.Level1 = nibbles.User1;
                 genre.Level2 = nibbles.User2;
             }

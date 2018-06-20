@@ -40,7 +40,17 @@ namespace Amatsukaze.Server
             using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(List<QueueItem>));
-                Queue = (List<QueueItem>)s.ReadObject(fs);
+                try
+                {
+                    Queue = (List<QueueItem>)s.ReadObject(fs);
+                }
+                catch
+                {
+                    // 古いバージョンのファイルだとエラーになる
+                    // キューの復旧は必須ではないのでエラーは無視する
+                    Queue = new List<QueueItem>();
+                    return;
+                }
                 foreach(var item in Queue)
                 {
                     // エンコードするアイテムはリセットしておく

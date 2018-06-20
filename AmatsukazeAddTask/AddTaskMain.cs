@@ -14,6 +14,7 @@ namespace Amatsukaze.AddTask
     {
         public int ServerPort = ServerSupport.DEFAULT_PORT;
         public string ServerIP = "localhost";
+        public string AmatsukazeRoot;
 
         public string FilePath;
         public string OutPath;
@@ -33,23 +34,28 @@ namespace Amatsukaze.AddTask
             string help =
                 Environment.GetCommandLineArgs()[0] + " <オプション> -f <input.ts>\r\n" +
                 "オプション\r\n" +
-                "  -f|--file <パス>        入力ファイルパス\t\n" +
-                "  -s|--setting <プロファイル名> エンコード設定プロファイル\t\n" +
-                "  --priority <優先度>     優先度\t\n" +
-                "  -ip|--ip <IPアドレス>   AmatsukazeServerアドレス\t\n" +
-                "  -p|--port <ボート番号>  AmatsukazeServerポート番号\t\n" +
-                "  -o|--outdir <パス>      出力先ディレクトリ\t\n" +
-                "  -d|--nasdir <パス>      NASのTSファイル置き場\t\n" +
-                "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\t\n" +
-                "  --clear-succeeded       NASにコピーする際、コピー先のsucceededフォルダを空にする\t\n" +
-                "  --with-related          NASにコピーする際、関連ファイルも一緒にコピー・移動する\t\n" +
-                "  --subnet <サブネットマスク>  Wake On Lan用サブネットマスク\t\n" +
-                "  --mac <MACアドレス>  Wake On Lan用MACアドレス\t\n";
+                "  -f|--file <パス>        入力ファイルパス\r\n" +
+                "  -s|--setting <プロファイル名> エンコード設定プロファイル\r\n" +
+                "  --priority <優先度>     優先度\r\n" +
+                "  -ip|--ip <IPアドレス>   AmatsukazeServerアドレス\r\n" +
+                "  -p|--port <ポート番号>  AmatsukazeServerポート番号\r\n" +
+                "  -o|--outdir <パス>      出力先ディレクトリ\r\n" +
+                "  -d|--nasdir <パス>      NASのTSファイル置き場\r\n" +
+                "  -r|--amt-root <パス>    Amatsukazeのルートディレクトリ\r\n" +
+                "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\r\n" +
+                "  --clear-succeeded       NASにコピーする際、コピー先のsucceededフォルダを空にする\r\n" +
+                "  --with-related          NASにコピーする際、関連ファイルも一緒にコピー・移動する\r\n" +
+                "  --subnet <サブネットマスク>  Wake On Lan用サブネットマスク\r\n" +
+                "  --mac <MACアドレス>  Wake On Lan用MACアドレス\r\n";
             Console.WriteLine(help);
         }
 
         public GUIOPtion(string[] args)
         {
+            // デフォルトはexeのあるディレクトリの１つ上
+            AmatsukazeRoot = Path.GetDirectoryName(Path.GetDirectoryName(
+                typeof(ServerSupport).Assembly.Location));
+
             for (int i = 0; i < args.Length; ++i)
             {
                 string arg = args[i];
@@ -86,6 +92,11 @@ namespace Amatsukaze.AddTask
                 else if (arg == "-d" || arg == "--nasdir")
                 {
                     NasDir = args[i + 1];
+                    ++i;
+                }
+                else if (arg == "-r" || arg == "--amt-root")
+                {
+                    AmatsukazeRoot = args[i + 1];
                     ++i;
                 }
                 else if (arg == "--no-move")
@@ -291,7 +302,7 @@ namespace Amatsukaze.AddTask
                     // ローカルの場合は、起動を試みる
                     if(isLocal)
                     {
-                        ServerSupport.LaunchLocalServer(option.ServerPort);
+                        ServerSupport.LaunchLocalServer(option.ServerPort, option.AmatsukazeRoot);
 
                         // 10秒待つ
                         await Task.Delay(10 * 1000);
@@ -478,7 +489,6 @@ namespace Amatsukaze.AddTask
     {
         static void Main(string[] args)
         {
-            // カレントディレクトリは正しくセットされていること前提 //
             try
             {
                 TaskSupport.SetSynchronizationContext();

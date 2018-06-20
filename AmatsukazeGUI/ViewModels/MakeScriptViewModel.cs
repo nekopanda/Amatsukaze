@@ -173,12 +173,11 @@ namespace Amatsukaze.ViewModels
             {
                 sb.Append("rem _EDCBX_DIRECT_\r\n");
             }
-            sb.Append("cd /d \"")
-                .Append(cur)
-                .Append("\"\r\n\"")
-                .Append(exe)
+            sb.Append(exe)
                 .Append("\\AmatsukazeAddTask.exe\"")
-                .AppendFormat(" -f \"{0}FilePath{0}\" -ip \"", direct ? "%" : "$")
+                .Append(" -r \"")
+                .Append(cur)
+                .AppendFormat("\" -f \"{0}FilePath{0}\" -ip \"", direct ? "%" : "$")
                 .Append(ip)
                 .Append("\" -p ")
                 .Append(port)

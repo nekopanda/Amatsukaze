@@ -326,35 +326,42 @@ namespace Amatsukaze.Server
             isDirty = false;
         }
 
+        private static int[][] ResourceSections =
+            new int[][] { new int[] { 4 }, new int[] { 3, 2, 1 }, new int[] { 0 } };
+
         private QueueItem NextItem()
         {
-            for (int i = queue.Length - 1; i >= 0; --i)
+            if(EnableResourceScheduling)
             {
-                var level = queue[i];
-                if (EnableResourceScheduling)
-                {
-                    if (level.Any())
-                    {
-                        var resList = queue[i].Select(e => e.Key).ToList();
-                        var costList = resList.Select(s => resourceManager.ResourceCost(ReqResource.FromCanonical(s))).ToList();
-                        var minKey = resList[costList.IndexOf(costList.Min())];
-                        if (level[minKey].Any())
-                        {
-                            return level[minKey].First();
-                        }
-                    }
-                }
-                else
-                {
-                    var item = level.FirstOrDefault().Value?.FirstOrDefault();
-                    if (item != null)
-                    {
-                        return item;
-                    }
-                }
+                return ResourceSections
+                    // 各リソース区間の優先度リスト
+                    .Select(prs => prs
+                    // リソース区間のエントリをリスト化
+                    // リストは優先度の高い順になっていることに注意
+                    .SelectMany(pr => queue[pr])
+                    // リソースキーでまとめる
+                    .GroupBy(entry => entry.Key)
+                    // リソースキーをコストに変換
+                    // アイテムはそのリソースキーで最も優先度の高いアイテム１つだけにする
+                    // アイテムは優先度順になっているはずなのでこれでOK
+                    .Select(g => new {
+                        Cost = resourceManager.ResourceCost(ReqResource.FromCanonical(g.Key)),
+                        Item = g.First().Value.First()
+                    })
+                    // リソースの空き具合で並べ替え
+                    .OrderBy(g => g.Cost)
+                    // 最もリソースの空きの大きいアイテムを選択
+                    // アイテムがない場合nullになることに注意
+                    .FirstOrDefault()?.Item)
+                    // 優先度の高い順になっているので最初のアイテムを返す
+                    .FirstOrDefault(s => s != null);
             }
-
-            return null;
+            else
+            {
+                return queue.Reverse()
+                    .Select(level => level.FirstOrDefault().Value?.FirstOrDefault())
+                    .FirstOrDefault(s => s != null);
+            }
         }
 
         public QueueItem PopItem()
