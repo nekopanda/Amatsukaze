@@ -586,7 +586,7 @@ namespace Amatsukaze.Server
             {
                 Util.AddLog(id, message, e);
             }
-            return Client.OnOperationResult(new OperationResult()
+            return Client?.OnOperationResult(new OperationResult()
             {
                 IsFailed = error,
                 Message = Util.ErrorMessage(id, message, e),
@@ -762,26 +762,33 @@ namespace Amatsukaze.Server
             using (FileStream fs = new FileStream(path, FileMode.Open))
             {
                 var s = new DataContractSerializer(typeof(AutoSelectData));
-                var data = (AutoSelectData)s.ReadObject(fs);
-                autoSelects.Clear();
-                foreach(var profile in data.Profiles)
+                try
                 {
-                    foreach(var cond in profile.Conditions)
+                    var data = (AutoSelectData)s.ReadObject(fs);
+                    autoSelects.Clear();
+                    foreach (var profile in data.Profiles)
                     {
-                        if(cond.ContentConditions == null)
+                        foreach (var cond in profile.Conditions)
                         {
-                            cond.ContentConditions = new List<GenreItem>();
+                            if (cond.ContentConditions == null)
+                            {
+                                cond.ContentConditions = new List<GenreItem>();
+                            }
+                            if (cond.ServiceIds == null)
+                            {
+                                cond.ServiceIds = new List<int>();
+                            }
+                            if (cond.VideoSizes == null)
+                            {
+                                cond.VideoSizes = new List<VideoSizeCondition>();
+                            }
                         }
-                        if(cond.ServiceIds == null)
-                        {
-                            cond.ServiceIds = new List<int>();
-                        }
-                        if(cond.VideoSizes == null)
-                        {
-                            cond.VideoSizes = new List<VideoSizeCondition>();
-                        }
+                        autoSelects.Add(profile.Name, profile);
                     }
-                    autoSelects.Add(profile.Name, profile);
+                }
+                catch(Exception e)
+                {
+                    FatalError("自動選択プロファイルを読み込めませんでした", e);
                 }
             }
         }
