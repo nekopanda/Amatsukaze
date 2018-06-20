@@ -56,7 +56,7 @@
             </Grid.ColumnDefinitions>
             
             <TextBlock Text="サーバIP" VerticalAlignment="Center" Margin="5"/>
-            <TextBox Grid.Column="1" Text="{Binding ServerIP}" VerticalAlignment="Center" TabIndex="1" Margin="5">
+            <TextBox Grid.Column="1" Text="{Binding ServerIP, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TabIndex="1" Margin="5">
                 <TextBox.InputBindings>
                     <KeyBinding Key="Enter" Command="{Binding OkCommand, Mode=OneWay}"/>
                 </TextBox.InputBindings>

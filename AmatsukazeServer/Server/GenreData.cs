@@ -488,7 +488,7 @@ namespace Amatsukaze.Server
             }
 
             // その他 - その他 を追加
-            GENRE_TABLE[(int)GenreSpace.ARIB].MainGenres.Add(0xF, new MainGenre()
+            var other = new MainGenre()
             {
                 Item = new GenreItem()
                 {
@@ -498,22 +498,20 @@ namespace Amatsukaze.Server
                 },
                 Name = "その他",
                 SubGenres = new SortedList<int, SubGenre>()
+            };
+            other.SubGenres.Add(0xF,
+                new SubGenre()
                 {
+                    Main = other,
+                    Name = "その他",
+                    Item = new GenreItem()
                     {
-                        0xF,
-                        new SubGenre()
-                        {
-                            Name = "その他",
-                            Item = new GenreItem()
-                            {
-                                Space = (int)GenreSpace.ARIB,
-                                Level1 = 0xF,
-                                Level2 = 0xF
-                            }
-                        }
+                        Space = (int)GenreSpace.ARIB,
+                        Level1 = 0xF,
+                        Level2 = 0xF
                     }
-                }
-            });
+                });
+            GENRE_TABLE[(int)GenreSpace.ARIB].MainGenres.Add(0xF, other);
         }
 
         public static SubGenre GetDisplayGenre(GenreItem item)

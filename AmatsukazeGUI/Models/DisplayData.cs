@@ -68,7 +68,8 @@ namespace Amatsukaze.Models
 
         public string GenreString
         {
-            get { return string.Join(", ", Model.Genre.Select(s => SubGenre.GetFromItem(s).FullName)); }
+            get { return string.Join(", ", 
+                Model.Genre.Select(s => SubGenre.GetFromItem(s)?.FullName).Where(s => s != null)); }
         }
 
         public string VideoSizeString
