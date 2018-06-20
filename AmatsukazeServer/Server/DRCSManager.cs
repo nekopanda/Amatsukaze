@@ -48,11 +48,6 @@ namespace Amatsukaze.Server
             this.server = server;
         }
 
-        private Task NotifyMessage(bool fail, string message, bool log)
-        {
-            return server.NotifyMessage(fail, message, log);
-        }
-
         public Task RequestDrcsImages()
         {
             return server.Client.OnDrcsData(new DrcsImageUpdate()
@@ -427,8 +422,8 @@ namespace Amatsukaze.Server
                         }
                         catch (Exception e)
                         {
-                            await NotifyMessage(true,
-                                "DRCSマッピングファイル書き込みに失敗: " + e.Message, false);
+                            await server.FatalError(
+                                "DRCSマッピングファイル書き込みに失敗", e);
                         }
                     }
                     else
@@ -446,8 +441,8 @@ namespace Amatsukaze.Server
                             }
                             catch (Exception e)
                             {
-                                await NotifyMessage(true,
-                                    "DRCS画像ファイル削除に失敗: " + e.Message, false);
+                                await server.FatalError(
+                                    "DRCS画像ファイル削除に失敗", e);
                             }
                         }
 
@@ -466,8 +461,8 @@ namespace Amatsukaze.Server
                         }
                         catch (Exception e)
                         {
-                            await NotifyMessage(true,
-                                "DRCSマッピングファイル書き込みに失敗: " + e.Message, false);
+                            await server.FatalError(
+                                "DRCSマッピングファイル書き込みに失敗", e);
                         }
                         // ファイル置き換え
                         MoveFileEx(tmppath, filepath, 11);

@@ -34,7 +34,7 @@ namespace Amatsukaze.Server
         public Func<int, IScheduleWorker> NewWorker;
         public Func<Task> OnStart;
         public Func<Task> OnFinish;
-        public Func<string, Task> OnError;
+        public Func<int, string, Exception, Task> OnError;
 
         public IEnumerable<IScheduleWorker> Workers { get { return workers.Select(w => w.TargetWorker); } }
 
@@ -102,7 +102,7 @@ namespace Amatsukaze.Server
                         {
                             int waitSec = (failCount * 10 + 10);
                             await Task.WhenAll(
-                                OnError("エンコードに失敗したので" + waitSec + "秒待機します。(parallel=" + id + ")"),
+                                OnError(id, "エンコードに失敗したので" + waitSec + "秒待機します。", null),
                                 Task.Delay(waitSec * 1000));
                         }
                         w.WorkItem = null;
@@ -119,7 +119,7 @@ namespace Amatsukaze.Server
             }
             catch (Exception exception)
             {
-                await OnError("EncodeThreadがエラー終了しました: " + exception.Message);
+                await OnError(id, "EncodeThreadがエラー終了しました", exception);
             }
         }
 

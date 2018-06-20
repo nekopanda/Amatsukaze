@@ -256,7 +256,17 @@ namespace Amatsukaze.Server
                     //}
                     return task;
                 },
-                OnError = message => NotifyMessage(true, message, true)
+                OnError = (id, mes, e) =>
+                {
+                    if(e != null)
+                    {
+                        return FatalError(id, mes, e);
+                    }
+                    else
+                    {
+                        return NotifyMessage(id, mes, true);
+                    }
+                }
             };
             workerPool.SetNumParallel(AppData_.setting.NumParallel);
             scheduledQueue.WorkerPool = workerPool;
@@ -556,7 +566,7 @@ namespace Amatsukaze.Server
                     }
                     catch (IOException e)
                     {
-                        Util.AddLog("ログファイルの移行に失敗: " + e.Message);
+                        Util.AddLog("ログファイルの移行に失敗", e);
                     }
                 }
 
@@ -569,18 +579,51 @@ namespace Amatsukaze.Server
             }
         }
 
-        internal Task NotifyMessage(bool fail, string message, bool log)
+        #region メッセージ出力
+        private Task doNotify(int id, string message, Exception e, bool error, bool log)
         {
-            if(log)
+            if (log)
             {
-                Util.AddLog(message);
+                Util.AddLog(id, message, e);
             }
             return Client.OnOperationResult(new OperationResult()
             {
-                IsFailed = fail,
-                Message = message
+                IsFailed = error,
+                Message = Util.ErrorMessage(id, message, e),
+                StackTrace = e?.StackTrace
             });
         }
+
+        internal Task NotifyMessage(int id, string message, bool log)
+        {
+            return doNotify(id, message, null, false, log);
+        }
+
+        internal Task NotifyMessage(string message, bool log)
+        {
+            return doNotify(-1, message, null, false, log);
+        }
+
+        internal Task NotifyError(int id, string message, bool log)
+        {
+            return doNotify(id, message, null, true, log);
+        }
+
+        internal Task NotifyError(string message, bool log)
+        {
+            return doNotify(-1, message, null, true, log);
+        }
+
+        internal Task FatalError(int id, string message, Exception e)
+        {
+            return doNotify(id, message, e, true, true);
+        }
+
+        internal Task FatalError(string message, Exception e)
+        {
+            return doNotify(-1, message, e, true, true);
+        }
+        #endregion
 
         private static string GetExePath(string basePath, string pattern)
         {
@@ -805,7 +848,7 @@ namespace Amatsukaze.Server
             }
             catch (IOException e)
             {
-                Util.AddLog("ログファイル書き込み失敗: " + e.Message);
+                Util.AddLog("ログファイル書き込み失敗", e);
             }
             return Task.FromResult(0);
         }
@@ -825,7 +868,7 @@ namespace Amatsukaze.Server
             }
             catch (IOException e)
             {
-                Util.AddLog("ログファイル書き込み失敗: " + e.Message);
+                Util.AddLog("ログファイル書き込み失敗", e);
             }
             return Task.FromResult(0);
         }
@@ -1331,7 +1374,7 @@ namespace Amatsukaze.Server
             }
             catch (Exception exception)
             {
-                await NotifyMessage(true, "QueueThreadがエラー終了しました: " + exception.Message, true);
+                await FatalError("QueueThreadがエラー終了しました", exception);
             }
         }
 
@@ -1639,11 +1682,7 @@ namespace Amatsukaze.Server
                                     }
                                     catch (Exception e)
                                     {
-                                        await Client.OnOperationResult(new OperationResult()
-                                        {
-                                            IsFailed = true,
-                                            Message = "プロファイル「" + filepath + "」の読み込みに失敗\r\n" + e.Message
-                                        });
+                                        await FatalError("プロファイル「" + filepath + "」の読み込みに失敗", e);
                                     }
                                 }
                                 else if (newProfiles.Contains(name) == false)
@@ -1677,11 +1716,7 @@ namespace Amatsukaze.Server
                                         }
                                         catch (Exception e)
                                         {
-                                            await Client.OnOperationResult(new OperationResult()
-                                            {
-                                                IsFailed = true,
-                                                Message = "プロファイル「" + filepath + "」の読み込みに失敗\r\n" + e.Message
-                                            });
+                                            await FatalError("プロファイル「" + filepath + "」の読み込みに失敗", e);
                                         }
                                     }
                                 }
@@ -1732,8 +1767,8 @@ namespace Amatsukaze.Server
             }
             catch (Exception exception)
             {
-                await NotifyMessage(true, 
-                    "WatchFileThreadがエラー終了しました: " + exception.Message, true);
+                await FatalError(
+                    "WatchFileThreadがエラー終了しました", exception);
             }
         }
 
@@ -1766,8 +1801,8 @@ namespace Amatsukaze.Server
             }
             catch (Exception exception)
             {
-                await NotifyMessage(true, 
-                    "WatchFileThreadがエラー終了しました: " + exception.Message, true);
+                await FatalError(
+                    "WatchFileThreadがエラー終了しました", exception);
             }
         }
 
@@ -1798,7 +1833,7 @@ namespace Amatsukaze.Server
                     }
                     catch (Exception e)
                     {
-                        Util.AddLog("ディスク情報取得失敗: " + e.Message);
+                        Util.AddLog("ディスク情報取得失敗: ", e);
                     }
                 }
             }
@@ -1884,12 +1919,12 @@ namespace Amatsukaze.Server
                     }
                 }
                 waits.Add(Client.OnProfile(data));
-                waits.Add(NotifyMessage(false, message, false));
+                waits.Add(NotifyMessage(message, false));
                 return Task.WhenAll(waits);
             }
             catch (Exception e)
             {
-                return NotifyMessage(true, e.Message, false);
+                return NotifyError(e.Message, false);
             }
         }
 
@@ -1932,12 +1967,12 @@ namespace Amatsukaze.Server
                     }
                 }
                 waits.Add(Client.OnAutoSelect(data));
-                waits.Add(NotifyMessage(false, message, false));
+                waits.Add(NotifyMessage(message, false));
                 return Task.WhenAll(waits);
             }
             catch (Exception e)
             {
-                return NotifyMessage(true, e.Message, false);
+                return NotifyError(e.Message, false);
             }
         }
 
@@ -1957,7 +1992,7 @@ namespace Amatsukaze.Server
                     return Task.WhenAll(
                         Client.OnCommonData(new CommonData() { Setting = AppData_.setting }),
                         RequestFreeSpace(),
-                        NotifyMessage(false, "設定を更新しました", false));
+                        NotifyMessage("設定を更新しました", false));
                 }
                 else if(data.MakeScriptData != null)
                 {
@@ -1971,7 +2006,7 @@ namespace Amatsukaze.Server
             }
             catch(Exception e)
             {
-                return NotifyMessage(true, e.Message, false);
+                return NotifyError(e.Message, false);
             }
         }
 
@@ -2376,7 +2411,7 @@ namespace Amatsukaze.Server
         {
             if(fileName == LogoSetting.NO_LOGO)
             {
-                return NotifyMessage(true, "不正な操作です", false);
+                return NotifyError("不正な操作です", false);
             }
             string logopath = GetLogoFilePath(fileName);
             try
@@ -2392,8 +2427,8 @@ namespace Amatsukaze.Server
             }
             catch(IOException exception)
             {
-                return NotifyMessage(true,
-                    "ロゴファイルを開けません。パス:" + logopath + "メッセージ: " + exception.Message, false);
+                return FatalError(
+                    "ロゴファイルを開けません。パス:" + logopath, exception);
             }
         }
 

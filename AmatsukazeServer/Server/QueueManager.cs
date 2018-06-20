@@ -79,11 +79,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        private Task NotifyMessage(bool fail, string message, bool log)
-        {
-            return server.NotifyMessage(fail, message, log);
-        }
-
         private Task ClientQueueUpdate(QueueUpdate update)
         {
             return server.ClientQueueUpdate(update);
@@ -211,7 +206,7 @@ namespace Amatsukaze.Server
 
             if (req.Outputs.Count == 0)
             {
-                await NotifyMessage(true, "出力が1つもありません", enableLog);
+                await server.NotifyError("出力が1つもありません", enableLog);
                 return;
             }
 
@@ -393,7 +388,7 @@ namespace Amatsukaze.Server
 
             if (numItems == 0)
             {
-                waits.Add(NotifyMessage(true,
+                waits.Add(server.NotifyError(
                     "エンコード対象ファイルがありませんでした。パス:" + req.DirPath, enableLog));
 
                 await Task.WhenAll(waits);
@@ -402,7 +397,7 @@ namespace Amatsukaze.Server
             }
             else
             {
-                waits.Add(NotifyMessage(false, "" + numItems + "件追加しました", false));
+                waits.Add(server.NotifyMessage("" + numItems + "件追加しました", false));
             }
 
             if (req.Mode != ProcMode.AutoBatch)
@@ -551,7 +546,7 @@ namespace Amatsukaze.Server
                     Item = item
                 }));
             }
-            waits.Add(NotifyMessage(false, "" + removeItems.Length + "件削除しました", false));
+            waits.Add(server.NotifyMessage("" + removeItems.Length + "件削除しました", false));
         }
 
         public Task ChangeItem(ChangeItemData data)
@@ -567,7 +562,7 @@ namespace Amatsukaze.Server
             var target = Queue.FirstOrDefault(s => s.Id == data.ItemId);
             if (target == null)
             {
-                return NotifyMessage(true,
+                return server.NotifyError(
                     "指定されたアイテムが見つかりません", false);
             }
 
@@ -582,7 +577,7 @@ namespace Amatsukaze.Server
                         target.State != QueueState.Failed &&
                         target.State != QueueState.Canceled)
                     {
-                        return NotifyMessage(true, "完了していないアイテムはリトライできません", false);
+                        return server.NotifyError("完了していないアイテムはリトライできません", false);
                     }
                 }
                 else if (data.ChangeType == ChangeItemType.UpdateProfile)
@@ -590,7 +585,7 @@ namespace Amatsukaze.Server
                     // エンコード中は変更できない
                     if (target.State == QueueState.Encoding)
                     {
-                        return NotifyMessage(true, "このアイテムはエンコード中のためプロファイル更新できません", false);
+                        return server.NotifyError("このアイテムはエンコード中のためプロファイル更新できません", false);
                     }
                 }
                 else if (data.ChangeType == ChangeItemType.Duplicate)
@@ -598,7 +593,7 @@ namespace Amatsukaze.Server
                     // バッチモードでアクティブなやつは重複になるのでダメ
                     if (target.IsBatch && target.IsActive)
                     {
-                        return NotifyMessage(true, "通常モードで追加されたアイテムは複製できません", false);
+                        return server.NotifyError("通常モードで追加されたアイテムは複製できません", false);
                     }
                 }
 
@@ -628,23 +623,23 @@ namespace Amatsukaze.Server
                 if (data.ChangeType == ChangeItemType.ResetState)
                 {
                     ResetStateItem(target, waits);
-                    waits.Add(NotifyMessage(false, "リトライします", false));
+                    waits.Add(server.NotifyMessage("リトライします", false));
                 }
                 else if (data.ChangeType == ChangeItemType.UpdateProfile)
                 {
                     if(UpdateProfileItem(target, waits))
                     {
-                        waits.Add(NotifyMessage(false, "新しいプロファイルが適用されました", false));
+                        waits.Add(server.NotifyMessage("新しいプロファイルが適用されました", false));
                     }
                     else
                     {
-                        waits.Add(NotifyMessage(false, "すでに最新のプロファイルが適用されています", false));
+                        waits.Add(server.NotifyMessage("すでに最新のプロファイルが適用されています", false));
                     }
                 }
                 else
                 {
                     DuplicateItem(target, waits);
-                    waits.Add(NotifyMessage(false, "複製しました", false));
+                    waits.Add(server.NotifyMessage("複製しました", false));
                 }
 
                 return Task.WhenAll(waits);
@@ -664,11 +659,11 @@ namespace Amatsukaze.Server
                             Type = UpdateType.Update,
                             Item = target
                         }),
-                        NotifyMessage(false, "キャンセルしました", false));
+                        server.NotifyMessage("キャンセルしました", false));
                 }
                 else
                 {
-                    return NotifyMessage(true,
+                    return server.NotifyError(
                         "このアイテムはアクティブ状態でないため、キャンセルできません", false);
                 }
             }
@@ -682,28 +677,28 @@ namespace Amatsukaze.Server
                         Type = UpdateType.Update,
                         Item = target
                     }),
-                    NotifyMessage(false, "優先度を変更しました", false));
+                    server.NotifyMessage("優先度を変更しました", false));
             }
             else if (data.ChangeType == ChangeItemType.Profile)
             {
                 if (target.State == QueueState.Encoding)
                 {
-                    return NotifyMessage(true, "エンコード中はプロファイル変更できません", false);
+                    return server.NotifyError("エンコード中はプロファイル変更できません", false);
                 }
                 if (target.State == QueueState.PreFailed)
                 {
-                    return NotifyMessage(true, "このアイテムはプロファイル変更できません", false);
+                    return server.NotifyError("このアイテムはプロファイル変更できません", false);
                 }
 
                 var waits = new List<Task>();
                 target.ProfileName = data.Profile;
                 if (UpdateProfileItem(target, waits))
                 {
-                    waits.Add(NotifyMessage(false, "プロファイルを「" + data.Profile + "」に変更しました", false));
+                    waits.Add(server.NotifyMessage("プロファイルを「" + data.Profile + "」に変更しました", false));
                 }
                 else
                 {
-                    waits.Add(NotifyMessage(false, "既に同じプロファイルが適用されています", false));
+                    waits.Add(server.NotifyMessage("既に同じプロファイルが適用されています", false));
                 }
 
                 return Task.WhenAll(waits);
@@ -722,13 +717,13 @@ namespace Amatsukaze.Server
                         Type = UpdateType.Remove,
                         Item = target
                     }),
-                    NotifyMessage(false, "アイテムを削除しました", false));
+                    server.NotifyMessage("アイテムを削除しました", false));
             }
             else if(data.ChangeType == ChangeItemType.ForceStart)
             {
                 if(target.State != QueueState.Queue)
                 {
-                    return NotifyMessage(true, "待ち状態にないアイテムは開始できません", false);
+                    return server.NotifyError("待ち状態にないアイテムは開始できません", false);
                 }
                 else
                 {

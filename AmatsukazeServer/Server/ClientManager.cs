@@ -68,7 +68,7 @@ namespace Amatsukaze.Server
             HostName = Dns.GetHostEntry(endPoint.Address).HostName;
             Port = endPoint.Port;
 
-            Util.AddLog("クライアント(" + HostName + ":" + Port + ")と接続");
+            Util.AddLog("クライアント(" + HostName + ":" + Port + ")と接続", null);
         }
 
         public async Task Start()
@@ -82,10 +82,9 @@ namespace Amatsukaze.Server
                     TotalRecvCount++;
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Util.AddLog("クライアント(" + HostName + ":" + Port + ")との接続が切れました");
-                Util.AddLog(e.Message);
+                Util.AddLog("クライアント(" + HostName + ":" + Port + ")との接続が切れました", null);
                 Close();
             }
             manager.OnClientClosed(this);
@@ -144,7 +143,7 @@ namespace Amatsukaze.Server
             {
                 listener = new TcpListener(IPAddress.Any, port);
                 listener.Start();
-                Util.AddLog("サーバ開始しました。ポート: " + port);
+                Util.AddLog("サーバ開始しました。ポート: " + port, null);
 
                 try
                 {
@@ -160,8 +159,7 @@ namespace Amatsukaze.Server
                 {
                     if (finished == false)
                     {
-                        Util.AddLog("Listen中にエラーが発生");
-                        Util.AddLog(e.Message);
+                        Util.AddLog("Listen中にエラーが発生", e);
 
                         // 一定時間待つ
                         await Task.Delay((++errorCount) * 5 * 1000);
@@ -224,11 +222,10 @@ namespace Amatsukaze.Server
                     await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
                     client.TotalSendCount++;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     Util.AddLog("クライアント(" +
-                        client.HostName + ":" + client.Port + ")との接続が切れました");
-                    Util.AddLog(e.Message);
+                        client.HostName + ":" + client.Port + ")との接続が切れました", null);
                     client.Close();
                     OnClientClosed(client);
                 }

@@ -1048,6 +1048,8 @@ namespace Amatsukaze.Server
         public bool IsFailed { get; set; }
         [DataMember]
         public string Message { get; set; }
+        [DataMember]
+        public string StackTrace { get; set; }
     }
 
     public enum VideoSizeCondition

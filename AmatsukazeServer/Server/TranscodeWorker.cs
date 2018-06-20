@@ -782,8 +782,8 @@ namespace Amatsukaze.Server
 
                 int outputMask = profile.OutputMask;
 
-                Util.AddLog(id, ModeToString(src.Mode) + "開始: " + src.SrcPath);
-                Util.AddLog(id, "Args: " + exename + " " + args);
+                Util.AddLog(id, ModeToString(src.Mode) + "開始: " + src.SrcPath, null);
+                Util.AddLog(id, "Args: " + exename + " " + args, null);
 
                 DateTime start = DateTime.Now;
 
@@ -863,12 +863,12 @@ namespace Amatsukaze.Server
                 }
                 catch (Win32Exception w32e)
                 {
-                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗");
+                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗", w32e);
                     throw w32e;
                 }
                 catch (IOException ioe)
                 {
-                    Util.AddLog(id, "ログファイル生成に失敗");
+                    Util.AddLog(id, "ログファイル生成に失敗", ioe);
                     throw ioe;
                 }
                 finally
@@ -1144,11 +1144,7 @@ namespace Amatsukaze.Server
             }
             catch (Exception e)
             {
-                await server.Client.OnOperationResult(new OperationResult()
-                {
-                    IsFailed = true,
-                    Message = "予期せぬエラー: " + e.Message
-                });
+                await server.FatalError(id, "エンコード中にエラー", e);
                 return false;
             }
         }

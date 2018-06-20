@@ -186,7 +186,7 @@ namespace Amatsukaze.Server
             Close();
             client = new TcpClient();
             await client.ConnectAsync(serverIp, port);
-            Util.AddLog("サーバ(" + serverIp + ":" + port + ")に接続しました");
+            Util.AddLog("サーバ(" + serverIp + ":" + port + ")に接続しました", null);
             stream = client.GetStream();
 
             // 接続後一通りデータを要求する
@@ -260,8 +260,8 @@ namespace Amatsukaze.Server
                     if (reconnect == false)
                     {
                         nextWaitSec = failCount * 10;
-                        Util.AddLog("接続エラー: " + e.Message);
-                        Util.AddLog(nextWaitSec.ToString() + "秒後にリトライします");
+                        Util.AddLog("接続エラー: ", e);
+                        Util.AddLog(nextWaitSec.ToString() + "秒後にリトライします", null);
                         failReason = e.Message;
                         ++failCount;
                     }

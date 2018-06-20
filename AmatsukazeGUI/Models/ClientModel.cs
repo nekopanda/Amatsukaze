@@ -722,7 +722,8 @@ namespace Amatsukaze.Models
                 await OnOperationResult(new OperationResult()
                 {
                     IsFailed = true,
-                    Message = "RequestLogoThreadがエラー終了しました: " + exception.Message
+                    Message = "RequestLogoThreadがエラー終了しました: " + exception.Message,
+                    StackTrace = exception.StackTrace
                 });
             }
         }
@@ -1234,6 +1235,10 @@ namespace Amatsukaze.Models
             IsCurrentResultFail = result.IsFailed;
             CurrentOperationResult = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + result.Message;
             AddLog(result.Message);
+            if(result.StackTrace != null)
+            {
+                AddLog(result.StackTrace);
+            }
             return Task.FromResult(0);
         }
 

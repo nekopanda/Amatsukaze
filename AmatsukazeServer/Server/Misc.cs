@@ -119,7 +119,7 @@ namespace Amatsukaze.Server
         [Conditional("DEBUG")]
         public static void Print(string str)
         {
-            Util.AddLog(str);
+            Util.AddLog(str, null);
         }
     }
 
@@ -127,16 +127,43 @@ namespace Amatsukaze.Server
     {
         public static List<Action<string>> LogHandlers = new List<Action<string>>();
 
-        public static void AddLog(int parallelId, string log)
+        public static string ErrorMessage(int parallelId, string mes, Exception e)
         {
-            AddLog("[" + parallelId + "] " + log);
+            string message = "";
+            if (parallelId != -1)
+            {
+                message += "[" + parallelId + "] ";
+            }
+            if (mes != null)
+            {
+                message += mes;
+            }
+            if (e != null)
+            {
+                if(mes != null)
+                {
+                    message += "例外: ";
+                }
+                message += e.Message;
+            }
+            return message;
         }
 
-        public static void AddLog(string log)
+        public static void AddLog(string log, Exception e)
         {
+            AddLog(-1, log, e);
+        }
+
+        public static void AddLog(int parallelId, string log, Exception e)
+        {
+            string message = ErrorMessage(parallelId, log, e);
             foreach (var handler in LogHandlers)
             {
-                handler(log);
+                handler(message);
+                if(e != null)
+                {
+                    handler(e.StackTrace);
+                }
             }
         }
 
@@ -148,7 +175,7 @@ namespace Amatsukaze.Server
             }
             catch (Exception e)
             {
-                AddLog(e.Message);
+                AddLog(null, e);
             }
         }
 
