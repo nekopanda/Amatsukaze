@@ -173,33 +173,21 @@ namespace Amatsukaze.ViewModels
             {
                 sb.Append("rem _EDCBX_DIRECT_\r\n");
             }
-            sb.Append(exe)
-                .Append("\\AmatsukazeAddTask.exe\"")
-                .Append(" -r \"")
-                .Append(cur)
-                .AppendFormat("\" -f \"{0}FilePath{0}\" -ip \"", direct ? "%" : "$")
-                .Append(ip)
-                .Append("\" -p ")
-                .Append(port)
-                .Append(" -o \"")
-                .Append(dst)
-                .Append("\" -s \"")
-                .Append(prof)
-                .Append("\" --priority ")
-                .Append(Model.MakeScriptData.Priority);
+            sb.AppendFormat("\"{0}\\AmatsukazeAddTask.exe\"", exe)
+                .AppendFormat(" -r \"{0}\"", cur)
+                .AppendFormat(" -f \"{0}FilePath{0}\" -ip \"{1}\"", direct ? "%" : "$", ip)
+                .AppendFormat(" -p {0}", port)
+                .AppendFormat(" -o \"{0}\"", dst)
+                .AppendFormat(" -s \"{0}\"", prof)
+                .AppendFormat(" --priority {0}", Model.MakeScriptData.Priority);
             if (nas != null)
             {
-                sb.Append(" -d \"")
-                    .Append(nas)
-                    .Append("\"");
+                sb.AppendFormat(" -d \"{0}\"", nas);
             }
             if (mac != null)
             {
-                sb.Append(" --subnet \"")
-                    .Append(subnet)
-                    .Append("\" --mac \"")
-                    .Append(mac)
-                    .Append("\"");
+                sb.AppendFormat(" --subnet \"{0}\"", subnet)
+                    .AppendFormat(" --mac \"{0}\"", mac);
             }
             if (Model.MakeScriptData.MoveAfter == false)
             {
