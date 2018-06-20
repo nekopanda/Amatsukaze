@@ -369,10 +369,30 @@
                                 「基本設定」で設定可能です。異なるGPUはリソースが別にカウントされます。
                             </Paragraph>
                             <Paragraph>
-                                <Bold>重要: </Bold>「基本設定」で設定されるエンコード並列数は、
+                                <Bold>Tips: </Bold>「基本設定」で設定されるエンコード並列数は、
                                 リソース制限により中断されているエンコードインスタンスもカウントされます。
                                 リソース設定で並列実行数を制御する場合は、エンコード並列数は多めに設定してください。
                             </Paragraph>
+                            <Paragraph>
+                                リソーススケジューリングが有効な場合、実行開始順は以下のようになります。
+                            </Paragraph>
+                            <List MarkerStyle="Box" Padding="15,0,0,0">
+                                <ListItem>
+                                    <Paragraph>
+                                        優先度5は最初に実行される。ただし、同じ優先度5のアイテムはリソース空き順で実行される
+                                    </Paragraph>
+                                </ListItem>
+                                <ListItem>
+                                    <Paragraph>
+                                        優先度2～4はリソース空き順で実行される。ただし、使用リソースが同じなら優先度順で実行される
+                                    </Paragraph>
+                                </ListItem>
+                                <ListItem>
+                                    <Paragraph>
+                                        優先度1は最後に実行される。ただし、同じ優先度1のアイテムはリソース空き順で実行される
+                                    </Paragraph>
+                                </ListItem>
+                            </List>
                         </FlowDocument>
                     </RichTextBox>
                     <ItemsControl DockPanel.Dock="Left" ItemsSource="{Binding Model.SelectedProfile.Resources}">
