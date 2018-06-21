@@ -107,9 +107,15 @@ namespace Amatsukaze.ViewModels
             return true;
         }
 
-        private void GetProfileName()
+        private bool GetProfileName()
         {
             Item.Outputs[0].Profile = DisplayProfile.GetProfileName(SelectedProfile);
+            if(string.IsNullOrEmpty(Item.Outputs[0].Profile))
+            {
+                Description = "プロファイルを選択してください";
+                return false;
+            }
+            return true;
         }
 
         #region OkCommand
@@ -128,7 +134,7 @@ namespace Amatsukaze.ViewModels
         public async void Ok()
         {
             if (!await GetOutPath()) return;
-            GetProfileName();
+            if (!GetProfileName()) return;
             Item.Mode = ProcMode.Batch;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -152,7 +158,7 @@ namespace Amatsukaze.ViewModels
         public async void Test()
         {
             if (!await GetOutPath()) return;
-            GetProfileName();
+            if (!GetProfileName()) return;
             Item.Mode = ProcMode.Test;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -174,7 +180,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Search()
         {
-            GetProfileName();
+            if (!GetProfileName()) return;
             Item.Mode = ProcMode.DrcsCheck;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -196,7 +202,7 @@ namespace Amatsukaze.ViewModels
 
         public async void CMCheck()
         {
-            GetProfileName();
+            if (!GetProfileName()) return;
             Item.Mode = ProcMode.CMCheck;
             Succeeded = true;
             await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
