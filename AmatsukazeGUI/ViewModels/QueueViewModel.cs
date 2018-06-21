@@ -171,16 +171,17 @@ namespace Amatsukaze.ViewModels
             var item = obj as DisplayQueueItem;
             if (Model.Setting.HideOneSeg && item.IsTooSmall) return false;
             if (string.IsNullOrEmpty(_SearchWord)) return true;
-            return item.Model.ServiceName.IndexOf(_SearchWord) != -1 ||
-                item.Model.FileName.IndexOf(_SearchWord) != -1 ||
-                item.GenreString.IndexOf(_SearchWord) != -1 ||
-                item.StateString.IndexOf(_SearchWord) != -1 ||
-                item.ModeString.IndexOf(_SearchWord) != -1;
+            return (SearchServiceName && item.Model.ServiceName.IndexOf(_SearchWord) != -1) ||
+                (SearchFileName && item.Model.FileName.IndexOf(_SearchWord) != -1) ||
+                (SearchGenre && item.GenreString.IndexOf(_SearchWord) != -1) ||
+                (SearchState && item.StateString.IndexOf(_SearchWord) != -1) ||
+                (SearchMode && item.ModeString.IndexOf(_SearchWord) != -1) ||
+                (SearchProfile && item.Model.Profile.Name.IndexOf(_SearchWord) != -1);
         }
 
         private void QueueItemPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if(string.IsNullOrEmpty(e.PropertyName))
+            if (string.IsNullOrEmpty(e.PropertyName))
             {
                 ItemStateUpdated();
             }
@@ -200,7 +201,7 @@ namespace Amatsukaze.ViewModels
                 }
             }).Select(s => new AddQueueItem() { Path = s }).ToList();
 
-            if(targets.Count == 0)
+            if (targets.Count == 0)
             {
                 return;
             }
@@ -231,7 +232,7 @@ namespace Amatsukaze.ViewModels
 
             if (selectPathVM.Succeeded)
             {
-                if(selectPathVM.PauseStart)
+                if (selectPathVM.PauseStart)
                 {
                     await Model.Server?.PauseEncode(true);
                 }
@@ -303,11 +304,9 @@ namespace Amatsukaze.ViewModels
         #region SearchWord変更通知プロパティ
         private string _SearchWord;
 
-        public string SearchWord
-        {
+        public string SearchWord {
             get { return _SearchWord; }
-            set
-            {
+            set {
                 if (_SearchWord == value)
                     return;
                 _SearchWord = value;
@@ -320,10 +319,8 @@ namespace Amatsukaze.ViewModels
         #region ClearSearchWordCommand
         private ViewModelCommand _ClearSearchWordCommand;
 
-        public ViewModelCommand ClearSearchWordCommand
-        {
-            get
-            {
+        public ViewModelCommand ClearSearchWordCommand {
+            get {
                 if (_ClearSearchWordCommand == null)
                 {
                     _ClearSearchWordCommand = new ViewModelCommand(ClearSearchWord);
@@ -390,12 +387,9 @@ namespace Amatsukaze.ViewModels
         #region IsPanelOpen変更通知プロパティ
         private bool _IsPanelOpen;
 
-        public bool IsPanelOpen
-        {
-            get
-            { return _IsPanelOpen; }
-            set
-            {
+        public bool IsPanelOpen {
+            get { return _IsPanelOpen; }
+            set {
                 if (_IsPanelOpen == value)
                     return;
                 _IsPanelOpen = value;
@@ -407,10 +401,8 @@ namespace Amatsukaze.ViewModels
         #region OpenLogoAnalyzeCommand
         private ListenerCommand<IEnumerable> _OpenLogoAnalyzeCommand;
 
-        public ListenerCommand<IEnumerable> OpenLogoAnalyzeCommand
-        {
-            get
-            {
+        public ListenerCommand<IEnumerable> OpenLogoAnalyzeCommand {
+            get {
                 if (_OpenLogoAnalyzeCommand == null)
                 {
                     _OpenLogoAnalyzeCommand = new ListenerCommand<IEnumerable>(OpenLogoAnalyze);
@@ -428,10 +420,8 @@ namespace Amatsukaze.ViewModels
         #region OpenLogoAnalyzeSlimTsCommand
         private ListenerCommand<IEnumerable> _OpenLogoAnalyzeSlimTsCommand;
 
-        public ListenerCommand<IEnumerable> OpenLogoAnalyzeSlimTsCommand
-        {
-            get
-            {
+        public ListenerCommand<IEnumerable> OpenLogoAnalyzeSlimTsCommand {
+            get {
                 if (_OpenLogoAnalyzeSlimTsCommand == null)
                 {
                     _OpenLogoAnalyzeSlimTsCommand = new ListenerCommand<IEnumerable>(OpenLogoAnalyzeSlimTs);
@@ -449,10 +439,8 @@ namespace Amatsukaze.ViewModels
         #region RetryCommand
         private ListenerCommand<IEnumerable> _RetryCommand;
 
-        public ListenerCommand<IEnumerable> RetryCommand
-        {
-            get
-            {
+        public ListenerCommand<IEnumerable> RetryCommand {
+            get {
                 if (_RetryCommand == null)
                 {
                     _RetryCommand = new ListenerCommand<IEnumerable>(Retry);
@@ -510,10 +498,8 @@ namespace Amatsukaze.ViewModels
         #region ReAddCommand
         private ListenerCommand<IEnumerable> _ReAddCommand;
 
-        public ListenerCommand<IEnumerable> ReAddCommand
-        {
-            get
-            {
+        public ListenerCommand<IEnumerable> ReAddCommand {
+            get {
                 if (_ReAddCommand == null)
                 {
                     _ReAddCommand = new ListenerCommand<IEnumerable>(ReAdd);
@@ -540,10 +526,8 @@ namespace Amatsukaze.ViewModels
         #region CancelCommand
         private ListenerCommand<IEnumerable> _CancelCommand;
 
-        public ListenerCommand<IEnumerable> CancelCommand
-        {
-            get
-            {
+        public ListenerCommand<IEnumerable> CancelCommand {
+            get {
                 if (_CancelCommand == null)
                 {
                     _CancelCommand = new ListenerCommand<IEnumerable>(Cancel);
@@ -565,7 +549,7 @@ namespace Amatsukaze.ViewModels
             }
         }
         #endregion
-        
+
         #region RemoveCommand
         private ListenerCommand<IEnumerable> _RemoveCommand;
 
@@ -623,10 +607,8 @@ namespace Amatsukaze.ViewModels
         #region OpenFileInExplorerCommand
         private ListenerCommand<IEnumerable> _OpenFileInExplorerCommand;
 
-        public ListenerCommand<IEnumerable> OpenFileInExplorerCommand
-        {
-            get
-            {
+        public ListenerCommand<IEnumerable> OpenFileInExplorerCommand {
+            get {
                 if (_OpenFileInExplorerCommand == null)
                 {
                     _OpenFileInExplorerCommand = new ListenerCommand<IEnumerable>(OpenFileInExplorer);
@@ -686,9 +668,9 @@ namespace Amatsukaze.ViewModels
 
         public void ShowItemDetail(DisplayQueueItem item)
         {
-            if(item.Model.State == QueueState.Encoding)
+            if (item.Model.State == QueueState.Encoding)
             {
-                if(item.Model.ConsoleId < Model.ConsoleList.Count)
+                if (item.Model.ConsoleId < Model.ConsoleList.Count)
                 {
                     MainPanel.ConsolePanelSelectedIndex = item.Model.ConsoleId;
                 }
@@ -699,16 +681,134 @@ namespace Amatsukaze.ViewModels
         #region ListStyle変更通知プロパティ
         private int _ListStyle;
 
-        public int ListStyle
-        {
+        public int ListStyle {
             get { return _ListStyle; }
-            set
-            {
+            set {
                 if (_ListStyle == value)
                     return;
                 _ListStyle = value;
                 RaisePropertyChanged();
                 itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        private bool[] SearchChecks = new bool[6] { true, true, true, true, true, true };
+        private bool EnableUpdate = true;
+
+        #region SearchFileName変更通知プロパティ
+        public bool SearchFileName {
+            get { return SearchChecks[0]; }
+            set { 
+                if (SearchChecks[0] == value)
+                    return;
+                SearchChecks[0] = value;
+                RaisePropertyChanged();
+                UpdateSearchAll();
+                if (EnableUpdate)
+                    itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region SearchServiceName変更通知プロパティ
+        public bool SearchServiceName {
+            get { return SearchChecks[1]; }
+            set { 
+                if (SearchChecks[1] == value)
+                    return;
+                SearchChecks[1] = value;
+                RaisePropertyChanged();
+                UpdateSearchAll();
+                if (EnableUpdate)
+                    itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region SearchProfile変更通知プロパティ
+        public bool SearchProfile {
+            get { return SearchChecks[2]; }
+            set { 
+                if (SearchChecks[2] == value)
+                    return;
+                SearchChecks[2] = value;
+                RaisePropertyChanged();
+                UpdateSearchAll();
+                if (EnableUpdate)
+                    itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region SearchGenre変更通知プロパティ
+        public bool SearchGenre {
+            get { return SearchChecks[3]; }
+            set { 
+                if (SearchChecks[3] == value)
+                    return;
+                SearchChecks[3] = value;
+                RaisePropertyChanged();
+                UpdateSearchAll();
+                if (EnableUpdate)
+                    itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region SearchState変更通知プロパティ
+        public bool SearchState {
+            get { return SearchChecks[4]; }
+            set { 
+                if (SearchChecks[4] == value)
+                    return;
+                SearchChecks[4] = value;
+                RaisePropertyChanged();
+                UpdateSearchAll();
+                if (EnableUpdate)
+                    itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region SearchMode変更通知プロパティ
+        public bool SearchMode {
+            get { return SearchChecks[5]; }
+            set { 
+                if (SearchChecks[5] == value)
+                    return;
+                SearchChecks[5] = value;
+                RaisePropertyChanged();
+                UpdateSearchAll();
+                if (EnableUpdate)
+                    itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region SearchCheckAll変更通知プロパティ
+        private bool? _SearchCheckAll = true;
+
+        public bool? SearchCheckAll {
+            get { return _SearchCheckAll; }
+            set { 
+                if (_SearchCheckAll == value)
+                    return;
+                _SearchCheckAll = value;
+                RaisePropertyChanged();
+                if (value != null)
+                {
+                    bool val = (bool)value;
+                    EnableUpdate = false;
+                    SearchFileName = val;
+                    SearchServiceName = val;
+                    SearchProfile = val;
+                    SearchGenre = val;
+                    SearchState = val;
+                    SearchMode = val;
+                    EnableUpdate = true;
+                    itemsView.Refresh();
+                }
             }
         }
         #endregion
@@ -728,6 +828,13 @@ namespace Amatsukaze.ViewModels
             RaisePropertyChanged("Pending");
             RaisePropertyChanged("Fail");
             RaisePropertyChanged("Canceled");
+        }
+
+        private void UpdateSearchAll()
+        {
+            SearchCheckAll = SearchChecks.All(s => s)
+                ? (bool?)true : SearchChecks.All(s => !s)
+                ? (bool?)false : null;
         }
 
         public void ChangeProfile(IEnumerable selectedItems, object profile)

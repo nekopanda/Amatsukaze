@@ -2253,7 +2253,8 @@ namespace Amatsukaze.Server
                     {
                         index = w.id,
                         text = w.consoleText.TextLines as List<string>
-                    }
+                    },
+                    EncodeState = w.consoleText.State
                 })));
         }
 

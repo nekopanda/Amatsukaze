@@ -63,6 +63,16 @@
                 </DockPanel>
             </Expander.Header>
             <DockPanel>
+                <WrapPanel DockPanel.Dock="Top">
+                    <TextBlock Text="検索項目: "/>
+                    <CheckBox Content="ファイル名" IsChecked="{Binding SearchFileName, Mode=TwoWay}"/>
+                    <CheckBox Content="チャンネル" IsChecked="{Binding SearchServiceName, Mode=TwoWay}"/>
+                    <CheckBox Content="プロファイル" IsChecked="{Binding SearchProfile, Mode=TwoWay}"/>
+                    <CheckBox Content="ジャンル" IsChecked="{Binding SearchGenre, Mode=TwoWay}"/>
+                    <CheckBox Content="状態" IsChecked="{Binding SearchState, Mode=TwoWay}"/>
+                    <CheckBox Content="モード" IsChecked="{Binding SearchMode, Mode=TwoWay}"/>
+                    <CheckBox Content="すべて" IsChecked="{Binding SearchCheckAll, Mode=TwoWay}"/>
+                </WrapPanel>
                 <UniformGrid Columns="4" DockPanel.Dock="Top">
                     <Button Margin="3" Height="24" Content="キャンセル"
                             Style="{StaticResource ButtonForSelectedItems}"

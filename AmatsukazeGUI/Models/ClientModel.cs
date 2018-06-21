@@ -1095,6 +1095,13 @@ namespace Amatsukaze.Models
                 ensureConsoleNum(data.ConsoleData.index);
                 consoleList_[data.ConsoleData.index].SetTextLines(data.ConsoleData.text);
             }
+            if(data.EncodeState != null)
+            {
+                ensureConsoleNum(data.EncodeState.ConsoleId);
+                var console = consoleList_[data.EncodeState.ConsoleId];
+                console.Phase = data.EncodeState.Phase;
+                console.Resource = data.EncodeState.Resource;
+            }
             return Task.FromResult(0);
         }
 

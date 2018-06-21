@@ -265,7 +265,8 @@ private:
     // Amatsukaze用オートロードフォルダを追加
     sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
     // メモリ節約オプションを有効にする
-    sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
+		sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
+		sb.append("SetDeviceOpt(DEV_FREE_THRESHOLD, 1000)\n");
     return sb.str();
   }
 

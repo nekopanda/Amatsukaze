@@ -842,6 +842,8 @@ namespace Amatsukaze.Server
         public CheckLogItem CheckLogItem { get; set; }
         [DataMember]
         public ConsoleData ConsoleData { get; set; }
+        [DataMember]
+        public EncodeState EncodeState { get; set; }
     }
 
     [DataContract]

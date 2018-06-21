@@ -16,6 +16,7 @@ namespace Amatsukaze.Server
     internal class ConsoleText : ConsoleTextBase
     {
         public List<string> TextLines = new List<string>();
+        public EncodeState State;
 
         private int maxLines;
 
@@ -546,11 +547,13 @@ namespace Amatsukaze.Server
                     await WriteCommand(writePipe, cmd, resource?.GpuIndex ?? -1);
 
                     // UIクライアントに通知
-                    await server.Client.OnEncodeState(new EncodeState() {
+                    consoleText.State = new EncodeState()
+                    {
                         ConsoleId = id,
                         Phase = (resource != null) ? cmd : ResourcePhase.Max,
                         Resource = resource
-                    });
+                    };
+                    await server.Client.OnEncodeState(consoleText.State);
                 }
             }
             catch(Exception)
@@ -568,12 +571,13 @@ namespace Amatsukaze.Server
                 }
 
                 // UIクライアントに通知
-                await server.Client.OnEncodeState(new EncodeState()
+                consoleText.State = new EncodeState()
                 {
                     ConsoleId = id,
                     Phase = ResourcePhase.Max,
                     Resource = null
-                });
+                };
+                await server.Client.OnEncodeState(consoleText.State);
             }
         }
 
