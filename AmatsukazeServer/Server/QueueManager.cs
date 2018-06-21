@@ -442,9 +442,9 @@ namespace Amatsukaze.Server
                 if (profile != server.PendingProfile && // ペンディングの場合は決定したときに実行される
                     item.Mode == ProcMode.Batch &&
                     profile.DisableHashCheck == false &&
-                    item.FileName.StartsWith("\\\\"))
+                    item.SrcPath.StartsWith("\\\\"))
                 {
-                    var hashpath = Path.GetDirectoryName(item.FileName) + ".hash";
+                    var hashpath = Path.GetDirectoryName(item.SrcPath) + ".hash";
                     if(hashCache.ContainsKey(hashpath) == false)
                     {
                         if (File.Exists(hashpath) == false)
@@ -473,7 +473,7 @@ namespace Amatsukaze.Server
                     }
 
                     var cacheItem = hashCache[hashpath];
-                    var filename = Path.GetFileName(item.FileName);
+                    var filename = item.FileName;
 
                     if(cacheItem.HashDict.ContainsKey(filename) == false)
                     {
