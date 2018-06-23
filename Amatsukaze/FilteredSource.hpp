@@ -135,6 +135,29 @@ enum FILTER_PHASE {
 };
 
 class AMTFilterSource : public AMTObject {
+  class AvsScript
+  {
+  public:
+    StringBuilder& Get() { return append; }
+    void Apply(IScriptEnvironment* env) {
+      auto str = append.str();
+      append.clear();
+      script += str;
+      // 最後の結果は自分でlastに入れなければならないことに注意
+      //（これをしないと最後のフィルタ呼び出しの直前がlastになってしまう）
+      env->SetVar("last", env->Invoke("Eval", str.c_str()));
+    }
+    void Clear() {
+      script.clear();
+      append.clear();
+    }
+    const std::string& Str() const {
+      return script;
+    }
+  private:
+    std::string script;
+    StringBuilder append;
+  };
 public:
   // Main (+ Post)
   AMTFilterSource(AMTContext&ctx,
@@ -147,70 +170,76 @@ public:
     : AMTObject(ctx)
     , setting_(setting)
     , env_(make_unique_ptr((IScriptEnvironment2*)nullptr))
-    , filterTmp(setting.getAvsTmpPath(fileId, encoderId, cmtype))
   {
     try {
-			// フィルタ前処理用リソース確保
-			int gpuIndex = rm.wait(HOST_CMD_Filter);
-			std::vector<int> outFrames;
+      // フィルタ前処理用リソース確保
+      int gpuIndex = rm.wait(HOST_CMD_Filter);
+      std::vector<int> outFrames;
 
-			//Kパスまである場合
-			//<=K-2: 前処理
-			//K-1: タイミング生成
-			//K: 画像生成（タイミングも同時に生成）
-			//PHASE
-			//0: 前処理
-			//1: タイミング生成
-			//2: 画像生成
-			int pass = 0;
-			for (; pass < 4; ++pass) {
-				int phase = FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
-				if (phase == PHASE_PRE_PROCESS) {
-					// 前処理を実行
-					ReadAllFrames(pass, phase);
-				}
-				else if (phase == PHASE_GEN_TIMING) {
-					// タイミング生成
-					ReadAllFrames(pass, phase);
-				}
-				else {
-					break;
-				}
-			}
+      //Kパスまである場合
+      //<=K-2: 前処理
+      //K-1: タイミング生成
+      //K: 画像生成（タイミングも同時に生成）
+      //PHASE
+      //0: 前処理
+      //1: タイミング生成
+      //2: 画像生成
+      int pass = 0;
+      for (; pass < 4; ++pass) {
+        int phase = FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+        if (phase == PHASE_PRE_PROCESS) {
+          // 前処理を実行
+          ReadAllFrames(pass, phase);
+        }
+        else if (phase == PHASE_GEN_TIMING) {
+          // タイミング生成
+          ReadAllFrames(pass, phase);
+        }
+        else {
+          break;
+        }
+      }
 
-			// エンコード用リソース確保
-			int encodeIndex = rm.request(HOST_CMD_Encode);
-			if (encodeIndex == -1 || encodeIndex != gpuIndex) {
-				// 確保できなかった or GPUが変更されたら 一旦解放する
-				filter_ = nullptr;
-				env_ = nullptr;
-				if (encodeIndex == -1) {
-					// リソースが確保できていなかったら確保できるまで待つ
-					encodeIndex = rm.wait(HOST_CMD_Encode);
-				}
-				// 再生成
-				gpuIndex = encodeIndex;
-				FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
-			}
+      // エンコード用リソース確保
+      int encodeIndex = rm.request(HOST_CMD_Encode);
+      if (encodeIndex == -1 || encodeIndex != gpuIndex) {
+        // 確保できなかった or GPUが変更されたら 一旦解放する
+        env_ = nullptr;
+        if (encodeIndex == -1) {
+          // リソースが確保できていなかったら確保できるまで待つ
+          encodeIndex = rm.wait(HOST_CMD_Encode);
+        }
+        // 再生成
+        gpuIndex = encodeIndex;
+        FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+      }
 
+      auto& sb = script_.Get();
       std::string postpath = setting.getPostFilterScriptPath();
       if (postpath.size()) {
-        env_->SetVar("AMT_SOURCE", filter_);
-        filter_ = env_->Invoke("Import", postpath.c_str(), 0).AsClip();
+        sb.append("AMT_SOURCE = last\n");
+        sb.append("Import(\"%s\")\n", postpath);
       }
 
       if (setting_.isDumpFilter()) {
-          StringBuilder sb;
-          sb.append("DumpFilterGraph(\"%s\", 1)", setting_.getFilterGraphDumpPath());
-          env_->SetVar("last", filter_);
-          env_->Invoke("Eval", AVSValue(sb.str().c_str()));
+        sb.append("DumpFilterGraph(\"%s\", 1)",
+          setting_.getFilterGraphDumpPath(fileId, encoderId, cmtype));
+        // メモリデバッグ用 2000フレームごとにグラフダンプ
+        //sb.append("DumpFilterGraph(\"%s\", 2, 2000, true)",
+        //	setting_.getFilterGraphDumpPath(fileId, encoderId, cmtype));
       }
 
-      MakeZones(filter_, fileId, encoderId, outFrames, zones, reformInfo);
+      script_.Apply(env_.get());
+      filter_ = env_->GetVar("last").AsClip();
+      writeScriptFile(fileId, encoderId, cmtype);
+
+      MakeZones(fileId, encoderId, outFrames, zones, reformInfo);
 
       MakeOutFormat(reformInfo.getFormat(encoderId, fileId).videoFormat);
     }
     catch (const AvisynthError& avserror) {
+      // デバッグ用にスクリプトは保存しておく
+      writeScriptFile(fileId, encoderId, cmtype);
       // AvisynthErrorはScriptEnvironmentに依存しているので
       // AviSynthExceptionに変換する
       THROWF(AviSynthException, "%s", avserror.msg);
@@ -224,6 +253,10 @@ public:
 
   const PClip& getClip() const {
     return filter_;
+  }
+
+  std::string getScript() const {
+    return script_.Str();
   }
 
   const VideoFormat& getFormat() const {
@@ -247,16 +280,26 @@ public:
 private:
   const ConfigWrapper& setting_;
   ScriptEnvironmentPointer env_;
+  AvsScript script_;
   PClip filter_;
   VideoFormat outfmt_;
   std::vector<EncoderZone> outZones_;
   std::vector<int> frameDurations;
-  std::string filterTmp;
 
-  std::string makePreamble() {
-    StringBuilder sb;
+  void writeScriptFile(int fileId, int encoderId, CMType cmtype) {
+    auto& str = script_.Str();
+    File avsfile(setting_.getFilterAvsPath(fileId, encoderId, cmtype), "w");
+    avsfile.write(MemoryChunk((uint8_t*)str.c_str(), str.size()));
+  }
+
+  void InitEnv() {
+    env_ = nullptr;
+    env_ = make_unique_ptr(CreateScriptEnvironment2());
+
+    script_.Clear();
+    auto& sb = script_.Get();
     if (setting_.isDumpFilter()) {
-        sb.append("SetGraphAnalysis(true)\n");
+      sb.append("SetGraphAnalysis(true)\n");
     }
     // システムのプラグインフォルダを無効化
     if (setting_.isSystemAvsPlugin() == false) {
@@ -265,23 +308,15 @@ private:
     // Amatsukaze用オートロードフォルダを追加
     sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
     // メモリ節約オプションを有効にする
-		sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
-		sb.append("SetDeviceOpt(DEV_FREE_THRESHOLD, 1000)\n");
-    return sb.str();
-  }
-
-  void InitEnv() {
-    env_ = nullptr;
-    env_ = make_unique_ptr(CreateScriptEnvironment2());
-    env_->Invoke("Eval", AVSValue(makePreamble().c_str()));
-
-    AVSValue avsv;
-    env_->LoadPlugin(GetModulePath().c_str(), true, &avsv);
-    env_->SetVar("AMT_TMP", env_->SaveString(filterTmp.c_str()));
+    sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
+    sb.append("SetDeviceOpt(DEV_FREE_THRESHOLD, 1000)\n");
+    // Amatsukaze.dllをロード
+    sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
   }
 
   void ReadAllFrames(int pass, int phase) {
-    const VideoInfo vi = filter_->GetVideoInfo();
+    PClip clip = env_->GetVar("last").AsClip();
+    const VideoInfo vi = clip->GetVideoInfo();
 
     ctx.info("フィルタパス%d 予定フレーム数: %d", pass + 1, vi.num_frames);
     Stopwatch sw;
@@ -293,7 +328,7 @@ private:
     }
 
     for (int i = 0; i < vi.num_frames; ) {
-      PVideoFrame frame = filter_->GetFrame(i, env_.get());
+      PVideoFrame frame = clip->GetFrame(i, env_.get());
       if (phase == PHASE_GEN_TIMING) {
         frameDurations.push_back(std::max(1, frame->GetProperty("FrameDuration", 1)));
         i += frameDurations.back();
@@ -314,42 +349,25 @@ private:
     ctx.info("フィルタパス%d 完了: %.2f秒", pass + 1, sw.getTotal());
   }
 
-  PClip prefetch(PClip clip, int threads) {
-    AVSValue args[] = { clip, threads };
-    return env_->Invoke("Prefetch", AVSValue(args, 2)).AsClip();
-  }
-
-  PClip makeMainFilterSource(
+  void makeMainFilterSource(
     int fileId, int encoderId, CMType cmtype,
     std::vector<int>& outFrames,
     const StreamReformInfo& reformInfo,
     const std::string& logopath)
   {
-    auto& fmt = reformInfo.getFormat(encoderId, fileId);
-    PClip clip = new av::AMTSource(ctx,
-      setting_.getIntVideoFilePath(fileId),
-      setting_.getWaveFilePath(),
-      fmt.videoFormat, fmt.audioFormat[0],
-      reformInfo.getFilterSourceFrames(fileId),
-      reformInfo.getFilterSourceAudioFrames(fileId),
-      setting_.getDecoderSetting(),
-      env_.get());
-
-    clip = prefetch(clip, 1);
+    auto& sb = script_.Get();
+    sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(fileId));
+    sb.append("Prefetch(1)\n");
 
     if (setting_.isNoDelogo() == false && logopath.size() > 0) {
-      // キャッシュを間に入れるためにInvokeでフィルタをインスタンス化
-      AVSValue args_a[] = { clip, logopath.c_str() };
-      PClip analyzeclip = env_->Invoke("AMTAnalyzeLogo", AVSValue(args_a, 2)).AsClip();
-      AVSValue args_e[] = { clip, analyzeclip, logopath.c_str() };
-      clip = env_->Invoke("AMTEraseLogo2", AVSValue(args_e, 3)).AsClip();
-      clip = prefetch(clip, 1);
+      sb.append("AMTEraseLogo2(AMTAnalyzeLogo(\"%s\"), \"%s\")\n", logopath, logopath);
+      sb.append("Prefetch(1)\n");
     }
 
-    return trimInput(clip, fileId, encoderId, cmtype, outFrames, reformInfo);
+    trimInput(fileId, encoderId, cmtype, outFrames, reformInfo);
   }
 
-  PClip trimInput(PClip clip, int fileId, int encoderId, CMType cmtype,
+  void trimInput(int fileId, int encoderId, CMType cmtype,
     std::vector<int>& outFrames,
     const StreamReformInfo& reformInfo)
   {
@@ -380,52 +398,48 @@ private:
     zone.endFrame = outFrames.back();
     trimZones.push_back(zone);
 
+    auto& sb = script_.Get();
     if (trimZones.size() > 1 ||
       trimZones[0].startFrame != 0 ||
       trimZones[0].endFrame != (srcFrames.size() - 1))
     {
       // Trimが必要
-      std::vector<AVSValue> trimClips(trimZones.size());
       for (int i = 0; i < (int)trimZones.size(); ++i) {
-        AVSValue arg[] = { clip, trimZones[i].startFrame, trimZones[i].endFrame };
-        trimClips[i] = env_->Invoke("Trim", AVSValue(arg, 3));
+        if (i > 0) sb.append("++");
+        sb.append("Trim(%d,%d)", trimZones[i].startFrame, trimZones[i].endFrame);
       }
-      if (trimClips.size() == 1) {
-        clip = trimClips[0].AsClip();
-      }
-      else {
-        clip = env_->Invoke("AlignedSplice", AVSValue(trimClips.data(), (int)trimClips.size())).AsClip();
-      }
+      sb.append("\n");
     }
-
-    return clip;
   }
 
-	int FilterPass(int pass, int gpuIndex,
-		int fileId, int encoderId, CMType cmtype,
-		std::vector<int>& outFrames,
-		const StreamReformInfo& reformInfo,
-		const std::string& logopath)
-	{
-		outFrames.clear();
+  int FilterPass(int pass, int gpuIndex,
+    int fileId, int encoderId, CMType cmtype,
+    std::vector<int>& outFrames,
+    const StreamReformInfo& reformInfo,
+    const std::string& logopath)
+  {
+    outFrames.clear();
 
-		filter_ = nullptr; // クリップ解放
-		InitEnv();
-		filter_ = makeMainFilterSource(fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
-		env_->SetVar("AMT_SOURCE", filter_);
-		env_->SetVar("AMT_PASS", pass);
-		env_->SetVar("AMT_DEV", gpuIndex);
+    InitEnv();
 
-		std::string mainpath = setting_.getFilterScriptPath();
-		if (mainpath.size()) {
-			filter_ = env_->Invoke("Import", mainpath.c_str(), 0).AsClip();
-			return env_->GetVarDef("AMT_PHASE", PHASE_GEN_IMAGE).AsInt();
-		}
-		return PHASE_GEN_IMAGE;
-	}
+    makeMainFilterSource(fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+
+    auto& sb = script_.Get();
+    sb.append("AMT_SOURCE = last\n");
+    sb.append("AMT_TMP = \"%s\"\n", setting_.getAvsTmpPath(fileId, encoderId, cmtype));
+    sb.append("AMT_PASS = %d\n", pass);
+    sb.append("AMT_DEV = %d\n", gpuIndex);
+
+    std::string mainpath = setting_.getFilterScriptPath();
+    if (mainpath.size()) {
+      sb.append("Import(\"%s\")\n", mainpath);
+    }
+
+    script_.Apply(env_.get());
+    return env_->GetVarDef("AMT_PHASE", PHASE_GEN_IMAGE).AsInt();
+  }
 
   void MakeZones(
-    PClip postClip,
     int fileId, int encoderId,
     const std::vector<int>& outFrames,
     const std::vector<EncoderZone>& zones,
@@ -447,10 +461,10 @@ private:
     }
 
     const VideoFormat& infmt = reformInfo.getFormat(encoderId, fileId).videoFormat;
-    VideoInfo outvi = postClip->GetVideoInfo();
+    VideoInfo outvi = filter_->GetVideoInfo();
     double srcDuration = (double)numSrcFrames * infmt.frameRateDenom / infmt.frameRateNum;
     double clipDuration = (double)outvi.num_frames * outvi.fps_denominator / outvi.fps_numerator;
-    bool outParity = postClip->GetParity(0);
+    bool outParity = filter_->GetParity(0);
 
     ctx.info("フィルタ入力: %dフレーム %d/%dfps (%s)",
       numSrcFrames, infmt.frameRateNum, infmt.frameRateDenom,
@@ -505,7 +519,7 @@ class FilterVFRProc : public AMTObject
   double totalDuration; // 合計時間（チェック用）
   std::vector<int> frameFps_; // 各フレームのFPS(120fpsの場合)/各フレームの60fpsフレーム数(60fpsの場合)
   std::vector<int> frameMap_; // VFRフレーム番号 -> 60fpsフレーム番号のマッピング
-  
+
   bool is23(const std::vector<int>& durations, int offset) {
     if (offset + 1 < durations.size()) {
       return durations[offset] == 2 && durations[offset + 1] == 3;
@@ -532,8 +546,8 @@ class FilterVFRProc : public AMTObject
 
 public:
   FilterVFRProc(AMTContext&ctx, const std::vector<int>& durations, const VideoInfo& vi, bool is120fps)
-  : AMTObject(ctx) 
-  , is120fps(is120fps)
+    : AMTObject(ctx)
+    , is120fps(is120fps)
   {
     fpsNum = vi.fps_numerator;
     fpsDenom = vi.fps_denominator;
@@ -636,8 +650,8 @@ public:
 // VFRでだいたいのレートコントロールを実現する
 // VFRタイミングとCMゾーンからゾーンとビットレートを作成
 std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
-    const std::vector<EncoderZone>& cmzones, double bitrateCM, 
-    int fpsNum, int fpsDenom, double timeFactor, double costLimit)
+  const std::vector<EncoderZone>& cmzones, double bitrateCM,
+  int fpsNum, int fpsDenom, double timeFactor, double costLimit)
 {
   enum {
     UNIT_FRAMES = 8,
@@ -660,7 +674,7 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
     auto start = durations.begin() + i * UNIT_FRAMES;
     auto end = ((i + 1) * UNIT_FRAMES < durations.size()) ? start + UNIT_FRAMES : durations.end();
     int sum = std::accumulate(start, end, 0);
-		double invfps = (double)sum / (int)(end - start);
+    double invfps = (double)sum / (int)(end - start);
     units[i] = (invfps - 1.0) * timeFactor + 1.0;
   }
   // cmzonesを適用
@@ -701,7 +715,7 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
     int mid = next.index;
     int end = blocks[next.next].index;
     // 現在のコスト
-    
+
     double cur_cost = sumDiff(start, mid, cur.avg);
     double next_cost = sumDiff(mid, end, next.avg);
     // 連結後の平均ビットレート

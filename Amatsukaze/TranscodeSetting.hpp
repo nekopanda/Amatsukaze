@@ -738,6 +738,12 @@ public:
     return str;
   }
 
+	std::string getFilterAvsPath(int vindex, int index, CMType cmtype) const {
+		auto str = StringFormat("%s/vfilter%d-%d%s.avs", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+		ctx.registerTmpFile(str);
+		return str;
+	}
+
 	std::string getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
 		auto str = StringFormat("%s/s%d-%d%s.log", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
@@ -875,8 +881,8 @@ public:
         return conf.dumpFilter;
     }
 
-    std::string getFilterGraphDumpPath() const {
-        return regtmp(StringFormat("%s/graph.txt", tmpDir.path()));
+    std::string getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
+        return regtmp(StringFormat("%s/graph%d-%d%s.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
     }
 
     bool isZoneAvailable() const {
