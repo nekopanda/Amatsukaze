@@ -63,8 +63,8 @@ class AMTSource : public IClip, AMTObject
 	Tree<int, CacheFrame*> frameCache;
 	List<CacheFrame*> recentAccessed;
 
-	// デコードできなかったフレームリスト
-	std::set<int> failedFrames;
+	// デコードできなかったフレームの置換先リスト
+	std::map<int, int> failedMap;
 
 	VideoInfo vi;
 
@@ -339,17 +339,20 @@ class AMTSource : public IClip, AMTObject
 		int frameIndex = int(it - frames.begin());
 		auto cacheit = frameCache.find(frameIndex);
 
-		lastDecodeFrame = frameIndex;
-
 		if (it->halfDelay) {
 			// ディレイを適用させる
 			if (cacheit != frameCache.end()) {
 				// すでにキャッシュにある
 				UpdateAccessed(cacheit->value);
+        lastDecodeFrame = frameIndex;
 			}
 			else if (prevFrame != nullptr) {
 				PutFrame(frameIndex, MakeFrame((*prevFrame)(), frame(), env));
+        lastDecodeFrame = frameIndex;
 			}
+      else {
+        // 直前のフレームがないのでフレームを作れない
+      }
 
 			// 次のフレームも同じフレームを参照してたらそれも出力
 			auto next = it + 1;
@@ -374,6 +377,7 @@ class AMTSource : public IClip, AMTObject
 			else {
 				PutFrame(frameIndex, MakeFrame(frame(), frame(), env));
 			}
+      lastDecodeFrame = frameIndex;
 		}
 
 		prevFrame = std::unique_ptr<Frame>(new Frame(frame));
@@ -426,15 +430,15 @@ class AMTSource : public IClip, AMTObject
 		}
 	}
 
-	void registerFailedFrames(int begin, int end, IScriptEnvironment* env)
+	void registerFailedFrames(int begin, int end, int replace, IScriptEnvironment* env)
 	{
 		for (int f = begin; f < end; ++f) {
-			failedFrames.insert(f);
+      failedMap[f] = replace;
 		}
 		// デコード不可フレーム数が１割を超える場合はエラーとする
-		if (failedFrames.size() * 10 > frames.size()) {
+		if (failedMap.size() * 10 > frames.size()) {
 			env->ThrowError("[AMTSource] デコードできないフレーム数が多すぎます -> %dフレームがデコード不可",
-				(int)failedFrames.size());
+				(int)failedMap.size());
 		}
 	}
 
@@ -498,9 +502,9 @@ public:
 			return it->value->data;
 		}
 
-		// デコードできないフレームは諦める
-		if (failedFrames.find(n) != failedFrames.end()) {
-			return ForceGetFrame(n, env);
+		// デコードできないフレームは置換フレームに置き換える
+		if (failedMap.find(n) != failedMap.end()) {
+      n = failedMap[n];
 		}
 
 		// キャッシュにないのでデコードする
@@ -526,19 +530,19 @@ public:
 				if (keyNum <= 0) {
 					// これ以上戻れない
 					// nからlastDecodeFrameまでをデコード不可とする
-					registerFailedFrames(n, lastDecodeFrame, env);
+					registerFailedFrames(n, lastDecodeFrame, lastDecodeFrame, env);
 					break;
 				}
 				if (lastDecodeFrame >= 0 && lastDecodeFrame < n) {
 					// データが足りなくてゴールに到達できなかった
 					// このフレームより後ろは全てデコード不可とする
-					registerFailedFrames(lastDecodeFrame + 1, (int)frames.size(), env);
+					registerFailedFrames(lastDecodeFrame + 1, (int)frames.size(), lastDecodeFrame, env);
 					break;
 				}
 				if (i == 2) {
 					// デコード失敗
 					// nからlastDecodeFrameまでをデコード不可とする
-					registerFailedFrames(n, lastDecodeFrame, env);
+					registerFailedFrames(n, lastDecodeFrame, lastDecodeFrame, env);
 					break;
 				}
 				keyNum -= std::max(5, keyNum - frames[keyNum - 1].keyFrame);

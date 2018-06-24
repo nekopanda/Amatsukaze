@@ -141,11 +141,13 @@ class AMTFilterSource : public AMTObject {
     StringBuilder& Get() { return append; }
     void Apply(IScriptEnvironment* env) {
       auto str = append.str();
-      append.clear();
-      script += str;
-      // 最後の結果は自分でlastに入れなければならないことに注意
-      //（これをしないと最後のフィルタ呼び出しの直前がlastになってしまう）
-      env->SetVar("last", env->Invoke("Eval", str.c_str()));
+      if (str.size() > 0) {
+        append.clear();
+        script += str;
+        // 最後の結果は自分でlastに入れなければならないことに注意
+        //（これをしないと最後のフィルタ呼び出しの直前がlastになってしまう）
+        env->SetVar("last", env->Invoke("Eval", str.c_str()));
+      }
     }
     void Clear() {
       script.clear();
@@ -429,6 +431,7 @@ private:
     sb.append("AMT_TMP = \"%s\"\n", setting_.getAvsTmpPath(fileId, encoderId, cmtype));
     sb.append("AMT_PASS = %d\n", pass);
     sb.append("AMT_DEV = %d\n", gpuIndex);
+    sb.append("AMT_SOURCE\n");
 
     std::string mainpath = setting_.getFilterScriptPath();
     if (mainpath.size()) {
