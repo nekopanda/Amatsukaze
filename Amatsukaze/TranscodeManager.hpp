@@ -495,9 +495,25 @@ static std::vector<BitrateZone> MakeBitrateZones(
   return bitrateZones;
 }
 
+#if 0
+// ページヒープが機能しているかテスト
+void DoBadThing() {
+  char *p = (char*)HeapAlloc(
+    GetProcessHeap(),
+    HEAP_GENERATE_EXCEPTIONS | HEAP_ZERO_MEMORY,
+    8);
+  memset(p, 'x', 32);
+}
+#endif
+
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	setting.dump();
+
+#if 0
+  MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
+  //DoBadThing();
+#endif
 
   bool isNoEncode = (setting.getMode() == "cm");
 

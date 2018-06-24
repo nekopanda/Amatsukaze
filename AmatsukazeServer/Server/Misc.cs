@@ -886,6 +886,15 @@ namespace Amatsukaze.Server
                 }
             }
         }
+
+        public static string ExitCodeString(int code)
+        {
+            if(Math.Abs(code) < 0x10000)
+            {
+                return code.ToString();
+            }
+            return "0x" + code.ToString("x");
+        }
     }
 
     public static class TaskSupport

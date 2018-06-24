@@ -552,7 +552,7 @@ public:
     fpsNum = vi.fps_numerator;
     fpsDenom = vi.fps_denominator;
 
-    auto it = std::find_if_not(
+    auto it = std::find_if(
       durations.begin(), durations.end(), [](int n) { return n != 1; });
     if (it == durations.end()) {
       // ‚·‚×‚Ä1‚Ìê‡‚ÍCFR

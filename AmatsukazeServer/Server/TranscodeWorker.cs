@@ -932,7 +932,8 @@ namespace Amatsukaze.Server
                     {
                         // その他
                         return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name,
-                            "Amatsukaze.exeはコード" + exitCode + "で終了しました。", start, finish);
+                            "Amatsukaze.exeはコード" +
+                            ServerSupport.ExitCodeString(exitCode) + "で終了しました。", start, finish);
                     }
                 }
                 else
