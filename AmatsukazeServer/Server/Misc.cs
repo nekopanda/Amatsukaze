@@ -196,7 +196,11 @@ namespace Amatsukaze.Server
             out ulong lpFreeBytesAvailable, 
             out ulong lpTotalNumberOfBytes, 
             out ulong lpTotalNumberOfFreeBytes);
-        
+
+        [return: MarshalAs(UnmanagedType.Bool)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern bool MoveFileEx(string existingFileName, string newFileName, int flags);
+
         public static string CreateTmpFile(string baseDir)
         {
             for(int code = Environment.TickCount & 0xFFFFFF, 

@@ -24,6 +24,7 @@ namespace Amatsukaze.Server
         private Dictionary<string, DirHash> hashCache = new Dictionary<string, DirHash>();
 
         private int nextItemId = 1;
+        private bool queueUpdated = false;
 
         public QueueManager(EncodeServer server)
         {
@@ -68,19 +69,27 @@ namespace Amatsukaze.Server
             }
         }
 
-        public void SaveQueueData()
+        public void SaveQueueData(bool force)
         {
-            string path = server.GetQueueFilePath();
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            using (FileStream fs = new FileStream(path, FileMode.Create))
+            if(queueUpdated || force)
             {
-                var s = new DataContractSerializer(typeof(List<QueueItem>));
-                s.WriteObject(fs, Queue);
+                queueUpdated = false;
+                string path = server.GetQueueFilePath();
+                string tmp = path + ".tmp";
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                using (FileStream fs = new FileStream(tmp, FileMode.Create))
+                {
+                    var s = new DataContractSerializer(typeof(List<QueueItem>));
+                    s.WriteObject(fs, Queue);
+                }
+                // ファイル置き換え
+                Util.MoveFileEx(tmp, path, 11);
             }
         }
 
         private Task ClientQueueUpdate(QueueUpdate update)
         {
+            queueUpdated = true;
             return server.ClientQueueUpdate(update);
         }
 

@@ -394,10 +394,6 @@ namespace Amatsukaze.Server
             }
         }
 
-        [return: MarshalAs(UnmanagedType.Bool)]
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern bool MoveFileEx(string existingFileName, string newFileName, int flags);
-
         public async Task AddDrcsMap(DrcsImage recvitem)
         {
             if (drcsMap.ContainsKey(recvitem.MD5))
@@ -465,7 +461,7 @@ namespace Amatsukaze.Server
                                 "DRCSマッピングファイル書き込みに失敗", e);
                         }
                         // ファイル置き換え
-                        MoveFileEx(tmppath, filepath, 11);
+                        Util.MoveFileEx(tmppath, filepath, 11);
                     }
 
                     await server.Client.OnDrcsData(new DrcsImageUpdate()

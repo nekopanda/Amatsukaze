@@ -347,7 +347,7 @@ namespace Amatsukaze.Server
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
 
                     // キュー状態を保存する
-                    queueManager.SaveQueueData();
+                    queueManager.SaveQueueData(false);
 
                     // 終了時にプロセスが残らないようにする
                     if (workerPool != null)
@@ -1806,6 +1806,8 @@ namespace Amatsukaze.Server
                         SaveAutoSelectData();
                         autoSelectUpdated = false;
                     }
+
+                    queueManager.SaveQueueData(false);
 
                     if (await Task.WhenAny(completion, Task.Delay(5000)) == completion)
                     {
