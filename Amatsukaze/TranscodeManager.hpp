@@ -590,6 +590,20 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	int numOutFiles = reformInfo.getNumOutFiles();
 	std::vector<std::unique_ptr<CMAnalyze>> cmanalyze;
 
+  // ソースファイル読み込み用データ保存
+  for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
+    // ファイル読み込み情報を保存
+    auto& fmt = reformInfo.getFormat(0, videoFileIndex);
+    auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);
+    av::SaveAMTSource(amtsPath,
+      setting.getIntVideoFilePath(videoFileIndex),
+      setting.getWaveFilePath(),
+      fmt.videoFormat, fmt.audioFormat[0],
+      reformInfo.getFilterSourceFrames(videoFileIndex),
+      reformInfo.getFilterSourceAudioFrames(videoFileIndex),
+      setting.getDecoderSetting());
+  }
+
 	// ロゴ・CM解析
   rm.wait(HOST_CMD_CMAnalyze);
 	sw.start();
@@ -599,17 +613,6 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		if (setting.isChapterEnabled() &&
 			reformInfo.getFilterSourceFrames(videoFileIndex).size() >= 300)
 		{
-			// ファイル読み込み情報を保存
-			auto& fmt = reformInfo.getFormat(0, videoFileIndex);
-			auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);
-			av::SaveAMTSource(amtsPath,
-				setting.getIntVideoFilePath(videoFileIndex),
-				setting.getWaveFilePath(),
-				fmt.videoFormat, fmt.audioFormat[0],
-				reformInfo.getFilterSourceFrames(videoFileIndex),
-				reformInfo.getFilterSourceAudioFrames(videoFileIndex),
-				setting.getDecoderSetting());
-
 			int numFrames = (int)reformInfo.getFilterSourceFrames(videoFileIndex).size();
 			cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(
 				new CMAnalyze(ctx, setting, videoFileIndex, numFrames)));

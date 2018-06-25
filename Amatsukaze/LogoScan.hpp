@@ -1666,15 +1666,34 @@ public:
 	{
 		const int radius = 5; // 10秒ウィンドウで移動平均
 		int windowFrames = framesPerSec * radius;
-		// 検出フレーム数の合計
-		std::vector<int> logoFrames(numLogos);
+    struct Summary {
+      double cost;    // 検出したフレームのcost1/cost0の合計
+      int numFrames;  // 検出したフレーム数
+    };
+		std::vector<Summary> logoSummary(numLogos);
 		for (int n = 0; n < numFrames; ++n) {
 			for (int i = 0; i < numLogos; ++i) {
 				auto& r = evalResults[n * numLogos + i];
-				logoFrames[i] += (r.cost1 < r.cost0);
+        if (r.cost1 < r.cost0) { // ロゴを検出
+          logoSummary[i].numFrames++;
+          logoSummary[i].cost += r.cost1 / r.cost0;
+        }
 			}
 		}
-		bestLogo = (int)(std::max_element(logoFrames.begin(), logoFrames.end()) - logoFrames.begin());
+    std::vector<double> logoScore(numLogos);
+    for (int i = 0; i < numLogos; ++i) {
+      auto& s = logoSummary[i];
+      // (1.0 - 検出したフレームのcost1/cost0の平均)) * (検出したフレームの割合)
+      logoScore[i] = (s.numFrames == 0) ? 0 :
+        (1.0 - s.cost / s.numFrames) * ((double)s.numFrames / numFrames);
+#if 1
+      ctx.debug("logo%d: %f * %f = %f", i + 1,
+        (1.0 - s.cost / s.numFrames),
+        ((double)s.numFrames / numFrames),
+        logoScore[i]);
+#endif
+    }
+		bestLogo = (int)(std::max_element(logoScore.begin(), logoScore.end()) - logoScore.begin());
 		auto calcScore = [](EvalResult r) {
 			return (r.cost1 < r.cost0) * 2;
 		};
