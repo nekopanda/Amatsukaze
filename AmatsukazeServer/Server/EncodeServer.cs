@@ -1669,6 +1669,8 @@ namespace Amatsukaze.Server
                                 .Select(s => Path.GetFileNameWithoutExtension(s))
                                 .ToArray();
 
+                            var initialUpdate = (profiles.Count == 0);
+
                             foreach (var name in newProfiles.Union(profiles.Keys.ToArray()))
                             {
                                 var filepath = GetProfilePath(profilepath, name);
@@ -1742,6 +1744,12 @@ namespace Amatsukaze.Server
                                     Type = UpdateType.Add,
                                     Profile = profile
                                 });
+                            }
+                            if(initialUpdate)
+                            {
+                                // 初回の更新時はプロファイル関連付けを
+                                // 更新するため再度設定を送る
+                                await RequestSetting();
                             }
                         }
                     }
