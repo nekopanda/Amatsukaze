@@ -908,6 +908,7 @@ public:
 	}
 
 	std::string getOptions(
+		int numFrames,
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale,
 		int vindex, int index, CMType cmtype) const
@@ -946,7 +947,13 @@ public:
 			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
-				sb.append("%s%d,%d,b=%.3g", (i > 0) ? "/" : "", zone.startFrame, zone.endFrame, zone.bitrate);
+				sb.append("%s%d,%d,b=%.3g", (i > 0) ? "/" : "",
+					zone.startFrame, zone.endFrame - 1, zone.bitrate);
+			}
+		}
+		if (conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265) {
+			if (numFrames > 0) {
+				sb.append(" --frames %d", numFrames);
 			}
 		}
 		return sb.str();

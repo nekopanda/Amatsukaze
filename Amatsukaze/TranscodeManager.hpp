@@ -411,6 +411,7 @@ public:
 	{ }
 
 	std::string GenEncoderOptions(
+		int numFrames,
 		VideoFormat outfmt,
 		std::vector<BitrateZone> zones,
 		double vfrBitrateScale,
@@ -424,6 +425,7 @@ public:
 			setting_.getEncoder(),
 			setting_.getEncoderPath(),
 			setting_.getOptions(
+				numFrames,
 				srcFormat, srcBitrate, false, pass, zones, vfrBitrateScale,
 				videoFileIndex, encoderIndex, cmtype),
 			outfmt,
@@ -768,6 +770,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
+									(frameDurations.size() > 0) ? (int)frameDurations.size() : outvi.num_frames,
 									outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
 									videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}

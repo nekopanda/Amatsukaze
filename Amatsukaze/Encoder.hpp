@@ -339,7 +339,7 @@ private:
       setting_.getEncoder(),
       setting_.getEncoderPath(),
       setting_.getOptions(
-        fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
+        0, fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
       fmt, std::string(), false,
       setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
 
