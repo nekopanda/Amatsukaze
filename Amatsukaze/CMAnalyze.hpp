@@ -164,13 +164,7 @@ private:
 
 			float threshold = setting_.isLooseLogoDetection() ? 0.03f : (duration <= 60 * 7) ? 0.3f : 0.5f;
 			if (logof.getLogoRatio() < threshold) {
-				// 3•ªˆÈ‰º‚Ìƒtƒ@ƒCƒ‹‚ÍƒƒS‚ªŒ©‚Â‚©‚ç‚È‚­‚Ä‚à–³Ž‹‚·‚é
-				if (duration <= 60*3) {
-					ctx.info("ƒ}ƒbƒ`‚·‚éƒƒS‚Í‚ ‚è‚Ü‚¹‚ñ‚Å‚µ‚½‚ªA“®‰æ‚Ì’·‚³‚ª%d•b(180•bˆÈ‰º)‚È‚Ì‚Å–³Ž‹‚µ‚Ü‚·", duration);
-				}
-				else if (!setting_.isIgnoreNoLogo()) {
-					THROW(NoLogoException, "ƒ}ƒbƒ`‚·‚éƒƒS‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½");
-				}
+				ctx.info("‚±‚Ì‹æŠÔ‚Íƒ}ƒbƒ`‚·‚éƒƒS‚Í‚ ‚è‚Ü‚¹‚ñ‚Å‚µ‚½");
 			}
 			else {
 				logopath = setting_.getLogoPath()[logof.getBestLogo()];

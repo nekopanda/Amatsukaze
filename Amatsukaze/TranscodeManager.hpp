@@ -607,16 +607,18 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	// ロゴ・CM解析
 	rm.wait(HOST_CMD_CMAnalyze);
 	sw.start();
+	std::vector<std::pair<size_t, bool>> logoFound;
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
+		size_t numFrames = reformInfo.getFilterSourceFrames(videoFileIndex).size();
 		// チャプター解析は300フレーム（約10秒）以上ある場合だけ
 		//（短すぎるとエラーになることがあるので）
-		if (setting.isChapterEnabled() &&
-			reformInfo.getFilterSourceFrames(videoFileIndex).size() >= 300)
+		if (setting.isChapterEnabled() && numFrames >= 300)
 		{
 			int numFrames = (int)reformInfo.getFilterSourceFrames(videoFileIndex).size();
 			cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(
 				new CMAnalyze(ctx, setting, videoFileIndex, numFrames)));
 
+			logoFound.emplace_back(numFrames, cmanalyze.back()->getLogoPath().size() > 0);
 			reformInfo.applyCMZones(videoFileIndex, cmanalyze.back()->getZones());
 
 			// チャプター推定
@@ -635,6 +637,16 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 	if (setting.isChapterEnabled()) {
+		// ロゴがあったかチェック //
+		// 映像ファイルをフレーム数でソート
+		std::sort(logoFound.begin(), logoFound.end());
+		if (setting.getLogoPath().size() > 0 && // ロゴ指定あり
+			setting.isIgnoreNoLogo() == false &&          // ロゴなし無視でない
+			logoFound.back().first >= 300 &&
+			logoFound.back().second == false)     // 最も長い映像でロゴが見つからなかった
+		{
+			THROW(NoLogoException, "マッチするロゴが見つかりませんでした");
+		}
 		ctx.info("ロゴ・CM解析完了: %.2f秒", sw.getAndReset());
 	}
 
