@@ -76,7 +76,7 @@ static void printHelp(const tchar* bin) {
 		"  --2pass             2passエンコード\n"
 		"  --splitsub          メイン以外のフォーマットは結合しない\n"
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
-		"                      対応フォーマット: mp4,mkv,m2ts\n"
+		"                      対応フォーマット: mp4,mkv,m2ts,ts\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeまたはtsMuxeRへのパス[muxer.exe]\n"
 		"  -t|--timelineeditor  <パス>  timelineeditorへのパス（MP4でVFR出力する場合に必要）[timelineeditor.exe]\n"
 		"  --mp4box <パス>     mp4boxへのパス（MP4で字幕処理する場合に必要）[mp4box.exe]\n"
@@ -113,17 +113,17 @@ static void printHelp(const tchar* bin) {
 		"                      4 : 1920x1080不透明\n"
 		"                      8 : 1920x1080半透明\n"
 		"                      ORも可 例) 15: すべて出力\n"
-    "  --no-remove-tmp     一時ファイルを削除せずに残す\n"
-    "  --vfr120fps         VFR時120fpsタイミングでフレーム時刻を生成\n"
-    "                      デフォルトは60fpsタイミングで生成\n"
+		"  --no-remove-tmp     一時ファイルを削除せずに残す\n"
+		"  --vfr120fps         VFR時120fpsタイミングでフレーム時刻を生成\n"
+		"                      デフォルトは60fpsタイミングで生成\n"
 		"  --x265-timefactor     x265で疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
-    "                      ts : MPGE2-TSを入力する通常エンコードモード\n"
-    "                      cm : エンコードまで行わず、CM解析までで終了するモード\n"
+		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
+		"                      cm : エンコードまで行わず、CM解析までで終了するモード\n"
 		"                      drcs : マッピングのないDRCS外字画像だけ出力するモード\n"
-    "  --resource-manager <入力パイプ>:<出力パイプ> リソース管理ホストとの通信パイプ\n"
-    "  --affinity <グループ>:<マスク> CPUアフィニティ\n"
+		"  --resource-manager <入力パイプ>:<出力パイプ> リソース管理ホストとの通信パイプ\n"
+		"  --affinity <グループ>:<マスク> CPUアフィニティ\n"
 		"                      グループはプロセッサグループ（64論理コア以下のシステムでは0のみ）\n"
 		"  --dump              処理途中のデータをダンプ（デバッグ用）\n",
 		bin);
@@ -171,7 +171,7 @@ static std::tstring pathGetDirectory(const std::tstring& path) {
 }
 
 static std::tstring pathRemoveExtension(const std::tstring& path) {
-	const tchar* exts[] = { _T(".mp4"), _T(".mkv"), _T(".m2ts"), nullptr };
+	const tchar* exts[] = { _T(".mp4"), _T(".mkv"), _T(".m2ts"), _T(".ts"), nullptr };
 	const tchar* c_path = path.c_str();
 	for (int i = 0; exts[i]; ++i) {
 		size_t extlen = tcslen(exts[i]);
@@ -310,6 +310,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			else if (arg == _T("m2ts")) {
 				conf.format = FORMAT_M2TS;
 			}
+			else if (arg == _T("ts")) {
+				conf.format = FORMAT_TS;
+			}
 			else {
 				THROWF(ArgumentException, "--formatの指定が間違っています: %" PRITSTR "", arg.c_str());
 			}
@@ -381,9 +384,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--no-delogo")) {
 			conf.noDelogo = true;
 		}
-    else if (key == _T("--vfr120fps")) {
-      conf.vfr120fps = true;
-    }
+		else if (key == _T("--vfr120fps")) {
+			conf.vfr120fps = true;
+		}
 		else if (key == _T("--x265-timefactor")) {
 			const auto arg = getParam(argc, argv, i++);
 			int ret = stscanf(arg.c_str(), _T("%lf"), &conf.x265TimeFactor);
@@ -398,7 +401,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			auto path = getParam(argc, argv, i++);
 			conf.drcsMapPath = to_string(path);
 			conf.drcsOutPath = to_string(pathGetDirectory(pathNormalize(path)));
-			if(conf.drcsOutPath.size() == 0) {
+			if (conf.drcsOutPath.size() == 0) {
 				conf.drcsOutPath = ".";
 			}
 		}
@@ -436,17 +439,17 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			conf.noRemoveTmp = true;
 		}
 		else if (key == _T("--dump-filter")) {
-				conf.dumpFilter = true;
+			conf.dumpFilter = true;
 		}
 		else if (key == _T("--resource-manager")) {
-      const auto arg = getParam(argc, argv, i++);
-      size_t inPipe, outPipe;
-      int ret = stscanf(arg.c_str(), _T("%zu:%zu"), &inPipe, &outPipe);
-      if (ret < 2) {
-        THROWF(ArgumentException, "--resource-managerの指定が間違っています");
-      }
-      conf.inPipe = (HANDLE)inPipe;
-      conf.outPipe = (HANDLE)outPipe;
+			const auto arg = getParam(argc, argv, i++);
+			size_t inPipe, outPipe;
+			int ret = stscanf(arg.c_str(), _T("%zu:%zu"), &inPipe, &outPipe);
+			if (ret < 2) {
+				THROWF(ArgumentException, "--resource-managerの指定が間違っています");
+			}
+			conf.inPipe = (HANDLE)inPipe;
+			conf.outPipe = (HANDLE)outPipe;
 		}
 		else if (key == _T("--affinity")) {
 			const auto arg = getParam(argc, argv, i++);
@@ -546,7 +549,7 @@ static void amatsukaze_av_log_callback(
 	};
 
 	EnterCriticalSection(&g_log_crisec);
-	
+
 	static bool print_prefix = true;
 	bool tmp_pp = print_prefix;
 	print_prefix = (buf[len - 1] == '\r' || buf[len - 1] == '\n');
@@ -619,8 +622,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			test::EncoderOptionParse(ctx, setting);
 		else if (mode == "test_perf")
 			test::DecodePerformance(ctx, setting);
-    else if (mode == "test_zone")
-      test::BitrateZones(ctx, setting);
+		else if (mode == "test_zone")
+			test::BitrateZones(ctx, setting);
 
 		else
 			PRINTF("--modeの指定が間違っています: %s\n", mode.c_str());

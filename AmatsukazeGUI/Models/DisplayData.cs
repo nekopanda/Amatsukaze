@@ -907,7 +907,7 @@ namespace Amatsukaze.Models
         public DisplayOutputMask[] OutputOptionList { get { return OutputOptionList_; } }
         public string[] FormatList
         {
-            get { return new string[] { "MP4", "MKV", "M2TS" }; }
+            get { return new string[] { "MP4", "MKV", "M2TS", "TS" }; }
         }
         public string[] VFRFpsList {
             get { return new string[] { "60fps", "120fps" }; }
@@ -1029,12 +1029,12 @@ namespace Amatsukaze.Models
             {
                 sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
             }
-            if(Model.OutputFormat == FormatType.M2TS)
+            if(Model.OutputFormat == FormatType.M2TS || Model.OutputFormat == FormatType.TS)
             {
                 if (Model.EncoderType == EncoderType.x265 ||
                     ((Model.EncoderType != EncoderType.x264) && (EncoderOption?.Contains("hevc") ?? false)))
                 {
-                    sb.Append("tsMuxeR 2.6.12はHEVCを正しくmuxできない不具合があるのでご注意ください。");
+                    sb.Append("tsMuxeR 2.6.12はHEVCを正しくmuxできない不具合があるのでご注意ください\r\n");
                 }
             }
             SettingWarningText = sb.ToString();

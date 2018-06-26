@@ -21,20 +21,20 @@ struct EncoderZone {
 };
 
 struct BitrateZone : EncoderZone {
-  double bitrate;
+	double bitrate;
 
-  BitrateZone()
-    : EncoderZone()
-    , bitrate()
-  { }
-  BitrateZone(EncoderZone zone)
-    : EncoderZone(zone)
-    , bitrate()
-  { }
-  BitrateZone(EncoderZone zone, double bitrate)
-    : EncoderZone(zone)
-    , bitrate(bitrate)
-  { }
+	BitrateZone()
+		: EncoderZone()
+		, bitrate()
+	{ }
+	BitrateZone(EncoderZone zone)
+		: EncoderZone(zone)
+		, bitrate()
+	{ }
+	BitrateZone(EncoderZone zone, double bitrate)
+		: EncoderZone(zone)
+		, bitrate(bitrate)
+	{ }
 };
 
 namespace av {
@@ -95,7 +95,8 @@ enum ENUM_ENCODER {
 enum ENUM_FORMAT {
 	FORMAT_MP4,
 	FORMAT_MKV,
-	FORMAT_M2TS
+	FORMAT_M2TS,
+	FORMAT_TS,
 };
 
 struct BitrateSetting {
@@ -130,8 +131,8 @@ static std::string makeEncoderArgs(
 	const std::string& binpath,
 	const std::string& options,
 	const VideoFormat& fmt,
-  const std::string& timecodepath,
-  bool is120fps,
+	const std::string& timecodepath,
+	bool is120fps,
 	const std::string& outpath)
 {
 	StringBuilder sb;
@@ -186,10 +187,10 @@ static std::string makeEncoderArgs(
 		break;
 	}
 
-  if (timecodepath.size() > 0 && encoder == ENCODER_X264) {
-    std::pair<int, int> timebase = std::make_pair(fmt.frameRateNum * (is120fps ? 4 : 2), fmt.frameRateDenom);
-    sb.append(" --tcfile-in \"%s\" --timebase %d/%d", timecodepath, timebase.second, timebase.first);
-  }
+	if (timecodepath.size() > 0 && encoder == ENCODER_X264) {
+		std::pair<int, int> timebase = std::make_pair(fmt.frameRateNum * (is120fps ? 4 : 2), fmt.frameRateDenom);
+		sb.append(" --tcfile-in \"%s\" --timebase %d/%d", timecodepath, timebase.second, timebase.first);
+	}
 
 	return sb.str();
 }
@@ -278,7 +279,7 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 			sb.clear();
 		}
 	}
-	else if(format == FORMAT_MKV) {
+	else if (format == FORMAT_MKV) {
 
 		if (chapterpath.size() > 0) {
 			sb.append(" --chapters \"%s\"", chapterpath);
@@ -301,7 +302,7 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
 	}
-	else { // M2TS
+	else { // M2TS or TS
 		sb.append(" \"%s\" \"%s\"", metapath, outpath);
 		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
@@ -374,7 +375,7 @@ public:
 		if (path_.size() == 0) {
 			THROW(IOException, "一時ディレクトリ作成失敗");
 		}
-		
+
 		std::string abolutePath;
 		int sz = GetFullPathNameA(path_.c_str(), 0, 0, 0);
 		abolutePath.resize(sz);
@@ -478,22 +479,22 @@ struct Config {
 	bool ignoreNicoJKError;
 	bool looseLogoDetection;
 	bool noDelogo;
-  bool vfr120fps;
+	bool vfr120fps;
 	std::string chapterExePath;
 	std::string joinLogoScpPath;
 	std::string joinLogoScpCmdPath;
 	std::string joinLogoScpOptions;
 	int cmoutmask;
-  // ホストプロセスとの通信用
-  HANDLE inPipe;
-  HANDLE outPipe;
-  int affinityGroup;
-  uint64_t affinityMask;
+	// ホストプロセスとの通信用
+	HANDLE inPipe;
+	HANDLE outPipe;
+	int affinityGroup;
+	uint64_t affinityMask;
 	// デバッグ用設定
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;
 	bool noRemoveTmp;
-  bool dumpFilter;
+	bool dumpFilter;
 };
 
 class ConfigWrapper : public AMTObject
@@ -556,6 +557,10 @@ public:
 
 	ENUM_FORMAT getFormat() const {
 		return conf.format;
+	}
+
+	bool isFormatVFRSupported() const {
+		return conf.format != FORMAT_M2TS && conf.format != FORMAT_TS;
 	}
 
 	std::string getMuxerPath() const {
@@ -654,9 +659,9 @@ public:
 		return conf.noDelogo;
 	}
 
-  bool isVFR120fps() const {
-    return conf.vfr120fps;
-  }
+	bool isVFR120fps() const {
+		return conf.vfr120fps;
+	}
 
 	std::string getChapterExePath() const {
 		return conf.chapterExePath;
@@ -682,13 +687,13 @@ public:
 		return nicojktypes;
 	}
 
-  HANDLE getInPipe() const {
-    return conf.inPipe;
-  }
+	HANDLE getInPipe() const {
+		return conf.inPipe;
+	}
 
-  HANDLE getOutPipe() const {
-    return conf.outPipe;
-  }
+	HANDLE getOutPipe() const {
+		return conf.outPipe;
+	}
 
 	int getAffinityGroup() const {
 		return conf.affinityGroup;
@@ -730,13 +735,13 @@ public:
 		return regtmp(StringFormat("%s/v%d-%d%s.timecode.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-  std::string getAvsTmpPath(int vindex, int index, CMType cmtype) const {
-    auto str = StringFormat("%s/v%d-%d%s.avstmp", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
-    ctx.registerTmpFile(str);
-    // KFMCycleAnalyzeのデバッグダンプファイルも追加
-    ctx.registerTmpFile(str + ".debug");
-    return str;
-  }
+	std::string getAvsTmpPath(int vindex, int index, CMType cmtype) const {
+		auto str = StringFormat("%s/v%d-%d%s.avstmp", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+		ctx.registerTmpFile(str);
+		// KFMCycleAnalyzeのデバッグダンプファイルも追加
+		ctx.registerTmpFile(str + ".debug");
+		return str;
+	}
 
 	std::string getFilterAvsPath(int vindex, int index, CMType cmtype) const {
 		auto str = StringFormat("%s/vfilter%d-%d%s.avs", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
@@ -821,7 +826,7 @@ public:
 	}
 
 	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/t%d-%d%s.%s", 
+		return regtmp(StringFormat("%s/t%d-%d%s.%s",
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), getOutputExtention()));
 	}
 
@@ -834,6 +839,7 @@ public:
 		case FORMAT_MP4: return "mp4";
 		case FORMAT_MKV: return "mkv";
 		case FORMAT_M2TS: return "m2ts";
+		case FORMAT_TS: return "ts";
 		}
 		return "amatsukze";
 	}
@@ -877,43 +883,43 @@ public:
 		return StringFormat("%s\\%s.bmp", conf.drcsOutPath, md5);
 	}
 
-    bool isDumpFilter() const {
-        return conf.dumpFilter;
-    }
+	bool isDumpFilter() const {
+		return conf.dumpFilter;
+	}
 
-    std::string getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
-        return regtmp(StringFormat("%s/graph%d-%d%s.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
-    }
+	std::string getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat("%s/graph%d-%d%s.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	}
 
-    bool isZoneAvailable() const {
-      return conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
-    }
+	bool isZoneAvailable() const {
+		return conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
+	}
 
-    bool isEncoderSupportVFR() const {
-      return conf.encoder == ENCODER_X264;
-    }
+	bool isEncoderSupportVFR() const {
+		return conf.encoder == ENCODER_X264;
+	}
 
-    bool isBitrateCMEnabled() const {
-      return conf.bitrateCM != 1.0 && isZoneAvailable();
-    }
+	bool isBitrateCMEnabled() const {
+		return conf.bitrateCM != 1.0 && isZoneAvailable();
+	}
 
-    bool isAdjustBitrateVFR() const {
-      return true;
-    }
+	bool isAdjustBitrateVFR() const {
+		return true;
+	}
 
 	std::string getOptions(
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
-		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale, 
-    int vindex, int index, CMType cmtype) const
+		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale,
+		int vindex, int index, CMType cmtype) const
 	{
 		StringBuilder sb;
 		sb.append("%s", conf.encoderOptions);
 		if (conf.autoBitrate) {
 			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
-      if (isEncoderSupportVFR() == false && isAdjustBitrateVFR()) {
-        // タイムコード非対応エンコーダにおけるビットレートのVFR調整
-        targetBitrate *= vfrBitrateScale;
-      }
+			if (isEncoderSupportVFR() == false && isAdjustBitrateVFR()) {
+				// タイムコード非対応エンコーダにおけるビットレートのVFR調整
+				targetBitrate *= vfrBitrateScale;
+			}
 			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
 			if (cmtype == CMTYPE_CM) {
 				targetBitrate *= conf.bitrateCM;
@@ -925,7 +931,7 @@ public:
 				sb.append(" --vbrhq %d --maxbitrate %d", (int)targetBitrate, (int)maxBitrate);
 			}
 			else {
-				sb.append(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d", 
+				sb.append(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d",
 					(int)targetBitrate, (int)maxBitrate, (int)maxBitrate);
 			}
 		}
@@ -933,10 +939,10 @@ public:
 			sb.append(" --pass %d --stats \"%s\"",
 				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
-		if (zones.size() && 
-      isZoneAvailable() &&
-      ((isEncoderSupportVFR() == false && isAdjustBitrateVFR()) || isBitrateCMEnabled()))
-    {
+		if (zones.size() &&
+			isZoneAvailable() &&
+			((isEncoderSupportVFR() == false && isAdjustBitrateVFR()) || isBitrateCMEnabled()))
+		{
 			sb.append(" --zones ");
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
@@ -958,7 +964,7 @@ public:
 		ctx.info("エンコーダ: %s (%s)", conf.encoderPath.c_str(), encoderToString(conf.encoder));
 		ctx.info("エンコーダオプション: %s", conf.encoderOptions.c_str());
 		if (conf.autoBitrate) {
-			ctx.info("自動ビットレート: 有効 (%g:%g:%g)", 
+			ctx.info("自動ビットレート: 有効 (%g:%g:%g)",
 				conf.bitrate.a, conf.bitrate.b, conf.bitrate.h264);
 		}
 		else {
@@ -1008,8 +1014,9 @@ private:
 	const char* formatToString(ENUM_FORMAT fmt) const {
 		switch (fmt) {
 		case FORMAT_MP4: return "MP4";
-    case FORMAT_MKV: return "Matroska";
-    case FORMAT_M2TS: return "M2TS";
+		case FORMAT_MKV: return "Matroska";
+		case FORMAT_M2TS: return "M2TS";
+		case FORMAT_TS: return "TS";
 		}
 		return "unknown";
 	}

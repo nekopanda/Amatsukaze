@@ -316,7 +316,7 @@ namespace Amatsukaze.Models
                 if (_SelectedProfile == value)
                     return;
                 _SelectedProfile = value;
-                _SelectedProfile.UpdateWarningText();
+                _SelectedProfile?.UpdateWarningText();
                 RaisePropertyChanged();
             }
         }

@@ -867,6 +867,8 @@ namespace Amatsukaze.Server
                     return ".mkv";
                 case FormatType.M2TS:
                     return ".m2ts";
+                case FormatType.TS:
+                    return ".ts";
             }
             throw new ArgumentException();
         }

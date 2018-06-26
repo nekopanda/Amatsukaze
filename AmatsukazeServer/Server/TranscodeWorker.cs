@@ -917,7 +917,9 @@ namespace Amatsukaze.Server
                     }
                 }
 
-                if(src.IsCheck)
+                Util.AddLog(id, ModeToString(src.Mode) + "終了: " + src.SrcPath, null);
+
+                if (src.IsCheck)
                 {
                     if (exitCode == 0 && src.State != QueueState.Canceled)
                     {

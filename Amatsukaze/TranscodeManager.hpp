@@ -232,20 +232,20 @@ protected:
 	virtual void onVideoFormatChanged(VideoFormat fmt) {
 		ctx.info("[映像フォーマット変更]");
 
-    StringBuilder sb;
-    sb.append("サイズ: %dx%d", fmt.width, fmt.height);
-    if (fmt.width != fmt.displayWidth || fmt.height != fmt.displayHeight) {
-      sb.append(" 表示領域: %dx%d", fmt.displayWidth, fmt.displayHeight);
-    }
-    int darW, darH; fmt.getDAR(darW, darH);
-    sb.append(" (%d:%d)", darW, darH);
+		StringBuilder sb;
+		sb.append("サイズ: %dx%d", fmt.width, fmt.height);
+		if (fmt.width != fmt.displayWidth || fmt.height != fmt.displayHeight) {
+			sb.append(" 表示領域: %dx%d", fmt.displayWidth, fmt.displayHeight);
+		}
+		int darW, darH; fmt.getDAR(darW, darH);
+		sb.append(" (%d:%d)", darW, darH);
 		if (fmt.fixedFrameRate) {
-      sb.append(" FPS: %d/%d", fmt.frameRateNum, fmt.frameRateDenom);
+			sb.append(" FPS: %d/%d", fmt.frameRateNum, fmt.frameRateDenom);
 		}
 		else {
-      sb.append(" FPS: VFR");
+			sb.append(" FPS: VFR");
 		}
-    ctx.info(sb.str().c_str());
+		ctx.info(sb.str().c_str());
 
 		// 出力ファイルを変更
 		writeHandler.open(setting_.getIntVideoFilePath(videoFileCount_++));
@@ -258,9 +258,9 @@ protected:
 	}
 
 	virtual void onAudioPesPacket(
-		int audioIdx, 
-		int64_t clock, 
-		const std::vector<AudioFrameData>& frames, 
+		int audioIdx,
+		int64_t clock,
+		const std::vector<AudioFrameData>& frames,
 		PESPacket packet)
 	{
 		for (const AudioFrameData& frame : frames) {
@@ -294,7 +294,7 @@ protected:
 		ev.frameIdx = (int)audioFrameList_.size();
 		streamEventList_.push_back(ev);
 	}
-	
+
 	virtual void onCaptionPesPacket(
 		int64_t clock,
 		std::vector<CaptionItem>& captions,
@@ -356,7 +356,7 @@ public:
 
 protected:
 	const ConfigWrapper& setting_;
-  std::vector<VideoFrameInfo> videoFrameList_;
+	std::vector<VideoFrameInfo> videoFrameList_;
 
 	// TsSplitter仮想関数 //
 
@@ -365,11 +365,11 @@ protected:
 		const std::vector<VideoFrameInfo>& frames,
 		PESPacket packet)
 	{
-    // 今の所最初のフレームしか必要ないけど
-    for (const VideoFrameInfo& frame : frames) {
-      videoFrameList_.push_back(frame);
-    }
-  }
+		// 今の所最初のフレームしか必要ないけど
+		for (const VideoFrameInfo& frame : frames) {
+			videoFrameList_.push_back(frame);
+		}
+	}
 
 	virtual void onVideoFormatChanged(VideoFormat fmt) { }
 
@@ -390,7 +390,7 @@ protected:
 
 	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
 		DRCSOutInfo info;
-    info.elapsed = (videoFrameList_.size() > 0) ? (double)(PTS - videoFrameList_[0].PTS) : -1.0;
+		info.elapsed = (videoFrameList_.size() > 0) ? (double)(PTS - videoFrameList_[0].PTS) : -1.0;
 		info.filename = setting_.getDRCSOutPath(md5);
 		return info;
 	}
@@ -413,9 +413,9 @@ public:
 	std::string GenEncoderOptions(
 		VideoFormat outfmt,
 		std::vector<BitrateZone> zones,
-    double vfrBitrateScale,
-    std::string timecodepath,
-    bool is120fps,
+		double vfrBitrateScale,
+		std::string timecodepath,
+		bool is120fps,
 		int videoFileIndex, int encoderIndex, CMType cmtype, int pass)
 	{
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
@@ -427,8 +427,8 @@ public:
 				srcFormat, srcBitrate, false, pass, zones, vfrBitrateScale,
 				videoFileIndex, encoderIndex, cmtype),
 			outfmt,
-      timecodepath,
-      is120fps,
+			timecodepath,
+			is120fps,
 			setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype));
 	}
 
@@ -471,38 +471,38 @@ private:
 };
 
 static std::vector<BitrateZone> MakeBitrateZones(
-  const std::vector<int>& frameDurations,
-  const std::vector<EncoderZone>& cmzones,
-  const ConfigWrapper& setting,
-  VideoInfo outvi)
+	const std::vector<int>& frameDurations,
+	const std::vector<EncoderZone>& cmzones,
+	const ConfigWrapper& setting,
+	VideoInfo outvi)
 {
-  std::vector<BitrateZone> bitrateZones;
-  if (frameDurations.size() == 0 || setting.isEncoderSupportVFR()) {
-    // VFRでない、または、エンコーダがVFRをサポートしている -> VFR用に調整する必要がない
-    for (int i = 0; i < (int)cmzones.size(); ++i) {
-      bitrateZones.emplace_back(cmzones[i], setting.getBitrateCM());
-    }
-  }
-  else {
-    if (setting.isZoneAvailable()) {
-      // VFR非対応エンコーダでゾーンに対応していればビットレートゾーン生成
-      return MakeVFRBitrateZones(
-        frameDurations, cmzones, setting.getBitrateCM(),
-        outvi.fps_numerator, outvi.fps_denominator,
-        setting.getX265TimeFactor(), 0.05); // 全体で5%までの差なら許容する
-    }
-  }
-  return bitrateZones;
+	std::vector<BitrateZone> bitrateZones;
+	if (frameDurations.size() == 0 || setting.isEncoderSupportVFR()) {
+		// VFRでない、または、エンコーダがVFRをサポートしている -> VFR用に調整する必要がない
+		for (int i = 0; i < (int)cmzones.size(); ++i) {
+			bitrateZones.emplace_back(cmzones[i], setting.getBitrateCM());
+		}
+	}
+	else {
+		if (setting.isZoneAvailable()) {
+			// VFR非対応エンコーダでゾーンに対応していればビットレートゾーン生成
+			return MakeVFRBitrateZones(
+				frameDurations, cmzones, setting.getBitrateCM(),
+				outvi.fps_numerator, outvi.fps_denominator,
+				setting.getX265TimeFactor(), 0.05); // 全体で5%までの差なら許容する
+		}
+	}
+	return bitrateZones;
 }
 
 #if 0
 // ページヒープが機能しているかテスト
 void DoBadThing() {
-  char *p = (char*)HeapAlloc(
-    GetProcessHeap(),
-    HEAP_GENERATE_EXCEPTIONS | HEAP_ZERO_MEMORY,
-    8);
-  memset(p, 'x', 32);
+	char *p = (char*)HeapAlloc(
+		GetProcessHeap(),
+		HEAP_GENERATE_EXCEPTIONS | HEAP_ZERO_MEMORY,
+		8);
+	memset(p, 'x', 32);
 }
 #endif
 
@@ -511,22 +511,22 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	setting.dump();
 
 #if 0
-  MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
-  //DoBadThing();
+	MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
+	//DoBadThing();
 #endif
 
-  bool isNoEncode = (setting.getMode() == "cm");
+	bool isNoEncode = (setting.getMode() == "cm");
 
 	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
 	PrintEncoderInfo(ctx, eoInfo);
 
 	// チェック
-	if (!isNoEncode && setting.getFormat() == FORMAT_M2TS && eoInfo.afsTimecode) {
-		THROW(FormatException, "M2TS出力はVFRをサポートしていません");
+	if (!isNoEncode && !setting.isFormatVFRSupported() && eoInfo.afsTimecode) {
+		THROW(FormatException, "M2TS/TS出力はVFRをサポートしていません");
 	}
 
-  ResourceManger rm(ctx, setting.getInPipe(), setting.getOutPipe());
-  rm.wait(HOST_CMD_TSAnalyze);
+	ResourceManger rm(ctx, setting.getInPipe(), setting.getOutPipe());
+	rm.wait(HOST_CMD_TSAnalyze);
 
 	Stopwatch sw;
 	sw.start();
@@ -556,7 +556,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
-	if(!isNoEncode && setting.isIgnoreNoDrcsMap() == false) {
+	if (!isNoEncode && setting.isIgnoreNoDrcsMap() == false) {
 		// DRCSマッピングチェック
 		if (ctx.getErrorCount(AMT_ERR_NO_DRCS_MAP) > 0) {
 			THROW(NoDrcsMapException, "マッピングにないDRCS外字あり正常に字幕処理できなかったため終了します");
@@ -590,22 +590,22 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	int numOutFiles = reformInfo.getNumOutFiles();
 	std::vector<std::unique_ptr<CMAnalyze>> cmanalyze;
 
-  // ソースファイル読み込み用データ保存
-  for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
-    // ファイル読み込み情報を保存
-    auto& fmt = reformInfo.getFormat(0, videoFileIndex);
-    auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);
-    av::SaveAMTSource(amtsPath,
-      setting.getIntVideoFilePath(videoFileIndex),
-      setting.getWaveFilePath(),
-      fmt.videoFormat, fmt.audioFormat[0],
-      reformInfo.getFilterSourceFrames(videoFileIndex),
-      reformInfo.getFilterSourceAudioFrames(videoFileIndex),
-      setting.getDecoderSetting());
-  }
+	// ソースファイル読み込み用データ保存
+	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
+		// ファイル読み込み情報を保存
+		auto& fmt = reformInfo.getFormat(0, videoFileIndex);
+		auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);
+		av::SaveAMTSource(amtsPath,
+			setting.getIntVideoFilePath(videoFileIndex),
+			setting.getWaveFilePath(),
+			fmt.videoFormat, fmt.audioFormat[0],
+			reformInfo.getFilterSourceFrames(videoFileIndex),
+			reformInfo.getFilterSourceAudioFrames(videoFileIndex),
+			setting.getDecoderSetting());
+	}
 
 	// ロゴ・CM解析
-  rm.wait(HOST_CMD_CMAnalyze);
+	rm.wait(HOST_CMD_CMAnalyze);
 	sw.start();
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
 		// チャプター解析は300フレーム（約10秒）以上ある場合だけ
@@ -638,10 +638,10 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		ctx.info("ロゴ・CM解析完了: %.2f秒", sw.getAndReset());
 	}
 
-  if (isNoEncode) {
-    // CM解析のみならここで終了
-    return;
-  }
+	if (isNoEncode) {
+		// CM解析のみならここで終了
+		return;
+	}
 
 	auto audioDiffInfo = reformInfo.genAudio();
 	audioDiffInfo.printAudioPtsDiff(ctx);
@@ -701,11 +701,11 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 					AMTFilterSource filterSource(ctx, setting, reformInfo,
 						cma->getZones(), cma->getLogoPath(),
-            videoFileIndex, encoderIndex, cmtype, rm);
+						videoFileIndex, encoderIndex, cmtype, rm);
 
-          auto getTcPath = [&]() {
-            return setting.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
-          };
+					auto getTcPath = [&]() {
+						return setting.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
+					};
 
 					try {
 						PClip filterClip = filterSource.getClip();
@@ -713,52 +713,55 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						auto encoderZones = filterSource.getZones();
 						auto& outfmt = filterSource.getFormat();
 						auto& outvi = filterClip->GetVideoInfo();
-            auto& frameDurations = filterSource.getFrameDurations();
-            FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
+						auto& frameDurations = filterSource.getFrameDurations();
+						FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
 
 						ctx.info("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
 
 						outFileInfo.push_back(argGen->printBitrate(ctx, videoFileIndex, cmtype));
 						outfiles.push_back(outfmt);
 
-            bool vfrEnabled = eoInfo.afsTimecode;
+						bool vfrEnabled = eoInfo.afsTimecode;
 
-            if (vfrProc.isEnabled()) {
-              // フィルタによるVFRが有効
-              if (eoInfo.afsTimecode) {
-                THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
-              }
-              vfrEnabled = true;
-              // ゾーンをVFRフレーム番号に修正
-              vfrProc.toVFRZones(encoderZones);
-              // タイムコード生成
-              vfrProc.makeTimecode(getTcPath());
-              outFileInfo.back().tcPath = getTcPath();
-            }
+						if (vfrProc.isEnabled()) {
+							// フィルタによるVFRが有効
+							if (eoInfo.afsTimecode) {
+								THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
+							}
+							else if (!setting.isFormatVFRSupported()) {
+								THROW(FormatException, "M2TS/TS出力はVFRをサポートしていません");
+							}
+							vfrEnabled = true;
+							// ゾーンをVFRフレーム番号に修正
+							vfrProc.toVFRZones(encoderZones);
+							// タイムコード生成
+							vfrProc.makeTimecode(getTcPath());
+							outFileInfo.back().tcPath = getTcPath();
+						}
 
-            std::vector<int> pass;
-            if (setting.isTwoPass()) {
-              pass.push_back(1);
-              pass.push_back(2);
-            }
-            else {
-              pass.push_back(-1);
-            }
+						std::vector<int> pass;
+						if (setting.isTwoPass()) {
+							pass.push_back(1);
+							pass.push_back(2);
+						}
+						else {
+							pass.push_back(-1);
+						}
 
-            auto bitrateZones = MakeBitrateZones(frameDurations, encoderZones, setting, outvi);
-            auto vfrBitrateScale = AdjustVFRBitrate(frameDurations);
-            // VFRフレームタイミングが120fpsか
-            bool is120fps = (eoInfo.afsTimecode || setting.isVFR120fps());
+						auto bitrateZones = MakeBitrateZones(frameDurations, encoderZones, setting, outvi);
+						auto vfrBitrateScale = AdjustVFRBitrate(frameDurations);
+						// VFRフレームタイミングが120fpsか
+						bool is120fps = (eoInfo.afsTimecode || setting.isVFR120fps());
 						std::vector<std::string> encoderArgs;
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
 									outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
-                  videoFileIndex, encoderIndex, cmtype, pass[i]));
+									videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}
 						AMTFilterVideoEncoder encoder(ctx);
-						encoder.encode(filterClip, outfmt, 
-              frameDurations, encoderArgs, env);
+						encoder.encode(filterClip, outfmt,
+							frameDurations, encoderArgs, env);
 					}
 					catch (const AvisynthError& avserror) {
 						THROWF(AviSynthException, "%s", avserror.msg);
@@ -771,7 +774,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 	argGen = nullptr;
 
-  rm.wait(HOST_CMD_Mux);
+	rm.wait(HOST_CMD_Mux);
 	sw.start();
 	int64_t totalOutSize = 0;
 	auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
@@ -823,7 +826,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			if (i > 0) sb.append(", ");
 			const auto& info = outFileInfo[i];
 			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d, \"outfilesize\": %lld, ",
-				toJsonString(info.outPath), (int)info.srcBitrate, 
+				toJsonString(info.outPath), (int)info.srcBitrate,
 				std::isnan(info.targetBitrate) ? -1 : (int)info.targetBitrate, info.fileSize);
 			sb.append("\"subs\": [");
 			for (int s = 0; s < (int)info.outSubs.size(); ++s) {
@@ -846,12 +849,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			(double)duration.first / MPEG_CLOCK_HZ, (double)duration.second / MPEG_CLOCK_HZ);
 		sb.append(", \"audiodiff\": ");
 		audioDiffInfo.printToJson(sb);
-      sb.append(", \"error\": {");
-      for (int i = 0; i < AMT_ERR_MAX; ++i) {
-         if (i > 0) sb.append(", ");
-         sb.append("\"%s\": %d", AMT_ERROR_NAMES[i], ctx.getErrorCount((AMT_ERROR_COUNTER)i));
-      }
-      sb.append(" }");
+		sb.append(", \"error\": {");
+		for (int i = 0; i < AMT_ERR_MAX; ++i) {
+			if (i > 0) sb.append(", ");
+			sb.append("\"%s\": %d", AMT_ERROR_NAMES[i], ctx.getErrorCount((AMT_ERROR_COUNTER)i));
+		}
+		sb.append(" }");
 		sb.append(", \"cmanalyze\": %s", (setting.isChapterEnabled() ? "true" : "false"))
 			.append(", \"nicojk\": %s", (nicoOK ? "true" : "false"))
 			.append(" }");

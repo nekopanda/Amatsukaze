@@ -42,7 +42,8 @@ namespace Amatsukaze.Server
     {
         MP4 = 0,
         MKV,
-        M2TS
+        M2TS,
+        TS
     }
 
     public enum FinishAction

@@ -1065,9 +1065,13 @@ namespace Amatsukaze.Server
                     {
                         sb.Append(" -fmt mkv -m \"" + setting.MKVMergePath + "\"");
                     }
-                    else
+                    else if(profile.OutputFormat == FormatType.M2TS)
                     {
                         sb.Append(" -fmt m2ts -m \"" + setting.TsMuxeRPath + "\"");
+                    }
+                    else if (profile.OutputFormat == FormatType.TS)
+                    {
+                        sb.Append(" -fmt ts -m \"" + setting.TsMuxeRPath + "\"");
                     }
 
                     if (bitrateCM != 1)
