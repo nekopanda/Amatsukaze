@@ -8,9 +8,11 @@
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
              xmlns:c="clr-namespace:Amatsukaze.Components" 
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
-             d:DataContext="{d:DesignInstance {x:Type vm:QueueViewModel}}">
+             d:DataContext="{d:DesignInstance {x:Type vm:QueueViewModel}}"
+             Loaded="UserControl_Loaded">
 
     <UserControl.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
@@ -48,40 +50,90 @@
                 </Style.Triggers>
             </Style>
         </DockPanel.Resources>
-        
-        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsPanelOpen, Mode=TwoWay}">
+
+        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsFilterPanelOpen, Mode=TwoWay}">
             <Expander.Header>
                 <!-- HeaderのコンテナのHorizontalAlignmentをOneWayToSourceを使ってStretchに書き換えるテク -->
                 <DockPanel HorizontalAlignment="{Binding HorizontalAlignment, RelativeSource={RelativeSource AncestorType=ContentPresenter}, Mode=OneWayToSource}">
-                    <TextBlock Text="操作パネル" VerticalAlignment="Center"/>
-                    <DockPanel Margin="20,0,0,0">
+                    <TextBlock Text="フィルタ" VerticalAlignment="Center"/>
+                    <Button Margin="10,0" Content="↻" Width="18" Command="{Binding ApplyFilterCommand}" 
+                            IsTabStop="False" Focusable="False" ToolTip="更新"/>
+                    <DockPanel>
                         <TextBlock Text="検索" VerticalAlignment="Center"/>
                         <Button DockPanel.Dock="Right" Content="☓" Width="18" Command="{Binding ClearSearchWordCommand}" 
-                        IsTabStop="False" Focusable="False"/>
+                            IsTabStop="False" Focusable="False" ToolTip="フィルタをクリア"/>
                         <TextBox Margin="3" Text="{Binding SearchWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
                 </DockPanel>
             </Expander.Header>
             <DockPanel>
-                <WrapPanel DockPanel.Dock="Top">
-                    <TextBlock Text="検索項目: "/>
-                    <CheckBox Content="ファイル名" IsChecked="{Binding SearchFileName, Mode=TwoWay}"/>
-                    <CheckBox Content="チャンネル" IsChecked="{Binding SearchServiceName, Mode=TwoWay}"/>
-                    <CheckBox Content="プロファイル" IsChecked="{Binding SearchProfile, Mode=TwoWay}"/>
-                    <CheckBox Content="ジャンル" IsChecked="{Binding SearchGenre, Mode=TwoWay}"/>
-                    <CheckBox Content="状態" IsChecked="{Binding SearchState, Mode=TwoWay}"/>
-                    <CheckBox Content="モード" IsChecked="{Binding SearchMode, Mode=TwoWay}"/>
-                    <CheckBox Content="すべて" IsChecked="{Binding SearchCheckAll, Mode=TwoWay}"/>
-                </WrapPanel>
+                <GroupBox DockPanel.Dock="Top" Header="検索項目">
+                    <WrapPanel>
+                        <CheckBox Content="ファイル名" IsChecked="{Binding SearchChecks[0].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="チャンネル" IsChecked="{Binding SearchChecks[1].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="プロファイル" IsChecked="{Binding SearchChecks[2].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="ジャンル" IsChecked="{Binding SearchChecks[3].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="状態" IsChecked="{Binding SearchChecks[4].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="モード" IsChecked="{Binding SearchChecks[5].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="すべて" IsChecked="{Binding SearchCheckAll, Mode=TwoWay}"/>
+                    </WrapPanel>
+                </GroupBox>
+                <GroupBox DockPanel.Dock="Top" Header="状態">
+                    <WrapPanel>
+                        <CheckBox Content="待ち" IsChecked="{Binding StateChecks[0].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="ペンディング" IsChecked="{Binding StateChecks[1].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="実行中" IsChecked="{Binding StateChecks[2].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="キャンセル" IsChecked="{Binding StateChecks[3].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="完了" IsChecked="{Binding StateChecks[4].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="失敗" IsChecked="{Binding StateChecks[5].Value, Mode=TwoWay}"/>
+                        <CheckBox Content="すべて" IsChecked="{Binding StateCheckAll, Mode=TwoWay}"/>
+                    </WrapPanel>
+                </GroupBox>
+                <GroupBox DockPanel.Dock="Top" Header="優先度">
+                    <WrapPanel>
+                        <CheckBox Padding="6,0" Content="1" IsChecked="{Binding PriorityChecks[0].Value, Mode=TwoWay}"/>
+                        <CheckBox Padding="6,0" Content="2" IsChecked="{Binding PriorityChecks[1].Value, Mode=TwoWay}"/>
+                        <CheckBox Padding="6,0" Content="3" IsChecked="{Binding PriorityChecks[2].Value, Mode=TwoWay}"/>
+                        <CheckBox Padding="6,0" Content="4" IsChecked="{Binding PriorityChecks[3].Value, Mode=TwoWay}"/>
+                        <CheckBox Padding="6,0" Content="5" IsChecked="{Binding PriorityChecks[4].Value, Mode=TwoWay}"/>
+                        <CheckBox Padding="6,0" Content="すべて" IsChecked="{Binding PriorityCheckAll, Mode=TwoWay}"/>
+                    </WrapPanel>
+                </GroupBox>
+            </DockPanel>
+        </Expander>
+        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsControlPanelOpen, Mode=TwoWay}">
+            <Expander.Header>
+                <Grid HorizontalAlignment="{Binding HorizontalAlignment, RelativeSource={RelativeSource AncestorType=ContentPresenter}, Mode=OneWayToSource}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition MinWidth="60"/>
+                        <ColumnDefinition MinWidth="70" MaxWidth="200"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center">操作パネル</TextBlock>
+                    <DockPanel Grid.Column="1">
+                        <TextBlock Margin="0,0,0,6" VerticalAlignment="Center">表示</TextBlock>
+                        <Slider Margin="3" Height="24" Maximum="2" Value="{Binding ListStyle, Mode=TwoWay}"
+                            VerticalAlignment="Center" HorizontalAlignment="Stretch" ToolTip="表示切り替え"/>
+                    </DockPanel>
+                </Grid>
+            </Expander.Header>
+            <DockPanel PreviewMouseDown="DockPanel_PreviewMouseDown">
                 <UniformGrid Columns="4" DockPanel.Dock="Top">
                     <Button Margin="3" Height="24" Content="キャンセル"
                             Style="{StaticResource ButtonForSelectedItems}"
                             Command="{Binding CancelCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                    <Button Margin="3" Height="24" Content="削除"
-                            Style="{StaticResource ButtonForSelectedItems}"
-                            Command="{Binding RemoveCommand}"
-                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    <Button Margin="3" Height="24" Content="削除" x:Name="RemoveSelectedItemsButton"
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"
+                            Style="{StaticResource ButtonForSelectedItems}">
+                        <Button.InputBindings>
+                            <MouseBinding Gesture="LeftClick"
+                                          Command="{Binding RemoveCommand}"
+                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                            <MouseBinding Gesture="Shift+LeftClick"
+                                          Command="{Binding RemoveTSQueueItemCommand}"
+                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        </Button.InputBindings>
+                    </Button>
                     <Button Margin="3" Height="24" Content="リトライ"
                             Style="{StaticResource ButtonForSelectedItems}"
                             Command="{Binding RetryCommand}"
@@ -125,11 +177,17 @@
                             Command="{Binding RetryUpdateCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
-                    <Button Margin="3" Height="24" Content="完了した項目を削除"
-                            Command="{Binding RemoveCompletedAllCommand}"
-                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                    <Slider Margin="3" Height="24" Maximum="2" Value="{Binding ListStyle, Mode=TwoWay}"
-                            ToolTip="表示切り替え"/>
+                    <Button Margin="3" Height="24" Content="完了した項目を削除" x:Name="RemoveCompletedButton"
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
+                        <Button.InputBindings>
+                            <MouseBinding Gesture="LeftClick"
+                                          Command="{Binding RemoveCompletedAllCommand}"
+                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                            <MouseBinding Gesture="Shift+LeftClick"
+                                          Command="{Binding RemoveCompletedTSCommand}"
+                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        </Button.InputBindings>
+                    </Button>
                 </UniformGrid>
             </DockPanel>
         </Expander>
@@ -153,6 +211,86 @@
 
         <Grid>
             <Grid.Resources>
+                <DataTemplate x:Key="ShowState" DataType="{x:Type m:DisplayQueueItem}">
+                    <DockPanel>
+                        <TextBlock>
+                            状態: <Run Text="{Binding StateString, Mode=OneWay}" />
+                            <Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Model.EncodeStart, Mode=OneWay}">
+                                            <DataTrigger.Value>
+                                                <sys:DateTime/>
+                                            </DataTrigger.Value>
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsEncoding, Mode=OneWay}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                            <TextBlock.ToolTip>
+                                <TextBlock>
+                                    経過時間: <Run>
+                                        <Run.Text>
+                                            <MultiBinding StringFormat="{}{0}時間{1:00;00}分{2:00;00}秒">
+                                                <Binding Path="Elapsed.Hours" Mode="OneWay"/>
+                                                <Binding Path="Elapsed.Minutes" Mode="OneWay"/>
+                                                <Binding Path="Elapsed.Seconds" Mode="OneWay"/>
+                                            </MultiBinding>
+                                        </Run.Text>
+                                    </Run>
+                                </TextBlock>
+                            </TextBlock.ToolTip>
+                            (開始: <Run Text="{Binding Model.EncodeStart, Mode=OneWay, StringFormat=yyyy/MM/dd HH:mm:ss}"/>)
+                        </TextBlock>
+                        <TextBlock>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Model.EncodeFinish, Mode=OneWay}">
+                                            <DataTrigger.Value>
+                                                <sys:DateTime/>
+                                            </DataTrigger.Value>
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                            (<Run>
+                                <Run.ToolTip>
+                                    <TextBlock>
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}経過時間: {0}時間{1:00;00}分{2:00;00}秒">
+                                                <Binding Path="Model.EncodeTime.Hours" Mode="OneWay"/>
+                                                <Binding Path="Model.EncodeTime.Minutes" Mode="OneWay"/>
+                                                <Binding Path="Model.EncodeTime.Seconds" Mode="OneWay"/>
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </Run.ToolTip>
+                                <Run.Text>
+                                    <MultiBinding StringFormat="{}{0}時間{1:00;00}分{2:00;00}秒">
+                                        <Binding Path="Model.EncodeTime.Hours" Mode="OneWay"/>
+                                        <Binding Path="Model.EncodeTime.Minutes" Mode="OneWay"/>
+                                        <Binding Path="Model.EncodeTime.Seconds" Mode="OneWay"/>
+                                    </MultiBinding>
+                                </Run.Text>
+                            </Run>@<Run Text="{Binding Model.EncodeFinish, Mode=OneWay, StringFormat=yyyy/MM/dd HH:mm:ss}">
+                                <Run.ToolTip>
+                                    <TextBlock>
+                                        <Run Text="{Binding StateString, Mode=OneWay}"/>時刻:
+                                        <Run Text="{Binding Model.EncodeFinish, Mode=OneWay, StringFormat=yyyy/MM/dd HH:mm:ss}"/>
+                                    </TextBlock>
+                                </Run.ToolTip>
+                            </Run>)
+                        </TextBlock>
+                    </DockPanel>
+                </DataTemplate>
                 <DataTemplate x:Key="DetailedItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
                     <DockPanel>
                         <DockPanel.InputBindings>
@@ -190,7 +328,7 @@
                                 </TextBlock>
                             </TextBlock.ToolTip>
                             </TextBlock>
-                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
+                        <ContentControl Margin="0,0,5,0" Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
                     </DockPanel>
                 </DataTemplate>
                 <DataTemplate x:Key="NormatlItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
@@ -229,7 +367,7 @@
                                 </TextBlock>
                             </TextBlock.ToolTip>
                             </TextBlock>
-                        <TextBlock Margin="0,0,5,0"><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" /></TextBlock>
+                        <ContentControl Margin="0,0,5,0" Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
                     </DockPanel>
                 </DataTemplate>
                 <DataTemplate x:Key="ShortItemTemplate" DataType="{x:Type m:DisplayQueueItem}">
@@ -259,13 +397,15 @@
                         <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0">
                                 <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
                             <TextBlock.ToolTip>
-                                <TextBlock>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top">
                                         <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
                                         <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
                                         <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
                                         <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
-                                        <LineBreak/><Run Text="状態: "/><Run Text="{Binding StateString, Mode=OneWay}" /><Run Text=" "/><Run ToolTip="{Binding Model.FailReason, Mode=OneWay}" Text="{Binding Model.FailReason, Mode=OneWay}" />
-                                </TextBlock>
+                                    </TextBlock>
+                                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
+                                </DockPanel>
                             </TextBlock.ToolTip>
                             </TextBlock>
                     </DockPanel>
@@ -276,7 +416,8 @@
                 PreviewDragOver="ListBox_PreviewDragOver" 
                 Drop="ListBox_Drop" AllowDrop="True" 
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                SelectionMode="Extended">
+                SelectionMode="Extended"
+                ContextMenuClosing="queueMenu_ContextMenuClosing">
                 <ListBox.Style>
                     <Style TargetType="ListBox">
                         <Setter Property="ItemTemplate" Value="{StaticResource DetailedItemTemplate}"/>
@@ -378,18 +519,30 @@
                         <MenuItem Header="キャンセル" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding CancelCommand}" 
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                        <MenuItem Header="削除" Style="{StaticResource MenuForSelectedItems}"
-                            Command="{Binding RemoveCommand}"
-                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        <MenuItem Header="削除" Style="{StaticResource MenuForSelectedItems}" x:Name="RemoveSelectedItemsMenuItem"
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
+                            <MenuItem.InputBindings>
+                                <MouseBinding Gesture="LeftClick" Command="{Binding RemoveCommand}"
+                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                                <MouseBinding Gesture="Shift+LeftClick" Command="{Binding RemoveTSQueueItemCommand}"
+                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                            </MenuItem.InputBindings>
+                        </MenuItem>
                         <Separator />
                         <MenuItem Header="強制的に実行" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding ForceStartCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="並列数制限やリソース制限を無視して強制的に実行します" />
                         <Separator />
-                        <MenuItem Header="完了した項目を削除"
-                            Command="{Binding RemoveCompletedAllCommand}"
-                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                        <MenuItem Header="完了した項目を削除" x:Name="RemoveCompletedMenuItem"
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
+                            <MenuItem.InputBindings>
+                                <MouseBinding Gesture="LeftClick" Command="{Binding RemoveCompletedAllCommand}"
+                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                                <MouseBinding Gesture="Shift+LeftClick" Command="{Binding RemoveCompletedTSCommand}"
+                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                            </MenuItem.InputBindings>
+                        </MenuItem>
                         <MenuItem Header="ファイルの場所を開く" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding OpenFileInExplorerCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}" />

@@ -66,6 +66,18 @@ namespace Amatsukaze.Models
         public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
         public string ServiceString { get { return Model.ServiceName + "(" + Model.ServiceId + ")"; } }
 
+        public TimeSpan Elapsed
+        {
+            get
+            {
+                if(Model.EncodeStart == DateTime.MinValue)
+                {
+                    return new TimeSpan();
+                }
+                return DateTime.Now - Model.EncodeStart;
+            }
+        }
+
         public string GenreString
         {
             get { return string.Join(", ", 
@@ -800,8 +812,8 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region MoveLogFile変更通知プロパティ
-        public bool MoveLogFile
+        #region DisableLogFile変更通知プロパティ
+        public bool DisableLogFile
         {
             get { return Model.DisableLogFile; }
             set

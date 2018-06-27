@@ -583,7 +583,7 @@ namespace Amatsukaze.Server
 
         private async Task<object> ProcessItem(EncodeServer server, QueueItem src, bool ignoreResource)
         {
-            DateTime now = DateTime.Now;
+            DateTime now = src.EncodeStart;
 
             if (File.Exists(src.SrcPath) == false)
             {
@@ -789,8 +789,6 @@ namespace Amatsukaze.Server
                 Util.AddLog(id, ModeToString(src.Mode) + "開始: " + src.SrcPath, null);
                 Util.AddLog(id, "Args: " + exename + " " + args, null);
 
-                DateTime start = DateTime.Now;
-
                 var psi = new ProcessStartInfo(exename, args)
                 {
                     UseShellExecute = false,
@@ -884,7 +882,9 @@ namespace Amatsukaze.Server
                     }
                 }
 
+                DateTime start = src.EncodeStart;
                 DateTime finish = DateTime.Now;
+                src.EncodeTime = finish - start;
 
                 if (hashEnabled)
                 {
@@ -1054,6 +1054,7 @@ namespace Amatsukaze.Server
                 if (src.State == QueueState.Queue)
                 {
                     src.State = QueueState.Encoding;
+                    src.EncodeStart = DateTime.Now;
                     src.ConsoleId = id;
                     waitList.Add(server.NotifyQueueItemUpdate(src));
                     logItem = await ProcessItem(server, src, forceStart);

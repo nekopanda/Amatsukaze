@@ -307,8 +307,8 @@
                               IsChecked="{Binding Model.SelectedProfile.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする"
                               IsChecked="{Binding Model.SelectedProfile.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <CheckBox Height="16" Margin="0,3"  Content="ログファイルを出力先に残さない"
-                              IsChecked="{Binding Model.SelectedProfile.MoveLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Height="16" Margin="0,3"  Content="ログファイルを出力先に生成しない"
+                              IsChecked="{Binding Model.SelectedProfile.DisableLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="一時ファイルを削除せずに残す"
                               IsChecked="{Binding Model.SelectedProfile.NoRemoveTmp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>

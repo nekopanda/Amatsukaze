@@ -76,6 +76,23 @@ namespace Amatsukaze.ViewModels
         #endregion
     }
 
+    public class SingleValueViewModel<T> : ViewModel where T : IComparable
+    {
+        private T _Value;
+
+        public T Value
+        {
+            get { return _Value; }
+            set
+            {
+                if (_Value.CompareTo(value) == 0)
+                    return;
+                _Value = value;
+                RaisePropertyChanged();
+            }
+        }
+    }
+
     public class QueueViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
@@ -128,6 +145,30 @@ namespace Amatsukaze.ViewModels
         private ICollectionView itemsView;
         private PropertyChangedEventListener higeOneSegListener;
 
+        public QueueViewModel()
+        {
+            SearchChecks = Enumerable.Range(0, 6).Select(i =>
+            {
+                var vm = new SingleValueViewModel<bool>() { Value = true };
+                CompositeDisposable.Add(new PropertyChangedEventListener(vm, SearchCheckChanged));
+                return vm;
+            }).ToArray();
+
+            StateChecks = Enumerable.Range(0, 6).Select(i =>
+            {
+                var vm = new SingleValueViewModel<bool>() { Value = true };
+                CompositeDisposable.Add(new PropertyChangedEventListener(vm, StateCheckChanged));
+                return vm;
+            }).ToArray();
+
+            PriorityChecks = Enumerable.Range(0, 5).Select(i =>
+            {
+                var vm = new SingleValueViewModel<bool>() { Value = true };
+                CompositeDisposable.Add(new PropertyChangedEventListener(vm, PriorityCheckChanged));
+                return vm;
+            }).ToArray();
+        }
+
         public void Initialize()
         {
             ProfileList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
@@ -166,17 +207,41 @@ namespace Amatsukaze.ViewModels
             });
         }
 
+        private int StateIndex(QueueState state)
+        {
+            switch (state)
+            {
+                case QueueState.Canceled:
+                    return 3;
+                case QueueState.Complete:
+                    return 4;
+                case QueueState.Encoding:
+                    return 2;
+                case QueueState.Failed:
+                    return 5;
+                case QueueState.LogoPending:
+                    return 1;
+                case QueueState.PreFailed:
+                    return 5;
+                case QueueState.Queue:
+                    return 0;
+            }
+            return 0;
+        }
+
         private bool ItemsFilter(object obj)
         {
             var item = obj as DisplayQueueItem;
             if (Model.Setting.HideOneSeg && item.IsTooSmall) return false;
+            if (PriorityChecks[item.Priority - 1].Value == false) return false;
+            if (StateChecks[StateIndex(item.Model.State)].Value == false) return false;
             if (string.IsNullOrEmpty(_SearchWord)) return true;
-            return (SearchServiceName && item.Model.ServiceName.IndexOf(_SearchWord) != -1) ||
-                (SearchFileName && item.Model.FileName.IndexOf(_SearchWord) != -1) ||
-                (SearchGenre && item.GenreString.IndexOf(_SearchWord) != -1) ||
-                (SearchState && item.StateString.IndexOf(_SearchWord) != -1) ||
-                (SearchMode && item.ModeString.IndexOf(_SearchWord) != -1) ||
-                (SearchProfile && item.Model.Profile.Name.IndexOf(_SearchWord) != -1);
+            return (SearchChecks[1].Value && item.Model.ServiceName.IndexOf(_SearchWord) != -1) ||
+                (SearchChecks[0].Value && item.Model.FileName.IndexOf(_SearchWord) != -1) ||
+                (SearchChecks[3].Value && item.GenreString.IndexOf(_SearchWord) != -1) ||
+                (SearchChecks[4].Value && item.StateString.IndexOf(_SearchWord) != -1) ||
+                (SearchChecks[5].Value && item.ModeString.IndexOf(_SearchWord) != -1) ||
+                (SearchChecks[2].Value && item.Model.Profile.Name.IndexOf(_SearchWord) != -1);
         }
 
         private void QueueItemPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -311,7 +376,8 @@ namespace Amatsukaze.ViewModels
                     return;
                 _SearchWord = value;
                 RaisePropertyChanged();
-                itemsView.Refresh();
+                if(SuppressUpdateCount == 0)
+                    itemsView.Refresh();
             }
         }
         #endregion
@@ -331,7 +397,34 @@ namespace Amatsukaze.ViewModels
 
         public void ClearSearchWord()
         {
+            SuppressUpdateCount++;
             SearchWord = null;
+            StateCheckAll = true;
+            PriorityCheckAll = true;
+            SuppressUpdateCount--;
+            itemsView.Refresh();
+
+        }
+        #endregion
+
+        #region ApplyFilterCommand
+        private ViewModelCommand _ApplyFilterCommand;
+
+        public ViewModelCommand ApplyFilterCommand
+        {
+            get
+            {
+                if (_ApplyFilterCommand == null)
+                {
+                    _ApplyFilterCommand = new ViewModelCommand(ApplyFilter);
+                }
+                return _ApplyFilterCommand;
+            }
+        }
+
+        public void ApplyFilter()
+        {
+            itemsView.Refresh();
         }
         #endregion
 
@@ -375,24 +468,160 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public void RemoveCompletedAll(IEnumerable selectedItems)
+        public async void RemoveCompletedAll(IEnumerable selectedItems)
         {
-            Model.Server?.ChangeItem(new ChangeItemData()
+            var candidates = Model.QueueItems
+                .Select(item => item.Model)
+                .Where(s => s.State == QueueState.Complete || s.State == QueueState.PreFailed).ToArray();
+            if(candidates.Length > 0)
             {
-                ChangeType = ChangeItemType.RemoveCompleted
-            });
+                var message = new ConfirmationMessage(
+                    candidates.Length + "個のアイテムを削除します。",
+                    "Amatsukaze アイテム削除",
+                    MessageBoxImage.Question,
+                    MessageBoxButton.OKCancel,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+
+                if (message.Response == true)
+                {
+                    Model.Server?.ChangeItem(new ChangeItemData()
+                    {
+                        ChangeType = ChangeItemType.RemoveCompleted
+                    });
+                }
+            }
         }
         #endregion
 
-        #region IsPanelOpen変更通知プロパティ
-        private bool _IsPanelOpen;
+        #region IsFilterPanelOpen変更通知プロパティ
+        private bool _IsFilterPanelOpen;
 
-        public bool IsPanelOpen {
-            get { return _IsPanelOpen; }
+        public bool IsFilterPanelOpen
+        {
+            get { return _IsFilterPanelOpen; }
             set {
-                if (_IsPanelOpen == value)
+                if (_IsFilterPanelOpen == value)
                     return;
-                _IsPanelOpen = value;
+                _IsFilterPanelOpen = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        private async Task RemoveTS(DisplayQueueItem[] items)
+        {
+            if (items.Length == 0)
+            {
+                var message = new ConfirmationMessage(
+                    "対象アイテムがありません",
+                    "Amatsukaze TSファイル削除",
+                    MessageBoxImage.Information,
+                    MessageBoxButton.OK,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+            }
+            else
+            {
+                var top = items.Take(10);
+                var numOthers = items.Length - top.Count();
+                var message = new ConfirmationMessage(
+                    "以下のアイテムのソースTSファイルを削除します。本当によろしいですか？\r\n" +
+                    "（TSファイルを削除したアイテムはキューからも削除されます。）\r\n\r\n" +
+                    string.Join("\r\n", top.Select(s => s.Model.FileName)) +
+                    ((numOthers > 0) ? "\r\n\r\n他" + numOthers + "個" : ""),
+                    "Amatsukaze TSファイル削除",
+                    MessageBoxImage.Question,
+                    MessageBoxButton.OKCancel,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+
+                if (message.Response == true)
+                {
+                    foreach (var item in items)
+                    {
+                        await Model.Server?.ChangeItem(new ChangeItemData()
+                        {
+                            ItemId = item.Model.Id,
+                            ChangeType = ChangeItemType.RemoveSourceFile
+                        });
+                    }
+                }
+            }
+        }
+
+        #region RemoveTSQueueItemCommand
+        private ListenerCommand<IEnumerable> _RemoveTSQueueItemCommand;
+
+        public ListenerCommand<IEnumerable> RemoveTSQueueItemCommand
+        {
+            get
+            {
+                if (_RemoveTSQueueItemCommand == null)
+                {
+                    _RemoveTSQueueItemCommand = new ListenerCommand<IEnumerable>(RemoveTSQueueItem);
+                }
+                return _RemoveTSQueueItemCommand;
+            }
+        }
+
+        public async void RemoveTSQueueItem(IEnumerable selectedItems)
+        {
+            var selected = selectedItems.OfType<DisplayQueueItem>().ToArray();
+            var items = selected.Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
+            if (selected.Length - items.Length > 0)
+            {
+                var message = new ConfirmationMessage(
+                    "TSファイルを削除できるのは、通常または自動追加のアイテムのうち\r\n" +
+                    "完了した項目だけです。" + (selected.Length - items.Length) + "件のアイテムがこれに該当しないため除外\r\nされます",
+                    "Amatsukaze TSファイル削除除外",
+                    MessageBoxImage.Information,
+                    MessageBoxButton.OK,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+            }
+            await RemoveTS(items);
+        }
+        #endregion
+
+        #region RemoveCompletedTSCommand
+        private ListenerCommand<IEnumerable> _RemoveCompletedTSCommand;
+
+        public ListenerCommand<IEnumerable> RemoveCompletedTSCommand
+        {
+            get
+            {
+                if (_RemoveCompletedTSCommand == null)
+                {
+                    _RemoveCompletedTSCommand = new ListenerCommand<IEnumerable>(RemoveCompletedTS);
+                }
+                return _RemoveCompletedTSCommand;
+            }
+        }
+
+        public async void RemoveCompletedTS(IEnumerable selectedItems)
+        {
+            var items = Model.QueueItems
+                .Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
+            await RemoveTS(items);
+        }
+        #endregion
+
+        #region IsControlPanelOpen変更通知プロパティ
+        private bool _IsControlPanelOpen;
+
+        public bool IsControlPanelOpen
+        {
+            get { return _IsControlPanelOpen; }
+            set
+            {
+                if (_IsControlPanelOpen == value)
+                    return;
+                _IsControlPanelOpen = value;
                 RaisePropertyChanged();
             }
         }
@@ -693,98 +922,38 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        private bool[] SearchChecks = new bool[6] { true, true, true, true, true, true };
-        private bool EnableUpdate = true;
+        public SingleValueViewModel<bool>[] SearchChecks { get; set; }
+        public SingleValueViewModel<bool>[] StateChecks { get; set; }
+        public SingleValueViewModel<bool>[] PriorityChecks { get; set; }
 
-        #region SearchFileName変更通知プロパティ
-        public bool SearchFileName {
-            get { return SearchChecks[0]; }
-            set { 
-                if (SearchChecks[0] == value)
-                    return;
-                SearchChecks[0] = value;
-                RaisePropertyChanged();
+        private int SuppressUpdateCount = 0;
+
+        private void SearchCheckChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (SuppressUpdateCount == 0)
+            {
                 UpdateSearchAll();
-                if (EnableUpdate)
-                    itemsView.Refresh();
+                itemsView.Refresh();
             }
         }
-        #endregion
 
-        #region SearchServiceName変更通知プロパティ
-        public bool SearchServiceName {
-            get { return SearchChecks[1]; }
-            set { 
-                if (SearchChecks[1] == value)
-                    return;
-                SearchChecks[1] = value;
-                RaisePropertyChanged();
-                UpdateSearchAll();
-                if (EnableUpdate)
-                    itemsView.Refresh();
+        private void StateCheckChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (SuppressUpdateCount == 0)
+            {
+                UpdateStateAll();
+                itemsView.Refresh();
             }
         }
-        #endregion
 
-        #region SearchProfile変更通知プロパティ
-        public bool SearchProfile {
-            get { return SearchChecks[2]; }
-            set { 
-                if (SearchChecks[2] == value)
-                    return;
-                SearchChecks[2] = value;
-                RaisePropertyChanged();
-                UpdateSearchAll();
-                if (EnableUpdate)
-                    itemsView.Refresh();
+        private void PriorityCheckChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (SuppressUpdateCount == 0)
+            {
+                UpdatePriorityAll();
+                itemsView.Refresh();
             }
         }
-        #endregion
-
-        #region SearchGenre変更通知プロパティ
-        public bool SearchGenre {
-            get { return SearchChecks[3]; }
-            set { 
-                if (SearchChecks[3] == value)
-                    return;
-                SearchChecks[3] = value;
-                RaisePropertyChanged();
-                UpdateSearchAll();
-                if (EnableUpdate)
-                    itemsView.Refresh();
-            }
-        }
-        #endregion
-
-        #region SearchState変更通知プロパティ
-        public bool SearchState {
-            get { return SearchChecks[4]; }
-            set { 
-                if (SearchChecks[4] == value)
-                    return;
-                SearchChecks[4] = value;
-                RaisePropertyChanged();
-                UpdateSearchAll();
-                if (EnableUpdate)
-                    itemsView.Refresh();
-            }
-        }
-        #endregion
-
-        #region SearchMode変更通知プロパティ
-        public bool SearchMode {
-            get { return SearchChecks[5]; }
-            set { 
-                if (SearchChecks[5] == value)
-                    return;
-                SearchChecks[5] = value;
-                RaisePropertyChanged();
-                UpdateSearchAll();
-                if (EnableUpdate)
-                    itemsView.Refresh();
-            }
-        }
-        #endregion
 
         #region SearchCheckAll変更通知プロパティ
         private bool? _SearchCheckAll = true;
@@ -799,14 +968,66 @@ namespace Amatsukaze.ViewModels
                 if (value != null)
                 {
                     bool val = (bool)value;
-                    EnableUpdate = false;
-                    SearchFileName = val;
-                    SearchServiceName = val;
-                    SearchProfile = val;
-                    SearchGenre = val;
-                    SearchState = val;
-                    SearchMode = val;
-                    EnableUpdate = true;
+                    SuppressUpdateCount++;
+                    foreach(var c in SearchChecks)
+                    {
+                        c.Value = val;
+                    }
+                    SuppressUpdateCount--;
+                    itemsView.Refresh();
+                }
+            }
+        }
+        #endregion
+
+        #region StateCheckAll変更通知プロパティ
+        private bool? _StateCheckAll = true;
+
+        public bool? StateCheckAll
+        {
+            get { return _StateCheckAll; }
+            set
+            {
+                if (_StateCheckAll == value)
+                    return;
+                _StateCheckAll = value;
+                RaisePropertyChanged();
+                if (value != null)
+                {
+                    bool val = (bool)value;
+                    SuppressUpdateCount++;
+                    foreach (var c in StateChecks)
+                    {
+                        c.Value = val;
+                    }
+                    SuppressUpdateCount--;
+                    itemsView.Refresh();
+                }
+            }
+        }
+        #endregion
+
+        #region PriorityCheckAll変更通知プロパティ
+        private bool? _PriorityCheckAll = true;
+
+        public bool? PriorityCheckAll
+        {
+            get { return _PriorityCheckAll; }
+            set
+            {
+                if (_PriorityCheckAll == value)
+                    return;
+                _PriorityCheckAll = value;
+                RaisePropertyChanged();
+                if (value != null)
+                {
+                    bool val = (bool)value;
+                    SuppressUpdateCount++;
+                    foreach (var c in PriorityChecks)
+                    {
+                        c.Value = val;
+                    }
+                    SuppressUpdateCount--;
                     itemsView.Refresh();
                 }
             }
@@ -832,8 +1053,22 @@ namespace Amatsukaze.ViewModels
 
         private void UpdateSearchAll()
         {
-            SearchCheckAll = SearchChecks.All(s => s)
-                ? (bool?)true : SearchChecks.All(s => !s)
+            SearchCheckAll = SearchChecks.All(s => s.Value)
+                ? (bool?)true : SearchChecks.All(s => !s.Value)
+                ? (bool?)false : null;
+        }
+
+        private void UpdateStateAll()
+        {
+            StateCheckAll = StateChecks.All(s => s.Value)
+                ? (bool?)true : StateChecks.All(s => !s.Value)
+                ? (bool?)false : null;
+        }
+
+        private void UpdatePriorityAll()
+        {
+            PriorityCheckAll = PriorityChecks.All(s => s.Value)
+                ? (bool?)true : PriorityChecks.All(s => !s.Value)
                 ? (bool?)false : null;
         }
 

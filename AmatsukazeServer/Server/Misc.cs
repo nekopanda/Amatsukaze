@@ -894,6 +894,21 @@ namespace Amatsukaze.Server
             }
         }
 
+        public static void DeleteTSFile(string file, bool withEDCB)
+        {
+            string body = Path.GetFileNameWithoutExtension(file);
+            string tsext = Path.GetExtension(file);
+            string srcDir = Path.GetDirectoryName(file);
+            foreach (var ext in ServerSupport.GetFileExtentions(tsext, withEDCB))
+            {
+                string srcPath = srcDir + "\\" + body + ext;
+                if (File.Exists(srcPath))
+                {
+                    File.Delete(srcPath);
+                }
+            }
+        }
+
         public static string ExitCodeString(int code)
         {
             if(Math.Abs(code) < 0x10000)

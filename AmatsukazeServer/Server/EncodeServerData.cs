@@ -491,6 +491,23 @@ namespace Amatsukaze.Server
         [DataMember]
         public int ConsoleId { get; set; }
 
+        [DataMember]
+        public DateTime EncodeStart { get; set; }
+        [DataMember]
+        public TimeSpan EncodeTime { get; set; }
+
+        public DateTime EncodeFinish
+        {
+            get
+            {
+                if(EncodeStart == DateTime.MinValue || EncodeTime == TimeSpan.Zero)
+                {
+                    return DateTime.MinValue;
+                }
+                return EncodeStart + EncodeTime;
+            }
+        }
+
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
         public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
         public bool IsTest { get { return Mode == ProcMode.Test; } }
@@ -510,6 +527,13 @@ namespace Amatsukaze.Server
             get {
                 return ImageWidth <= 320 || ImageHeight <= 260;
             }
+        }
+
+        public void Reset()
+        {
+            State = QueueState.LogoPending;
+            EncodeStart = new DateTime();
+            EncodeTime = new TimeSpan();
         }
     }
 
@@ -545,6 +569,7 @@ namespace Amatsukaze.Server
         RemoveItem, // アイテム削除
         RemoveCompleted,  // 完了項目を削除
         ForceStart, // アイテムを強制的に開始
+        RemoveSourceFile, // ソースTSを削除（通常or自動追加の完了した項目のみ有効）
     }
 
     [DataContract]

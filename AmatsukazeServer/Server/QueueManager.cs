@@ -57,7 +57,7 @@ namespace Amatsukaze.Server
                     // エンコードするアイテムはリセットしておく
                     if (item.State == QueueState.Encoding || item.State == QueueState.Queue)
                     {
-                        item.State = QueueState.LogoPending;
+                        item.Reset();
                     }
                     if(item.Profile == null || item.Profile.LastUpdate == DateTime.MinValue)
                     {
@@ -175,18 +175,18 @@ namespace Amatsukaze.Server
                     if (item.ServiceId == -1)
                     {
                         item.FailReason = "TS情報取得中";
-                        item.State = QueueState.LogoPending;
+                        item.Reset();
                     }
                     else if (map.ContainsKey(item.ServiceId) == false)
                     {
                         item.FailReason = "このTSに対する設定がありません";
-                        item.State = QueueState.LogoPending;
+                        item.Reset();
                     }
                     else if (item.Profile.DisableChapter == false &&
                         map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
                     {
                         item.FailReason = "ロゴ設定がありません";
-                        item.State = QueueState.LogoPending;
+                        item.Reset();
                     }
                     else
                     {
@@ -424,7 +424,7 @@ namespace Amatsukaze.Server
 
         private void ResetStateItem(QueueItem item, List<Task> waits)
         {
-            item.State = QueueState.LogoPending;
+            item.Reset();
             UpdateQueueItem(item, waits);
             waits.Add(NotifyQueueItemUpdate(item));
         }
@@ -516,7 +516,7 @@ namespace Amatsukaze.Server
             Queue.Add(newItem);
 
             // 状態はリセットしておく
-            newItem.State = QueueState.LogoPending;
+            newItem.Reset();
             UpdateQueueItem(newItem, null);
 
             waits.Add(ClientQueueUpdate(new QueueUpdate()
@@ -738,6 +738,40 @@ namespace Amatsukaze.Server
                 {
                     server.ForceStartItem(target);
                 }
+            }
+            else if(data.ChangeType == ChangeItemType.RemoveSourceFile)
+            {
+                if(target.IsBatch == false)
+                {
+                    return server.NotifyError("通常or自動追加以外はTSファイル削除ができません", false);
+                }
+                if(target.State != QueueState.Complete)
+                {
+                    return server.NotifyError("完了していないアイテムはTSファイル削除ができません", false);
+                }
+                if(Queue.Where(s => s.SrcPath == target.SrcPath).Any(s => s.IsActive))
+                {
+                    return server.NotifyError("まだ完了していない項目があるため、このTSは削除ができません", false);
+                }
+
+                // ！！！削除！！！
+                var dirPath = Path.GetDirectoryName(target.SrcPath);
+                var movedPath = dirPath + "\\" + ServerSupport.SUCCESS_DIR + "\\" + Path.GetFileName(target.SrcPath);
+                if (File.Exists(movedPath))
+                {
+                    // EDCB関連ファイルも移動したかどうかは分からないが、あれば消す
+                    ServerSupport.DeleteTSFile(movedPath, true);
+                }
+
+                // アイテム削除
+                Queue.Remove(target);
+                return Task.WhenAll(
+                    ClientQueueUpdate(new QueueUpdate()
+                    {
+                        Type = UpdateType.Remove,
+                        Item = target
+                    }),
+                    server.NotifyMessage("TSファイルを削除しました", false));
             }
             return Task.FromResult(0);
         }
