@@ -116,13 +116,13 @@
                     </DockPanel>
                 </Grid>
             </Expander.Header>
-            <DockPanel PreviewMouseDown="DockPanel_PreviewMouseDown">
+            <DockPanel>
                 <UniformGrid Columns="4" DockPanel.Dock="Top">
                     <Button Margin="3" Height="24" Content="キャンセル"
                             Style="{StaticResource ButtonForSelectedItems}"
                             Command="{Binding CancelCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                    <Button Margin="3" Height="24" Content="削除" x:Name="RemoveSelectedItemsButton"
+                    <Button Margin="3" Height="24" Content="{Binding RemoveButtonHeader, Mode=OneWay}"
                             ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"
                             Style="{StaticResource ButtonForSelectedItems}">
                         <Button.InputBindings>
@@ -177,7 +177,7 @@
                             Command="{Binding RetryUpdateCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
-                    <Button Margin="3" Height="24" Content="完了した項目を削除" x:Name="RemoveCompletedButton"
+                    <Button Margin="3" Height="24" Content="{Binding RemoveCompletedHeader, Mode=OneWay}"
                             ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
                         <Button.InputBindings>
                             <MouseBinding Gesture="LeftClick"
@@ -416,8 +416,7 @@
                 PreviewDragOver="ListBox_PreviewDragOver" 
                 Drop="ListBox_Drop" AllowDrop="True" 
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                SelectionMode="Extended"
-                ContextMenuClosing="queueMenu_ContextMenuClosing">
+                SelectionMode="Extended">
                 <ListBox.Style>
                     <Style TargetType="ListBox">
                         <Setter Property="ItemTemplate" Value="{StaticResource DetailedItemTemplate}"/>
@@ -519,7 +518,7 @@
                         <MenuItem Header="キャンセル" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding CancelCommand}" 
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                        <MenuItem Header="削除" Style="{StaticResource MenuForSelectedItems}" x:Name="RemoveSelectedItemsMenuItem"
+                        <MenuItem Header="{Binding RemoveButtonHeader, Mode=OneWay}" Style="{StaticResource MenuForSelectedItems}"
                             ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
                             <MenuItem.InputBindings>
                                 <MouseBinding Gesture="LeftClick" Command="{Binding RemoveCommand}"
@@ -534,7 +533,7 @@
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="並列数制限やリソース制限を無視して強制的に実行します" />
                         <Separator />
-                        <MenuItem Header="完了した項目を削除" x:Name="RemoveCompletedMenuItem"
+                        <MenuItem Header="{Binding RemoveCompletedHeader, Mode=OneWay}"
                             ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
                             <MenuItem.InputBindings>
                                 <MouseBinding Gesture="LeftClick" Command="{Binding RemoveCompletedAllCommand}"

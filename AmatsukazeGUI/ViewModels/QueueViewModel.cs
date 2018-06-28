@@ -922,6 +922,34 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region ShiftDown変更通知プロパティ
+        private bool _ShiftDown;
+
+        public bool ShiftDown
+        {
+            get { return _ShiftDown; }
+            set
+            {
+                if (_ShiftDown == value)
+                    return;
+                _ShiftDown = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("RemoveButtonHeader");
+                RaisePropertyChanged("RemoveCompletedHeader");
+            }
+        }
+
+        public string RemoveButtonHeader
+        {
+            get { return _ShiftDown ? "TSファイルも同時に削除" : "削除"; }
+        }
+
+        public string RemoveCompletedHeader
+        {
+            get { return _ShiftDown ? "完了したアイテム+TSファイルを削除" : "完了したアイテムを削除"; }
+        }
+        #endregion
+
         public SingleValueViewModel<bool>[] SearchChecks { get; set; }
         public SingleValueViewModel<bool>[] StateChecks { get; set; }
         public SingleValueViewModel<bool>[] PriorityChecks { get; set; }

@@ -15,6 +15,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace Amatsukaze.Views
 {
@@ -50,13 +51,28 @@ namespace Amatsukaze.Views
             }
         }
 
+        private DispatcherTimer dispatcherTimer;
+
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             var window = Window.GetWindow(this);
+            window.GotFocus += UpdateTick;
             window.KeyDown += HandleKeyEvent;
             window.KeyUp += HandleKeyEvent;
             queueMenu.KeyDown += HandleKeyEvent;
             queueMenu.KeyUp += HandleKeyEvent;
+
+            dispatcherTimer = new DispatcherTimer(DispatcherPriority.ContextIdle);
+            dispatcherTimer.Interval = new TimeSpan(0, 0, 1);
+            dispatcherTimer.Tick += new EventHandler(UpdateTick);
+            dispatcherTimer.Start();
+        }
+
+        private void UpdateTick(object sender, EventArgs e)
+        {
+            if(Window.GetWindow(this)?.IsActive ?? false)
+                (DataContext as QueueViewModel).ShiftDown =
+                    (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift));
         }
 
         private void HandleKeyEvent(object sender, KeyEventArgs e)
@@ -64,37 +80,8 @@ namespace Amatsukaze.Views
             if (e.Key == Key.LeftShift || e.Key == Key.RightShift)
             {
                 // Shiftキーだった
-                if (e.IsDown)
-                {
-                    RemoveSelectedItemsButton.Content = "TSファイルも同時に削除";
-                    RemoveCompletedButton.Content = "完了したアイテム+TSファイルを削除";
-                    RemoveSelectedItemsMenuItem.Header = "TSファイルも同時に削除";
-                    RemoveCompletedMenuItem.Header = "完了したアイテム+TSファイルを削除";
-                }
-                else
-                {
-                    RemoveSelectedItemsButton.Content = "削除";
-                    RemoveCompletedButton.Content = "完了したアイテムを削除";
-                    RemoveSelectedItemsMenuItem.Header = "削除";
-                    RemoveCompletedMenuItem.Header = "完了したアイテムを削除";
-                }
+                (DataContext as QueueViewModel).ShiftDown = e.IsDown;
             }
-        }
-
-        private void queueMenu_ContextMenuClosing(object sender, ContextMenuEventArgs e)
-        {
-            RemoveSelectedItemsButton.Content = "削除";
-            RemoveCompletedButton.Content = "完了したアイテムを削除";
-            RemoveSelectedItemsMenuItem.Header = "削除";
-            RemoveCompletedMenuItem.Header = "完了したアイテムを削除";
-        }
-
-        private void DockPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            RemoveSelectedItemsButton.Content = "削除";
-            RemoveCompletedButton.Content = "完了したアイテムを削除";
-            RemoveSelectedItemsMenuItem.Header = "削除";
-            RemoveCompletedMenuItem.Header = "完了したアイテムを削除";
         }
     }
 }
