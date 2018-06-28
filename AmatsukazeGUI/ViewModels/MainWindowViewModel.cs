@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
+using Amatsukaze.Components;
 
 namespace Amatsukaze.ViewModels
 {
@@ -66,125 +67,54 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; private set; }
 
-        private PropertyChangedEventListener modelListener;
-        private CollectionChangedEventListener consoleListListener;
-
         private bool disposed = false;
 
+        public ObservableCollection<ViewModel> MainPanelMenu { get; } = new ObservableCollection<ViewModel>();
+        public ObservableViewModelCollection<ConsoleViewModel, DisplayConsole> ConsoleList { get; private set; }
+        public ObservableCollection<ViewModel> ConsolePanelMenu { get; } = new ObservableCollection<ViewModel>();
+        public ObservableCollection<ViewModel> InfoPanelMenu { get; } = new ObservableCollection<ViewModel>();
 
-        #region MainPanelMenu変更通知プロパティ
-        private ObservableCollection<ViewModel> _MainPanelMenu = new ObservableCollection<ViewModel>();
+        #region SelectedMainPanel変更通知プロパティ
+        private ViewModel _SelectedMainPanel;
 
-        public ObservableCollection<ViewModel> MainPanelMenu {
-            get { return _MainPanelMenu; }
+        public ViewModel SelectedMainPanel {
+            get { return _SelectedMainPanel; }
             set {
-                if (_MainPanelMenu == value)
+                var value_ = value ?? MainPanelMenu.FirstOrDefault();
+                if (_SelectedMainPanel == value_)
                     return;
-                _MainPanelMenu = value;
+                _SelectedMainPanel = value_;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
-        #region ConsolePanelMenu変更通知プロパティ
-        private ObservableCollection<ViewModel> _ConsolePanelMenu = new ObservableCollection<ViewModel>();
+        #region SelectedConsolePanel変更通知プロパティ
+        private ViewModel _SelectedConsolePanel;
 
-        public ObservableCollection<ViewModel> ConsolePanelMenu {
-            get { return _ConsolePanelMenu; }
+        public ViewModel SelectedConsolePanel {
+            get { return _SelectedConsolePanel; }
             set {
-                if (_ConsolePanelMenu == value)
+                var value_ = value ?? ConsolePanelMenu.FirstOrDefault();
+                if (_SelectedConsolePanel == value_)
                     return;
-                _ConsolePanelMenu = value;
+                _SelectedConsolePanel = value_;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
-        #region InfoPanelMenu変更通知プロパティ
-        private ObservableCollection<ViewModel> _InfoPanelMenu = new ObservableCollection<ViewModel>();
+        #region SelectedInfoPanel変更通知プロパティ
+        private ViewModel _SelectedInfoPanel;
 
-        public ObservableCollection<ViewModel> InfoPanelMenu {
-            get { return _InfoPanelMenu; }
+        public ViewModel SelectedInfoPanel {
+            get { return _SelectedInfoPanel; }
             set {
-                if (_InfoPanelMenu == value)
+                var value_ = value ?? InfoPanelMenu.FirstOrDefault();
+                if (_SelectedInfoPanel == value_)
                     return;
-                _InfoPanelMenu = value;
+                _SelectedInfoPanel = value_;
                 RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region MainPanelSelectedIndex変更通知プロパティ
-        private int _MainPanelSelectedIndex;
-
-        public int MainPanelSelectedIndex {
-            get { return _MainPanelSelectedIndex; }
-            set {
-                if (_MainPanelSelectedIndex == value)
-                    return;
-                _MainPanelSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("MainPanel");
-            }
-        }
-
-        public ViewModel MainPanel {
-            get {
-                if (_MainPanelSelectedIndex >= 0 && _MainPanelSelectedIndex < _MainPanelMenu.Count)
-                {
-                    return _MainPanelMenu[_MainPanelSelectedIndex];
-                }
-                return null;
-            }
-        }
-        #endregion
-
-        #region ConsolePanelSelectedIndex変更通知プロパティ
-        private int _ConsolePanelSelectedIndex;
-
-        public int ConsolePanelSelectedIndex {
-            get { return _ConsolePanelSelectedIndex; }
-            set {
-                if (_ConsolePanelSelectedIndex == value)
-                    return;
-                _ConsolePanelSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("ConsolePanel");
-            }
-        }
-
-        public ViewModel ConsolePanel {
-            get {
-                if (ConsolePanelSelectedIndex >= 0 && ConsolePanelSelectedIndex < _ConsolePanelMenu.Count)
-                {
-                    return _ConsolePanelMenu[ConsolePanelSelectedIndex];
-                }
-                return null;
-            }
-        }
-        #endregion
-
-        #region InfoPanelSelectedIndex変更通知プロパティ
-        private int _InfoPanelSelectedIndex;
-
-        public int InfoPanelSelectedIndex {
-            get { return _InfoPanelSelectedIndex; }
-            set {
-                if (_InfoPanelSelectedIndex == value)
-                    return;
-                _InfoPanelSelectedIndex = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged("InfoPanel");
-            }
-        }
-
-        public ViewModel InfoPanel {
-            get {
-                if (InfoPanelSelectedIndex >= 0 && InfoPanelSelectedIndex < _InfoPanelMenu.Count)
-                {
-                    return _InfoPanelMenu[InfoPanelSelectedIndex];
-                }
-                return null;
             }
         }
         #endregion
@@ -212,7 +142,7 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         public bool IsManyConsole {
-            get { return ConsolePanelMenu.Count > 6; }
+            get { return (ConsoleList?.Count ?? 0) > 8; }
         }
 
         public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
@@ -222,6 +152,13 @@ namespace Amatsukaze.ViewModels
         public MainWindowViewModel()
         {
             Model = new ClientModel();
+            ConsoleList = new ObservableViewModelCollection<ConsoleViewModel, DisplayConsole>(
+                Model.ConsoleList, console => new ConsoleViewModel()
+                {
+                    Name = "コンソール" + (console.Id),
+                    ShortName = (console.Id).ToString(),
+                    Model = console
+                });
             QueueVM = new QueueViewModel() { Name = "キュー", Model = Model, MainPanel = this };
             MainPanelMenu.Add(QueueVM);
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
@@ -244,7 +181,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Initialize()
         {
-            modelListener = new PropertyChangedEventListener(Model);
+            var modelListener = new PropertyChangedEventListener(Model);
             modelListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
             modelListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
             modelListener.Add(() => Model.IsCurrentResultFail, (_, __) =>
@@ -252,8 +189,7 @@ namespace Amatsukaze.ViewModels
                 RaisePropertyChanged("StatusBackColor");
                 RaisePropertyChanged("StatusForeColor");
             });
-
-            consoleListListener = new CollectionChangedEventListener(Model.ConsoleList, (_, __) => UpdateNumConsole());
+            CompositeDisposable.Add(modelListener);
 
             // 他のVMのInitializeを読んでやる
             foreach (var vm in MainPanelMenu)
@@ -268,6 +204,11 @@ namespace Amatsukaze.ViewModels
             {
                 InitializeVM(vm);
             }
+
+            // 初期パネル表示
+            SelectedMainPanel = null;
+            SelectedConsolePanel = null;
+            SelectedInfoPanel = null;
 
             Model.ServerAddressRequired = ServerAddressRequired;
 
@@ -299,21 +240,6 @@ namespace Amatsukaze.ViewModels
                     Model.Dispose();
                 }
                 disposed = true;
-            }
-        }
-
-        private void UpdateNumConsole()
-        {
-            while (ConsolePanelMenu.Count < Model.ConsoleList.Count + 1)
-            {
-                int index = ConsolePanelMenu.Count - 1;
-                ConsolePanelMenu.Insert(index,
-                    new ConsoleViewModel() {
-                        Name = "コンソール" + (index + 1),
-                        ShortName = (index + 1).ToString(),
-                        Model = Model.ConsoleList[index]
-                    });
-                RaisePropertyChanged("IsManyConsole");
             }
         }
 

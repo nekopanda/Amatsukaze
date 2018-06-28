@@ -867,9 +867,9 @@ namespace Amatsukaze.ViewModels
         {
             if (item.Model.State == QueueState.Encoding)
             {
-                if (item.Model.ConsoleId < Model.ConsoleList.Count)
+                if (item.Model.ConsoleId < MainPanel.ConsoleList.Count)
                 {
-                    MainPanel.ConsolePanelSelectedIndex = item.Model.ConsoleId;
+                    MainPanel.SelectedConsolePanel = MainPanel.ConsoleList[item.Model.ConsoleId];
                 }
             }
         }

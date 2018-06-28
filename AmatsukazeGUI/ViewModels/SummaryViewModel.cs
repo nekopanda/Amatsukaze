@@ -107,10 +107,11 @@ namespace Amatsukaze.ViewModels
 
         public void ShowItemDetail(SummaryItemViewModel item)
         {
-            if (item.Data.Id - 1 < Model.ConsoleList.Count)
+            if (item.Data.Id - 1 < MainPanel.ConsoleList.Count)
             {
-                MainPanel.ConsolePanelSelectedIndex = item.Data.Id - 1;
-                (MainPanel.ConsolePanel as ConsoleViewModel).AutoScroll = true;
+                var vm = MainPanel.ConsoleList[item.Data.Id - 1];
+                MainPanel.SelectedConsolePanel = vm;
+                vm.AutoScroll = true;
             }
         }
         #endregion

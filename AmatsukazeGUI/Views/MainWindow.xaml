@@ -122,12 +122,17 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.RowSpan="3" >
-            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding MainPanelMenu}" SelectedIndex="{Binding MainPanelSelectedIndex, Mode=TwoWay}" />
-            <ContentControl Content="{Binding MainPanel}" />
+            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}"
+                     ItemsSource="{Binding MainPanelMenu}" SelectedItem="{Binding SelectedMainPanel, Mode=TwoWay}" />
+            <ContentControl Content="{Binding SelectedMainPanel}" />
         </DockPanel>
 
         <DockPanel Grid.Column="2" >
-            <ListBox DockPanel.Dock="Top" ItemsSource="{Binding ConsolePanelMenu}" SelectedIndex="{Binding ConsolePanelSelectedIndex, Mode=TwoWay}">
+            <DockPanel.Resources>
+                <CollectionViewSource x:Key="ConsoleList" Source="{Binding ConsoleList}"/>
+                <CollectionViewSource x:Key="ConsolePanelMenu" Source="{Binding ConsolePanelMenu}"/>
+            </DockPanel.Resources>
+            <ListBox DockPanel.Dock="Top" SelectedItem="{Binding SelectedConsolePanel, Mode=TwoWay}">
                 <ListBox.Style>
                     <Style TargetType="ListBox" BasedOn="{StaticResource HeaderMenuStyle}">
                         <Style.Triggers>
@@ -152,13 +157,20 @@
                         </Style.Triggers>
                     </Style>
                 </ListBox.Style>
+                <ListBox.ItemsSource>
+                    <CompositeCollection>
+                        <CollectionContainer Collection="{Binding Source={StaticResource ConsoleList}}"/>
+                        <CollectionContainer Collection="{Binding Source={StaticResource ConsolePanelMenu}}"/>
+                    </CompositeCollection>
+                </ListBox.ItemsSource>
             </ListBox>
-            <ContentControl Grid.Row="1" Content="{Binding ConsolePanel}" />
+            <ContentControl Grid.Row="1" Content="{Binding SelectedConsolePanel}" />
         </DockPanel>
 
         <DockPanel Grid.Column="2" Grid.Row="2">
-            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" ItemsSource="{Binding InfoPanelMenu}" SelectedIndex="{Binding InfoPanelSelectedIndex, Mode=TwoWay}" />
-            <ContentControl Grid.Row="1" Content="{Binding InfoPanel}" />
+            <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}" 
+                     ItemsSource="{Binding InfoPanelMenu}" SelectedItem="{Binding SelectedInfoPanel, Mode=TwoWay}" />
+            <ContentControl Grid.Row="1" Content="{Binding SelectedInfoPanel}" />
         </DockPanel>
 
         <GridSplitter HorizontalAlignment="Center" Grid.RowSpan="3" Grid.Column="1" Width="5" ResizeDirection="Columns"/>
@@ -177,9 +189,11 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60"
+            <Border DockPanel.Dock="Right" Width="60" BorderBrush="#FFDBB7B7" BorderThickness="1">
+                <TextBlock Text="{Binding RunningState}"
                        TextAlignment="Center" VerticalAlignment="Center" />
-            <ContentControl DockPanel.Dock="Right" DataContext="{Binding QueueVM}" VerticalAlignment="Center">
+            </Border>
+            <ContentControl DockPanel.Dock="Right" DataContext="{Binding QueueVM}" VerticalAlignment="Center" Margin="5,0">
                 <TextBlock DockPanel.Dock="Bottom">
                     アクティブ:<Run Text="{Binding Active, Mode=OneWay}"/>（処理中:<Run Text="{Binding Encoding, Mode=OneWay}"/> ペンディング:<Run Text="{Binding Pending, Mode=OneWay}"/>）完了:<Run Text="{Binding Complete, Mode=OneWay}"/> 失敗:<Run Text="{Binding Fail, Mode=OneWay}"/> キャンセル:<Run Text="{Binding Canceled, Mode=OneWay}"/>
                 </TextBlock>

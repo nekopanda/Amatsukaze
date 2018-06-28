@@ -216,20 +216,7 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region ConsoleTextLines変更通知プロパティ
-        private ObservableCollection<DisplayConsole> consoleList_ = new ObservableCollection<DisplayConsole>();
-
-        public ObservableCollection<DisplayConsole> ConsoleList
-        {
-            get { return consoleList_; }
-            set {
-                if (consoleList_ == value)
-                    return;
-                consoleList_ = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
+        public ObservableCollection<DisplayConsole> ConsoleList { get; } = new ObservableCollection<DisplayConsole>();
 
         #region CurrentLogFile変更通知プロパティ
         private string _CurrentLogFile = "ここに表示するにはログパネルの項目をダブルクリックしてください";
@@ -840,7 +827,7 @@ namespace Amatsukaze.Models
 
             // データ初期化
             drcsImageList_.Clear();
-            consoleList_.Clear();
+            ConsoleList.Clear();
             _LogItems.Clear();
             _CheckLogItems.Clear();
             _QueueItems.Clear();
@@ -1108,12 +1095,12 @@ namespace Amatsukaze.Models
             if(data.ConsoleData != null)
             {
                 ensureConsoleNum(data.ConsoleData.index);
-                consoleList_[data.ConsoleData.index].SetTextLines(data.ConsoleData.text);
+                ConsoleList[data.ConsoleData.index].SetTextLines(data.ConsoleData.text);
             }
             if(data.EncodeState != null)
             {
                 ensureConsoleNum(data.EncodeState.ConsoleId);
-                var console = consoleList_[data.EncodeState.ConsoleId];
+                var console = ConsoleList[data.EncodeState.ConsoleId];
                 console.Phase = data.EncodeState.Phase;
                 console.Resource = data.EncodeState.Resource;
             }
@@ -1201,23 +1188,23 @@ namespace Amatsukaze.Models
         private void ensureConsoleNum(int index)
         {
             int numRequire = index + 1;
-            while (consoleList_.Count < numRequire)
+            while (ConsoleList.Count < numRequire)
             {
-                consoleList_.Add(new DisplayConsole() { Id = consoleList_.Count + 1 });
+                ConsoleList.Add(new DisplayConsole() { Id = ConsoleList.Count + 1 });
             }
         }
 
         public Task OnConsoleUpdate(ConsoleUpdate update)
         {
             ensureConsoleNum(update.index);
-            consoleList_[update.index].AddBytes(update.data, 0, update.data.Length);
+            ConsoleList[update.index].AddBytes(update.data, 0, update.data.Length);
             return Task.FromResult(0);
         }
 
         public Task OnEncodeState(EncodeState state)
         {
             ensureConsoleNum(state.ConsoleId);
-            var console = consoleList_[state.ConsoleId];
+            var console = ConsoleList[state.ConsoleId];
             console.Phase = state.Phase;
             console.Resource = state.Resource;
             return Task.FromResult(0);
