@@ -620,6 +620,128 @@ private:
 	int frameCount_;
 };
 
+class Y4MParser
+{
+public:
+  void clear() {
+    y4mcur = 0;
+    frameSize = 0;
+    frameCount = 0;
+    y4mbuf.clear();
+  }
+  void inputData(MemoryChunk mc) {
+    y4mbuf.add(mc);
+    while (true) {
+      if (y4mcur==0) {
+        // ストリームヘッダ
+        auto data = y4mbuf.get();
+        uint8_t* end = (uint8_t*)memchr(data.data,0x0a,data.length);
+        if (end==nullptr) {
+          break;
+        }
+        *end = 0; // terminate
+        char* next_token = nullptr;
+        char* token = strtok_s((char*)data.data," ",&next_token);
+        // token == "YUV4MPEG2"
+        int width = 0,height = 0,bp4p = 0;
+        while (true) {
+          token = strtok_s(nullptr," ",&next_token);
+          if (token==nullptr) {
+            break;
+          }
+          switch (*(token++)) {
+          case 'W':
+            width = atoi(token);
+            break;
+          case 'H':
+            height = atoi(token);
+            break;
+          case 'C':
+            if (strcmp(token,"420jpeg")==0||
+              strcmp(token,"420mpeg2")==0||
+              strcmp(token,"420paldv")==0) {
+              bp4p = 6;
+            }
+            else if (strcmp(token,"mono")==0) {
+              bp4p = 4;
+            }
+            else if (strcmp(token,"mono16")==0) {
+              bp4p = 8;
+            }
+            else if (strcmp(token,"411")==0) {
+              bp4p = 6;
+            }
+            else if (strcmp(token,"422")==0) {
+              bp4p = 8;
+            }
+            else if (strcmp(token,"444")==0) {
+              bp4p = 12;
+            }
+            else if (strcmp(token,"420p9")==0||
+              strcmp(token,"420p10")==0||
+              strcmp(token,"420p12")==0||
+              strcmp(token,"420p14")==0||
+              strcmp(token,"420p16")==0) {
+              bp4p = 12;
+            }
+            else if (strcmp(token,"422p9")==0||
+              strcmp(token,"422p10")==0||
+              strcmp(token,"422p12")==0||
+              strcmp(token,"422p14")==0||
+              strcmp(token,"422p16")==0) {
+              bp4p = 16;
+            }
+            else if (strcmp(token,"444p9")==0||
+              strcmp(token,"444p10")==0||
+              strcmp(token,"444p12")==0||
+              strcmp(token,"444p14")==0||
+              strcmp(token,"444p16")==0) {
+              bp4p = 24;
+            }
+            else {
+              THROWF(FormatException,"[y4m] Unknown pixel format: %s", token);
+            }
+            break;
+          }
+        }
+        if (width==0||height==0||bp4p==0) {
+          THROW(FormatException,"[y4m] missing stream information");
+        }
+        frameSize = (width * height * bp4p)>>2;
+        y4mbuf.trimHead(end-data.data+1);
+        y4mcur = 1; // 次はフレームヘッダ
+      }
+      if (y4mcur==1) {
+        // フレームヘッダ
+        auto data = y4mbuf.get();
+        uint8_t* end = (uint8_t*)memchr(data.data,0x0a,data.length);
+        if (end==nullptr) {
+          break;
+        }
+        y4mbuf.trimHead(end-data.data+1);
+        y4mcur = 2; // 次はフレームデータ
+      }
+      if (y4mcur==2) {
+        // フレームデータ
+        if (y4mbuf.size()<frameSize) {
+          break;
+        }
+        y4mbuf.trimHead(frameSize);
+        frameCount++;
+        y4mcur = 1; // 次はフレームヘッダ
+      }
+    }
+  }
+  int getFrameCount() const {
+    return frameCount;
+  }
+private:
+  int y4mcur;
+  int frameSize;
+  int frameCount;
+  AutoBuffer y4mbuf;
+};
+
 class EncodeWriter : AMTObject, NonCopyable
 {
 public:
@@ -649,6 +771,7 @@ public:
 			fmt.height /= 2;
 			fmt.frameRateNum *= 2;
 		}
+    y4mparser.clear();
 		videoWriter_ = new MyVideoWriter(this, fmt, bufsize);
 		process_ = new MySubProcess(this, encoder_args);
 	}
@@ -681,6 +804,11 @@ public:
 			if (ret != 0) {
 				THROWF(RuntimeException, "encode failed (encoder exit code: %d)", ret);
 			}
+      int inFrame = getFrameCount();
+      int outFrame = y4mparser.getFrameCount();
+      if (inFrame!=outFrame) {
+        THROWF(RuntimeException,"フレーム数が合いません(%d vs %d)",inFrame,outFrame);
+      }
 		}
 	}
 
@@ -726,12 +854,16 @@ private:
 	bool fieldMode_;
 	bool error_;
 
+  // 出力チェック用（なくても処理は問題ない）
+  Y4MParser y4mparser;
+
 	void onProcessOut(bool isErr, MemoryChunk mc) {
 		// これはマルチスレッドで呼ばれるの注意
 		fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
 		fflush(isErr ? stderr : stdout);
 	}
 	void onVideoWrite(MemoryChunk mc) {
+    y4mparser.inputData(mc);
 		try {
 			process_->write(mc);
 		}

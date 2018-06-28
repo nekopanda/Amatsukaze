@@ -83,6 +83,8 @@ public:
         THROW(RuntimeException, "エンコード中に不明なエラーが発生");
       }
 
+      ctx.info("%dフレーム出力しました",encoder_->getFrameCount());
+
       encoder_ = nullptr;
       sw.stop();
 
