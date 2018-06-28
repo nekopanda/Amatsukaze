@@ -70,17 +70,24 @@ namespace Amatsukaze.Views
 
         private void UpdateTick(object sender, EventArgs e)
         {
-            if(Window.GetWindow(this)?.IsActive ?? false)
-                (DataContext as QueueViewModel).ShiftDown =
-                    (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift));
+            var vm = DataContext as QueueViewModel;
+            if (vm != null)
+            {
+                if (Window.GetWindow(this)?.IsActive ?? false)
+                    vm.ShiftDown = (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift));
+            }
         }
 
         private void HandleKeyEvent(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.LeftShift || e.Key == Key.RightShift)
+            var vm = DataContext as QueueViewModel;
+            if(vm != null)
             {
-                // Shiftキーだった
-                (DataContext as QueueViewModel).ShiftDown = e.IsDown;
+                if (e.Key == Key.LeftShift || e.Key == Key.RightShift)
+                {
+                    // Shiftキーだった
+                    vm.ShiftDown = e.IsDown;
+                }
             }
         }
     }

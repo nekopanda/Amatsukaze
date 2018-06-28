@@ -470,6 +470,13 @@ namespace Amatsukaze.ViewModels
 
         public async void RemoveCompletedAll(IEnumerable selectedItems)
         {
+            if (ShiftDown)
+            {
+                var items = Model.QueueItems
+                    .Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
+                await RemoveTS(items);
+                return;
+            }
             var candidates = Model.QueueItems
                 .Select(item => item.Model)
                 .Where(s => s.State == QueueState.Complete || s.State == QueueState.PreFailed).ToArray();
@@ -552,64 +559,6 @@ namespace Amatsukaze.ViewModels
                 }
             }
         }
-
-        #region RemoveTSQueueItemCommand
-        private ListenerCommand<IEnumerable> _RemoveTSQueueItemCommand;
-
-        public ListenerCommand<IEnumerable> RemoveTSQueueItemCommand
-        {
-            get
-            {
-                if (_RemoveTSQueueItemCommand == null)
-                {
-                    _RemoveTSQueueItemCommand = new ListenerCommand<IEnumerable>(RemoveTSQueueItem);
-                }
-                return _RemoveTSQueueItemCommand;
-            }
-        }
-
-        public async void RemoveTSQueueItem(IEnumerable selectedItems)
-        {
-            var selected = selectedItems.OfType<DisplayQueueItem>().ToArray();
-            var items = selected.Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
-            if (selected.Length - items.Length > 0)
-            {
-                var message = new ConfirmationMessage(
-                    "TSファイルを削除できるのは、通常または自動追加のアイテムのうち\r\n" +
-                    "完了した項目だけです。" + (selected.Length - items.Length) + "件のアイテムがこれに該当しないため除外\r\nされます",
-                    "Amatsukaze TSファイル削除除外",
-                    MessageBoxImage.Information,
-                    MessageBoxButton.OK,
-                    "Confirm");
-
-                await Messenger.RaiseAsync(message);
-            }
-            await RemoveTS(items);
-        }
-        #endregion
-
-        #region RemoveCompletedTSCommand
-        private ListenerCommand<IEnumerable> _RemoveCompletedTSCommand;
-
-        public ListenerCommand<IEnumerable> RemoveCompletedTSCommand
-        {
-            get
-            {
-                if (_RemoveCompletedTSCommand == null)
-                {
-                    _RemoveCompletedTSCommand = new ListenerCommand<IEnumerable>(RemoveCompletedTS);
-                }
-                return _RemoveCompletedTSCommand;
-            }
-        }
-
-        public async void RemoveCompletedTS(IEnumerable selectedItems)
-        {
-            var items = Model.QueueItems
-                .Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
-            await RemoveTS(items);
-        }
-        #endregion
 
         #region IsControlPanelOpen変更通知プロパティ
         private bool _IsControlPanelOpen;
@@ -792,8 +741,27 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public void Remove(IEnumerable selectedItems)
+        public async void Remove(IEnumerable selectedItems)
         {
+            if(ShiftDown)
+            {
+                var selected = selectedItems.OfType<DisplayQueueItem>().ToArray();
+                var items = selected.Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
+                if (selected.Length - items.Length > 0)
+                {
+                    var message = new ConfirmationMessage(
+                        "TSファイルを削除できるのは、通常または自動追加のアイテムのうち\r\n" +
+                        "完了した項目だけです。" + (selected.Length - items.Length) + "件のアイテムがこれに該当しないため除外\r\nされます",
+                        "Amatsukaze TSファイル削除除外",
+                        MessageBoxImage.Information,
+                        MessageBoxButton.OK,
+                        "Confirm");
+
+                    await Messenger.RaiseAsync(message);
+                }
+                await RemoveTS(items);
+                return;
+            }
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
             {
                 var file = item.Model;

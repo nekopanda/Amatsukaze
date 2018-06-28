@@ -58,7 +58,6 @@ public:
 
       try {
         // エンコード
-        bool is_first_pass = (i == 0);
         for (int f = 0, i = 0; f < vi_.num_frames; ) {
           auto frame = source->GetFrame(f, env);
           thread_.put(std::unique_ptr<PVideoFrame>(new PVideoFrame(frame)), 1);

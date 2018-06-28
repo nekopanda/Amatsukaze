@@ -124,16 +124,9 @@
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                     <Button Margin="3" Height="24" Content="{Binding RemoveButtonHeader, Mode=OneWay}"
                             ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"
-                            Style="{StaticResource ButtonForSelectedItems}">
-                        <Button.InputBindings>
-                            <MouseBinding Gesture="LeftClick"
-                                          Command="{Binding RemoveCommand}"
-                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                            <MouseBinding Gesture="Shift+LeftClick"
-                                          Command="{Binding RemoveTSQueueItemCommand}"
-                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                        </Button.InputBindings>
-                    </Button>
+                            Command="{Binding RemoveCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
+                            Style="{StaticResource ButtonForSelectedItems}"/>
                     <Button Margin="3" Height="24" Content="リトライ"
                             Style="{StaticResource ButtonForSelectedItems}"
                             Command="{Binding RetryCommand}"
@@ -178,16 +171,9 @@
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="プロファイルが更新されていた場合、新しい設定を適用します"/>
                     <Button Margin="3" Height="24" Content="{Binding RemoveCompletedHeader, Mode=OneWay}"
-                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
-                        <Button.InputBindings>
-                            <MouseBinding Gesture="LeftClick"
-                                          Command="{Binding RemoveCompletedAllCommand}"
-                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                            <MouseBinding Gesture="Shift+LeftClick"
-                                          Command="{Binding RemoveCompletedTSCommand}"
-                                          CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                        </Button.InputBindings>
-                    </Button>
+                            Command="{Binding RemoveCompletedAllCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"/>
                 </UniformGrid>
             </DockPanel>
         </Expander>
@@ -519,14 +505,9 @@
                             Command="{Binding CancelCommand}" 
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <MenuItem Header="{Binding RemoveButtonHeader, Mode=OneWay}" Style="{StaticResource MenuForSelectedItems}"
-                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
-                            <MenuItem.InputBindings>
-                                <MouseBinding Gesture="LeftClick" Command="{Binding RemoveCommand}"
-                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                                <MouseBinding Gesture="Shift+LeftClick" Command="{Binding RemoveTSQueueItemCommand}"
-                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                            </MenuItem.InputBindings>
-                        </MenuItem>
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"
+                            Command="{Binding RemoveCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <Separator />
                         <MenuItem Header="強制的に実行" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding ForceStartCommand}"
@@ -534,14 +515,9 @@
                             ToolTip="並列数制限やリソース制限を無視して強制的に実行します" />
                         <Separator />
                         <MenuItem Header="{Binding RemoveCompletedHeader, Mode=OneWay}"
-                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除">
-                            <MenuItem.InputBindings>
-                                <MouseBinding Gesture="LeftClick" Command="{Binding RemoveCompletedAllCommand}"
-                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                                <MouseBinding Gesture="Shift+LeftClick" Command="{Binding RemoveCompletedTSCommand}"
-                                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
-                            </MenuItem.InputBindings>
-                        </MenuItem>
+                            ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"
+                            Command="{Binding RemoveCompletedAllCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <MenuItem Header="ファイルの場所を開く" Style="{StaticResource MenuForSelectedItems}"
                             Command="{Binding OpenFileInExplorerCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}" />

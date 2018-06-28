@@ -166,7 +166,17 @@
 
         <DockPanel Grid.Row="4" Grid.ColumnSpan="3">
             <Button DockPanel.Dock="Left" Width="50" Content="更新" Command="{Binding RefreshCommand, Mode=OneWay}" HorizontalAlignment="Left" />
-            <Button DockPanel.Dock="Left" Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}" />
+            <Button DockPanel.Dock="Left" Width="50" Content="接続先" Command="{Binding ChangeServerCommand, Mode=OneWay}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Model.IsStandalone, Mode=OneWay}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
             <TextBlock DockPanel.Dock="Right" Text="{Binding RunningState}" Grid.Column="2" Width="60"
                        TextAlignment="Center" VerticalAlignment="Center" />
             <ContentControl DockPanel.Dock="Right" DataContext="{Binding QueueVM}" VerticalAlignment="Center">
