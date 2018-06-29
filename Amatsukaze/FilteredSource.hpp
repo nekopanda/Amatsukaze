@@ -359,11 +359,11 @@ private:
   {
     auto& sb = script_.Get();
     sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(fileId));
-    sb.append("Prefetch(1)\n");
+    sb.append("Prefetch(1, 4)\n");
 
     if (setting_.isNoDelogo() == false && logopath.size() > 0) {
-      sb.append("AMTEraseLogo2(AMTAnalyzeLogo(\"%s\"), \"%s\")\n", logopath, logopath);
-      sb.append("Prefetch(1)\n");
+      sb.append("AMTEraseLogo(AMTAnalyzeLogo(\"%s\"), \"%s\")\n", logopath, logopath);
+      sb.append("Prefetch(1, 4)\n");
     }
 
     trimInput(fileId, encoderId, cmtype, outFrames, reformInfo);
