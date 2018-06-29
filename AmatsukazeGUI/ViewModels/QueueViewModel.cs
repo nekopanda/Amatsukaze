@@ -233,7 +233,8 @@ namespace Amatsukaze.ViewModels
         {
             var item = obj as DisplayQueueItem;
             if (Model.Setting.HideOneSeg && item.IsTooSmall) return false;
-            if (PriorityChecks[item.Priority - 1].Value == false) return false;
+            // PreFailアイテムは優先度が0になるので注意
+            if (PriorityChecks[Math.Max(0, Math.Min(4, item.Priority - 1))].Value == false) return false;
             if (StateChecks[StateIndex(item.Model.State)].Value == false) return false;
             if (string.IsNullOrEmpty(_SearchWord)) return true;
             return (SearchChecks[1].Value && item.Model.ServiceName.IndexOf(_SearchWord) != -1) ||
@@ -918,9 +919,9 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        public SingleValueViewModel<bool>[] SearchChecks { get; set; }
-        public SingleValueViewModel<bool>[] StateChecks { get; set; }
-        public SingleValueViewModel<bool>[] PriorityChecks { get; set; }
+        public SingleValueViewModel<bool>[] SearchChecks { get; private set; }
+        public SingleValueViewModel<bool>[] StateChecks { get; private set; }
+        public SingleValueViewModel<bool>[] PriorityChecks { get; private set; }
 
         private int SuppressUpdateCount = 0;
 
