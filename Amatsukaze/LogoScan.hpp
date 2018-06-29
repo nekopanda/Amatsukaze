@@ -1106,7 +1106,7 @@ public:
 	}
 };
 
-class AMTEraseLogo2 : public GenericVideoFilter
+class AMTEraseLogo : public GenericVideoFilter
 {
 	PClip analyzeclip;
 
@@ -1278,7 +1278,7 @@ class AMTEraseLogo2 : public GenericVideoFilter
 	}
 
 public:
-	AMTEraseLogo2(PClip clip, PClip analyzeclip, const std::string& logoPath, int mode, IScriptEnvironment* env)
+	AMTEraseLogo(PClip clip, PClip analyzeclip, const std::string& logoPath, int mode, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
 		, analyzeclip(analyzeclip)
 		, mode(mode)
@@ -1311,245 +1311,11 @@ public:
 
 	static AVSValue __cdecl Create(AVSValue args, void* user_data, IScriptEnvironment* env)
 	{
-		return new AMTEraseLogo2(
+		return new AMTEraseLogo(
 			args[0].AsClip(),       // source
 			args[1].AsClip(),       // analyzeclip
 			args[2].AsString(),			// logopath
 			args[3].AsInt(0),       // mode
-			env
-		);
-	}
-};
-
-// 黄金比探索 //
-
-template <typename Op, bool shortHead>
-float GoldenRatioSearch(float x0, float x1, float x2, float v0, float v1, float v2, Op& op)
-{
-	_ASSERT(x0 < x1);
-	_ASSERT(x1 < x2);
-
-	if (op.end(x0, x1, x2, v0, v1, v2)) {
-		return x1;
-	}
-
-	float x3 = x0 + (x2 - x1);
-	float v3 = op.f(x3);
-
-	if (shortHead) {
-		// 後ろの区間のほうが長い
-		if (v3 < v1) {
-			// 後ろの区間
-			return GoldenRatioSearch<Op, true>(x1, x3, x2, v1, v3, v2, op);
-		}
-		else {
-			// 前の区間
-			return GoldenRatioSearch<Op, false>(x0, x1, x3, v0, v1, v3, op);
-		}
-	}
-	else {
-		// 前の区間のほうが長い
-		if (v3 > v1) {
-			// 後ろの区間
-			return GoldenRatioSearch<Op, true>(x3, x1, x2, v3, v1, v2, op);
-		}
-		else {
-			// 前の区間
-			return GoldenRatioSearch<Op, false>(x0, x3, x1, v0, v3, v1, op);
-		}
-	}
-}
-
-template <typename Op>
-float GoldenRatioSearch(float x0, float x1, Op& op)
-{
-	_ASSERT(x0 < x1);
-
-	// 両端
-	float v0 = op.f(x0);
-	float v1 = op.f(x1);
-
-	// 分割点（黄金比で分割）
-	float x2 = x0 + (x1 - x0) * 2 / (3 + std::sqrtf(5.0f));
-	float v2 = op.f(x2);
-
-	return GoldenRatioSearch<Op, true>(x0, x2, x1, v0, v2, v1, op);
-}
-
-class AMTEraseLogo : public GenericVideoFilter
-{
-	std::unique_ptr<LogoDataParam> logo;
-	std::unique_ptr<LogoDataParam> deintLogo;
-	LogoHeader header;
-	int mode;
-	float maskratio;
-
-	float logothresh;
-
-	template <typename pixel_t>
-	void Delogo(pixel_t* dst, int w, int h, int pitch, float maxv, const float* A, const float* B, float fade)
-	{
-		for (int y = 0; y < h; ++y) {
-			for (int x = 0; x < w; ++x) {
-				float srcv = dst[x + y * pitch];
-				float a = A[x + y * w];
-				float b = B[x + y * w];
-				float bg = a * srcv + b * maxv;
-				float tmp = fade * bg + (1 - fade) * srcv;
-				dst[x + y * pitch] = (pixel_t)std::min(std::max(tmp + 0.5f, 0.0f), maxv);
-			}
-		}
-	}
-
-	template <typename pixel_t>
-	PVideoFrame GetFrameT(int n, IScriptEnvironment2* env)
-	{
-		size_t YSize = header.w * header.h;
-		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
-		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
-
-		PVideoFrame frame = child->GetFrame(n, env);
-		env->MakeWritable(&frame);
-
-		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
-		pixel_t* dstY = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_Y));
-		pixel_t* dstU = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_U));
-		pixel_t* dstV = reinterpret_cast<pixel_t*>(frame->GetWritePtr(PLANAR_V));
-
-		int pitchY = frame->GetPitch(PLANAR_Y);
-		int pitchUV = frame->GetPitch(PLANAR_U);
-		int off = header.imgx + header.imgy * pitchY;
-		int offUV = (header.imgx >> header.logUVx) + (header.imgy >> header.logUVy) * pitchUV;
-
-		// フレームをインタレ解除
-		DeintY(memDeint.get(), dstY + off, pitchY, header.w, header.h);
-
-		if (mode == 0) { // 通常
-			// Fade値探索
-			struct SearchOp {
-				float* img;
-				float* work;
-				int w, h;
-				float maxv;
-				float thresh;
-				LogoDataParam& logo;
-				SearchOp(float* img, float* work, float maxv, float thresh, LogoDataParam& logo, int w, int h)
-					: img(img), work(work), maxv(maxv), thresh(thresh), logo(logo), w(w), h(h) { }
-				bool end(float x0, float x1, float x2, float v0, float v1, float v2) {
-					return (x2 - x0) < 0.01f;
-				}
-				float f(float x) {
-					return EvaluateLogo(img, maxv, logo, x, work, w, h, w);
-				}
-			} op(memDeint.get(), memWork.get(), maxv, logothresh, *deintLogo, header.w, header.h);
-
-			// まず、全体を見る
-			float minResult = FLT_MAX;
-			float minFade = 0;
-			for (int fi = 0; fi < 13; ++fi) {
-				float fade = 0.1f * fi;
-				// ロゴを評価
-				float result = op.f(fade);
-				if (result < minResult) {
-					minResult = result;
-					minFade = fade;
-				}
-			}
-
-			// 最小値付近を細かく見る
-			float optimalFade = GoldenRatioSearch(minFade - 0.1f, minFade + 0.1f, op);
-
-			//DebugPrint("Fade: %.1f\n", optimalFade * 100.0f);
-
-			// 最適Fade値でロゴ除去
-			const float *logoAY = logo->GetA(PLANAR_Y);
-			const float *logoBY = logo->GetB(PLANAR_Y);
-			const float *logoAU = logo->GetA(PLANAR_U);
-			const float *logoBU = logo->GetB(PLANAR_U);
-			const float *logoAV = logo->GetA(PLANAR_V);
-			const float *logoBV = logo->GetB(PLANAR_V);
-
-			int wUV = (header.w >> header.logUVx);
-			int hUV = (header.h >> header.logUVy);
-
-			Delogo(dstY + off, header.w, header.h, pitchY, maxv, logoAY, logoBY, optimalFade);
-			Delogo(dstU + offUV, wUV, hUV, pitchUV, maxv, logoAU, logoBU, optimalFade);
-			Delogo(dstV + offUV, wUV, hUV, pitchUV, maxv, logoAV, logoBV, optimalFade);
-
-			return frame;
-		}
-
-		// ロゴフレームデバッグ用
-		float cost0 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 0, memWork.get(), header.w, header.h, header.w);
-		float cost1 = EvaluateLogo(memDeint.get(), maxv, *deintLogo, 1, memWork.get(), header.w, header.h, header.w);
-
-		char buf[200];
-		sprintf_s(buf, "%s %d vs %d", (cost0 <= cost1) ? "X" : "O", (int)cost0, (int)cost1);
-		DrawText(frame, true, 0, 0, buf);
-
-		if (mode == 2) {
-			const float *logoAY = logo->GetA(PLANAR_Y);
-			const float *logoBY = logo->GetB(PLANAR_Y);
-			const float *logoAU = logo->GetA(PLANAR_U);
-			const float *logoBU = logo->GetB(PLANAR_U);
-			const float *logoAV = logo->GetA(PLANAR_V);
-			const float *logoBV = logo->GetB(PLANAR_V);
-
-			int wUV = (header.w >> header.logUVx);
-			int hUV = (header.h >> header.logUVy);
-
-			Delogo(dstY + off, header.w, header.h, pitchY, maxv, logoAY, logoBY, 1);
-			Delogo(dstU + offUV, wUV, hUV, pitchUV, maxv, logoAU, logoBU, 1);
-			Delogo(dstV + offUV, wUV, hUV, pitchUV, maxv, logoAV, logoBV, 1);
-		}
-
-		return frame;
-	}
-
-public:
-	AMTEraseLogo(PClip clip, const std::string& logoPath, int mode, float maskratio, IScriptEnvironment* env)
-		: GenericVideoFilter(clip)
-		, mode(mode)
-		, maskratio(maskratio)
-	{
-		try {
-			logo = std::unique_ptr<LogoDataParam>(
-				new LogoDataParam(LogoData::Load(logoPath, &header), &header));
-		}
-		catch (const IOException&) {
-			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
-		}
-
-		deintLogo = std::unique_ptr<LogoDataParam>(
-			new LogoDataParam(LogoData(header.w, header.h, header.logUVx, header.logUVy), &header));
-		DeintLogo(*deintLogo, *logo, header.w, header.h);
-		deintLogo->CreateLogoMask(maskratio);
-	}
-
-	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env_)
-	{
-		IScriptEnvironment2* env = static_cast<IScriptEnvironment2*>(env_);
-
-		int pixelSize = vi.ComponentSize();
-		switch (pixelSize) {
-		case 1:
-			return GetFrameT<uint8_t>(n, env);
-		case 2:
-			return GetFrameT<uint16_t>(n, env);
-		default:
-			env->ThrowError("[AMTEraseLogo] Unsupported pixel format");
-		}
-
-		return PVideoFrame();
-	}
-
-	static AVSValue __cdecl Create(AVSValue args, void* user_data, IScriptEnvironment* env)
-	{
-		return new AMTEraseLogo(
-			args[0].AsClip(),       // source
-			args[1].AsString(),			// logopath
-			args[2].AsInt(0),       // mode
-			(float)args[3].AsFloat(10) / 100.0f, // maskratio
 			env
 		);
 	}
