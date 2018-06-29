@@ -1508,8 +1508,7 @@ namespace Amatsukaze.Server
 
                             if (serviceListUpdated)
                             {
-                                // サービスリストが分かったら再度追加処理
-                                serviceListUpdated = false;
+                                // サービスリストが変わってたら再度追加処理
                                 logoTime.Clear();
                             }
 
@@ -1594,7 +1593,14 @@ namespace Amatsukaze.Server
                             }
                         }
 
-                        if(updatedServices.Count > 0)
+                        if (serviceListUpdated)
+                        {
+                            // サービスリストが変わってたら設定保存
+                            serviceListUpdated = false;
+                            settingUpdated = true;
+                        }
+
+                        if (updatedServices.Count > 0)
                         {
                             // 更新をクライアントに通知
                             foreach (var updatedServiceId in updatedServices.Distinct())
