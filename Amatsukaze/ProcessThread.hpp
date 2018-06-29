@@ -86,6 +86,9 @@ public:
 		if (error_) {
 			THROW(RuntimeException, "DataPumpThread error");
 		}
+		if (finished_) {
+			THROW(InvalidOperationException, "DataPumpThread is already finished");
+		}
 		while (current_ >= maximum_) {
 			if (PERF) producer.start();
 			cond_full_.wait(critical_section_);
@@ -147,11 +150,11 @@ private:
 			{
 				auto& lock = with(critical_section_);
 				while (data_.size() == 0) {
+					// data_.size()==0Ç≈finished_Ç»ÇÁèIóπ
 					if (finished_ || error_) return;
 					if (PERF) consumer.start();
 					cond_empty_.wait(critical_section_);
 					if (PERF) consumer.stop();
-					if (finished_ || error_) return;
 				}
 				auto& entry = data_.front();
 				size_t newsize = current_ - entry.first;
