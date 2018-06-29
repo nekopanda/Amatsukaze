@@ -976,7 +976,7 @@ extern "C" __declspec(dllexport) int ScanLogo(AMTContext* ctx,
 
 struct LogoAnalyzeFrame
 {
-	float p[11], t0, t1, b0, b1;
+	float p[11], t[11], b[11];
 };
 
 // ロゴ除去用解析フィルタ
@@ -1028,11 +1028,9 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 			LogoAnalyzeFrame info;
 			for (int f = 0; f <= 10; ++f) {
 				info.p[f] = EvaluateLogo(memDeint.get(), maxv, *deintLogo, (float)f / 10.0f, memWork.get(), header.w, header.h, header.w);
+				info.t[f] = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, (float)f / 10.0f, memWork.get(), header.w, header.h / 2, header.w * 2);
+				info.b[f] = EvaluateLogo(memCopy.get() + !fToffset * header.w, maxv, *fieldLogoB, (float)f / 10.0f, memWork.get(), header.w, header.h / 2, header.w * 2);
 			}
-			info.t0 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
-			info.t1 = EvaluateLogo(memCopy.get() + fToffset * header.w, maxv, *fieldLogoT, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
-			info.b0 = EvaluateLogo(memCopy.get() + !fToffset * header.w, maxv, *fieldLogoB, 0, memWork.get(), header.w, header.h / 2, header.w * 2);
-			info.b1 = EvaluateLogo(memCopy.get() + !fToffset * header.w, maxv, *fieldLogoB, 1, memWork.get(), header.w, header.h / 2, header.w * 2);
 
 			pDst[i] = info;
 		}
@@ -1171,6 +1169,8 @@ class AMTEraseLogo2 : public GenericVideoFilter
 			for (int i = 0; i < DIST * 2 + 1; ++i) {
 				minfades[i] = (int)(std::min_element(frames[i].p, frames[i].p + 11) - frames[i].p);
 			}
+			int minT = (int)(std::min_element(frames[DIST].t, frames[DIST].t + 11) - frames[DIST].t);
+			int minB = (int)(std::min_element(frames[DIST].b, frames[DIST].b + 11) - frames[DIST].b);
 			// 前後4フレームを見てフェードしてるか突然消えてるか判断
 			float before_fades = 0;
 			float after_fades = 0;
@@ -1185,8 +1185,8 @@ class AMTEraseLogo2 : public GenericVideoFilter
 				(before_fades > 0.7 && after_fades < 0.3))
 			{
 				// 急な変化 -> フィールドごとに見る
-				fadeT = (frames[DIST].t0 > frames[DIST].t1 ? 1.0f : 0.0f);
-				fadeB = (frames[DIST].b0 > frames[DIST].b1 ? 1.0f : 0.0f);
+				fadeT = minT / 10.0f;
+				fadeB = minB / 10.0f;
 			}
 			else {
 				// 緩やかな変化 -> フレームごとに見る
