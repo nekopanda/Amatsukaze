@@ -68,7 +68,7 @@ namespace Amatsukaze.ViewModels
 
         private bool IsDuplicate()
         {
-            return Model.ProfileList.Any(s => s.Model.Name == _Name);
+            return Model.ProfileList.Any(s => s.Data.Name == _Name);
         }
 
         #region OkCommand

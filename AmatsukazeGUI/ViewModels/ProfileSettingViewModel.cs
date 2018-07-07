@@ -72,7 +72,7 @@ namespace Amatsukaze.ViewModels
         {
             if(Model.SelectedProfile != null)
             {
-                Model.UpdateProfile(Model.SelectedProfile.Model);
+                Model.UpdateProfile(Model.SelectedProfile.Data);
             }
         }
         #endregion
@@ -97,7 +97,7 @@ namespace Amatsukaze.ViewModels
                 var profile = Model.SelectedProfile;
                 var newp = new NewProfileViewModel() {
                     Model = Model,
-                    Name = profile.Model.Name + "のコピー"
+                    Name = profile.Data.Name + "のコピー"
                 };
 
                 await Messenger.RaiseAsync(new TransitionMessage(
@@ -105,7 +105,7 @@ namespace Amatsukaze.ViewModels
 
                 if(newp.Success)
                 {
-                    var newprofile = ServerSupport.DeepCopy(profile.Model);
+                    var newprofile = ServerSupport.DeepCopy(profile.Data);
                     newprofile.Name = newp.Name;
                     await Model.AddProfile(newprofile);
                 }
@@ -130,7 +130,7 @@ namespace Amatsukaze.ViewModels
         {
             if (Model.SelectedProfile != null)
             {
-                var profile = Model.SelectedProfile.Model;
+                var profile = Model.SelectedProfile.Data;
 
                 var message = new ConfirmationMessage(
                     "プロファイル「" + profile.Name + "」を削除しますか？",

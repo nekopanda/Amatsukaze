@@ -67,7 +67,7 @@ namespace Amatsukaze.ViewModels
             if (Item.Outputs[0].Profile == null)
             {
                 // 設定なしなら「デフォルト」を使う
-                SelectedProfile = Model.ProfileList.FirstOrDefault(s => s.Model.Name == "デフォルト");
+                SelectedProfile = Model.ProfileList.FirstOrDefault(s => s.Data.Name == "デフォルト");
             }
             else
             {
@@ -75,7 +75,7 @@ namespace Amatsukaze.ViewModels
                 var profileName = ServerSupport.ParseProfileName(Item.Outputs[0].Profile, out isAuto);
                 SelectedProfile = isAuto
                     ? (object)Model.AutoSelectList.FirstOrDefault(s => s.Model.Name == profileName)
-                    : Model.ProfileList.FirstOrDefault(s => s.Model.Name == profileName);
+                    : Model.ProfileList.FirstOrDefault(s => s.Data.Name == profileName);
             }
         }
 

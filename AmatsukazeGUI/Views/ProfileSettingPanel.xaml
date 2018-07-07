@@ -256,10 +256,15 @@
                                   IsChecked="{Binding Model.SelectedProfile.IgnoreNicoJKError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}"/>
                     </Grid>
-                    <CheckBox Grid.Row="1" Content="NicoJK18サーバからコメントを取得する（テスト版）" Margin="0,3"
+                    <CheckBox Grid.Row="1" Content="NicoJK18サーバからコメントを取得する（推奨）" Margin="0,3"
                                   IsChecked="{Binding Model.SelectedProfile.NicoJK18, Mode=TwoWay}"
-                                  IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}" 
-                                  ToolTip="セットアップ不要で取得できるサーバです"/>
+                                  IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}">
+                        <CheckBox.ToolTip>
+                            <TextBlock>セットアップ不要で取得できるサーバです。
+                            <LineBreak/>これを使わない場合、JKCommentGetterのセットアップが必要になります（結構大変）。
+                            </TextBlock>
+                        </CheckBox.ToolTip>
+                    </CheckBox>
                     <Grid Width="240" HorizontalAlignment="Left" IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>

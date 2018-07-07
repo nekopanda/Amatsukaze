@@ -866,12 +866,26 @@ namespace Amatsukaze.Server
                 catch (Win32Exception w32e)
                 {
                     Util.AddLog(id, "Amatsukazeプロセス起動に失敗", w32e);
-                    throw w32e;
+                    if (src.IsCheck)
+                    {
+                        return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "Amatsukazeプロセス起動に失敗", now, now);
+                    }
+                    else
+                    {
+                        return FailLogItem(src, src.Profile.Name, "Amatsukazeプロセス起動に失敗", now, now);
+                    }
                 }
                 catch (IOException ioe)
                 {
                     Util.AddLog(id, "ログファイル生成に失敗", ioe);
-                    throw ioe;
+                    if (src.IsCheck)
+                    {
+                        return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "ログファイル生成に失敗", now, now);
+                    }
+                    else
+                    {
+                        return FailLogItem(src, src.Profile.Name, "ログファイル生成に失敗", now, now);
+                    }
                 }
                 finally
                 {

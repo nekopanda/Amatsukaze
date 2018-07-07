@@ -1132,7 +1132,7 @@ namespace Amatsukaze.Models
                 MakeScriptData = new DisplayMakeScriptData()
                 {
                     SelectedProfile = ProfileList.FirstOrDefault(
-                        s => s.Model.Name == data.MakeScriptData.Profile),
+                        s => s.Data.Name == data.MakeScriptData.Profile),
                     Model = data.MakeScriptData
                 };
                 if(MakeScriptData.Priority == 0)
@@ -1323,18 +1323,16 @@ namespace Amatsukaze.Models
                 ProfileList.Clear();
                 return Task.FromResult(0);
             }
-            var profile = ProfileList.FirstOrDefault(s => s.Model.Name == data.Profile.Name);
+            var profile = ProfileList.FirstOrDefault(s => s.Data.Name == data.Profile.Name);
             if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
             {
                 if(profile == null)
                 {
-                    profile = new DisplayProfile() {
-                        Model = data.Profile,
-                        Resources = Enumerable.Range(0, DisplayResource.MAX).Select(
-                            s => new DisplayResource() { Model = data.Profile, Phase = s }).ToArray()
-                    };
+                    profile = new DisplayProfile(data.Profile, this,
+                        Enumerable.Range(0, DisplayResource.MAX).Select(
+                            s => new DisplayResource() { Model = data.Profile, Phase = s }).ToArray());
                     ProfileList.Insert(
-                        ProfileList.Count(s => !s.Model.Name.StartsWith("サンプル_")),
+                        ProfileList.Count(s => !s.Data.Name.StartsWith("サンプル_")),
                         profile);
 
                     if(currentNewProfile != null && data.Profile.Name == currentNewProfile)
@@ -1342,7 +1340,7 @@ namespace Amatsukaze.Models
                         // 新しく追加したプロファイル
                         SelectedProfile = profile;
                     }
-                    else if(SelectedProfile != null && SelectedProfile.Model.Name == data.Profile.Name)
+                    else if(SelectedProfile != null && SelectedProfile.Data.Name == data.Profile.Name)
                     {
                         // 選択中のプロファイルが更新された
                         SelectedProfile = profile;
@@ -1398,7 +1396,7 @@ namespace Amatsukaze.Models
 
                 if(SelectedProfile == null)
                 {
-                    if(profile.Model.Name == "デフォルト")
+                    if(profile.Data.Name == "デフォルト")
                     {
                         // 選択中のプロファイルがなかったらデフォルトを選択
                         SelectedProfile = profile;
@@ -1465,7 +1463,7 @@ namespace Amatsukaze.Models
                     {
                         Model = this,
                         Item = s,
-                        SelectedProfile = ProfileList.FirstOrDefault(p => p.Model.Name == s.Profile)
+                        SelectedProfile = ProfileList.FirstOrDefault(p => p.Data.Name == s.Profile)
                     };
                     cond.Initialize();
                     return cond;

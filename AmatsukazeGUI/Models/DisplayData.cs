@@ -254,21 +254,46 @@ namespace Amatsukaze.Models
         #endregion
     }
 
-    public class DisplayProfile : NotificationObject
+    public class DisplayProfile : ViewModel
     {
-        public ProfileSetting Model { get; set; }
+        public ProfileSetting Data { get; private set; }
 
-        public DisplayResource[] Resources { get; set; }
+        public ClientModel Model { get; private set; }
+
+        public DisplayResource[] Resources { get; private set; }
+
+        public DisplayProfile(ProfileSetting data, ClientModel model, DisplayResource[] resources)
+        {
+            Data = data;
+            Model = model;
+            Resources = resources;
+
+            CompositeDisposable.Add(new PropertyChangedEventListener(
+                Model, ModelPropertyChanged));
+            CompositeDisposable.Add(new PropertyChangedEventListener(
+                Resources[(int)ResourcePhase.Encode], EncodeResourcePropertyChanged));
+        }
+
+        private void ModelPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "Setting")
+            {
+                UpdateWarningText();
+            }
+        }
+
+        private void EncodeResourcePropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            UpdateWarningText();
+        }
 
         #region EncoderTypeInt変更通知プロパティ
-        public int EncoderTypeInt
-        {
-            get { return (int)Model.EncoderType; }
-            set
-            {
-                if ((int)Model.EncoderType == value)
+        public int EncoderTypeInt {
+            get { return (int)Data.EncoderType; }
+            set {
+                if ((int)Data.EncoderType == value)
                     return;
-                Model.EncoderType = (EncoderType)value;
+                Data.EncoderType = (EncoderType)value;
                 UpdateWarningText();
                 RaisePropertyChanged();
                 RaisePropertyChanged("EncoderOption");
@@ -277,42 +302,39 @@ namespace Amatsukaze.Models
         #endregion
 
         #region EncoderOption変更通知プロパティ
-        public string EncoderOption
-        {
-            get
-            {
-                switch (Model.EncoderType)
+        public string EncoderOption {
+            get {
+                switch (Data.EncoderType)
                 {
-                    case EncoderType.x264: return Model.X264Option;
-                    case EncoderType.x265: return Model.X265Option;
-                    case EncoderType.QSVEnc: return Model.QSVEncOption;
-                    case EncoderType.NVEnc: return Model.NVEncOption;
+                    case EncoderType.x264: return Data.X264Option;
+                    case EncoderType.x265: return Data.X265Option;
+                    case EncoderType.QSVEnc: return Data.QSVEncOption;
+                    case EncoderType.NVEnc: return Data.NVEncOption;
                 }
                 return null;
             }
-            set
-            {
-                switch (Model.EncoderType)
+            set {
+                switch (Data.EncoderType)
                 {
                     case EncoderType.x264:
-                        if (Model.X264Option == value)
+                        if (Data.X264Option == value)
                             return;
-                        Model.X264Option = value;
+                        Data.X264Option = value;
                         break;
                     case EncoderType.x265:
-                        if (Model.X265Option == value)
+                        if (Data.X265Option == value)
                             return;
-                        Model.X265Option = value;
+                        Data.X265Option = value;
                         break;
                     case EncoderType.QSVEnc:
-                        if (Model.QSVEncOption == value)
+                        if (Data.QSVEncOption == value)
                             return;
-                        Model.QSVEncOption = value;
+                        Data.QSVEncOption = value;
                         break;
                     case EncoderType.NVEnc:
-                        if (Model.NVEncOption == value)
+                        if (Data.NVEncOption == value)
                             return;
-                        Model.NVEncOption = value;
+                        Data.NVEncOption = value;
                         break;
                     default:
                         return;
@@ -324,58 +346,50 @@ namespace Amatsukaze.Models
         #endregion
 
         #region FilterPath変更通知プロパティ
-        public string FilterPath
-        {
-            get { return string.IsNullOrEmpty(Model.FilterPath) ? "フィルタなし" : Model.FilterPath; }
-            set
-            {
+        public string FilterPath {
+            get { return string.IsNullOrEmpty(Data.FilterPath) ? "フィルタなし" : Data.FilterPath; }
+            set {
                 string val = (value == "フィルタなし") ? "" : value;
-                if (Model.FilterPath == val)
+                if (Data.FilterPath == val)
                     return;
-                Model.FilterPath = val;
+                Data.FilterPath = val;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region PostFilterPath変更通知プロパティ
-        public string PostFilterPath
-        {
-            get { return string.IsNullOrEmpty(Model.PostFilterPath) ? "フィルタなし" : Model.PostFilterPath; }
-            set
-            {
+        public string PostFilterPath {
+            get { return string.IsNullOrEmpty(Data.PostFilterPath) ? "フィルタなし" : Data.PostFilterPath; }
+            set {
                 string val = (value == "フィルタなし") ? "" : value;
-                if (Model.PostFilterPath == val)
+                if (Data.PostFilterPath == val)
                     return;
-                Model.PostFilterPath = val;
+                Data.PostFilterPath = val;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region AutoBuffer変更通知プロパティ
-        public bool AutoBuffer
-        {
-            get { return Model.AutoBuffer; }
-            set
-            {
-                if (Model.AutoBuffer == value)
+        public bool AutoBuffer {
+            get { return Data.AutoBuffer; }
+            set {
+                if (Data.AutoBuffer == value)
                     return;
-                Model.AutoBuffer = value;
+                Data.AutoBuffer = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region TwoPass変更通知プロパティ
-        public bool TwoPass
-        {
-            get { return Model.TwoPass; }
-            set
-            {
-                if (Model.TwoPass == value)
+        public bool TwoPass {
+            get { return Data.TwoPass; }
+            set {
+                if (Data.TwoPass == value)
                     return;
-                Model.TwoPass = value;
+                Data.TwoPass = value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -383,30 +397,28 @@ namespace Amatsukaze.Models
         #endregion
 
         #region SplitSub変更通知プロパティ
-        public bool SplitSub
-        {
-            get { return Model.SplitSub; }
-            set
-            {
-                if (Model.SplitSub == value)
+        public bool SplitSub {
+            get { return Data.SplitSub; }
+            set {
+                if (Data.SplitSub == value)
                     return;
-                Model.SplitSub = value;
+                Data.SplitSub = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region OutputMask変更通知プロパティ
-        public DisplayOutputMask OutputMask
-        {
-            get { return 
-                    OutputOptionList_.FirstOrDefault(s => s.Mask == Model.OutputMask)
-                    ?? OutputOptionList_[0]; }
-            set
-            {
-                if (Model.OutputMask == value?.Mask)
+        public DisplayOutputMask OutputMask {
+            get {
+                return
+                  OutputOptionList_.FirstOrDefault(s => s.Mask == Data.OutputMask)
+                  ?? OutputOptionList_[0];
+            }
+            set {
+                if (Data.OutputMask == value?.Mask)
                     return;
-                Model.OutputMask = value?.Mask ?? OutputOptionList_[0].Mask;
+                Data.OutputMask = value?.Mask ?? OutputOptionList_[0].Mask;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -414,14 +426,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateA変更通知プロパティ
-        public double BitrateA
-        {
-            get { return Model.Bitrate.A; }
-            set
-            {
-                if (Model.Bitrate.A == value)
+        public double BitrateA {
+            get { return Data.Bitrate.A; }
+            set {
+                if (Data.Bitrate.A == value)
                     return;
-                Model.Bitrate.A = value;
+                Data.Bitrate.A = value;
                 UpdateBitrate();
                 RaisePropertyChanged();
             }
@@ -429,14 +439,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateB変更通知プロパティ
-        public double BitrateB
-        {
-            get { return Model.Bitrate.B; }
-            set
-            {
-                if (Model.Bitrate.B == value)
+        public double BitrateB {
+            get { return Data.Bitrate.B; }
+            set {
+                if (Data.Bitrate.B == value)
                     return;
-                Model.Bitrate.B = value;
+                Data.Bitrate.B = value;
                 UpdateBitrate();
                 RaisePropertyChanged();
             }
@@ -444,14 +452,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateH264変更通知プロパティ
-        public double BitrateH264
-        {
-            get { return Model.Bitrate.H264; }
-            set
-            {
-                if (Model.Bitrate.H264 == value)
+        public double BitrateH264 {
+            get { return Data.Bitrate.H264; }
+            set {
+                if (Data.Bitrate.H264 == value)
                     return;
-                Model.Bitrate.H264 = value;
+                Data.Bitrate.H264 = value;
                 UpdateBitrate();
                 RaisePropertyChanged();
             }
@@ -459,31 +465,27 @@ namespace Amatsukaze.Models
         #endregion
 
         #region BitrateCM変更通知プロパティ
-        public double BitrateCM
-        {
-            get { return Model.BitrateCM; }
-            set
-            {
-                if (Model.BitrateCM == value)
+        public double BitrateCM {
+            get { return Data.BitrateCM; }
+            set {
+                if (Data.BitrateCM == value)
                     return;
-                Model.BitrateCM = value;
+                Data.BitrateCM = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region JLSCommandFile変更通知プロパティ
-        public object JLSCommandFile
-        {
+        public object JLSCommandFile {
             get {
-                return (object)Model.JLSCommandFile ?? NullValue.Value;
+                return (object)Data.JLSCommandFile ?? NullValue.Value;
             }
-            set
-            {
+            set {
                 var newValue = (value is NullValue) ? null : (value as string);
-                if (Model.JLSCommandFile == newValue)
+                if (Data.JLSCommandFile == newValue)
                     return;
-                Model.JLSCommandFile = newValue;
+                Data.JLSCommandFile = newValue;
                 RaisePropertyChanged();
             }
         }
@@ -491,11 +493,11 @@ namespace Amatsukaze.Models
 
         #region JLSOption変更通知プロパティ
         public string JLSOption {
-            get { return Model.JLSOption; }
-            set { 
-                if (Model.JLSOption == value)
+            get { return Data.JLSOption; }
+            set {
+                if (Data.JLSOption == value)
                     return;
-                Model.JLSOption = value;
+                Data.JLSOption = value;
                 RaisePropertyChanged();
             }
         }
@@ -503,67 +505,59 @@ namespace Amatsukaze.Models
 
         #region EnableJLSOption変更通知プロパティ
         public bool EnableJLSOption {
-            get { return Model.EnableJLSOption; }
-            set { 
-                if (Model.EnableJLSOption == value)
+            get { return Data.EnableJLSOption; }
+            set {
+                if (Data.EnableJLSOption == value)
                     return;
-                Model.EnableJLSOption = value;
+                Data.EnableJLSOption = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region DisableChapter変更通知プロパティ
-        public bool DisableChapter
-        {
-            get { return Model.DisableChapter; }
-            set
-            {
-                if (Model.DisableChapter == value)
+        public bool DisableChapter {
+            get { return Data.DisableChapter; }
+            set {
+                if (Data.DisableChapter == value)
                     return;
-                Model.DisableChapter = value;
+                Data.DisableChapter = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region DisableSubs変更通知プロパティ
-        public bool DisableSubs
-        {
-            get { return Model.DisableSubs; }
-            set
-            {
-                if (Model.DisableSubs == value)
+        public bool DisableSubs {
+            get { return Data.DisableSubs; }
+            set {
+                if (Data.DisableSubs == value)
                     return;
-                Model.DisableSubs = value;
+                Data.DisableSubs = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region IgnoreNoDrcsMap変更通知プロパティ
-        public bool IgnoreNoDrcsMap
-        {
-            get { return Model.IgnoreNoDrcsMap; }
-            set
-            {
-                if (Model.IgnoreNoDrcsMap == value)
+        public bool IgnoreNoDrcsMap {
+            get { return Data.IgnoreNoDrcsMap; }
+            set {
+                if (Data.IgnoreNoDrcsMap == value)
                     return;
-                Model.IgnoreNoDrcsMap = value;
+                Data.IgnoreNoDrcsMap = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region EnableNicoJK変更通知プロパティ
-        public bool EnableNicoJK
-        {
-            get { return Model.EnableNicoJK; }
-            set
-            {
-                if (Model.EnableNicoJK == value)
+        public bool EnableNicoJK {
+            get { return Data.EnableNicoJK; }
+            set {
+                if (Data.EnableNicoJK == value)
                     return;
-                Model.EnableNicoJK = value;
+                Data.EnableNicoJK = value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -571,42 +565,36 @@ namespace Amatsukaze.Models
         #endregion
 
         #region IgnoreNicoJKError変更通知プロパティ
-        public bool IgnoreNicoJKError
-        {
-            get { return Model.IgnoreNicoJKError; }
-            set
-            {
-                if (Model.IgnoreNicoJKError == value)
+        public bool IgnoreNicoJKError {
+            get { return Data.IgnoreNicoJKError; }
+            set {
+                if (Data.IgnoreNicoJKError == value)
                     return;
-                Model.IgnoreNicoJKError = value;
+                Data.IgnoreNicoJKError = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region NicoJK18変更通知プロパティ
-        public bool NicoJK18
-        {
-            get { return Model.NicoJK18; }
-            set
-            {
-                if (Model.NicoJK18 == value)
+        public bool NicoJK18 {
+            get { return Data.NicoJK18; }
+            set {
+                if (Data.NicoJK18 == value)
                     return;
-                Model.NicoJK18 = value;
+                Data.NicoJK18 = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region NicoJKFormat720S変更通知プロパティ
-        public bool NicoJKFormat720S
-        {
-            get { return Model.NicoJKFormats[0]; }
-            set
-            {
-                if (Model.NicoJKFormats[0] == value)
+        public bool NicoJKFormat720S {
+            get { return Data.NicoJKFormats[0]; }
+            set {
+                if (Data.NicoJKFormats[0] == value)
                     return;
-                Model.NicoJKFormats[0] = value;
+                Data.NicoJKFormats[0] = value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -614,14 +602,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat720T変更通知プロパティ
-        public bool NicoJKFormat720T
-        {
-            get { return Model.NicoJKFormats[1]; }
-            set
-            {
-                if (Model.NicoJKFormats[1] == value)
+        public bool NicoJKFormat720T {
+            get { return Data.NicoJKFormats[1]; }
+            set {
+                if (Data.NicoJKFormats[1] == value)
                     return;
-                Model.NicoJKFormats[1] = value;
+                Data.NicoJKFormats[1] = value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -629,14 +615,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat1080S変更通知プロパティ
-        public bool NicoJKFormat1080S
-        {
-            get { return Model.NicoJKFormats[2]; }
-            set
-            {
-                if (Model.NicoJKFormats[2] == value)
+        public bool NicoJKFormat1080S {
+            get { return Data.NicoJKFormats[2]; }
+            set {
+                if (Data.NicoJKFormats[2] == value)
                     return;
-                Model.NicoJKFormats[2] = value;
+                Data.NicoJKFormats[2] = value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -644,14 +628,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region NicoJKFormat1080T変更通知プロパティ
-        public bool NicoJKFormat1080T
-        {
-            get { return Model.NicoJKFormats[3]; }
-            set
-            {
-                if (Model.NicoJKFormats[3] == value)
+        public bool NicoJKFormat1080T {
+            get { return Data.NicoJKFormats[3]; }
+            set {
+                if (Data.NicoJKFormats[3] == value)
                     return;
-                Model.NicoJKFormats[3] = value;
+                Data.NicoJKFormats[3] = value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -659,14 +641,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region LooseLogoDetection変更通知プロパティ
-        public bool LooseLogoDetection
-        {
-            get { return Model.LooseLogoDetection; }
-            set
-            {
-                if (Model.LooseLogoDetection == value)
+        public bool LooseLogoDetection {
+            get { return Data.LooseLogoDetection; }
+            set {
+                if (Data.LooseLogoDetection == value)
                     return;
-                Model.LooseLogoDetection = value;
+                Data.LooseLogoDetection = value;
                 RaisePropertyChanged();
             }
         }
@@ -674,25 +654,23 @@ namespace Amatsukaze.Models
 
         #region IgnoreNoLogo変更通知プロパティ
         public bool IgnoreNoLogo {
-            get { return Model.IgnoreNoLogo; }
-            set { 
-                if (Model.IgnoreNoLogo == value)
+            get { return Data.IgnoreNoLogo; }
+            set {
+                if (Data.IgnoreNoLogo == value)
                     return;
-                Model.IgnoreNoLogo = value;
+                Data.IgnoreNoLogo = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region NoDelogo変更通知プロパティ
-        public bool NoDelogo
-        {
-            get { return Model.NoDelogo; }
-            set
-            {
-                if (Model.NoDelogo == value)
+        public bool NoDelogo {
+            get { return Data.NoDelogo; }
+            set {
+                if (Data.NoDelogo == value)
                     return;
-                Model.NoDelogo = value;
+                Data.NoDelogo = value;
                 RaisePropertyChanged();
             }
         }
@@ -700,22 +678,22 @@ namespace Amatsukaze.Models
 
         #region VFRFps変更通知プロパティ
         public int VFRFps {
-            get { return Model.VFR120fps ? 1 : 0; }
+            get { return Data.VFR120fps ? 1 : 0; }
             set {
                 bool newValue = (value == 1);
-                if (Model.VFR120fps == newValue)
+                if (Data.VFR120fps == newValue)
                     return;
-                Model.VFR120fps = newValue;
+                Data.VFR120fps = newValue;
                 RaisePropertyChanged("VFRFps");
                 RaisePropertyChanged("VFR120Fps");
             }
         }
         public bool VFR120Fps {
-            get { return Model.VFR120fps; }
+            get { return Data.VFR120fps; }
             set {
-                if (Model.VFR120fps == value)
+                if (Data.VFR120fps == value)
                     return;
-                Model.VFR120fps = value;
+                Data.VFR120fps = value;
                 RaisePropertyChanged("VFRFps");
                 RaisePropertyChanged("VFR120Fps");
             }
@@ -723,14 +701,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MoveEDCBFiles変更通知プロパティ
-        public bool MoveEDCBFiles
-        {
-            get { return Model.MoveEDCBFiles; }
-            set
-            {
-                if (Model.MoveEDCBFiles == value)
+        public bool MoveEDCBFiles {
+            get { return Data.MoveEDCBFiles; }
+            set {
+                if (Data.MoveEDCBFiles == value)
                     return;
-                Model.MoveEDCBFiles = value;
+                Data.MoveEDCBFiles = value;
                 RaisePropertyChanged();
             }
         }
@@ -738,11 +714,11 @@ namespace Amatsukaze.Models
 
         #region EnableRename変更通知プロパティ
         public bool EnableRename {
-            get { return Model.EnableRename; }
-            set { 
-                if (Model.EnableRename == value)
+            get { return Data.EnableRename; }
+            set {
+                if (Data.EnableRename == value)
                     return;
-                Model.EnableRename = value;
+                Data.EnableRename = value;
                 RaisePropertyChanged();
             }
         }
@@ -750,11 +726,11 @@ namespace Amatsukaze.Models
 
         #region RenameFormat変更通知プロパティ
         public string RenameFormat {
-            get { return Model.RenameFormat; }
+            get { return Data.RenameFormat; }
             set {
-                if (Model.RenameFormat == value)
+                if (Data.RenameFormat == value)
                     return;
-                Model.RenameFormat = value;
+                Data.RenameFormat = value;
                 RaisePropertyChanged();
             }
         }
@@ -762,39 +738,35 @@ namespace Amatsukaze.Models
 
         #region EnableGunreFolder変更通知プロパティ
         public bool EnableGunreFolder {
-            get { return Model.EnableGunreFolder; }
-            set { 
-                if (Model.EnableGunreFolder == value)
+            get { return Data.EnableGunreFolder; }
+            set {
+                if (Data.EnableGunreFolder == value)
                     return;
-                Model.EnableGunreFolder = value;
+                Data.EnableGunreFolder = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region SystemAviSynthPlugin変更通知プロパティ
-        public bool SystemAviSynthPlugin
-        {
-            get { return Model.SystemAviSynthPlugin; }
-            set
-            {
-                if (Model.SystemAviSynthPlugin == value)
+        public bool SystemAviSynthPlugin {
+            get { return Data.SystemAviSynthPlugin; }
+            set {
+                if (Data.SystemAviSynthPlugin == value)
                     return;
-                Model.SystemAviSynthPlugin = value;
+                Data.SystemAviSynthPlugin = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region DisableHashCheck変更通知プロパティ
-        public bool DisableHashCheck
-        {
-            get { return Model.DisableHashCheck; }
-            set
-            {
-                if (Model.DisableHashCheck == value)
+        public bool DisableHashCheck {
+            get { return Data.DisableHashCheck; }
+            set {
+                if (Data.DisableHashCheck == value)
                     return;
-                Model.DisableHashCheck = value;
+                Data.DisableHashCheck = value;
                 RaisePropertyChanged();
             }
         }
@@ -802,67 +774,59 @@ namespace Amatsukaze.Models
 
         #region NoRemoveTmp変更通知プロパティ
         public bool NoRemoveTmp {
-            get { return Model.NoRemoveTmp; }
-            set { 
-                if (Model.NoRemoveTmp == value)
+            get { return Data.NoRemoveTmp; }
+            set {
+                if (Data.NoRemoveTmp == value)
                     return;
-                Model.NoRemoveTmp = value;
+                Data.NoRemoveTmp = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region DisableLogFile変更通知プロパティ
-        public bool DisableLogFile
-        {
-            get { return Model.DisableLogFile; }
-            set
-            {
-                if (Model.DisableLogFile == value)
+        public bool DisableLogFile {
+            get { return Data.DisableLogFile; }
+            set {
+                if (Data.DisableLogFile == value)
                     return;
-                Model.DisableLogFile = value;
+                Data.DisableLogFile = value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region Mpeg2DecoderInt変更通知プロパティ
-        public int Mpeg2DecoderInt
-        {
-            get { return (int)Model.Mpeg2Decoder; }
-            set
-            {
-                if ((int)Model.Mpeg2Decoder == value)
+        public int Mpeg2DecoderInt {
+            get { return (int)Data.Mpeg2Decoder; }
+            set {
+                if ((int)Data.Mpeg2Decoder == value)
                     return;
-                Model.Mpeg2Decoder = (DecoderType)value;
+                Data.Mpeg2Decoder = (DecoderType)value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region H264DecoderInt変更通知プロパティ
-        public int H264DecoderInt
-        {
-            get { return (int)Model.H264Deocder; }
-            set
-            {
-                if ((int)Model.H264Deocder == value)
+        public int H264DecoderInt {
+            get { return (int)Data.H264Deocder; }
+            set {
+                if ((int)Data.H264Deocder == value)
                     return;
-                Model.H264Deocder = (DecoderType)value;
+                Data.H264Deocder = (DecoderType)value;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region OutputFormatInt変更通知プロパティ
-        public int OutputFormatInt
-        {
-            get { return (int)Model.OutputFormat; }
-            set
-            {
-                if ((int)Model.OutputFormat == value)
+        public int OutputFormatInt {
+            get { return (int)Data.OutputFormat; }
+            set {
+                if ((int)Data.OutputFormat == value)
                     return;
-                Model.OutputFormat = (FormatType)value;
+                Data.OutputFormat = (FormatType)value;
                 UpdateWarningText();
                 RaisePropertyChanged();
             }
@@ -872,11 +836,9 @@ namespace Amatsukaze.Models
         #region SettingWarningText変更通知プロパティ
         private string _SettingWarningText;
 
-        public string SettingWarningText
-        {
+        public string SettingWarningText {
             get { return _SettingWarningText; }
-            set
-            {
+            set {
                 if (_SettingWarningText == value)
                     return;
                 _SettingWarningText = value;
@@ -885,16 +847,13 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        public string[] EncoderList
-        {
+        public string[] EncoderList {
             get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc" }; }
         }
-        public string[] Mpeg2DecoderList
-        {
+        public string[] Mpeg2DecoderList {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
-        public string[] H264DecoderList
-        {
+        public string[] H264DecoderList {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
         }
         public DisplayOutputMask[] OutputOptionList_ = new DisplayOutputMask[]
@@ -917,8 +876,7 @@ namespace Amatsukaze.Models
             }
         };
         public DisplayOutputMask[] OutputOptionList { get { return OutputOptionList_; } }
-        public string[] FormatList
-        {
+        public string[] FormatList {
             get { return new string[] { "MP4", "MKV", "M2TS", "TS" }; }
         }
         public string[] VFRFpsList {
@@ -928,11 +886,9 @@ namespace Amatsukaze.Models
         #region IsModified変更通知プロパティ
         private bool _IsModified;
 
-        public bool IsModified
-        {
+        public bool IsModified {
             get { return _IsModified; }
-            set
-            {
+            set {
                 if (_IsModified == value)
                     return;
                 _IsModified = value;
@@ -1029,24 +985,43 @@ namespace Amatsukaze.Models
         public void UpdateWarningText()
         {
             StringBuilder sb = new StringBuilder();
-            if (Model.EncoderType == EncoderType.QSVEnc && Model.TwoPass)
+            if (Data.EncoderType == EncoderType.QSVEnc && Data.TwoPass)
             {
                 sb.Append("QSVEncは2パスに対応していません\r\n");
             }
-            if (Model.EncoderType == EncoderType.NVEnc && Model.TwoPass)
+            if (Data.EncoderType == EncoderType.NVEnc && Data.TwoPass)
             {
                 sb.Append("NVEncは2パスに対応していません\r\n");
             }
-            if (Model.EnableNicoJK && Model.NicoJKFormats.Any(s => s) == false)
+            if (Data.EnableNicoJK && Data.NicoJKFormats.Any(s => s) == false)
             {
                 sb.Append("ニコニコ実況コメントのフォーマットが１つも選択されていません。選択がない場合、出力されません\r\n");
             }
-            if(Model.OutputFormat == FormatType.M2TS || Model.OutputFormat == FormatType.TS)
+            if (Data.OutputFormat == FormatType.M2TS || Data.OutputFormat == FormatType.TS)
             {
-                if (Model.EncoderType == EncoderType.x265 ||
-                    ((Model.EncoderType != EncoderType.x264) && (EncoderOption?.Contains("hevc") ?? false)))
+                if (Data.EncoderType == EncoderType.x265 ||
+                    ((Data.EncoderType != EncoderType.x264) && (EncoderOption?.Contains("hevc") ?? false)))
                 {
                     sb.Append("tsMuxeR 2.6.12はHEVCを正しくmuxできない不具合があるのでご注意ください\r\n");
+                }
+            }
+            if (Data.EncoderType == EncoderType.NVEnc)
+            {
+                var mes = "GeForceではNVEncによる同時エンコードは2までに制限されています\r\n";
+                if ((Model.Setting?.NumParallel ?? 0) > 2)
+                {
+                    if (Model.Setting?.SchedulingEnabled ?? false)
+                    {
+                        var encodeRes = Data.ReqResources[(int)ResourcePhase.Encode];
+                        if (encodeRes.CPU * 3 <= 100 && encodeRes.HDD * 3 <= 100 && encodeRes.GPU * 3 <= 100)
+                        {
+                            sb.Append(mes);
+                        }
+                    }
+                    else
+                    {
+                        sb.Append(mes);
+                    }
                 }
             }
             SettingWarningText = sb.ToString();
@@ -1054,13 +1029,13 @@ namespace Amatsukaze.Models
 
         public void SetEncoderOptions(string X264Option, string X265Option, string QSVEncOption, string NVEncOption)
         {
-            if (X264Option != Model.X264Option || X265Option != Model.X265Option ||
-                QSVEncOption != Model.QSVEncOption || NVEncOption != Model.NVEncOption)
+            if (X264Option != Data.X264Option || X265Option != Data.X265Option ||
+                QSVEncOption != Data.QSVEncOption || NVEncOption != Data.NVEncOption)
             {
-                Model.X264Option = X264Option;
-                Model.X265Option = X265Option;
-                Model.QSVEncOption = QSVEncOption;
-                Model.NVEncOption = NVEncOption;
+                Data.X264Option = X264Option;
+                Data.X265Option = X265Option;
+                Data.QSVEncOption = QSVEncOption;
+                Data.NVEncOption = NVEncOption;
                 RaisePropertyChanged("EncoderOption");
             }
         }
@@ -1102,12 +1077,12 @@ namespace Amatsukaze.Models
 
         public override string ToString()
         {
-            return Model.Name;
+            return Data.Name;
         }
 
         public static string GetProfileName(object item)
         {
-            var name = (item as DisplayProfile)?.Model?.Name ??
+            var name = (item as DisplayProfile)?.Data?.Name ??
                 (item as DisplayAutoSelect)?.Model?.Name;
             if (item is DisplayAutoSelect)
             {
@@ -2343,7 +2318,7 @@ namespace Amatsukaze.Models
             Item.ServiceIds = Item.ServiceIds.Where(id => !ServiceList.Any(s => s.Service.Data.ServiceId == id))
                 .Concat(ServiceList.Where(s => s.IsChecked).Select(s => s.Service.Data.ServiceId)).ToList();
             Item.VideoSizes = VideoSizes.Where(s => s.IsChecked).Select(s => s.Item).ToList();
-            Item.Profile = (SelectedProfile as DisplayProfile)?.Model?.Name;
+            Item.Profile = (SelectedProfile as DisplayProfile)?.Data?.Name;
         }
     }
 
