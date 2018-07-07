@@ -178,17 +178,34 @@
             </DockPanel>
         </Expander>
 
-        <Button DockPanel.Dock="Bottom" Content="キューを凍結" Command="{Binding TogglePauseCommand, Mode=OneWay}"
+        <Button DockPanel.Dock="Bottom" Command="{Binding TogglePauseCommand, Mode=OneWay}" Name="FreezeButton"
                 ToolTip="凍結状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを凍結してください。">
             <Button.Style>
                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                    <Setter Property="Content" Value="キューを凍結"/>
                     <Setter Property="Foreground" Value="#FFA4A4A4"/>
                     <Setter Property="Background" Value="White"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
+                            <Setter Property="Content" Value="キューを凍結中です　エンコードは始まりません"/>
                             <Setter Property="Foreground" Value="Black"/>
                             <Setter Property="Background" Value="Yellow"/>
                             <Setter Property="FontWeight" Value="Bold"/>
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard Name="Blinking">
+                                    <Storyboard>
+                                        <ColorAnimationUsingKeyFrames
+                                            Storyboard.TargetProperty="(Foreground).(SolidColorBrush.Color)"
+                                            Duration="0:0:1.2" RepeatBehavior="Forever">
+                                            <DiscreteColorKeyFrame Value="Black" KeyTime="0:0:0" />
+                                            <DiscreteColorKeyFrame Value="Yellow" KeyTime="0:0:0.8" />
+                                        </ColorAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <RemoveStoryboard BeginStoryboardName="Blinking"/>
+                            </DataTrigger.ExitActions>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

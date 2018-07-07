@@ -616,6 +616,8 @@ namespace Amatsukaze.Server
                 Bitrate = new BitrateSetting(),
                 BitrateCM = 0.5,
                 OutputMask = 1,
+                DisableChapter = true, // デフォルトはチャプター解析無効
+                DisableSubs = true, // デフォルトは字幕無効
                 NicoJKFormats = new bool[4] { true, false, false, false },
                 ReqResources = new ReqResource[8]
             };

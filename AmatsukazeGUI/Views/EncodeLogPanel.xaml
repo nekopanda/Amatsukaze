@@ -129,7 +129,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="出力音声フレーム"/>
                     <TextBlock HorizontalAlignment="Left" Text="平均音ズレ[ms]"/>
                     <TextBlock HorizontalAlignment="Left" Text="最大音ズレ[ms]"/>
-                    <TextBlock HorizontalAlignment="Left" Text="最大音ズレ位置[ms]"/>
+                    <TextBlock HorizontalAlignment="Left" Text="最大音ズレ位置[秒]"/>
                     <TextBlock HorizontalAlignment="Left" Text="未出力音声割合[%]"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="5">

@@ -707,6 +707,17 @@ namespace Amatsukaze.Server
             {
                 AppData_.setting = GetDefaultSetting();
             }
+            if(string.IsNullOrWhiteSpace(AppData_.setting.WorkPath) ||
+                Directory.Exists(AppData_.setting.WorkPath) == false)
+            {
+                // 一時フォルダにアクセスできないときは、デフォルト一時フォルダを設定
+                var tmp = Path.GetTempPath();
+                if (tmp.EndsWith("\\"))
+                {
+                    tmp = tmp.Substring(0, tmp.Length - 1);
+                }
+                AppData_.setting.WorkPath = tmp;
+            }
             if (AppData_.setting.NumGPU == 0)
             {
                 AppData_.setting.NumGPU = 1;
@@ -1258,6 +1269,11 @@ namespace Amatsukaze.Server
             {
                 throw new InvalidOperationException(
                     "AmtasukazeCLIパスが無効です: " + setting.AmatsukazePath);
+            }
+
+            if(setting.WorkPath.EndsWith("\\"))
+            {
+                setting.WorkPath = setting.WorkPath.Substring(0, setting.WorkPath.Length - 1);
             }
             if (!Directory.Exists(workPath))
             {

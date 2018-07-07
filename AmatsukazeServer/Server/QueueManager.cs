@@ -581,12 +581,10 @@ namespace Amatsukaze.Server
             {
                 if (data.ChangeType == ChangeItemType.ResetState)
                 {
-                    // リトライは終わってるのだけ
-                    if (target.State != QueueState.Complete &&
-                        target.State != QueueState.Failed &&
-                        target.State != QueueState.Canceled)
+                    // エンコード中は変更できない
+                    if (target.State == QueueState.Encoding)
                     {
-                        return server.NotifyError("完了していないアイテムはリトライできません", false);
+                        return server.NotifyError("エンコード中のアイテムはリトライできません", false);
                     }
                 }
                 else if (data.ChangeType == ChangeItemType.UpdateProfile)
@@ -594,7 +592,7 @@ namespace Amatsukaze.Server
                     // エンコード中は変更できない
                     if (target.State == QueueState.Encoding)
                     {
-                        return server.NotifyError("このアイテムはエンコード中のためプロファイル更新できません", false);
+                        return server.NotifyError("エンコード中のアイテムはプロファイル更新できません", false);
                     }
                 }
                 else if (data.ChangeType == ChangeItemType.Duplicate)
@@ -631,6 +629,8 @@ namespace Amatsukaze.Server
 
                 if (data.ChangeType == ChangeItemType.ResetState)
                 {
+                    // リトライはプロファイル再適用も行う
+                    UpdateProfileItem(target, waits);
                     ResetStateItem(target, waits);
                     waits.Add(server.NotifyMessage("リトライします", false));
                 }

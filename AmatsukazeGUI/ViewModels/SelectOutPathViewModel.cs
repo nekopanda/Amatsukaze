@@ -64,7 +64,12 @@ namespace Amatsukaze.ViewModels
             {
                 ResetOutPath();
             }
-            if(Item.Outputs[0].Profile != null)
+            if (Item.Outputs[0].Profile == null)
+            {
+                // 設定なしなら「デフォルト」を使う
+                SelectedProfile = Model.ProfileList.FirstOrDefault(s => s.Model.Name == "デフォルト");
+            }
+            else
             {
                 bool isAuto = false;
                 var profileName = ServerSupport.ParseProfileName(Item.Outputs[0].Profile, out isAuto);
