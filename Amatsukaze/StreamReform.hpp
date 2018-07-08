@@ -668,7 +668,10 @@ private:
 				// Œã‚ë‚É‰f‘œ‚ª‚È‚¯‚ê‚ÎˆÓ–¡‚ª‚È‚¢
 				continue;
 			}
-			if (curFromPTS != -1 && curFromPTS + CHANGE_TORELANCE < pts) {
+			if (curFromPTS != -1 &&          // from‚ª‚ ‚é
+				curFormat.videoFileId >= 0 &&  // ‰f‘œ‚ª‚ ‚é
+				curFromPTS + CHANGE_TORELANCE < pts) // CHANGE_TORELANCE‚æ‚è—£‚ê‚Ä‚¢‚é
+			{
 				// ‹æŠÔ‚ð’Ç‰Á
 				registerOrGetFormat(curFormat);
 				sectionFormatList.push_back(curFormat.formatId);

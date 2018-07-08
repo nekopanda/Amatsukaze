@@ -99,7 +99,7 @@
                         <Border Height="28"/>
                     </StackPanel>
                     <TextBlock DockPanel.Dock="Bottom" TextWrapping="Wrap" Margin="5"
-                               Text="右に「クリア」ボタンのあるパスはAmatsukazeに同梱されているファイルがあります。「クリア」後「適用」すると同梱ファイルへのパスが設定されます。通常、問題なければ同梱ファイルを使ってください。「クリア」ボタンのない項目は同梱ファイルがないので、必要に応じて入手してパスを設定してください。"/>
+                               Text="右に「クリア」ボタンのある項目はAmatsukazeに同梱されているファイルがあります。「クリア」後「適用」すると同梱ファイルへのパスが設定されます。通常、問題なければ同梱ファイルを使ってください。「クリア」ボタンのない項目は同梱ファイルがないので、必要に応じて入手してパスを設定してください。"/>
                     <StackPanel>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.AmatsukazePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.X264Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
@@ -123,7 +123,7 @@
                 </StackPanel>
                 <DockPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel>
-                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
+                        <TextBox Height="22" Margin="0,3,10,3" Text="{Binding Model.Setting.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
                             ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
                     </StackPanel>
                 </DockPanel>

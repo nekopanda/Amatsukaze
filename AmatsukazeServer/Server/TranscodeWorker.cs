@@ -241,7 +241,7 @@ namespace Amatsukaze.Server
                 string.IsNullOrEmpty(serviceName) == false)
             {
                 srcname = time.ToString("yyyyMMddHHmm") + "_" +
-                    Util.EscapeFileName(eventName, true) + "_ " +
+                    Util.EscapeFileName(eventName, true) + " _" +
                     Util.EscapeFileName(serviceName, true) + ext;
             }
 
