@@ -1769,7 +1769,11 @@ public:
 	// positive: 不明部分をある(true)とするかない(false)とするか
 	void writeResult(const std::string& outpath, const std::string& datpath, bool positive = false)
 	{
-		const float costth = 0.1f; // 差が0.1以下は不明とみなす
+		// 差が-0.2～0.05は不明とみなす
+		// 下のほうが大きいのは圧縮でロゴが消されることが多いので
+		// 逆に「ない」ところから浮き出ることはほぼない
+		const float thlow = -0.2f;
+		const float thhigh = 0.05f;
 
 		// ロゴを選択 //
     struct Summary {
@@ -1804,7 +1808,7 @@ public:
 		// 
 		auto calcScore = [=](EvalResult r) {
 			auto diff = r.cost0 - r.cost1;
-			return (std::abs(diff) < costth) ? 1 : (diff < 0) ? 0 : 2;
+			return (thlow < diff && diff < thhigh) ? 1 : (diff < 0) ? 0 : 2;
 		};
 		int windowFrames = 10;
 		std::vector<int> frameScores(numFrames + windowFrames * 2);
