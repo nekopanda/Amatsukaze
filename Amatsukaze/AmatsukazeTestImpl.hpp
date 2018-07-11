@@ -427,15 +427,13 @@ static int LosslessFileTest(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int LogoFrameTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	auto env = make_unique_ptr(CreateScriptEnvironment2());
-
 	{
 		auto env = make_unique_ptr(CreateScriptEnvironment2());
 		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
 
 		logo::LogoFrame logof(ctx, setting.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
-		logof.writeResult(setting.getModeArgs());
+		logof.writeResult(setting.getTmpLogoFramePath(0), setting.getLogoTmpPath(0));
 
 		printf("BestLogo: %s\n", setting.getLogoPath()[logof.getBestLogo()].c_str());
 		printf("LogoRatio: %f\n", logof.getLogoRatio());

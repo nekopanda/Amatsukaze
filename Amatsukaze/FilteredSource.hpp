@@ -362,7 +362,9 @@ private:
     sb.append("Prefetch(1, 4)\n");
 
     if (setting_.isNoDelogo() == false && logopath.size() > 0) {
-      sb.append("AMTEraseLogo(AMTAnalyzeLogo(\"%s\"), \"%s\")\n", logopath, logopath);
+      sb.append("logo = \"%s\"\n", logopath);
+      sb.append("AMTEraseLogo2(AMTAnalyzeLogo(logo), logo, \"%s\")\n", 
+				setting_.getLogoTmpPath(fileId));
       sb.append("Prefetch(1, 4)\n");
     }
 

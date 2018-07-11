@@ -775,10 +775,6 @@ public:
 			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
-	std::string getLogoTmpFilePath() const {
-		return regtmp(StringFormat("%s/logotmp.dat", tmpDir.path()));
-	}
-
 	std::string getTmpAMTSourcePath(int vindex) const {
 		return regtmp(StringFormat("%s/amts%d.dat", tmpDir.path(), vindex));
 	}
@@ -789,6 +785,10 @@ public:
 
 	std::string getTmpLogoFramePath(int vindex) const {
 		return regtmp(StringFormat("%s/logof%d.txt", tmpDir.path(), vindex));
+	}
+
+	std::string getLogoTmpPath(int vindex) const {
+		return regtmp(StringFormat("%s/logotmp%d.dat", tmpDir.path(), vindex));
 	}
 
 	std::string getTmpChapterExePath(int vindex) const {

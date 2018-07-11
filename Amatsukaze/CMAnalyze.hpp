@@ -160,7 +160,10 @@ private:
 
 			logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
 			logof.scanFrames(clip, env.get());
-			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
+#if 0
+			logof.dumpResult(setting_.getTmpLogoFramePath(videoFileIndex));
+#endif
+			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex), setting_.getLogoTmpPath(videoFileIndex));
 
 			float threshold = setting_.isLooseLogoDetection() ? 0.03f : (duration <= 60 * 7) ? 0.3f : 0.5f;
 			if (logof.getLogoRatio() < threshold) {
