@@ -29,7 +29,7 @@ class LogoDataParam : public LogoData
 	std::unique_ptr<uint8_t[]> mask;
 	float thresh;
 	int maskpixels;
-	float blackSAD, blackEdge;
+	float blackEdge;
 public:
 	LogoDataParam() { }
 
@@ -109,8 +109,7 @@ public:
 		CalcMaximum();
 	}
 
-	// <エッジ評価, 信頼度>を返す
-	std::pair<float, float> EvaluateLogo(const float *src, float maxv, float fade, float* work, int stride = -1)
+	float EvaluateLogo(const float *src, float maxv, float fade, float* work, int stride = -1)
 	{
 		// ロゴを評価 //
 		const float *logoAY = GetA(PLANAR_Y);
@@ -121,7 +120,6 @@ public:
 		}
 
 		// ロゴを除去
-		float SAD = 0;
 		for (int y = 0; y < h; ++y) {
 			for (int x = 0; x < w; ++x) {
 				float srcv = src[x + y * stride];
@@ -130,17 +128,11 @@ public:
 				float bg = a * srcv + b * maxv;
 				float dstv = fade * bg + (1 - fade) * srcv;
 				work[x + y * w] = dstv;
-				SAD += std::abs(srcv - dstv);
 			}
 		}
 
-		float rel = SAD / blackSAD;
-
 		// 正規化
-		//float edge = result / (limit * getMaskPixels());
-		float edge = EdgeScore(work, maxv) / blackEdge;
-
-		return std::make_pair(edge, rel);
+		return EdgeScore(work, maxv) / blackEdge;
 	}
 
 	std::unique_ptr<LogoDataParam> MakeFieldLogo(bool bottom)
@@ -248,10 +240,7 @@ private:
 		enum { MIN_Y = 16, MAX_Y = 235 };
 		size_t YSize = w * h;
 
-		// 黒地にロゴを乗せる
-		auto black = std::unique_ptr<float[]>(new float[YSize]());
-
-		auto genLogo = [this](float* Y, int maxv) {
+		auto addLogo = [this](float* Y, int maxv) {
 			const float *logoAY = GetA(PLANAR_Y);
 			const float *logoBY = GetB(PLANAR_Y);
 			for (int y = 0; y < h; ++y) {
@@ -265,13 +254,9 @@ private:
 			}
 		};
 
-		genLogo(black.get(), 255);
-
-		// 差分を計算
-		blackSAD = 0;
-		for (int i = 0; i < YSize; ++i) {
-			blackSAD += std::abs(black[i] - MIN_Y);
-		}
+		// 黒地にロゴを乗せる
+		auto black = std::unique_ptr<float[]>(new float[YSize]());
+		addLogo(black.get(), 255);
 
 		// エッジ評価値（これがはっきり出たときの基準）
 		blackEdge = EdgeScore(black.get(), 255);
@@ -910,7 +895,7 @@ class LogoAnalyzer : AMTObject
 				for (int fi = 0; fi < numFade; ++fi) {
 					float fade = 0.1f * fi;
 					// ロゴを評価
-					float result = deintLogo.EvaluateLogo(memDeint.get(), 255.0f, fade, memWork.get()).first;
+					float result = deintLogo.EvaluateLogo(memDeint.get(), 255.0f, fade, memWork.get());
 					if (result < minResult) {
 						minResult = result;
 						minFadeIndex = fi;
@@ -1094,9 +1079,9 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 
 			LogoAnalyzeFrame info;
 			for (int f = 0; f <= 10; ++f) {
-				info.p[f] = deintLogo->EvaluateLogo(memDeint.get(), maxv, (float)f / 10.0f, memWork.get()).first;
-				info.t[f] = fieldLogoT->EvaluateLogo(memCopy.get(), maxv, (float)f / 10.0f, memWork.get(), header.w * 2).first;
-				info.b[f] = fieldLogoB->EvaluateLogo(memCopy.get() + header.w, maxv, (float)f / 10.0f, memWork.get(), header.w * 2).first;
+				info.p[f] = deintLogo->EvaluateLogo(memDeint.get(), maxv, (float)f / 10.0f, memWork.get());
+				info.t[f] = fieldLogoT->EvaluateLogo(memCopy.get(), maxv, (float)f / 10.0f, memWork.get(), header.w * 2);
+				info.b[f] = fieldLogoB->EvaluateLogo(memCopy.get() + header.w, maxv, (float)f / 10.0f, memWork.get(), header.w * 2);
 			}
 
 			pDst[i] = info;
@@ -1655,7 +1640,6 @@ class LogoFrame : AMTObject
 
 	struct EvalResult {
 		float cost0, cost1;
-		float rel; // 信頼度
 	};
 	std::unique_ptr<EvalResult[]> evalResults;
 
@@ -1684,11 +1668,8 @@ class LogoFrame : AMTObject
 			DeintY(memDeint, srcY + off, pitchY, logo.getWidth(), logo.getHeight());
 
 			// ロゴ評価
-			auto result0 = logo.EvaluateLogo(memDeint, maxv, 0, memWork);
-			auto result1 = logo.EvaluateLogo(memDeint, maxv, 1, memWork);
-			outResult[i].cost0 = result0.first;
-			outResult[i].cost1 = result1.first;
-			outResult[i].rel = result1.second;
+			outResult[i].cost0 = logo.EvaluateLogo(memDeint, maxv, 0, memWork);
+			outResult[i].cost1 = logo.EvaluateLogo(memDeint, maxv, 1, memWork);
 		}
 	}
 
@@ -1759,7 +1740,7 @@ public:
 			StringBuilder sb;
 			for (int n = 0; n < numFrames; ++n) {
 				auto& r = evalResults[n * numLogos + i];
-				sb.append("%f,%f,%f\n", r.cost0, r.cost1, r.rel);
+				sb.append("%f,%f\n", r.cost0, r.cost1);
 			}
 			File file(basepath + std::to_string(i), "w");
 			file.write(sb.getMC());
