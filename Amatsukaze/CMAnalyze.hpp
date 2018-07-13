@@ -158,7 +158,7 @@ private:
 			auto vi = clip->GetVideoInfo();
 			int duration = vi.num_frames * vi.fps_denominator / vi.fps_numerator;
 
-			logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
+			logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.35f);
 			logof.scanFrames(clip, env.get());
 #if 1
 			logof.dumpResult(setting_.getTmpLogoFramePath(videoFileIndex));

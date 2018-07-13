@@ -482,3 +482,39 @@ std::vector<T> ReadArray(const File& file) {
 	}
 	return ret;
 }
+
+template <typename F>
+void WriteGrayBitmap(const std::string& path, int w, int h, F pixels) {
+
+	int stride = (3 * w + 3) & ~3;
+	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[h * stride]);
+	for (int y = 0; y < h; ++y) {
+		for (int x = 0; x < w; ++x) {
+			uint8_t* ptr = &buf[3 * x + (h - y - 1) * stride];
+			ptr[0] = ptr[1] = ptr[2] = pixels(x, y);
+		}
+	}
+
+	BITMAPINFOHEADER bmiHeader = { 0 };
+	bmiHeader.biSize = sizeof(bmiHeader);
+	bmiHeader.biWidth = w;
+	bmiHeader.biHeight = h;
+	bmiHeader.biPlanes = 1;
+	bmiHeader.biBitCount = 24;
+	bmiHeader.biCompression = BI_RGB;
+	bmiHeader.biSizeImage = 0;
+	bmiHeader.biXPelsPerMeter = 1;
+	bmiHeader.biYPelsPerMeter = 1;
+	bmiHeader.biClrUsed = 0;
+	bmiHeader.biClrImportant = 0;
+
+	BITMAPFILEHEADER bmfHeader = { 0 };
+	bmfHeader.bfType = 0x4D42;
+	bmfHeader.bfOffBits = sizeof(bmfHeader) + sizeof(bmiHeader);
+	bmfHeader.bfSize = bmfHeader.bfOffBits + bmiHeader.biSizeImage;
+
+	File file(path, "wb");
+	file.write(MemoryChunk((uint8_t*)&bmfHeader, sizeof(bmfHeader)));
+	file.write(MemoryChunk((uint8_t*)&bmiHeader, sizeof(bmiHeader)));
+	file.write(MemoryChunk(buf.get(), h * stride));
+}

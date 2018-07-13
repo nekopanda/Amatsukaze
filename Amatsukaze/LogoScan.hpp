@@ -25,10 +25,20 @@ namespace logo {
 
 class LogoDataParam : public LogoData
 {
-  enum { KSIZE = 5, KLEN = KSIZE * KSIZE };
+  enum {
+		KSIZE = 5,
+		KLEN = KSIZE * KSIZE,
+		CSHIFT = 3,
+		CLEN = 256 >> CSHIFT
+	};
 	int imgw, imgh, imgx, imgy; // この4つはすべて2の倍数
 	std::unique_ptr<uint8_t[]> mask;
-  std::unique_ptr<float[]> kernels;
+	std::unique_ptr<float[]> kernels;
+	struct ScaleLimit {
+		float scale;   // 正規化用スケール（想定される相関が1になるようにするため）
+		float scale2;  // キャップ用スケール（想定される相関が小さすぎる場合に値を小さくするため）
+	};
+	std::unique_ptr<ScaleLimit[]> scales;
 	float thresh;
 	int maskpixels;
 	float blackEdge;
@@ -64,91 +74,108 @@ public:
 	// 評価準備
 	void CreateLogoMask(float maskratio)
 	{
-		size_t YSize = w * h;
-		mask = std::unique_ptr<uint8_t[]>(new uint8_t[YSize]());
-		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+		// ロゴカーネルの考え方
+		// ロゴとの相関を取りたい
+		// これだけならロゴと画像を単に画素ごとに掛け合わせて足せばいいが
+		// それだと、画像背景の濃淡に大きく影響を受けてしまう
+		// なので、ロゴのエッジだけ画素ごとに相関を見ていく
 
-		for (int y = 0; y < h; ++y) {
-			for (int x = 0; x < w; ++x) {
-				// x切片、つまり、背景の輝度値ゼロのときのロゴの輝度値を取得
-				float a = aY[x + y * w];
-				float b = bY[x + y * w];
-				float c = memWork[x + y * w] = -b / a;
-			}
+		int YSize = w * h;
+		auto memWork = std::unique_ptr<float[]>(new float[YSize * CLEN]);
+
+		// 各単色背景にロゴを乗せる
+		for (int c = 0; c < CLEN; ++c) {
+			float *slice = &memWork[c * YSize];
+			std::fill_n(slice, YSize, (float)(c << CSHIFT));
+			AddLogo(slice, 255);
 		}
 
-    // エッジ部分のマスクを作成
-		// マスクされた部分が少なすぎたらしきい値を下げて作り直す
-		thresh = 0.25f;
-		for (; thresh > 0.01f; thresh = thresh * 0.8f) {
-			maskpixels = 0;
-			// 3x3 Prewitt
-			for (int y = 1; y < h - 1; ++y) {
-				for (int x = 1; x < w - 1; ++x) {
-					const float* ptr = &memWork[x + y * w];
-					float y_sum_h = 0, y_sum_v = 0;
-
-					y_sum_h -= ptr[-1 + w * -1];
-					y_sum_h -= ptr[-1];
-					y_sum_h -= ptr[-1 + w * 1];
-					y_sum_h += ptr[1 + w * -1];
-					y_sum_h += ptr[1];
-					y_sum_h += ptr[1 + w * 1];
-					y_sum_v -= ptr[-1 + w * -1];
-					y_sum_v -= ptr[0 + w * -1];
-					y_sum_v -= ptr[1 + w * -1];
-					y_sum_v += ptr[-1 + w * 1];
-					y_sum_v += ptr[0 + w * 1];
-					y_sum_v += ptr[1 + w * 1];
-
-					float val = std::sqrtf(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
-					maskpixels += mask[x + y * w] = (val > thresh);
+		auto makeKernel = [](float* k, float* Y, int x, int y, int w) {
+			// コピー
+			for (int ky = -2; ky <= 2; ++ky) {
+				for (int kx = -2; kx <= 2; ++kx) {
+					k[(kx + 2) + (ky + 2) * KSIZE] = Y[(x + kx) + (y + ky) * w];
 				}
 			}
-			if (maskpixels >= (h - 1)*(w - 1)*maskratio) {
-				break;
+			// 平均値
+			float avg = std::accumulate(k, k + KLEN, 0.0f) / KLEN;
+			// 平均値をゼロにする
+			std::transform(k, k + KLEN, k, [=](float p) { return p - avg; });
+		};
+
+    // 特徴点の抽出 //
+		// 単色背景にロゴを乗せた画像の各ピクセルを中心とする5x5ウィンドウの
+		// 画素値の分散の大きい順にmaskratio割合のピクセルを着目点とする
+		std::vector<std::pair<float, int>> variance(YSize);
+		// 各ピクセルの分散を計算（計算されていないところはゼロ初期化されてる）
+		for (int y = 2; y < h - 2; ++y) {
+			for (int x = 2; x < w - 2; ++x) {
+				// 真ん中の色を取る
+				float *slice = &memWork[(CLEN >> 1) * YSize];
+				float k[KLEN];
+				makeKernel(k, slice, x, y, w);
+				variance[x + y * w].first = std::accumulate(k, k + KLEN, 0.0f,
+					[](float sum, float val) { return sum + val * val; });
 			}
 		}
+		// ピクセルインデックスを生成
+		for (int i = 0; i < YSize; ++i) {
+			variance[i].second = i;
+		}
+		// 降順ソート
+		std::sort(variance.begin(), variance.end(), std::greater<std::pair<float, int>>());
+		// 計算結果からmask生成
+		mask = std::unique_ptr<uint8_t[]>(new uint8_t[YSize]());
+		maskpixels = std::min(YSize, (int)(YSize * maskratio));
+		for (int i = 0; i < maskpixels; ++i) {
+			mask[variance[i].second] = 1;
+		}
+#if 0
+		WriteGrayBitmap("hoge.bmp", w, h, [&](int x, int y) {
+			return mask[x + y * w] ? 255 : 0;
+		});
+#endif
 
-    // ロゴカーネルの考え方
-    // ロゴとの相関を取りたい
-    // これだけならロゴと画像を単に画素ごとに掛け合わせて足せばいいが
-    // それだと、画像背景の濃淡に大きく影響を受けてしまう
-    // なので、ロゴのエッジだけ画素ごとに相関を見ていく
-
-    // ロゴカーネルを作成
+    // ピクセル周辺の特徴
     kernels = std::unique_ptr<float[]>(new float[maskpixels * KLEN]);
+		// 各ピクセルx各単色背景での相関値スケール
+		scales = std::unique_ptr<ScaleLimit[]>(new ScaleLimit[maskpixels * CLEN]);
     int count = 0;
+		float avgCorr = 0.0f;
     for (int y = 2; y < h - 2; ++y) {
       for (int x = 2; x < w - 2; ++x) {
         if (mask[x + y * w]) {
-          float* k = &kernels[count++ * KLEN];
-
-          // コピー
-          for (int ky = -2; ky <= 2; ++ky) {
-            for (int kx = -2; kx <= 2; ++kx) {
-              k[(kx + 2) + (ky + 2) * KSIZE] = memWork[(x + kx) + (y + ky) * w];
-            }
-          }
-
-          // 平均値
-          float avg = std::accumulate(k, k + KLEN, 0.0f) / KLEN;
-          // 平均値をゼロにする
-          std::transform(k, k + KLEN, k, [=](float p) { return p - avg; });
+					float* k = &kernels[count * KLEN];
+					ScaleLimit* s = &scales[count * CLEN];
+					makeKernel(k, memWork.get(), x, y, w);
+					for (int i = 0; i < CLEN; ++i) {
+						float *slice = &memWork[i * YSize];
+						avgCorr += s[i].scale = std::abs(CalcCorrelation(k, slice, x, y, w));
+					}
+					++count;
         }
       }
     }
+		avgCorr /= maskpixels * CLEN;
+		// 相関下限（これより小さい相関のピクセルはスケールしない）
+		float limitCorr = avgCorr * 0.1f;
+		for (int i = 0; i < maskpixels * CLEN; ++i) {
+			float corr = scales[i].scale;
+			scales[i].scale = (corr > 0) ? (1.0f / corr) : 0.0f;
+			scales[i].scale2 = std::min(1.0f, corr / limitCorr);
+		}
 
-#if 1
+#if 0
     // ロゴカーネルをチェック
     for (int idx = 0; idx < count; ++idx) {
       float* k = &kernels[idx++ * KLEN];
       float sum = std::accumulate(k, k + KLEN, 0.0f);
-      float abssum = std::accumulate(k, k + KLEN, 0.0f,
-        [](float sum, float val) { return sum + std::abs(val); });
+      //float abssum = std::accumulate(k, k + KLEN, 0.0f,
+      //  [](float sum, float val) { return sum + std::abs(val); });
       // チェック
-      if (std::abs(sum) > 0.00001f && std::abs(abssum - 1.0f) > 0.00001f) {
-        printf("Error: %d => sum: %f, abssum: %f\n", idx, sum, abssum);
+      if (std::abs(sum) > 0.00001f /*&& std::abs(abssum - 1.0f) > 0.00001f*/) {
+        //printf("Error: %d => sum: %f, abssum: %f\n", idx, sum, abssum);
+				printf("Error: %d => sum: %f\n", idx, sum);
       }
     }
 #endif
@@ -221,7 +248,8 @@ private:
 #endif
 	}
 
-	float EdgeScore(const float *work, float maxv)
+  // Prewittカーネルでエッジを評価
+	float PrewittScore(const float *work, float maxv)
 	{
 		const uint8_t* mask = GetMask();
 
@@ -289,6 +317,9 @@ private:
 			}
 		}
 
+		return result;
+	}
+
   // 画素ごとにロゴとの相関を計算
   float CorrelationScore(const float *work, float maxv)
   {
@@ -301,38 +332,33 @@ private:
     for (int y = 2; y < h - 2; ++y) {
       for (int x = 2; x < w - 2; ++x) {
         if (mask[x + y * w]) {
-          const float* k = &kernels[count++ * KLEN];
+          const float* k = &kernels[count * KLEN];
 
-#if 1 // まじめに相関を計算
-          float avg = 0.0f;
-          for (int ky = -2; ky <= 2; ++ky) {
-            for (int kx = -2; kx <= 2; ++kx) {
-              avg += work[(x + kx) + (y + ky) * w];
-            }
-          }
-          avg /= KLEN;
-          float sum = 0.0f;
-          for (int ky = -2; ky <= 2; ++ky) {
-            for (int kx = -2; kx <= 2; ++kx) {
-              sum += k[(kx + 2) + (ky + 2) * KSIZE] * (work[(x + kx) + (y + ky) * w] - avg);
-            }
-          }
-          result += sum;
-#else // ちょっと計算をさぼる
-          float sum = 0.0f;
-          for (int ky = -2; ky <= 2; ++ky) {
-            for (int kx = -2; kx <= 2; ++kx) {
-              sum += k[(kx + 2) + (ky + 2) * KSIZE] * work[(x + kx) + (y + ky) * w];
-            }
-          }
-          result += std::abs(sum);
+#if 1 // 
+					float avg = 0.0f;
+					for (int ky = -2; ky <= 2; ++ky) {
+						for (int kx = -2; kx <= 2; ++kx) {
+							avg += work[(x + kx) + (y + ky) * w];
+						}
+					}
+					avg /= KLEN;
+					float sum = 0.0f;
+					for (int ky = -2; ky <= 2; ++ky) {
+						for (int kx = -2; kx <= 2; ++kx) {
+							sum += k[(kx + 2) + (ky + 2) * KSIZE] * (work[(x + kx) + (y + ky) * w] - avg);
+						}
+					}
+					ScaleLimit s = scales[count * CLEN + (std::max(0, std::min(255, (int)avg)) >> CSHIFT)];
+					float normalized = std::max(-1.0f, std::min(1.0f, sum * s.scale));
+					float score = normalized * s.scale2;
+					result += score;
+#else // まじめに相関を計算
+					result += CalcCorrelation(k, work, x, y, w);
 #endif
+					++count;
         }
       }
     }
-
-    return result;
-  }
 
     return result;
   }
@@ -341,27 +367,46 @@ private:
 		enum { MIN_Y = 16, MAX_Y = 235 };
 		size_t YSize = w * h;
 
-		auto addLogo = [this](float* Y, int maxv) {
-			const float *logoAY = GetA(PLANAR_Y);
-			const float *logoBY = GetB(PLANAR_Y);
-			for (int y = 0; y < h; ++y) {
-				for (int x = 0; x < w; ++x) {
-					float a = logoAY[x + y * w];
-					float b = logoBY[x + y * w];
-					if (a > 0) {
-						Y[x + y * w] = (Y[x + y * w] - b * maxv) / a;
-					}
-				}
-			}
-		};
-
 		// 黒地にロゴを乗せる
 		auto black = std::unique_ptr<float[]>(new float[YSize]());
-		addLogo(black.get(), 255);
+		AddLogo(black.get(), 255);
 
 		// エッジ評価値（これがはっきり出たときの基準）
 		blackEdge = EdgeScore(black.get(), 255);
 	}
+
+	void AddLogo(float* Y, int maxv)
+	{
+		const float *logoAY = GetA(PLANAR_Y);
+		const float *logoBY = GetB(PLANAR_Y);
+		for (int y = 0; y < h; ++y) {
+			for (int x = 0; x < w; ++x) {
+				float a = logoAY[x + y * w];
+				float b = logoBY[x + y * w];
+				if (a > 0) {
+					Y[x + y * w] = (Y[x + y * w] - b * maxv) / a;
+				}
+			}
+		}
+	}
+
+	static float CalcCorrelation(const float* k, const float* Y, int x, int y, int w)
+	{
+		float avg = 0.0f;
+		for (int ky = -2; ky <= 2; ++ky) {
+			for (int kx = -2; kx <= 2; ++kx) {
+				avg += Y[(x + kx) + (y + ky) * w];
+			}
+		}
+		avg /= KLEN;
+		float sum = 0.0f;
+		for (int ky = -2; ky <= 2; ++ky) {
+			for (int kx = -2; kx <= 2; ++kx) {
+				sum += k[(kx + 2) + (ky + 2) * KSIZE] * (Y[(x + kx) + (y + ky) * w] - avg);
+			}
+		}
+		return sum;
+	};
 };
 
 static void approxim_line(int n, double sum_x, double sum_y, double sum_x2, double sum_xy, double& a, double& b)
