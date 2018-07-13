@@ -25,8 +25,10 @@ namespace logo {
 
 class LogoDataParam : public LogoData
 {
+  enum { KSIZE = 5, KLEN = KSIZE * KSIZE };
 	int imgw, imgh, imgx, imgy; // この4つはすべて2の倍数
 	std::unique_ptr<uint8_t[]> mask;
+  std::unique_ptr<float[]> kernels;
 	float thresh;
 	int maskpixels;
 	float blackEdge;
@@ -54,7 +56,8 @@ public:
 	int getImgX() const { return imgx; }
 	int getImgY() const { return imgy; }
 
-	uint8_t* GetMask() { return mask.get(); }
+  const uint8_t* GetMask() { return mask.get(); }
+  const float* GetKernels() { return kernels.get(); }
 	float getThresh() const { return thresh; }
 	int getMaskPixels() const { return maskpixels; }
 
@@ -74,6 +77,7 @@ public:
 			}
 		}
 
+    // エッジ部分のマスクを作成
 		// マスクされた部分が少なすぎたらしきい値を下げて作り直す
 		thresh = 0.25f;
 		for (; thresh > 0.01f; thresh = thresh * 0.8f) {
@@ -105,6 +109,49 @@ public:
 				break;
 			}
 		}
+
+    // ロゴカーネルの考え方
+    // ロゴとの相関を取りたい
+    // これだけならロゴと画像を単に画素ごとに掛け合わせて足せばいいが
+    // それだと、画像背景の濃淡に大きく影響を受けてしまう
+    // なので、ロゴのエッジだけ画素ごとに相関を見ていく
+
+    // ロゴカーネルを作成
+    kernels = std::unique_ptr<float[]>(new float[maskpixels * KLEN]);
+    int count = 0;
+    for (int y = 2; y < h - 2; ++y) {
+      for (int x = 2; x < w - 2; ++x) {
+        if (mask[x + y * w]) {
+          float* k = &kernels[count++ * KLEN];
+
+          // コピー
+          for (int ky = -2; ky <= 2; ++ky) {
+            for (int kx = -2; kx <= 2; ++kx) {
+              k[(kx + 2) + (ky + 2) * KSIZE] = memWork[(x + kx) + (y + ky) * w];
+            }
+          }
+
+          // 平均値
+          float avg = std::accumulate(k, k + KLEN, 0.0f) / KLEN;
+          // 平均値をゼロにする
+          std::transform(k, k + KLEN, k, [=](float p) { return p - avg; });
+        }
+      }
+    }
+
+#if 1
+    // ロゴカーネルをチェック
+    for (int idx = 0; idx < count; ++idx) {
+      float* k = &kernels[idx++ * KLEN];
+      float sum = std::accumulate(k, k + KLEN, 0.0f);
+      float abssum = std::accumulate(k, k + KLEN, 0.0f,
+        [](float sum, float val) { return sum + std::abs(val); });
+      // チェック
+      if (std::abs(sum) > 0.00001f && std::abs(abssum - 1.0f) > 0.00001f) {
+        printf("Error: %d => sum: %f, abssum: %f\n", idx, sum, abssum);
+      }
+    }
+#endif
 
 		CalcMaximum();
 	}
@@ -167,10 +214,19 @@ private:
 
 	float EdgeScore(const float *work, float maxv)
 	{
+#if 1
+    return CorrelationScore(work, maxv);
+#else
+    return PrewittScore(work, maxv);
+#endif
+	}
+
+	float EdgeScore(const float *work, float maxv)
+	{
 		const uint8_t* mask = GetMask();
 
 		// エッジ評価
-		float limit = getThresh() * maxv * (25.0f / 9.0f);
+		//float limit = getThresh() * maxv * (25.0f / 9.0f);
 		float result = 0;
 		for (int y = 2; y < h - 2; ++y) {
 			for (int x = 2; x < w - 2; ++x) {
@@ -227,14 +283,59 @@ private:
 					y_sum_v += work[x + 2 + (y + 2) * w];
 
 					float val = std::sqrt(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
-					//result += val;
-					result += std::min(limit, val);
+					result += val;
+					//result += std::min(limit, val);
 				}
 			}
 		}
 
-		return result;
-	}
+  // 画素ごとにロゴとの相関を計算
+  float CorrelationScore(const float *work, float maxv)
+  {
+    const uint8_t* mask = GetMask();
+    const float* kernels = GetKernels();
+
+    // ロゴとの相関を評価
+    int count = 0;
+    float result = 0;
+    for (int y = 2; y < h - 2; ++y) {
+      for (int x = 2; x < w - 2; ++x) {
+        if (mask[x + y * w]) {
+          const float* k = &kernels[count++ * KLEN];
+
+#if 1 // まじめに相関を計算
+          float avg = 0.0f;
+          for (int ky = -2; ky <= 2; ++ky) {
+            for (int kx = -2; kx <= 2; ++kx) {
+              avg += work[(x + kx) + (y + ky) * w];
+            }
+          }
+          avg /= KLEN;
+          float sum = 0.0f;
+          for (int ky = -2; ky <= 2; ++ky) {
+            for (int kx = -2; kx <= 2; ++kx) {
+              sum += k[(kx + 2) + (ky + 2) * KSIZE] * (work[(x + kx) + (y + ky) * w] - avg);
+            }
+          }
+          result += sum;
+#else // ちょっと計算をさぼる
+          float sum = 0.0f;
+          for (int ky = -2; ky <= 2; ++ky) {
+            for (int kx = -2; kx <= 2; ++kx) {
+              sum += k[(kx + 2) + (ky + 2) * KSIZE] * work[(x + kx) + (y + ky) * w];
+            }
+          }
+          result += std::abs(sum);
+#endif
+        }
+      }
+    }
+
+    return result;
+  }
+
+    return result;
+  }
 
 	void CalcMaximum() {
 		enum { MIN_Y = 16, MAX_Y = 235 };

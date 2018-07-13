@@ -160,7 +160,7 @@ private:
 
 			logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.1f);
 			logof.scanFrames(clip, env.get());
-#if 0
+#if 1
 			logof.dumpResult(setting_.getTmpLogoFramePath(videoFileIndex));
 #endif
 			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex), setting_.getLogoTmpPath(videoFileIndex));
