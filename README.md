@@ -368,6 +368,9 @@ KFMは、映像のフレームレートを判別して、24p,30p,60p部分にそ
 
 SVPによる60p化は、KFMで24p/30p判定された部分をSVPによるフレーム補間で60p化して、全体を60pで出力します。
 
+SVPを使う場合は、SVPの[Avisynth and Vapoursynth plugins](https://www.svp-team.com/wiki/Download#libs)を入手して、"lib-windows\avisynth\x64"の中身を"exe_files\plugins64"に入れてください。
+
+
 #### QTGMC
 
 QTGMCは、ソフトウェア処理によるbobベースのインタレ解除フィルタです。
