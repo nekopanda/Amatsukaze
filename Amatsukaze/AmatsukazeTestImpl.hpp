@@ -433,7 +433,7 @@ static int LogoFrameTest(AMTContext& ctx, const ConfigWrapper& setting)
 
 		logo::LogoFrame logof(ctx, setting.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
-		logof.writeResult(setting.getTmpLogoFramePath(0), setting.getLogoTmpPath(0));
+		logof.writeResult(setting.getTmpLogoFramePath(0));
 
 		printf("BestLogo: %s\n", setting.getLogoPath()[logof.getBestLogo()].c_str());
 		printf("LogoRatio: %f\n", logof.getLogoRatio());

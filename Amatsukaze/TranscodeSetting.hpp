@@ -787,10 +787,6 @@ public:
 		return regtmp(StringFormat("%s/logof%d.txt", tmpDir.path(), vindex));
 	}
 
-	std::string getLogoTmpPath(int vindex) const {
-		return regtmp(StringFormat("%s/logotmp%d.dat", tmpDir.path(), vindex));
-	}
-
 	std::string getTmpChapterExePath(int vindex) const {
 		return regtmp(StringFormat("%s/chapter_exe%d.txt", tmpDir.path(), vindex));
 	}

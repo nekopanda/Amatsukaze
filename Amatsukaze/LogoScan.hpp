@@ -1527,6 +1527,8 @@ class AMTEraseLogo2 : public GenericVideoFilter
 
 	void CalcFade(int n, float& fadeT, float& fadeB, IScriptEnvironment2* env)
 	{
+		// ロゴ解析結果を大局的に使って、
+		// 切り替わり周辺だけリアルタイム解析結果を使う
 		enum {
 			DIST = 8,
 		};
@@ -1623,8 +1625,50 @@ class AMTEraseLogo2 : public GenericVideoFilter
 		return frame;
 	}
 
+	void ReadLogoFrameFile(const std::string& logofPath, IScriptEnvironment* env)
+	{
+		struct LogoFrameElement {
+			bool isStart;
+			int best, start, end;
+		};
+		std::vector<LogoFrameElement> elements;
+		try {
+			File file(logofPath, "r");
+			std::regex re("^\\s*(\\d+)\\s+(\\S)\\s+(\\d+)\\s+(\\S+)\\s+(\\d+)\\s+(\\d+)");
+			std::string str;
+			while (file.getline(str)) {
+				std::smatch m;
+				if (std::regex_search(str, m, re)) {
+					LogoFrameElement elem = {
+						std::tolower(m[2].str()[0]) == 's', // isStart
+						std::stoi(m[1].str()), // best
+						std::stoi(m[5].str()), // start
+						std::stoi(m[6].str())  // end
+					};
+					elements.push_back(elem);
+				}
+			}
+		}
+		catch (const IOException&) {
+			env->ThrowError("Failed to read dat file (%s)", logofPath.c_str());
+		}
+		frameResult.resize(vi.num_frames);
+		std::fill(frameResult.begin(), frameResult.end(), 0);
+		for (int i = 0; i < (int)elements.size(); i += 2) {
+			if (elements[i].isStart == false || elements[i + 1].isStart) {
+				env->ThrowError("Invalid logoframe file. Start and End must be cyclic.");
+			}
+			std::fill(frameResult.begin() + std::min(vi.num_frames, elements[i].start),
+				frameResult.begin() + std::min(vi.num_frames, elements[i].end + 1), 1);
+			std::fill(frameResult.begin() + std::min(vi.num_frames, elements[i].end),
+				frameResult.begin() + std::min(vi.num_frames, elements[i + 1].start + 1), 2);
+			std::fill(frameResult.begin() + std::min(vi.num_frames, elements[i + 1].start + 1),
+				frameResult.begin() + std::min(vi.num_frames, elements[i + 1].end + 1), 1);
+		}
+	}
+
 public:
-	AMTEraseLogo2(PClip clip, PClip analyzeclip, const std::string& logoPath, const std::string& datPath, int mode, IScriptEnvironment* env)
+	AMTEraseLogo2(PClip clip, PClip analyzeclip, const std::string& logoPath, const std::string& logofPath, int mode, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
 		, analyzeclip(analyzeclip)
 		, mode(mode)
@@ -1637,17 +1681,7 @@ public:
 			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
 		}
 		
-		try {
-			File datfile(datPath, "rb");
-			frameResult = datfile.readArray<int>();
-		}
-		catch (const IOException&) {
-			env->ThrowError("Failed to read dat file (%s)", datPath.c_str());
-		}
-
-		if (vi.num_frames != frameResult.size()) {
-			env->ThrowError("Num frames does not match!! %d vs %d", vi.num_frames, (int)frameResult.size());
-		}
+		ReadLogoFrameFile(logofPath, env);
 	}
 
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env_)
@@ -1807,13 +1841,14 @@ public:
 		}
 	}
 
-	// positive: 不明部分をある(true)とするかない(false)とするか
-	void writeResult(const std::string& outpath, const std::string& datpath, bool positive = false)
+	void writeResult(const std::string& outpath)
 	{
 		// 絶対値<0.2fは不明とみなす
 		const float thresh = 0.2f;
+		const float threshL = 0.5f; // MinMax評価用
 		// MinMax幅
-		const float medianDur = 1.5f;
+		const float avgDur = 1.0f;
+		const float medianDur = 0.5f;
 
 		// ロゴを選択 //
     struct Summary {
@@ -1848,9 +1883,14 @@ public:
 		logoRatio = (float)logoSummary[bestLogo].numFrames / numFrames;
 
 		// スコアに変換
-		int medianFrames = int(std::ceil(framesPerSec * medianDur));
-		std::vector<float> rawScores_(numFrames + medianFrames * 2);
-		auto rawScores = rawScores_.begin() + medianFrames;
+		int halfAvgFrames = int(framesPerSec * avgDur / 2 + 0.5f);
+		int aveFrames = halfAvgFrames * 2 + 1;
+		int halfMedianFrames = int(framesPerSec * medianDur / 2 + 0.5f);
+		int medianFrames = halfMedianFrames * 2 + 1;
+		int winFrames = std::max(aveFrames, medianFrames);
+		int halfWinFrames = winFrames / 2;
+		std::vector<float> rawScores_(numFrames + winFrames);
+		auto rawScores = rawScores_.begin() + halfWinFrames;
 		for (int n = 0; n < numFrames; ++n) {
 			auto& r = evalResults[n * numLogos + bestLogo];
 			// corr0のマイナスとcorr1のプラスはノイズなので消す
@@ -1865,23 +1905,37 @@ public:
 			float score;
 		};
 
-		// MinMedian: 前のメディアンと後ろのメディアンの低い方を取る
+		// フィルタで均す
 		std::vector<FrameResult> frameResult(numFrames);
-		std::vector<float> prevBuf(medianFrames), afterBuf(medianFrames);
-		int center = int(medianFrames * 0.3); // 真ん中じゃくて気持ち大きめのところを拾う
+		std::vector<float> medianBuf(medianFrames);
 		for (int i = 0; i < numFrames; ++i) {
-			std::copy(rawScores + i - medianFrames, rawScores + i, prevBuf.begin());
-			std::copy(rawScores + i + 1, rawScores + i + 1 + medianFrames, afterBuf.begin());
-			std::sort(prevBuf.begin(), prevBuf.end(), std::greater<float>());
-			std::sort(afterBuf.begin(), afterBuf.end(), std::greater<float>());
-			float prevMax = prevBuf[center];
-			float afterMax = afterBuf[center];
-			float score = std::min(prevMax, afterMax);
-			frameResult[i].result = (std::abs(score) < thresh) ? 1 : (score < 0) ? 0 : 2;
-			frameResult[i].score = score;
+			// MinMax
+			// 前の最大値と後ろの最大値の小さい方を取る
+			// 動きの多い映像でロゴがかき消されることがあるので、それを救済する
+			float beforeMax = *std::max_element(rawScores + i - halfAvgFrames, rawScores + i);
+			float afterMax = *std::max_element(rawScores + i + 1, rawScores + i + 1 + halfAvgFrames);
+			float minMax = std::min(beforeMax, afterMax);
+			float minMaxResult = (std::abs(minMax) < threshL) ? 1 : (minMax < 0) ? 0 : 2;
+
+			// 移動平均
+			// MinMaxだけだと薄くても安定して表示されてるとかが識別できないので
+			// これも必要
+			float avg = std::accumulate(rawScores + i - halfAvgFrames,
+				rawScores + i + halfAvgFrames + 1, 0.0f) / aveFrames;
+			float avgResult = (std::abs(avg) < thresh) ? 1 : (avg < 0) ? 0 : 2;
+
+			// 両者が違ってたら不明とする
+			frameResult[i].result = (minMaxResult != avgResult) ? 1 : minMaxResult;
+
+			// 生の値は動きが激しいので少しメディアンフィルタをかけておく
+			std::copy(rawScores + i - halfMedianFrames,
+				rawScores + i + halfMedianFrames + 1, medianBuf.begin());
+			std::sort(medianBuf.begin(), medianBuf.end());
+			frameResult[i].score = medianBuf[halfMedianFrames];
 		}
 
 		// 不明部分を推測
+		// 両側がロゴありとなっていたらロゴありとする
 		for(auto it = frameResult.begin(); it != frameResult.end();) {
 			auto first1 = std::find_if(it, frameResult.end(), [](FrameResult r) { return r.result == 1; });
 			it = std::find_if_not(first1, frameResult.end(), [](FrameResult r) { return r.result == 1; });
@@ -1894,29 +1948,47 @@ public:
 				});
 			}
 		}
-
-		{
-			// frameResultを保存
-			File datfile(datpath, "wb");
-			datfile.writeArray(frameResult);
-		}
 		
 		// ロゴ区間を出力
 		StringBuilder sb;
-		//int numLogoFrames = 0;
 		for (auto it = frameResult.begin(); it != frameResult.end();) {
-			auto sEnd = std::find_if(it, frameResult.end(), [](FrameResult r) { return r.result == 2; });
-			auto eEnd = std::find_if(sEnd, frameResult.end(), [](FrameResult r) { return r.result == 0; });
-			auto sStart = std::find_if(std::make_reverse_iterator(sEnd),
-				std::make_reverse_iterator(it), [](FrameResult r) { return r.result == 0; }).base();
+			auto sEnd_ = std::find_if(it, frameResult.end(), [](FrameResult r) { return r.result == 2; });
+			auto eEnd_ = std::find_if(sEnd_, frameResult.end(), [](FrameResult r) { return r.result == 0; });
 
-			// MinMedianアルゴリズム性質から実際の開始は1つ前なので
-			if (sEnd != frameResult.begin()) --sEnd;
-			if (sStart != frameResult.begin()) --sStart;
+			// 移動平均なので実際の値とは時間差がある場合があるので、フレーム時刻を精緻化
+			auto sEnd = sEnd_;
+			auto eEnd = eEnd_;
+			if (sEnd != frameResult.end()) {
+				if (sEnd->score >= thresh) {
+					// すでに始まっているので戻ってみる
+					sEnd = std::find_if(std::make_reverse_iterator(sEnd), frameResult.rend(),
+						[=](FrameResult r) { return r.score < thresh; }).base();
+				}
+				else {
+					// まだ始まっていないので進んでみる
+					sEnd = std::find_if(sEnd, frameResult.end(),
+						[=](FrameResult r) { return r.score >= thresh; });
+				}
+			}
+			if (eEnd != frameResult.end()) {
+				if (eEnd->score <= -thresh) {
+					// すでに終わっているので戻ってみる
+					eEnd = std::find_if(std::make_reverse_iterator(eEnd), std::make_reverse_iterator(sEnd),
+						[=](FrameResult r) { return r.score > -thresh; }).base();
+				}
+				else {
+					// まだ終わっていないので進んでみる
+					eEnd = std::find_if(eEnd, frameResult.end(),
+						[=](FrameResult r) { return r.score <= -thresh; });
+				}
+			}
+
+			auto sStart = std::find_if(std::make_reverse_iterator(sEnd),
+				std::make_reverse_iterator(it), [=](FrameResult r) { return r.score <= -thresh; }).base();
+			auto eStart = std::find_if(std::make_reverse_iterator(eEnd),
+				std::make_reverse_iterator(sEnd), [=](FrameResult r) { return r.score >= thresh; }).base();
 
 			auto sBest = std::find_if(sStart, sEnd, [](FrameResult r) { return r.score > 0; });
-			auto eStart = std::find_if(std::make_reverse_iterator(eEnd),
-				std::make_reverse_iterator(sEnd), [](FrameResult r) { return r.result == 2; }).base();
 			auto eBest = std::find_if(std::make_reverse_iterator(eEnd),
 				std::make_reverse_iterator(eStart), [](FrameResult r) { return r.score > 0; }).base();
 
@@ -1925,14 +1997,14 @@ public:
 				int sStarti = int(sStart - frameResult.begin());
 				int sBesti = int(sBest - frameResult.begin());
 				int sEndi = int(sEnd - frameResult.begin());
-				int eStarti = int(eStart - frameResult.begin());
-				int eBesti = int(eBest - frameResult.begin());
-				int eEndi = int(eEnd - frameResult.begin());
-				sb.append("%6d S 0 ALL%7d%7d\n", sBesti, sStarti, sEndi);
-				sb.append("%6d E 0 ALL%7d%7d\n", eBesti, eStarti, eEndi);
-				//numLogoFrames += eBesti - sBesti;
+				int eStarti = int(eStart - frameResult.begin()) - 1;
+				int eBesti = int(eBest - frameResult.begin()) - 1;
+				int eEndi = int(eEnd - frameResult.begin()) - 1;
+				sb.append("%6d S 0 ALL %6d %6d\n", sBesti, sStarti, sEndi);
+				sb.append("%6d E 0 ALL %6d %6d\n", eBesti, eStarti, eEndi);
 			}
-			it = eEnd;
+
+			it = eEnd_;
 		}
 
 		File file(outpath, "w");

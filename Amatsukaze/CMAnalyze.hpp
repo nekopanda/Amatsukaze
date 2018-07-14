@@ -163,7 +163,7 @@ private:
 #if 1
 			logof.dumpResult(setting_.getTmpLogoFramePath(videoFileIndex));
 #endif
-			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex), setting_.getLogoTmpPath(videoFileIndex));
+			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
 
 			float threshold = setting_.isLooseLogoDetection() ? 0.03f : (duration <= 60 * 7) ? 0.03f : 0.1f;
 			if (logof.getLogoRatio() < threshold) {
