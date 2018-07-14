@@ -41,7 +41,7 @@ class LogoDataParam : public LogoData
 	std::unique_ptr<ScaleLimit[]> scales;
 	float thresh;
 	int maskpixels;
-	float blackEdge;
+	float blackScore;
 public:
 	LogoDataParam() { }
 
@@ -79,6 +79,9 @@ public:
 		// これだけならロゴと画像を単に画素ごとに掛け合わせて足せばいいが
 		// それだと、画像背景の濃淡に大きく影響を受けてしまう
 		// なので、ロゴのエッジだけ画素ごとに相関を見ていく
+
+		// 相関下限パラメータ
+		const float corrLowerLimit = 0.2f;
 
 		int YSize = w * h;
 		auto memWork = std::unique_ptr<float[]>(new float[YSize * CLEN]);
@@ -158,7 +161,7 @@ public:
     }
 		avgCorr /= maskpixels * CLEN;
 		// 相関下限（これより小さい相関のピクセルはスケールしない）
-		float limitCorr = avgCorr * 0.1f;
+		float limitCorr = avgCorr * corrLowerLimit;
 		for (int i = 0; i < maskpixels * CLEN; ++i) {
 			float corr = scales[i].scale;
 			scales[i].scale = (corr > 0) ? (1.0f / corr) : 0.0f;
@@ -180,7 +183,9 @@ public:
     }
 #endif
 
-		CalcMaximum();
+		// 黒背景の評価値（これがはっきり出たときの基準）
+		float *slice = &memWork[(16 >> CSHIFT) * YSize];
+		blackScore = CorrelationScore(slice, 255);
 	}
 
 	float EvaluateLogo(const float *src, float maxv, float fade, float* work, int stride = -1)
@@ -206,7 +211,7 @@ public:
 		}
 
 		// 正規化
-		return EdgeScore(work, maxv) / blackEdge;
+		return CorrelationScore(work, maxv) / blackScore;
 	}
 
 	std::unique_ptr<LogoDataParam> MakeFieldLogo(bool bottom)
@@ -239,87 +244,6 @@ public:
 
 private:
 
-	float EdgeScore(const float *work, float maxv)
-	{
-#if 1
-    return CorrelationScore(work, maxv);
-#else
-    return PrewittScore(work, maxv);
-#endif
-	}
-
-  // Prewittカーネルでエッジを評価
-	float PrewittScore(const float *work, float maxv)
-	{
-		const uint8_t* mask = GetMask();
-
-		// エッジ評価
-		//float limit = getThresh() * maxv * (25.0f / 9.0f);
-		float result = 0;
-		for (int y = 2; y < h - 2; ++y) {
-			for (int x = 2; x < w - 2; ++x) {
-				if (mask[x + y * w]) { // ロゴ輪郭部のみ
-					float y_sum_h = 0, y_sum_v = 0;
-
-					// 5x5 Prewitt filter
-					// +----------------+  +----------------+
-					// | -1 -1 -1 -1 -1 |  | -1 -1  0  1  1 |
-					// | -1 -1 -1 -1 -1 |  | -1 -1  0  1  1 |
-					// |  0  0  0  0  0 |  | -1 -1  0  1  1 |
-					// |  1  1  1  1  1 |  | -1 -1  0  1  1 |
-					// |  1  1  1  1  1 |  | -1 -1  0  1  1 |
-					// +----------------+  +----------------+
-					y_sum_h -= work[x - 2 + (y - 2) * w];
-					y_sum_h -= work[x - 2 + (y - 1) * w];
-					y_sum_h -= work[x - 2 + (y)* w];
-					y_sum_h -= work[x - 2 + (y + 1) * w];
-					y_sum_h -= work[x - 2 + (y + 2) * w];
-					y_sum_h -= work[x - 1 + (y - 2) * w];
-					y_sum_h -= work[x - 1 + (y - 1) * w];
-					y_sum_h -= work[x - 1 + (y)* w];
-					y_sum_h -= work[x - 1 + (y + 1) * w];
-					y_sum_h -= work[x - 1 + (y + 2) * w];
-					y_sum_h += work[x + 1 + (y - 2) * w];
-					y_sum_h += work[x + 1 + (y - 1) * w];
-					y_sum_h += work[x + 1 + (y)* w];
-					y_sum_h += work[x + 1 + (y + 1) * w];
-					y_sum_h += work[x + 1 + (y + 2) * w];
-					y_sum_h += work[x + 2 + (y - 2) * w];
-					y_sum_h += work[x + 2 + (y - 1) * w];
-					y_sum_h += work[x + 2 + (y)* w];
-					y_sum_h += work[x + 2 + (y + 1) * w];
-					y_sum_h += work[x + 2 + (y + 2) * w];
-					y_sum_v -= work[x - 2 + (y - 1) * w];
-					y_sum_v -= work[x - 1 + (y - 1) * w];
-					y_sum_v -= work[x + (y - 1) * w];
-					y_sum_v -= work[x + 1 + (y - 1) * w];
-					y_sum_v -= work[x + 2 + (y - 1) * w];
-					y_sum_v -= work[x - 2 + (y - 2) * w];
-					y_sum_v -= work[x - 1 + (y - 2) * w];
-					y_sum_v -= work[x + (y - 2) * w];
-					y_sum_v -= work[x + 1 + (y - 2) * w];
-					y_sum_v -= work[x + 2 + (y - 2) * w];
-					y_sum_v += work[x - 2 + (y + 1) * w];
-					y_sum_v += work[x - 1 + (y + 1) * w];
-					y_sum_v += work[x + (y + 1) * w];
-					y_sum_v += work[x + 1 + (y + 1) * w];
-					y_sum_v += work[x + 2 + (y + 1) * w];
-					y_sum_v += work[x - 2 + (y + 2) * w];
-					y_sum_v += work[x - 1 + (y + 2) * w];
-					y_sum_v += work[x + (y + 2) * w];
-					y_sum_v += work[x + 1 + (y + 2) * w];
-					y_sum_v += work[x + 2 + (y + 2) * w];
-
-					float val = std::sqrt(y_sum_h * y_sum_h + y_sum_v * y_sum_v);
-					result += val;
-					//result += std::min(limit, val);
-				}
-			}
-		}
-
-		return result;
-	}
-
   // 画素ごとにロゴとの相関を計算
   float CorrelationScore(const float *work, float maxv)
   {
@@ -334,7 +258,6 @@ private:
         if (mask[x + y * w]) {
           const float* k = &kernels[count * KLEN];
 
-#if 1 // 
 					float avg = 0.0f;
 					for (int ky = -2; ky <= 2; ++ky) {
 						for (int kx = -2; kx <= 2; ++kx) {
@@ -348,13 +271,16 @@ private:
 							sum += k[(kx + 2) + (ky + 2) * KSIZE] * (work[(x + kx) + (y + ky) * w] - avg);
 						}
 					}
+
+					// avg単色の場合の相関値が1になるように正規化
 					ScaleLimit s = scales[count * CLEN + (std::max(0, std::min(255, (int)avg)) >> CSHIFT)];
+					// 1を超える部分は捨てる（ロゴによる相関ではない部分なので）
 					float normalized = std::max(-1.0f, std::min(1.0f, sum * s.scale));
+					// 相関が下限値以下の場合は一部元に戻す
 					float score = normalized * s.scale2;
+
 					result += score;
-#else // まじめに相関を計算
-					result += CalcCorrelation(k, work, x, y, w);
-#endif
+
 					++count;
         }
       }
@@ -362,18 +288,6 @@ private:
 
     return result;
   }
-
-	void CalcMaximum() {
-		enum { MIN_Y = 16, MAX_Y = 235 };
-		size_t YSize = w * h;
-
-		// 黒地にロゴを乗せる
-		auto black = std::unique_ptr<float[]>(new float[YSize]());
-		AddLogo(black.get(), 255);
-
-		// エッジ評価値（これがはっきり出たときの基準）
-		blackEdge = EdgeScore(black.get(), 255);
-	}
 
 	void AddLogo(float* Y, int maxv)
 	{
@@ -1041,7 +955,7 @@ class LogoAnalyzer : AMTObject
 				for (int fi = 0; fi < numFade; ++fi) {
 					float fade = 0.1f * fi;
 					// ロゴを評価
-					float result = deintLogo.EvaluateLogo(memDeint.get(), 255.0f, fade, memWork.get());
+					float result = std::abs(deintLogo.EvaluateLogo(memDeint.get(), 255.0f, fade, memWork.get()));
 					if (result < minResult) {
 						minResult = result;
 						minFadeIndex = fi;
@@ -1225,9 +1139,9 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 
 			LogoAnalyzeFrame info;
 			for (int f = 0; f <= 10; ++f) {
-				info.p[f] = deintLogo->EvaluateLogo(memDeint.get(), maxv, (float)f / 10.0f, memWork.get());
-				info.t[f] = fieldLogoT->EvaluateLogo(memCopy.get(), maxv, (float)f / 10.0f, memWork.get(), header.w * 2);
-				info.b[f] = fieldLogoB->EvaluateLogo(memCopy.get() + header.w, maxv, (float)f / 10.0f, memWork.get(), header.w * 2);
+				info.p[f] = std::abs(deintLogo->EvaluateLogo(memDeint.get(), maxv, (float)f / 10.0f, memWork.get()));
+				info.t[f] = std::abs(fieldLogoT->EvaluateLogo(memCopy.get(), maxv, (float)f / 10.0f, memWork.get(), header.w * 2));
+				info.b[f] = std::abs(fieldLogoB->EvaluateLogo(memCopy.get() + header.w, maxv, (float)f / 10.0f, memWork.get(), header.w * 2));
 			}
 
 			pDst[i] = info;
@@ -1305,7 +1219,7 @@ public:
 		return new AMTAnalyzeLogo(
 			args[0].AsClip(),       // source
 			args[1].AsString(),			// logopath
-			(float)args[2].AsFloat(10) / 100.0f, // maskratio
+			(float)args[2].AsFloat(35) / 100.0f, // maskratio
 			env
 		);
 	}
@@ -1537,7 +1451,7 @@ class AMTEraseLogo2 : public GenericVideoFilter
 {
 	PClip analyzeclip;
 
-	std::vector<int> frameScores;
+	std::vector<int> frameResult;
 	std::unique_ptr<LogoDataParam> logo;
 	LogoHeader header;
 	int mode;
@@ -1619,7 +1533,7 @@ class AMTEraseLogo2 : public GenericVideoFilter
 		int frames[DIST * 2 + 1];
 		for (int i = -DIST; i <= DIST; ++i) {
 			int nsrc = std::max(0, std::min(vi.num_frames - 1, n + i));
-			frames[i + DIST] = frameScores[nsrc];
+			frames[i + DIST] = frameResult[nsrc];
 		}
 		if (std::all_of(frames, frames + DIST * 2 + 1, [&](int p) { return p == frames[0]; })) {
 			// ON or OFF
@@ -1725,14 +1639,14 @@ public:
 		
 		try {
 			File datfile(datPath, "rb");
-			frameScores = datfile.readArray<int>();
+			frameResult = datfile.readArray<int>();
 		}
 		catch (const IOException&) {
 			env->ThrowError("Failed to read dat file (%s)", datPath.c_str());
 		}
 
-		if (vi.num_frames != frameScores.size()) {
-			env->ThrowError("Num frames does not match!! %d vs %d", vi.num_frames, (int)frameScores.size());
+		if (vi.num_frames != frameResult.size()) {
+			env->ThrowError("Num frames does not match!! %d vs %d", vi.num_frames, (int)frameResult.size());
 		}
 	}
 
@@ -1785,7 +1699,7 @@ class LogoFrame : AMTObject
 	VideoInfo vi;
 
 	struct EvalResult {
-		float cost0, cost1;
+		float corr0, corr1;
 	};
 	std::unique_ptr<EvalResult[]> evalResults;
 
@@ -1804,8 +1718,8 @@ class LogoFrame : AMTObject
 				logo.getImgWidth() != vi.width ||
 				logo.getImgHeight() != vi.height)
 			{
-				outResult[i].cost0 = 0;
-				outResult[i].cost1 = 1;
+				outResult[i].corr0 = 0;
+				outResult[i].corr1 = -1;
 				continue;
 			}
 
@@ -1814,8 +1728,8 @@ class LogoFrame : AMTObject
 			DeintY(memDeint, srcY + off, pitchY, logo.getWidth(), logo.getHeight());
 
 			// ロゴ評価
-			outResult[i].cost0 = logo.EvaluateLogo(memDeint, maxv, 0, memWork);
-			outResult[i].cost1 = logo.EvaluateLogo(memDeint, maxv, 1, memWork);
+			outResult[i].corr0 = logo.EvaluateLogo(memDeint, maxv, 0, memWork);
+			outResult[i].corr1 = logo.EvaluateLogo(memDeint, maxv, 1, memWork);
 		}
 	}
 
@@ -1886,7 +1800,7 @@ public:
 			StringBuilder sb;
 			for (int n = 0; n < numFrames; ++n) {
 				auto& r = evalResults[n * numLogos + i];
-				sb.append("%f,%f\n", r.cost0, r.cost1);
+				sb.append("%f,%f\n", r.corr0, r.corr1);
 			}
 			File file(basepath + std::to_string(i), "w");
 			file.write(sb.getMC());
@@ -1896,138 +1810,133 @@ public:
 	// positive: 不明部分をある(true)とするかない(false)とするか
 	void writeResult(const std::string& outpath, const std::string& datpath, bool positive = false)
 	{
-		// 差が-0.2～0.05は不明とみなす
-		// 下のほうが大きいのは圧縮でロゴが消されることが多いので
-		// 逆に「ない」ところから浮き出ることはほぼない
-		const float thlow = -0.2f;
-		const float thhigh = 0.05f;
+		// 絶対値<0.2fは不明とみなす
+		const float thresh = 0.2f;
+		// MinMax幅
+		const float medianDur = 1.5f;
 
 		// ロゴを選択 //
     struct Summary {
-      double cost;    // 検出したフレームのcost1/cost0の合計
+      float cost;    // 消した後のゴミの量
       int numFrames;  // 検出したフレーム数
     };
 		std::vector<Summary> logoSummary(numLogos);
 		for (int n = 0; n < numFrames; ++n) {
 			for (int i = 0; i < numLogos; ++i) {
 				auto& r = evalResults[n * numLogos + i];
-        if (r.cost1 < r.cost0) { // ロゴを検出
+				// ロゴを検出 かつ 消せてる
+        if (r.corr0 > thresh && std::abs(r.corr1) < thresh) {
           logoSummary[i].numFrames++;
-          logoSummary[i].cost += r.cost1 / r.cost0;
+          logoSummary[i].cost += std::abs(r.corr1);
         }
 			}
 		}
-    std::vector<double> logoScore(numLogos);
+    std::vector<float> logoScore(numLogos);
     for (int i = 0; i < numLogos; ++i) {
       auto& s = logoSummary[i];
-      // (1.0 - 検出したフレームのcost1/cost0の平均)) * (検出したフレームの割合)
-      logoScore[i] = (s.numFrames == 0) ? 0 :
-        (1.0 - s.cost / s.numFrames) * ((double)s.numFrames / numFrames);
+      // (消した後のゴミの量の平均) * (検出したフレーム割合の逆数)
+      logoScore[i] = (s.numFrames == 0) ? INFINITY :
+        (s.cost / s.numFrames) * (numFrames / (float)s.numFrames);
 #if 1
       ctx.debug("logo%d: %f * %f = %f", i + 1,
-        (1.0 - s.cost / s.numFrames),
-        ((double)s.numFrames / numFrames),
+        (s.cost / s.numFrames),
+        (numFrames / (float)s.numFrames),
         logoScore[i]);
 #endif
     }
-		bestLogo = (int)(std::max_element(logoScore.begin(), logoScore.end()) - logoScore.begin());
+		bestLogo = (int)(std::min_element(logoScore.begin(), logoScore.end()) - logoScore.begin());
+		logoRatio = (float)logoSummary[bestLogo].numFrames / numFrames;
 
-		// 
-		auto calcScore = [=](EvalResult r) {
-			auto diff = r.cost0 - r.cost1;
-			return (thlow < diff && diff < thhigh) ? 1 : (diff < 0) ? 0 : 2;
+		// スコアに変換
+		int medianFrames = int(std::ceil(framesPerSec * medianDur));
+		std::vector<float> rawScores_(numFrames + medianFrames * 2);
+		auto rawScores = rawScores_.begin() + medianFrames;
+		for (int n = 0; n < numFrames; ++n) {
+			auto& r = evalResults[n * numLogos + bestLogo];
+			// corr0のマイナスとcorr1のプラスはノイズなので消す
+			rawScores[n] = std::max(0.0f, r.corr0) + std::min(0.0f, r.corr1);
+		}
+		// 両端を端の値で埋める
+		std::fill(rawScores_.begin(), rawScores, rawScores[0]);
+		std::fill(rawScores + numFrames, rawScores_.end(), rawScores[numFrames - 1]);
+		
+		struct FrameResult {
+			int result;
+			float score;
 		};
-		int windowFrames = 10;
-		std::vector<int> frameScores(numFrames + windowFrames * 2);
-		// 両端を1にする
-		std::fill_n(frameScores.begin(), windowFrames, 1);
-		std::fill_n(frameScores.end() - windowFrames, windowFrames, 1);
-		// スコアを入れる
-		for (int n = 0; n < numFrames; ++n) {
-			frameScores[windowFrames + n] = calcScore(evalResults[n * numLogos + bestLogo]);
-		}
-		// 不明部分を推測
-		for(auto it = frameScores.begin(); it != frameScores.end();) {
-			auto first1 = std::find_if(it, frameScores.end(), [](int p) { return p == 1; });
-			it = std::find_if_not(first1, frameScores.end(), [](int p) { return p == 1; });
-			int prevScore = (first1 == frameScores.begin()) ? 0 : *(first1 - 1);
-			int nextScore = (it == frameScores.end()) ? 0 : *it;
-			if (prevScore == nextScore) {
-				std::fill(first1, it, prevScore);
-			}
-		}
-		{
-			// frameScoresを保存
-			File datfile(datpath, "wb");
-			datfile.writeArray(std::vector<int>(
-				frameScores.begin() + windowFrames,
-				frameScores.begin() + windowFrames + numFrames));
-		}
-		// 残った不明部分をpositiveに沿って設定
-		std::transform(frameScores.begin(), frameScores.end(), frameScores.begin(),
-			[=](int p) { return (p != 1) ? p : (positive ? 2 : 0); });
-		// 初期和を計算
-		int sum = std::accumulate(frameScores.begin(), frameScores.begin() + windowFrames * 2, 0);
-		// 移動平均を計算
-		std::vector<bool> avgScores(numFrames);
-		for (int n = 0; n < numFrames; ++n) {
-			sum += frameScores[windowFrames * 2 + n];
-			avgScores[n] = (sum >= windowFrames * 2);
-			sum -= frameScores[n];
-		}
-		// ロゴ区間を出力
-		std::vector<int> logosec;
-		bool prevLogo = false;
-		for (int n = 0; n < numFrames; ++n) {
-			int idx = n;
-			if (prevLogo == false && avgScores[n]) {
-				// ロゴ開始
-				if (frameScores[windowFrames + n] == 2) {
-					// 既にロゴがあるのでないところまで遡る
-					for (; frameScores[windowFrames + idx] == 2; --idx);
-					logosec.push_back(idx + 1);
-				}
-				else {
-					// まだロゴがないのであるところまで辿る
-					for (; frameScores[windowFrames + idx] == 0; ++idx);
-					logosec.push_back(idx);
-				}
-				prevLogo = true;
-				n += windowFrames;
-			}
-			else if (prevLogo && avgScores[n] == false) {
-				// ロゴ終了
-				if (frameScores[windowFrames + n] == 2) {
-					// まだロゴがあるのでないところまで辿る
-					for (; frameScores[windowFrames + idx] == 2; ++idx);
-					logosec.push_back(idx);
-				}
-				else {
-					// 既にロゴがないのであるところまで遡る
-					for (; frameScores[windowFrames + idx] == 0; --idx);
-					logosec.push_back(idx + 1);
-				}
-				prevLogo = false;
-				n += windowFrames;
-			}
-		}
-		if (prevLogo) {
-			// ありで終わったら最後の区間を出力
-			logosec.push_back(numFrames);
+
+		// MinMedian: 前のメディアンと後ろのメディアンの低い方を取る
+		std::vector<FrameResult> frameResult(numFrames);
+		std::vector<float> prevBuf(medianFrames), afterBuf(medianFrames);
+		int center = int(medianFrames * 0.3); // 真ん中じゃくて気持ち大きめのところを拾う
+		for (int i = 0; i < numFrames; ++i) {
+			std::copy(rawScores + i - medianFrames, rawScores + i, prevBuf.begin());
+			std::copy(rawScores + i + 1, rawScores + i + 1 + medianFrames, afterBuf.begin());
+			std::sort(prevBuf.begin(), prevBuf.end(), std::greater<float>());
+			std::sort(afterBuf.begin(), afterBuf.end(), std::greater<float>());
+			float prevMax = prevBuf[center];
+			float afterMax = afterBuf[center];
+			float score = std::min(prevMax, afterMax);
+			frameResult[i].result = (std::abs(score) < thresh) ? 1 : (score < 0) ? 0 : 2;
+			frameResult[i].score = score;
 		}
 
-		StringBuilder sb;
-		int numLogoFrames = 0;
-		for (int i = 0; i < (int)logosec.size(); i += 2) {
-			int start = logosec[i];
-			int end = logosec[i + 1];
-			numLogoFrames += end - start;
-			sb.append("%6d S 0 ALL%7d%7d\n", start, start, start);
-			sb.append("%6d E 0 ALL%7d%7d\n", end, end, end);
+		// 不明部分を推測
+		for(auto it = frameResult.begin(); it != frameResult.end();) {
+			auto first1 = std::find_if(it, frameResult.end(), [](FrameResult r) { return r.result == 1; });
+			it = std::find_if_not(first1, frameResult.end(), [](FrameResult r) { return r.result == 1; });
+			int prevResult = (first1 == frameResult.begin()) ? 0 : (first1 - 1)->result;
+			int nextResult = (it == frameResult.end()) ? 0 : it->result;
+			if (prevResult == nextResult) {
+				std::transform(first1, it, first1, [=](FrameResult r) {
+					r.result = prevResult;
+					return r;
+				});
+			}
 		}
+
+		{
+			// frameResultを保存
+			File datfile(datpath, "wb");
+			datfile.writeArray(frameResult);
+		}
+		
+		// ロゴ区間を出力
+		StringBuilder sb;
+		//int numLogoFrames = 0;
+		for (auto it = frameResult.begin(); it != frameResult.end();) {
+			auto sEnd = std::find_if(it, frameResult.end(), [](FrameResult r) { return r.result == 2; });
+			auto eEnd = std::find_if(sEnd, frameResult.end(), [](FrameResult r) { return r.result == 0; });
+			auto sStart = std::find_if(std::make_reverse_iterator(sEnd),
+				std::make_reverse_iterator(it), [](FrameResult r) { return r.result == 0; }).base();
+
+			// MinMedianアルゴリズム性質から実際の開始は1つ前なので
+			if (sEnd != frameResult.begin()) --sEnd;
+			if (sStart != frameResult.begin()) --sStart;
+
+			auto sBest = std::find_if(sStart, sEnd, [](FrameResult r) { return r.score > 0; });
+			auto eStart = std::find_if(std::make_reverse_iterator(eEnd),
+				std::make_reverse_iterator(sEnd), [](FrameResult r) { return r.result == 2; }).base();
+			auto eBest = std::find_if(std::make_reverse_iterator(eEnd),
+				std::make_reverse_iterator(eStart), [](FrameResult r) { return r.score > 0; }).base();
+
+			// 区間がある場合だけ
+			if (sEnd != eEnd) {
+				int sStarti = int(sStart - frameResult.begin());
+				int sBesti = int(sBest - frameResult.begin());
+				int sEndi = int(sEnd - frameResult.begin());
+				int eStarti = int(eStart - frameResult.begin());
+				int eBesti = int(eBest - frameResult.begin());
+				int eEndi = int(eEnd - frameResult.begin());
+				sb.append("%6d S 0 ALL%7d%7d\n", sBesti, sStarti, sEndi);
+				sb.append("%6d E 0 ALL%7d%7d\n", eBesti, eStarti, eEndi);
+				//numLogoFrames += eBesti - sBesti;
+			}
+			it = eEnd;
+		}
+
 		File file(outpath, "w");
 		file.write(sb.getMC());
-		logoRatio = (float)numLogoFrames / numFrames;
 	}
 
 	int getBestLogo() const {
