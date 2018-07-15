@@ -364,7 +364,7 @@ private:
     if (setting_.isNoDelogo() == false && logopath.size() > 0) {
       sb.append("logo = \"%s\"\n", logopath);
       sb.append("AMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\")\n", 
-				setting_.getTmpLogoFramePath(fileId));
+				true ? setting_.getTmpLogoFramePath(fileId) : "");
       sb.append("Prefetch(1, 4)\n");
     }
 

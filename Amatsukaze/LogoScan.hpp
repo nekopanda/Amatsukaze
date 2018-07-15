@@ -21,6 +21,54 @@
 #include <numeric>
 #include <fstream>
 
+float CalcCorrelation5x5(const float* k, const float* Y, int x, int y, int w, float* pavg)
+{
+	float avg = 0.0f;
+	for (int ky = -2; ky <= 2; ++ky) {
+		for (int kx = -2; kx <= 2; ++kx) {
+			avg += Y[(x + kx) + (y + ky) * w];
+		}
+	}
+	avg /= 25;
+	float sum = 0.0f;
+	for (int ky = -2; ky <= 2; ++ky) {
+		for (int kx = -2; kx <= 2; ++kx) {
+			sum += k[(kx + 2) + (ky + 2) * 5] * (Y[(x + kx) + (y + ky) * w] - avg);
+		}
+	}
+	if (pavg) *pavg = avg;
+	return sum;
+};
+
+// ComputeKernel.cpp
+float CalcCorrelation5x5_AVX(const float* k, const float* Y, int x, int y, int w, float* pavg);
+
+#if 0
+float CalcCorrelation5x5_Debug(const float* k, const float* Y, int x, int y, int w, float* pavg)
+{
+	float f0 = CalcCorrelation5x5(k, Y, x, y, w, pavg);
+	float f1 = CalcCorrelation5x5_AVX(k, Y, x, y, w, pavg);
+	if (f0 != f1) {
+		printf("Error!!!\n");
+	}
+	return f1;
+}
+#endif
+
+bool IsAVXAvailable() {
+	int cpuinfo[4];
+	__cpuid(cpuinfo, 1);
+	bool avxSupportted = cpuinfo[2] & (1 << 28) || false;
+	bool osxsaveSupported = cpuinfo[2] & (1 << 27) || false;
+	if (osxsaveSupported && avxSupportted)
+	{
+		// _XCR_XFEATURE_ENABLED_MASK = 0
+		unsigned long long xcrFeatureMask = _xgetbv(0);
+		avxSupportted = (xcrFeatureMask & 0x6) == 0x6;
+	}
+	return avxSupportted;
+}
+
 namespace logo {
 
 class LogoDataParam : public LogoData
@@ -42,6 +90,8 @@ class LogoDataParam : public LogoData
 	float thresh;
 	int maskpixels;
 	float blackScore;
+
+	float(*pCalcCorrelation5x5)(const float* k, const float* Y, int x, int y, int w, float* pavg);
 public:
 	LogoDataParam() { }
 
@@ -83,8 +133,10 @@ public:
 		// 相関下限パラメータ
 		const float corrLowerLimit = 0.2f;
 
+		pCalcCorrelation5x5 = IsAVXAvailable() ? CalcCorrelation5x5_AVX : CalcCorrelation5x5;
+
 		int YSize = w * h;
-		auto memWork = std::unique_ptr<float[]>(new float[YSize * CLEN]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize * CLEN + 8]);
 
 		// 各単色背景にロゴを乗せる
 		for (int c = 0; c < CLEN; ++c) {
@@ -140,7 +192,7 @@ public:
 #endif
 
     // ピクセル周辺の特徴
-    kernels = std::unique_ptr<float[]>(new float[maskpixels * KLEN]);
+    kernels = std::unique_ptr<float[]>(new float[maskpixels * KLEN + 8]);
 		// 各ピクセルx各単色背景での相関値スケール
 		scales = std::unique_ptr<ScaleLimit[]>(new ScaleLimit[maskpixels * CLEN]);
     int count = 0;
@@ -153,7 +205,7 @@ public:
 					makeKernel(k, memWork.get(), x, y, w);
 					for (int i = 0; i < CLEN; ++i) {
 						float *slice = &memWork[i * YSize];
-						avgCorr += s[i].scale = std::abs(CalcCorrelation(k, slice, x, y, w));
+						avgCorr += s[i].scale = std::abs(pCalcCorrelation5x5(k, slice, x, y, w, nullptr));
 					}
 					++count;
         }
@@ -258,20 +310,8 @@ private:
         if (mask[x + y * w]) {
           const float* k = &kernels[count * KLEN];
 
-					float avg = 0.0f;
-					for (int ky = -2; ky <= 2; ++ky) {
-						for (int kx = -2; kx <= 2; ++kx) {
-							avg += work[(x + kx) + (y + ky) * w];
-						}
-					}
-					avg /= KLEN;
-					float sum = 0.0f;
-					for (int ky = -2; ky <= 2; ++ky) {
-						for (int kx = -2; kx <= 2; ++kx) {
-							sum += k[(kx + 2) + (ky + 2) * KSIZE] * (work[(x + kx) + (y + ky) * w] - avg);
-						}
-					}
-
+					float avg;
+					float sum = pCalcCorrelation5x5(k, work, x, y, w, &avg);
 					// avg単色の場合の相関値が1になるように正規化
 					ScaleLimit s = scales[count * CLEN + (std::max(0, std::min(255, (int)avg)) >> CSHIFT)];
 					// 1を超える部分は捨てる（ロゴによる相関ではない部分なので）
@@ -303,24 +343,6 @@ private:
 			}
 		}
 	}
-
-	static float CalcCorrelation(const float* k, const float* Y, int x, int y, int w)
-	{
-		float avg = 0.0f;
-		for (int ky = -2; ky <= 2; ++ky) {
-			for (int kx = -2; kx <= 2; ++kx) {
-				avg += Y[(x + kx) + (y + ky) * w];
-			}
-		}
-		avg /= KLEN;
-		float sum = 0.0f;
-		for (int ky = -2; ky <= 2; ++ky) {
-			for (int kx = -2; kx <= 2; ++kx) {
-				sum += k[(kx + 2) + (ky + 2) * KSIZE] * (Y[(x + kx) + (y + ky) * w] - avg);
-			}
-		}
-		return sum;
-	};
 };
 
 static void approxim_line(int n, double sum_x, double sum_y, double sum_x2, double sum_xy, double& a, double& b)
@@ -927,8 +949,8 @@ class LogoAnalyzer : AMTObject
 		auto memScanData = std::unique_ptr<uint8_t[]>(new uint8_t[scanDataSize]);
 		auto memCoded = std::unique_ptr<uint8_t[]>(new uint8_t[codedSize]);
 
-		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
-		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+		auto memDeint = std::unique_ptr<float[]>(new float[YSize + 8]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize + 8]);
 
 		const int numFade = 20;
 		auto minFades = std::unique_ptr<int[]>(new int[numFrames]);
@@ -1110,9 +1132,9 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 	PVideoFrame GetFrameT(int n, IScriptEnvironment2* env)
 	{
 		size_t YSize = header.w * header.h;
-		auto memCopy = std::unique_ptr<float[]>(new float[YSize]);
-		auto memDeint = std::unique_ptr<float[]>(new float[YSize]);
-		auto memWork = std::unique_ptr<float[]>(new float[YSize]);
+		auto memCopy = std::unique_ptr<float[]>(new float[YSize + 8]);
+		auto memDeint = std::unique_ptr<float[]>(new float[YSize + 8]);
+		auto memWork = std::unique_ptr<float[]>(new float[YSize + 8]);
 
 		PVideoFrame dst = env->NewVideoFrame(vi);
 		LogoAnalyzeFrame* pDst = reinterpret_cast<LogoAnalyzeFrame*>(dst->GetWritePtr());
@@ -1305,23 +1327,29 @@ class AMTEraseLogo : public GenericVideoFilter
 
 	void CalcFade(int n, float& fadeT, float& fadeB, IScriptEnvironment2* env)
 	{
-		// ロゴ解析結果を大局的に使って、
-		// 切り替わり周辺だけリアルタイム解析結果を使う
-		enum {
-			DIST = 8,
-		};
-		int frames[DIST * 2 + 1];
-		for (int i = -DIST; i <= DIST; ++i) {
-			int nsrc = std::max(0, std::min(vi.num_frames - 1, n + i));
-			frames[i + DIST] = frameResult[nsrc];
-		}
-		if (std::all_of(frames, frames + DIST * 2 + 1, [&](int p) { return p == frames[0]; })) {
-			// ON or OFF
-			fadeT = fadeB = ((frames[DIST] == 2) ? 1.0f : 0.0f);
+		if (frameResult.size() == 0) {
+			// ロゴ解析結果がない場合は常にリアルタイム解析
+			CalcFade2(n, fadeT, fadeB, env);
 		}
 		else {
-			// 切り替わりを含む
-			CalcFade2(n, fadeT, fadeB, env);
+			// ロゴ解析結果を大局的に使って、
+			// 切り替わり周辺だけリアルタイム解析結果を使う
+			enum {
+				DIST = 8,
+			};
+			int frames[DIST * 2 + 1];
+			for (int i = -DIST; i <= DIST; ++i) {
+				int nsrc = std::max(0, std::min(vi.num_frames - 1, n + i));
+				frames[i + DIST] = frameResult[nsrc];
+			}
+			if (std::all_of(frames, frames + DIST * 2 + 1, [&](int p) { return p == frames[0]; })) {
+				// ON or OFF
+				fadeT = fadeB = ((frames[DIST] == 2) ? 1.0f : 0.0f);
+			}
+			else {
+				// 切り替わりを含む
+				CalcFade2(n, fadeT, fadeB, env);
+			}
 		}
 	}
 
@@ -1459,7 +1487,9 @@ public:
 			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
 		}
 		
-		ReadLogoFrameFile(logofPath, env);
+		if (logofPath.size() > 0) {
+			ReadLogoFrameFile(logofPath, env);
+		}
 	}
 
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env_)
@@ -1492,7 +1522,7 @@ public:
 			args[0].AsClip(),       // source
 			args[1].AsClip(),       // analyzeclip
 			args[2].AsString(),			// logopath
-			args[3].AsString(),			// datpath
+			args[3].AsString(""),		// logofpath
 			args[4].AsInt(0),       // mode
 			env
 		);
@@ -1548,8 +1578,8 @@ class LogoFrame : AMTObject
 	template <typename pixel_t>
 	void IterateFrames(PClip clip, IScriptEnvironment2* env)
 	{
-		auto memDeint = std::unique_ptr<float[]>(new float[maxYSize]);
-		auto memWork = std::unique_ptr<float[]>(new float[maxYSize]);
+		auto memDeint = std::unique_ptr<float[]>(new float[maxYSize + 8]);
+		auto memWork = std::unique_ptr<float[]>(new float[maxYSize + 8]);
 		float maxv = (float)((1 << vi.BitsPerComponent()) - 1);
 		evalResults = std::unique_ptr<EvalResult[]>(new EvalResult[vi.num_frames * numLogos]);
 		for (int n = 0; n < vi.num_frames; ++n) {
