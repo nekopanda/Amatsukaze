@@ -7,10 +7,24 @@
 */
 
 // このファイルはAVXでコンパイル
-
+#include <intrin.h>
 #include <immintrin.h>
 #include <stdio.h>
 
+
+bool IsAVXAvailable() {
+	int cpuinfo[4];
+	__cpuid(cpuinfo, 1);
+	bool avxSupportted = cpuinfo[2] & (1 << 28) || false;
+	bool osxsaveSupported = cpuinfo[2] & (1 << 27) || false;
+	if (osxsaveSupported && avxSupportted)
+	{
+		// _XCR_XFEATURE_ENABLED_MASK = 0
+		unsigned long long xcrFeatureMask = _xgetbv(0);
+		avxSupportted = (xcrFeatureMask & 0x6) == 0x6;
+	}
+	return avxSupportted;
+}
 
 // https://qiita.com/beru/items/fff00c19968685dada68
 // in  : ( x7, x6, x5, x4, x3, x2, x1, x0 )

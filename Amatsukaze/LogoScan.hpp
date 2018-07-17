@@ -41,6 +41,7 @@ float CalcCorrelation5x5(const float* k, const float* Y, int x, int y, int w, fl
 };
 
 // ComputeKernel.cpp
+bool IsAVXAvailable();
 float CalcCorrelation5x5_AVX(const float* k, const float* Y, int x, int y, int w, float* pavg);
 
 #if 0
@@ -54,20 +55,6 @@ float CalcCorrelation5x5_Debug(const float* k, const float* Y, int x, int y, int
 	return f1;
 }
 #endif
-
-bool IsAVXAvailable() {
-	int cpuinfo[4];
-	__cpuid(cpuinfo, 1);
-	bool avxSupportted = cpuinfo[2] & (1 << 28) || false;
-	bool osxsaveSupported = cpuinfo[2] & (1 << 27) || false;
-	if (osxsaveSupported && avxSupportted)
-	{
-		// _XCR_XFEATURE_ENABLED_MASK = 0
-		unsigned long long xcrFeatureMask = _xgetbv(0);
-		avxSupportted = (xcrFeatureMask & 0x6) == 0x6;
-	}
-	return avxSupportted;
-}
 
 namespace logo {
 
@@ -155,7 +142,8 @@ public:
 			// 平均値
 			float avg = std::accumulate(k, k + KLEN, 0.0f) / KLEN;
 			// 平均値をゼロにする
-			std::transform(k, k + KLEN, k, [=](float p) { return p - avg; });
+			std::transform(k, k + KLEN, 
+				stdext::checked_array_iterator<float*>(k, KLEN), [=](float p) { return p - avg; });
 		};
 
     // 特徴点の抽出 //
@@ -1723,14 +1711,14 @@ public:
 			float beforeMax = *std::max_element(rawScores + i - halfAvgFrames, rawScores + i);
 			float afterMax = *std::max_element(rawScores + i + 1, rawScores + i + 1 + halfAvgFrames);
 			float minMax = std::min(beforeMax, afterMax);
-			float minMaxResult = (std::abs(minMax) < threshL) ? 1 : (minMax < 0) ? 0 : 2;
+			int minMaxResult = (std::abs(minMax) < threshL) ? 1 : (minMax < 0.0f) ? 0 : 2;
 
 			// 移動平均
 			// MinMaxだけだと薄くても安定して表示されてるとかが識別できないので
 			// これも必要
 			float avg = std::accumulate(rawScores + i - halfAvgFrames,
 				rawScores + i + halfAvgFrames + 1, 0.0f) / aveFrames;
-			float avgResult = (std::abs(avg) < thresh) ? 1 : (avg < 0) ? 0 : 2;
+			int avgResult = (std::abs(avg) < thresh) ? 1 : (avg < 0.0f) ? 0 : 2;
 
 			// 両者が違ってたら不明とする
 			frameResult[i].result = (minMaxResult != avgResult) ? 1 : minMaxResult;
