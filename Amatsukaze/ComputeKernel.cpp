@@ -11,19 +11,41 @@
 #include <immintrin.h>
 #include <stdio.h>
 
+struct CPUInfo {
+	bool initialized, avx, avx2;
+};
+
+static CPUInfo g_cpuinfo;
+
+static inline void InitCPUInfo() {
+	if (g_cpuinfo.initialized == false) {
+		int cpuinfo[4];
+		__cpuid(cpuinfo, 1);
+		g_cpuinfo.avx = cpuinfo[2] & (1 << 28) || false;
+		bool osxsaveSupported = cpuinfo[2] & (1 << 27) || false;
+		g_cpuinfo.avx2 = false;
+		if (osxsaveSupported && g_cpuinfo.avx)
+		{
+			// _XCR_XFEATURE_ENABLED_MASK = 0
+			unsigned long long xcrFeatureMask = _xgetbv(0);
+			g_cpuinfo.avx = (xcrFeatureMask & 0x6) == 0x6;
+			if (g_cpuinfo.avx) {
+				__cpuid(cpuinfo, 7);
+				g_cpuinfo.avx2 = cpuinfo[1] & (1 << 5) || false;
+			}
+		}
+		g_cpuinfo.initialized = true;
+	}
+}
 
 bool IsAVXAvailable() {
-	int cpuinfo[4];
-	__cpuid(cpuinfo, 1);
-	bool avxSupportted = cpuinfo[2] & (1 << 28) || false;
-	bool osxsaveSupported = cpuinfo[2] & (1 << 27) || false;
-	if (osxsaveSupported && avxSupportted)
-	{
-		// _XCR_XFEATURE_ENABLED_MASK = 0
-		unsigned long long xcrFeatureMask = _xgetbv(0);
-		avxSupportted = (xcrFeatureMask & 0x6) == 0x6;
-	}
-	return avxSupportted;
+	InitCPUInfo();
+	return g_cpuinfo.avx;
+}
+
+bool IsAVX2Available() {
+	InitCPUInfo();
+	return g_cpuinfo.avx2;
 }
 
 // https://qiita.com/beru/items/fff00c19968685dada68

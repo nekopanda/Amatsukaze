@@ -42,6 +42,31 @@ std::string GetDirectoryPath(const std::string& name) {
 	return buf;
 }
 
+// dirpathは 終端\\なし
+// patternは "*.*" とか
+// ディレクトリ名を含まないファイル名リストが返る
+std::vector<std::string> GetDirectoryFiles(const std::string& dirpath, const std::string& pattern)
+{
+	std::string search = dirpath + "\\" + pattern;
+	std::vector<std::string> result;
+	WIN32_FIND_DATA findData;
+	HANDLE hFind = FindFirstFile(search.c_str(), &findData);
+	if (hFind == INVALID_HANDLE_VALUE) {
+		THROWF(IOException, "ファイル列挙に失敗: %s", search.c_str());
+	}
+	do {
+		if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			// ディレクトリ
+		}
+		else {
+			// ファイル
+			result.push_back(findData.cFileName);
+		}
+	} while (FindNextFile(hFind, &findData));
+	FindClose(hFind);
+	return result;
+}
+
 // 現在のスレッドに設定されているコア数を取得
 int GetProcessorCount()
 {

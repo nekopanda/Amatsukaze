@@ -17,6 +17,10 @@
 #include "AMTSource.hpp"
 #include "InterProcessComm.hpp"
 
+// Defined in ComputeKernel.cpp
+bool IsAVXAvailable();
+bool IsAVX2Available();
+
 class RFFExtractor
 {
 public:
@@ -294,6 +298,49 @@ private:
     avsfile.write(MemoryChunk((uint8_t*)str.c_str(), str.size()));
   }
 
+	std::vector<std::string> GetSuitablePlugins(const std::string& basepath) {
+		struct Plugin {
+			std::string FileName;
+			std::string BaseName;
+		};
+		auto ends_with = [](const std::string& s, const std::string& suffix) {
+			if (s.size() < suffix.size()) return false;
+			return std::equal(std::rbegin(suffix), std::rend(suffix), std::rbegin(s));
+		};
+		std::vector<std::string> categories = { "_avx2.dll", "_avx.dll", ".dll" };
+		std::vector<std::vector<Plugin>> categoryList(categories.size());
+		for (std::string filename : GetDirectoryFiles(basepath, "*.dll")) {
+			std::transform(filename.begin(), filename.end(), filename.begin(), ::tolower);
+			for (int i = 0; i < (int)categories.size(); ++i) {
+				const auto& category = categories[i];
+				if (ends_with(filename, category)) {
+					auto baseName = filename.substr(0, filename.size() - category.size());
+					Plugin plugin = { filename, baseName };
+					categoryList[i].push_back(plugin);
+					break;
+				}
+			}
+		}
+		int support = 2;
+		if (IsAVX2Available()) {
+			support = 0;
+		}
+		else if (IsAVXAvailable()) {
+			support = 1;
+		}
+		// BaseName -> FileName
+		std::map<std::string, std::string> pluginMap;
+		for (int i = (int)categories.size() - 1; i >= support; --i) {
+			for (auto& plugin : categoryList[i]) {
+				pluginMap[plugin.BaseName] = plugin.FileName;
+			}
+		}
+		std::vector<std::string> result(pluginMap.size());
+		std::transform(pluginMap.begin(), pluginMap.end(), result.begin(), 
+			[&](const std::pair<std::string, std::string>& entry) { return basepath + "\\" + entry.second; });
+		return result;
+	}
+
   void InitEnv() {
     env_ = nullptr;
     env_ = make_unique_ptr(CreateScriptEnvironment2());
@@ -307,8 +354,13 @@ private:
     if (setting_.isSystemAvsPlugin() == false) {
       sb.append("ClearAutoloadDirs()\n");
     }
-    // Amatsukaze用オートロードフォルダを追加
-    sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
+		auto moduleDir = GetModuleDirectory();
+		// Amatsukaze用オートロードフォルダを追加
+    sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", moduleDir);
+		// AutoSelectプラグインをロード
+		for (auto& path : GetSuitablePlugins(moduleDir + "\\plugins64\\AutoSelected")) {
+			sb.append("LoadPlugin(\"%s\")\n", path);
+		}
     // メモリ節約オプションを有効にする
     sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
     sb.append("SetDeviceOpt(DEV_FREE_THRESHOLD, 1000)\n");
