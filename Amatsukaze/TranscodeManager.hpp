@@ -750,6 +750,9 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 							vfrProc.toVFRZones(encoderZones);
 							// タイムコード生成
 							vfrProc.makeTimecode(getTcPath());
+						}
+
+						if (vfrEnabled) {
 							outFileInfo.back().tcPath = getTcPath();
 						}
 
