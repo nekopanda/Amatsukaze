@@ -95,20 +95,21 @@ private:
 		}
 
 	private:
-		class OutConv : public UTF8Converter
+		class OutConv : public StringLiner
 		{
 		public:
 			OutConv(bool isErr) : nlines(0), isErr(isErr) { }
 			int nlines;
 		protected:
 			bool isErr;
-			virtual void OnTextLine(const std::vector<char>& line) {
-				auto out = isErr ? stderr : stdout;
-				fwrite(line.data(), line.size(), 1, out);
-				fprintf(out, "\n");
-				fflush(out);
-				++nlines;
-			}
+      virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) {
+        std::vector<char> line = utf8ToString(ptr, len);
+        line.push_back('\n');
+        auto out = isErr ? stderr : stdout;
+        fwrite(line.data(), line.size(), 1, out);
+        fflush(out);
+        ++nlines;
+      }
 		};
 
 		OutConv outConv, errConv;

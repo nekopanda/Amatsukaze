@@ -307,6 +307,7 @@ private:
 			if (s.size() < suffix.size()) return false;
 			return std::equal(std::rbegin(suffix), std::rend(suffix), std::rbegin(s));
 		};
+    if (DirectoryExists(basepath) == false) return std::vector<std::string>();
 		std::vector<std::string> categories = { "_avx2.dll", "_avx.dll", ".dll" };
 		std::vector<std::vector<Plugin>> categoryList(categories.size());
 		for (std::string filename : GetDirectoryFiles(basepath, "*.dll")) {

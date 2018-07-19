@@ -773,7 +773,7 @@ public:
 		}
     y4mparser.clear();
 		videoWriter_ = new MyVideoWriter(this, fmt, bufsize);
-		process_ = new MySubProcess(this, encoder_args);
+		process_ = new StdRedirectedSubProcess(encoder_args, 5);
 	}
 
 	void inputFrame(Frame& frame) {
@@ -802,7 +802,13 @@ public:
 			process_->finishWrite();
 			int ret = process_->join();
 			if (ret != 0) {
-				THROWF(RuntimeException, "encode failed (encoder exit code: %d)", ret);
+        ctx.error("↓↓↓↓↓↓エンコーダ最後の出力↓↓↓↓↓↓");
+        for (auto v : process_->getLastLines()) {
+          v.push_back(0); // null terminate
+          ctx.error("%s", v.data());
+        }
+        ctx.error("↑↑↑↑↑↑エンコーダ最後の出力↑↑↑↑↑↑");
+				THROWF(RuntimeException, "エンコーダ終了コード: 0x%x", ret);
 			}
       int inFrame = getFrameCount();
       int outFrame = y4mparser.getFrameCount();
@@ -820,6 +826,10 @@ public:
 		return videoWriter_->getAvgFrameRate();
 	}
 
+  const std::deque<std::vector<char>>& getLastLines() {
+    process_->getLastLines();
+  }
+
 private:
 	class MyVideoWriter : public VideoWriter {
 	public:
@@ -835,33 +845,14 @@ private:
 		EncodeWriter* this_;
 	};
 
-	class MySubProcess : public EventBaseSubProcess {
-	public:
-		MySubProcess(EncodeWriter* this_, const std::string& args)
-			: EventBaseSubProcess(args)
-			, this_(this_)
-		{ }
-	protected:
-		virtual void onOut(bool isErr, MemoryChunk mc) {
-			this_->onProcessOut(isErr, mc);
-		}
-	private:
-		EncodeWriter* this_;
-	};
-
 	MyVideoWriter* videoWriter_;
-	MySubProcess* process_;
+  StdRedirectedSubProcess* process_;
 	bool fieldMode_;
 	bool error_;
 
   // 出力チェック用（なくても処理は問題ない）
   Y4MParser y4mparser;
 
-	void onProcessOut(bool isErr, MemoryChunk mc) {
-		// これはマルチスレッドで呼ばれるの注意
-		fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
-		fflush(isErr ? stderr : stdout);
-	}
 	void onVideoWrite(MemoryChunk mc) {
     y4mparser.inputData(mc);
 		try {

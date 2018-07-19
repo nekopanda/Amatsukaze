@@ -12,6 +12,8 @@
 
 #include <deque>
 #include <string>
+#include <mutex>
+#include <condition_variable>
 
 #include "StreamUtils.hpp"
 #include "PerformanceUtil.hpp"
@@ -82,7 +84,7 @@ public:
 
 	void put(T&& data, size_t amount)
 	{
-		auto& lock = with(critical_section_);
+    std::unique_lock<std::mutex> lock(critical_section_);
 		if (error_) {
 			THROW(RuntimeException, "DataPumpThread error");
 		}
@@ -91,11 +93,11 @@ public:
 		}
 		while (current_ >= maximum_) {
 			if (PERF) producer.start();
-			cond_full_.wait(critical_section_);
+			cond_full_.wait(lock);
 			if (PERF) producer.stop();
 		}
 		if (data_.size() == 0) {
-			cond_empty_.signal();
+			cond_empty_.notify_one();
 		}
 		data_.emplace_back(amount, std::move(data));
 		current_ += amount;
@@ -110,9 +112,9 @@ public:
 
 	void join() {
 		{
-			auto& lock = with(critical_section_);
+      std::unique_lock<std::mutex> lock(critical_section_);
 			finished_ = true;
-			cond_empty_.signal();
+			cond_empty_.notify_one();
 		}
 		ThreadBase::join();
 	}
@@ -128,9 +130,9 @@ protected:
 	virtual void OnDataReceived(T&& data) = 0;
 
 private:
-	CriticalSection critical_section_;
-	CondWait cond_full_;
-	CondWait cond_empty_;
+	std::mutex critical_section_;
+	std::condition_variable cond_full_;
+  std::condition_variable cond_empty_;
 
 	std::deque<std::pair<size_t, T>> data_;
 
@@ -148,18 +150,18 @@ private:
 		while (true) {
 			T data;
 			{
-				auto& lock = with(critical_section_);
+        std::unique_lock<std::mutex> lock(critical_section_);
 				while (data_.size() == 0) {
 					// data_.size()==0でfinished_なら終了
 					if (finished_ || error_) return;
 					if (PERF) consumer.start();
-					cond_empty_.wait(critical_section_);
+					cond_empty_.wait(lock);
 					if (PERF) consumer.stop();
 				}
 				auto& entry = data_.front();
 				size_t newsize = current_ - entry.first;
 				if ((current_ >= maximum_) && (newsize < maximum_)) {
-					cond_full_.broadcast();
+					cond_full_.notify_all();
 				}
 				current_ = newsize;
 				data = std::move(entry.second);
@@ -382,43 +384,78 @@ private:
 class StdRedirectedSubProcess : public EventBaseSubProcess
 {
 public:
-	StdRedirectedSubProcess(const std::string& args, bool isUtf8 = false)
+	StdRedirectedSubProcess(const std::string& args, int bufferLines = 0, bool isUtf8 = false)
 		: EventBaseSubProcess(args)
+    , bufferLines(bufferLines)
 		, isUtf8(isUtf8)
-		, outConv(false)
-		, errConv(true)
+		, outLiner(this, false)
+		, errLiner(this, true)
 	{ }
 
 	~StdRedirectedSubProcess() {
 		if (isUtf8) {
-			outConv.Flush();
-			errConv.Flush();
+      outLiner.Flush();
+      errLiner.Flush();
 		}
 	}
 
+  const std::deque<std::vector<char>>& getLastLines() {
+    outLiner.Flush();
+    errLiner.Flush();
+    return lastLines;
+  }
+
 private:
-	class OutConv : public UTF8Converter
+	class SpStringLiner : public StringLiner
 	{
+    StdRedirectedSubProcess* pThis;
 	public:
-		OutConv(bool isErr) : isErr(isErr) { }
+    SpStringLiner(StdRedirectedSubProcess* pThis, bool isErr)
+      : pThis(pThis), isErr(isErr) { }
 	protected:
 		bool isErr;
-		virtual void OnTextLine(const std::vector<char>& line) {
-			auto out = isErr ? stderr : stdout;
-			fwrite(line.data(), line.size(), 1, out);
-			fprintf(out, "\n");
-			fflush(out);
+		virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) {
+      pThis->onTextLine(isErr, ptr, len, brlen);
 		}
 	};
 
 	bool isUtf8;
-	OutConv outConv, errConv;
+  int bufferLines;
+  SpStringLiner outLiner, errLiner;
+
+  std::mutex mtx;
+  std::deque<std::vector<char>> lastLines;
+
+  void onTextLine(bool isErr, const uint8_t* ptr, int len, int brlen) {
+
+    std::vector<char> line;
+    if (isUtf8) {
+      line = utf8ToString(ptr, len);
+      // 変換する場合はここで出力
+      auto out = isErr ? stderr : stdout;
+      fwrite(line.data(), line.size(), 1, out);
+      fprintf(out, "\n");
+      fflush(out);
+    }
+    else {
+      line = std::vector<char>(ptr, ptr + len);
+    }
+
+    if (bufferLines > 0) {
+      std::lock_guard<std::mutex> lock(mtx);
+      if (lastLines.size() > bufferLines) {
+        lastLines.pop_front();
+      }
+      lastLines.push_back(line);
+    }
+  }
 
 	virtual void onOut(bool isErr, MemoryChunk mc) {
-		if (isUtf8) {
-			(isErr ? errConv : outConv).AddBytes(mc);
-		}
-		else {
+    if (bufferLines > 0 || isUtf8) { // 必要がある場合のみ
+      (isErr ? errLiner : outLiner).AddBytes(mc);
+    }
+		if (!isUtf8) {
+      // 変換しない場合はここですぐに出力
 			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
 			fflush(isErr ? stderr : stdout);
 		}

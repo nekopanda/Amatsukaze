@@ -199,7 +199,7 @@ public:
 
 		for (int i = 0; i < (int)args.size(); ++i) {
 			ctx.info(args[i].first.c_str());
-			StdRedirectedSubProcess muxer(args[i].first, args[i].second);
+			 StdRedirectedSubProcess muxer(args[i].first, 0, args[i].second);
 			int ret = muxer.join();
 			if (ret != 0) {
 				THROWF(RuntimeException, "mux failed (exit code: %d)", ret);

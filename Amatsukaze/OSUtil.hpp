@@ -42,6 +42,16 @@ std::string GetDirectoryPath(const std::string& name) {
 	return buf;
 }
 
+bool DirectoryExists(const std::string& dirName_in)
+{
+  DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
+  if (ftyp == INVALID_FILE_ATTRIBUTES)
+    return false;
+  if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+    return true;
+  return false;
+}
+
 // dirpathは 終端\\なし
 // patternは "*.*" とか
 // ディレクトリ名を含まないファイル名リストが返る
