@@ -11,7 +11,7 @@
         xmlns:m="clr-namespace:Amatsukaze.Models" 
         mc:Ignorable="d" 
         d:DataContext="{d:DesignInstance {x:Type vm:SelectOutPathViewModel}}"
-        Title="Amatsukaze ファイル追加" SizeToContent="Height" Width="400" Loaded="Window_Loaded">
+        Title="Amatsukaze プロファイル＆出力先選択" SizeToContent="Height" Width="400" Loaded="Window_Loaded">
 
     <Window.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
