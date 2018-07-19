@@ -1316,6 +1316,13 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
+        public DisplayProfile WrapProfile(ProfileSetting profile)
+        {
+            return new DisplayProfile(profile, this,
+                Enumerable.Range(0, DisplayResource.MAX).Select(
+                    s => new DisplayResource() { Model = profile, Phase = s }).ToArray());
+        }
+
         public Task OnProfile(ProfileUpdate data)
         {
             if(data.Type == UpdateType.Clear)
@@ -1328,9 +1335,7 @@ namespace Amatsukaze.Models
             {
                 if(profile == null)
                 {
-                    profile = new DisplayProfile(data.Profile, this,
-                        Enumerable.Range(0, DisplayResource.MAX).Select(
-                            s => new DisplayResource() { Model = data.Profile, Phase = s }).ToArray());
+                    profile = WrapProfile(data.Profile);
                     ProfileList.Insert(
                         ProfileList.Count(s => !s.Data.Name.StartsWith("サンプル_")),
                         profile);

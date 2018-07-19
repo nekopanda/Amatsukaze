@@ -86,9 +86,13 @@
                         <CollectionViewSource x:Key="NullList" Source="{x:Static m:NullValue.Array}"/>
                         <CollectionViewSource x:Key="JLSCommandList" Source="{Binding Model.JlsCommandFiles}"/>
                     </StackPanel.Resources>
-                    <ComboBox Margin="0,3" HorizontalAlignment="Left" VerticalAlignment="Top" Width="120" 
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="プロファイル設定をテキストでコピー" Height="20"
+                                Command="{Binding Model.SelectedProfile.CopySettingTextCommand}"/>
+                        <ComboBox Margin="0,3" HorizontalAlignment="Left" VerticalAlignment="Top" Width="120" 
                               ItemsSource="{Binding Model.SelectedProfile.EncoderList}"
                               SelectedIndex="{Binding Model.SelectedProfile.EncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </DockPanel>
 
                     <TextBox Margin="0,3" Height="85" TextWrapping="Wrap"
                              Text="{Binding Model.SelectedProfile.EncoderOption, Mode=TwoWay}"

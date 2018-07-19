@@ -615,6 +615,35 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region CopySettingTextCommand
+        private ListenerCommand<IEnumerable> _CopySettingTextCommand;
+
+        public ListenerCommand<IEnumerable> CopySettingTextCommand
+        {
+            get
+            {
+                if (_CopySettingTextCommand == null)
+                {
+                    _CopySettingTextCommand = new ListenerCommand<IEnumerable>(CopySettingText);
+                }
+                return _CopySettingTextCommand;
+            }
+        }
+
+        public void CopySettingText(IEnumerable selectedItems)
+        {
+            var item = selectedItems.OfType<DisplayQueueItem>().FirstOrDefault();
+            if(item != null && item.Model.Profile != null)
+            {
+                try
+                {
+                    Clipboard.SetText(Model.WrapProfile(item.Model.Profile).ToLongString());
+                }
+                catch { }
+            }
+        }
+        #endregion
+
         #region RetryCommand
         private ListenerCommand<IEnumerable> _RetryCommand;
 

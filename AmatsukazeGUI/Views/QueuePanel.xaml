@@ -479,6 +479,9 @@
                             Command="{Binding OpenLogoAnalyzeSlimTsCommand}" 
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
                         <Separator />
+                        <MenuItem Header="プロファイル設定をテキストでコピー" Style="{StaticResource MenuForSelectedItems}"
+                            Command="{Binding CopySettingTextCommand}"
+                            CommandParameter="{Binding SelectedItems, ElementName=QueueList}" />
                         <MenuItem Header="プロファイル変更" Style="{StaticResource MenuForSelectedItems}">
                             <MenuItem.ItemsSource>
                                 <CompositeCollection>

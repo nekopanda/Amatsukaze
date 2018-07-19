@@ -254,6 +254,33 @@ namespace Amatsukaze.Models
         #endregion
     }
 
+    public class FormatText
+    {
+        private StringBuilder builder = new StringBuilder();
+
+        public void KeyValue(string key, string value)
+        {
+            builder.Append(key).Append(": ").Append(value).AppendLine();
+        }
+        public void KeyValue(string key, bool value)
+        {
+            builder.Append(key).Append(": ").Append(value ? "Yes" : "No").AppendLine();
+        }
+        public void KeyTable(string key, string value)
+        {
+            builder.Append(key).Append(": ").AppendLine();
+            foreach (var line in value.
+                Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).
+                Where(s => string.IsNullOrWhiteSpace(s) == false).
+                Select(s => "\t" + s))
+                builder.Append(line).AppendLine();
+        }
+        public override string ToString()
+        {
+            return builder.ToString();
+        }
+    }
+
     public class DisplayProfile : ViewModel
     {
         public ProfileSetting Data { get; private set; }
@@ -982,6 +1009,31 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region CopySettingTextCommand
+        private ViewModelCommand _CopySettingTextCommand;
+
+        public ViewModelCommand CopySettingTextCommand
+        {
+            get
+            {
+                if (_CopySettingTextCommand == null)
+                {
+                    _CopySettingTextCommand = new ViewModelCommand(CopySettingText);
+                }
+                return _CopySettingTextCommand;
+            }
+        }
+
+        public void CopySettingText()
+        {
+            try
+            {
+                Clipboard.SetText(ToLongString());
+            }
+            catch { }
+        }
+        #endregion
+
         public void UpdateWarningText()
         {
             StringBuilder sb = new StringBuilder();
@@ -1089,6 +1141,48 @@ namespace Amatsukaze.Models
                 name = ServerSupport.AUTO_PREFIX + name;
             }
             return name;
+        }
+
+        public string ToLongString()
+        {
+            var text = new FormatText();
+            text.KeyValue("プロファイル名", Data.Name);
+            text.KeyValue("更新日時", Data.LastUpdate.ToString("yyyy年MM月dd日 hh:mm:ss"));
+            text.KeyValue("エンコーダ", EncoderList[(int)Data.EncoderType]);
+            text.KeyValue("エンコーダオプション", EncoderOption);
+            text.KeyValue("JoinLogoScpコマンドファイル", Data.JLSCommandFile ?? "チャンネル設定に従う");
+            text.KeyValue("JoinLogoScpオプション", Data.JLSOption ?? "チャンネル設定に従う");
+            text.KeyValue("メインフィルタ", Data.FilterPath);
+            text.KeyValue("ポストフィルタ", Data.PostFilterPath);
+            text.KeyValue("MPEG2デコーダ", Mpeg2DecoderList[(int)Data.Mpeg2Decoder]);
+            text.KeyValue("H264デコーダ", H264DecoderList[(int)Data.H264Deocder]);
+            text.KeyValue("出力フォーマット", FormatList[(int)Data.OutputFormat]);
+            text.KeyValue("出力選択", OutputMask.Name);
+            text.KeyValue("VFRフレームタイミング", VFRFpsList[Data.VFR120fps ? 1 : 0]);
+            text.KeyValue("SCRenameによるリネームを行う", Data.EnableRename);
+            text.KeyValue("SCRename書式", Data.RenameFormat);
+            text.KeyValue("ジャンルごとにフォルダ分け", Data.EnableGunreFolder);
+            text.KeyValue("2パス", Data.TwoPass);
+            text.KeyValue("CMビットレート倍率", Data.BitrateCM.ToString());
+            text.KeyValue("自動ビットレート指定", Data.AutoBuffer);
+            text.KeyValue("自動ビットレート係数", string.Format("{0}:{1}:{2}", Data.Bitrate.A, Data.Bitrate.B, Data.Bitrate.H264));
+            text.KeyValue("ニコニコ実況コメントを有効にする", Data.EnableNicoJK);
+            text.KeyValue("ニコニコ実況コメントのエラーを無視する", Data.IgnoreNicoJKError);
+            text.KeyValue("NicoJK18サーバからコメントを取得する", Data.NicoJK18);
+            text.KeyValue("コメント出力フォーマット", Data.NicoJKFormatMask.ToString());
+            text.KeyValue("関連ファイル(*.err,*.program.txtも処理", Data.MoveEDCBFiles);
+            text.KeyValue("字幕を無効にする", Data.DisableSubs);
+            text.KeyValue("マッピングにないDRCS外字は無視する", Data.IgnoreNoDrcsMap);
+            text.KeyValue("ロゴ検出判定しきい値を低くする", Data.LooseLogoDetection);
+            text.KeyValue("ロゴ検出に失敗しても処理を続行する", Data.IgnoreNoLogo);
+            text.KeyValue("ロゴ消ししない", Data.NoDelogo);
+            text.KeyValue("メインフォーマット以外は結合しない", Data.SplitSub);
+            text.KeyValue("システムにインストールされているAviSynthプラグインを有効にする", Data.SystemAviSynthPlugin);
+            text.KeyValue("ネットワーク越しに転送する場合のハッシュチェックを無効にする", Data.DisableHashCheck);
+            text.KeyValue("ログファイルを出力先に生成しない", Data.DisableLogFile);
+            text.KeyValue("一時ファイルを削除せずに残す", Data.NoRemoveTmp);
+            text.KeyTable("スケジューリングリソース設定", GetResourceString());
+            return text.ToString();
         }
     }
 

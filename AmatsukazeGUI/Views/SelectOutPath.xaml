@@ -46,20 +46,20 @@
 
     <StackPanel Margin="5">
         <TextBlock Margin="2" Text="{Binding InputInfoText, Mode=OneWay}" TextWrapping="Wrap" />
-        <DockPanel>
-            <DockPanel.Resources>
+        <StackPanel>
+            <StackPanel.Resources>
                 <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
                 <CollectionViewSource x:Key="AutoSelectList" Source="{Binding Model.AutoSelectList}"/>
                 <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
                     <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
                 </DataTemplate>
-            </DockPanel.Resources>
-            <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right" 
-                              ItemsSource="{Binding Model.PriorityList}" 
-                              SelectedItem="{Binding Item.Outputs[0].Priority, Mode=TwoWay}"/>
-            <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
-            <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-            <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+            </StackPanel.Resources>
+            <Grid>
+                <TextBlock HorizontalAlignment="Center" Margin="2">
+                    <Run Text="（エンコード設定）" Foreground="White"/><Run FontSize="18" Text="プロファイル"/><Run Text="（エンコード設定）"/>
+                </TextBlock>
+            </Grid>
+            <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" Height="25">
                 <ComboBox.ItemsSource>
                     <CompositeCollection>
                         <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
@@ -67,14 +67,23 @@
                     </CompositeCollection>
                 </ComboBox.ItemsSource>
             </ComboBox>
-        </DockPanel>
-        <DockPanel Margin="0,5,0,0">
-            <TextBlock Margin="2" Text="出力先フォルダ" VerticalAlignment="Center"/>
-            <Button Content="デフォルト" Margin="5,0" Command="{Binding ResetOutPathCommand}" />
-            <CheckBox Content="キューを凍結して追加" IsChecked="{Binding PauseStart, Mode=TwoWay}" DockPanel.Dock="Right" VerticalAlignment="Center"/>
-            <Border/>
-        </DockPanel>
-        <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
+            <Grid>
+                <TextBlock Margin="2" Text="出力先フォルダ" HorizontalAlignment="Center" FontSize="18"/>
+                <Canvas>
+                    <Button Content="デフォルト" Margin="5,0" Command="{Binding ResetOutPathCommand}"
+                            Canvas.Bottom="2" Canvas.Right="0"/>
+                </Canvas>
+            </Grid>
+            <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
+            <DockPanel>
+                <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right"
+                                ItemsSource="{Binding Model.PriorityList}" 
+                                SelectedItem="{Binding Item.Outputs[0].Priority, Mode=TwoWay}"/>
+                <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
+                <CheckBox Content="キューを凍結して追加" IsChecked="{Binding PauseStart, Mode=TwoWay}"
+                        VerticalAlignment="Center"/>
+            </DockPanel>
+        </StackPanel>
         
         <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>
         
