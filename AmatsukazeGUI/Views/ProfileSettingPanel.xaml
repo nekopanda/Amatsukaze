@@ -40,7 +40,7 @@
         <Separator DockPanel.Dock="Top"/>
 
         <TextBlock DockPanel.Dock="Bottom" TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,0.333,74,0">
-            <Run Text="{Binding Model.SelectedProfile.SettingWarningText}" Foreground="Red" /><Run Text=" "/><Run Text="「適用」でサーバに反映。「更新」を押すと編集中の設定が失われるので注意"/>
+            <Run Text="{Binding Model.SelectedProfile.SettingWarningText}" Foreground="Red" /><Run Text=" "/><Run Text="「適用」で反映。「更新」を押すと編集中の設定が失われるので注意"/>
         </TextBlock>
         
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">

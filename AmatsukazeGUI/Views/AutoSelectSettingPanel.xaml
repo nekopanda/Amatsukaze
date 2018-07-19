@@ -30,7 +30,9 @@
     <DockPanel>
 
         <DockPanel DockPanel.Dock="Top">
-            <TextBlock DockPanel.Dock="Left" Text="自動選択" VerticalAlignment="Center" Margin="5"/>
+            <TextBlock DockPanel.Dock="Left" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5,0">
+                プロファイル<LineBreak/>自動選択
+            </TextBlock>
             <Button DockPanel.Dock="Right" Content="削除" Margin="5" Height="30" ToolTip="現在の自動選択を削除します" Command="{Binding DeleteProfileCommand}"/>
             <Button DockPanel.Dock="Right" Content="新規" Margin="5" Height="30" ToolTip="現在の自動選択をコピーして新しい自動選択を作成します" Command="{Binding NewProfileCommand}"/>
             <Button DockPanel.Dock="Right" Content="適用" Margin="5" Height="30" Width="60" Command="{Binding ApplyProfileCommand}" />

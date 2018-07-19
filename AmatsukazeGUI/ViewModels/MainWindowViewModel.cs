@@ -162,8 +162,8 @@ namespace Amatsukaze.ViewModels
             QueueVM = new QueueViewModel() { Name = "キュー", Model = Model, MainPanel = this };
             MainPanelMenu.Add(QueueVM);
             MainPanelMenu.Add(new LogViewModel() { Name = "ログ", Model = Model });
-            MainPanelMenu.Add(new ProfileSettingViewModel() { Name = "エンコード設定", Model = Model });
-            MainPanelMenu.Add(new AutoSelectSettingViewModel() { Name = "プロファイル自動選択", Model = Model });
+            MainPanelMenu.Add(new ProfileSettingViewModel() { Name = "プロファイル", Model = Model });
+            MainPanelMenu.Add(new AutoSelectSettingViewModel() { Name = "自動選択", Model = Model });
             MainPanelMenu.Add(new ServiceSettingViewModel() { Name = "チャンネル設定", Model = Model });
             MainPanelMenu.Add(new SettingViewModel() { Name = "基本設定", Model = Model });
             ConsolePanelMenu.Add(new LogFileViewModel() { Name = "ログファイル", Model = Model });
