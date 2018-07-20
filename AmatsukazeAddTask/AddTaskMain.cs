@@ -302,6 +302,7 @@ namespace Amatsukaze.AddTask
                     // ローカルの場合は、起動を試みる
                     if(isLocal)
                     {
+                        await ServerSupport.TerminateStandalone(option.AmatsukazeRoot);
                         ServerSupport.LaunchLocalServer(option.ServerPort, option.AmatsukazeRoot);
 
                         // 10秒待つ

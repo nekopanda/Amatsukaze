@@ -566,6 +566,54 @@ namespace Amatsukaze.Server
             }
         }
 
+        private static string GetStandaloneMailslotName(string rootDir)
+        {
+            return @"\\.\mailslot\" + rootDir.Replace(':', '_') + @"\Amatsukaze";
+        }
+
+        public static FileStream CreateStandaloneMailslot()
+        {
+            var path = GetStandaloneMailslotName(Directory.GetCurrentDirectory());
+            // -1: MAILSLOT_WAIT_FOREVER
+            var handle = Lib.WinAPI.CreateMailslot(path, 0, -1, IntPtr.Zero);
+            if(handle.IsInvalid)
+            {
+                throw new IOException("Failed to create mailslot");
+            }
+            return new FileStream(handle, FileAccess.Read, 1, true);
+        }
+
+        public static async Task WaitStandaloneMailslot(FileStream fs)
+        {
+            byte[] buf = new byte[1];
+            // CreateMailslotの引数を間違えたりすると
+            // ここがビジーウェイトになってしまうので注意
+            while (await fs.ReadAsync(buf, 0, 1) == 0) ;
+        }
+
+        public static async Task TerminateStandalone(string rootDir)
+        {
+            while (true)
+            {
+                // FileStreamの引数にmailslot名を渡すとエラーになってしまうので
+                // CreateFileを直接呼び出す
+                var handle = Lib.WinAPI.CreateFile(GetStandaloneMailslotName(rootDir),
+                    FileDesiredAccess.GenericWrite,
+                    FileShareMode.FileShareRead | FileShareMode.FileShareWrite,
+                    IntPtr.Zero, FileCreationDisposition.OpenExisting, 0, IntPtr.Zero);
+                if (handle.IsInvalid)
+                {
+                    return;
+                }
+                using(var fs = new FileStream(handle, FileAccess.Write))
+                {
+                    byte[] buf = new byte[1] { 0 };
+                    fs.Write(buf, 0, 1);
+                }
+                await Task.Delay(10 * 1000);
+            }
+        }
+
         public static void LaunchLocalServer(int port, string rootDir)
         {
             var exename = Path.GetDirectoryName(typeof(ServerSupport).Assembly.Location) + "\\" +

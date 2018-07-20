@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -110,6 +111,33 @@ namespace Amatsukaze.Lib
         #endregion
     }
 
+    [Flags]
+    public enum FileDesiredAccess : uint
+    {
+        GenericRead = 0x80000000,
+        GenericWrite = 0x40000000,
+        GenericExecute = 0x20000000,
+        GenericAll = 0x10000000
+    }
+
+    [Flags]
+    public enum FileShareMode : uint
+    {
+        Zero = 0x00000000,
+        FileShareDelete = 0x00000004,
+        FileShareRead = 0x00000001,
+        FileShareWrite = 0x00000002
+    }
+
+    public enum FileCreationDisposition : uint
+    {
+        CreateNew = 1,
+        CreateAlways = 2,
+        OpenExisting = 3,
+        OpenAlways = 4,
+        TruncateExisting = 5
+    }
+
     public static class WinAPI
     {
         [DllImport("User32.dll")]
@@ -140,6 +168,17 @@ namespace Amatsukaze.Lib
         public static extern bool GetWindowPlacement(
             IntPtr hWnd,
             out WINDOWPLACEMENT lpwndpl);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern SafeFileHandle CreateMailslot(string mailslotName,
+                        uint nMaxMessageSize, int lReadTimeout, IntPtr securityAttributes);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern SafeFileHandle CreateFile(string fileName,
+                                   FileDesiredAccess desiredAccess, FileShareMode shareMode,
+                                   IntPtr securityAttributes,
+                                   FileCreationDisposition creationDisposition,
+                                   int flagsAndAttributes, IntPtr hTemplateFile);
     }
 
     [Serializable]

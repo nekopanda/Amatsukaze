@@ -30,6 +30,7 @@ namespace Amatsukaze.Server
         Task RequestLogoData(string fileName);
         Task RequestDrcsImages();
 
+        // スタブ用接続終了
         void Finish();
     }
 
@@ -49,6 +50,8 @@ namespace Amatsukaze.Server
         Task OnAddResult(string requestId);
 
         Task OnOperationResult(OperationResult result);
+
+        // スタンドアロン用終了
         void Finish();
     }
 

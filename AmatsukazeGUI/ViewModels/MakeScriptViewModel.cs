@@ -97,7 +97,7 @@ namespace Amatsukaze.ViewModels
         {
             string cur = Directory.GetCurrentDirectory();
             string exe = Path.GetDirectoryName(GetType().Assembly.Location);
-            string dst = Model.MakeScriptData.OutDir;
+            string dst = Model.MakeScriptData.OutDir.TrimEnd(Path.DirectorySeparatorChar);
             string prof = DisplayProfile.GetProfileName(Model.MakeScriptData.SelectedProfile);
             string nas = null;
             string ip = "localhost";
@@ -130,7 +130,7 @@ namespace Amatsukaze.ViewModels
                     Description = "NAS保存先を指定してください。";
                     return;
                 }
-                nas = Model.MakeScriptData.NasDir;
+                nas = Model.MakeScriptData.NasDir.TrimEnd(Path.DirectorySeparatorChar); ;
             }
 
             if (IsRemoteClient)

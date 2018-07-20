@@ -167,6 +167,7 @@ namespace Amatsukaze.Models
         private State state = new State();
 
         public Func<object, string, Task> ServerAddressRequired;
+        public Action FinishRequested;
 
         private BufferBlock<string> requestLogoQ = new BufferBlock<string>();
         private Task requestLogoThread;
@@ -837,11 +838,7 @@ namespace Amatsukaze.Models
 
         public void Finish()
         {
-            if (Server != null)
-            {
-                Server.Finish();
-                Server = null;
-            }
+            FinishRequested?.Invoke();
         }
 
         private bool firstAsked = true;

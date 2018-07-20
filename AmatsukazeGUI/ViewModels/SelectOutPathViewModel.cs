@@ -83,6 +83,7 @@ namespace Amatsukaze.ViewModels
 
         private async Task<bool> GetOutPath()
         {
+            Item.Outputs[0].DstPath = Item.Outputs[0].DstPath.TrimEnd(Path.DirectorySeparatorChar);
             if (System.IO.Directory.Exists(Item.Outputs[0].DstPath) == false)
             {
                 var message = new ConfirmationMessage(

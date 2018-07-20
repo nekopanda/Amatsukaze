@@ -211,6 +211,8 @@ namespace Amatsukaze.ViewModels
             SelectedInfoPanel = null;
 
             Model.ServerAddressRequired = ServerAddressRequired;
+            Model.FinishRequested = () =>
+                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "MainWindowAction"));
 
             try
             {

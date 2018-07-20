@@ -187,7 +187,16 @@ namespace Amatsukaze.Server
             LoadAutoSelectData();
             if (client != null)
             {
+                // スタンドアロン
                 this.Client = client;
+
+                // 終了待機
+                var fs = ServerSupport.CreateStandaloneMailslot();
+                ServerSupport.WaitStandaloneMailslot(fs).ContinueWith(task =>
+                {
+                    // 終了リクエストが来た
+                    client.Finish();
+                });
             }
             else
             {
@@ -521,11 +530,9 @@ namespace Amatsukaze.Server
 
         public void Finish()
         {
-            if (Client != null)
-            {
-                Client.Finish();
-                Client = null;
-            }
+            // Finishはスタブの接続を切るためのインターフェースなので
+            // サーバ本体では使われない
+            throw new NotImplementedException();
         }
 
         private void SetScheduleParam(bool enable, int numGPU, int[] maxGPU)
@@ -711,12 +718,7 @@ namespace Amatsukaze.Server
                 Directory.Exists(AppData_.setting.WorkPath) == false)
             {
                 // 一時フォルダにアクセスできないときは、デフォルト一時フォルダを設定
-                var tmp = Path.GetTempPath();
-                if (tmp.EndsWith("\\"))
-                {
-                    tmp = tmp.Substring(0, tmp.Length - 1);
-                }
-                AppData_.setting.WorkPath = tmp;
+                AppData_.setting.WorkPath = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar);
             }
             if (AppData_.setting.NumGPU == 0)
             {
@@ -1264,17 +1266,17 @@ namespace Amatsukaze.Server
 
         private static void CheckSetting(ProfileSetting profile, Setting setting)
         {
-            string workPath = setting.ActualWorkPath;
             if (!File.Exists(setting.AmatsukazePath))
             {
                 throw new InvalidOperationException(
                     "AmtasukazeCLIパスが無効です: " + setting.AmatsukazePath);
             }
 
-            if(setting.WorkPath.EndsWith("\\"))
+            if(setting.WorkPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
             {
-                setting.WorkPath = setting.WorkPath.Substring(0, setting.WorkPath.Length - 1);
+                setting.WorkPath = setting.WorkPath.TrimEnd(Path.DirectorySeparatorChar);
             }
+            string workPath = setting.ActualWorkPath;
             if (!Directory.Exists(workPath))
             {
                 throw new InvalidOperationException(
