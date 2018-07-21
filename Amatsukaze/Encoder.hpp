@@ -11,6 +11,158 @@
 #include "TranscodeSetting.hpp"
 #include "FilteredSource.hpp"
 
+class Y4MWriter {
+	static const char* getPixelFormat(VideoInfo vi) {
+		if (vi.Is420()) {
+			switch (vi.BitsPerComponent()) {
+			case 8: return "420mpeg2";
+			case 10: return "420p10";
+			case 12: return "420p12";
+			case 14: return "420p14";
+			case 16: return "420p16";
+			}
+		}
+		else if (vi.Is422()) {
+			switch (vi.BitsPerComponent()) {
+			case 8: return "422";
+			case 10: return "422p10";
+			case 12: return "422p12";
+			case 14: return "422p14";
+			case 16: return "422p16";
+			}
+		}
+		else if (vi.Is444()) {
+			switch (vi.BitsPerComponent()) {
+			case 8: return "444";
+			case 10: return "424p10";
+			case 12: return "424p12";
+			case 14: return "424p14";
+			case 16: return "424p16";
+			}
+		}
+		else if (vi.IsY()) {
+			switch (vi.BitsPerComponent()) {
+			case 8: return "mono";
+			case 16: return "mono16";
+			}
+		}
+		THROW(FormatException, "サポートされていないフィルタ出力形式です");
+		return 0;
+	}
+public:
+	Y4MWriter(VideoInfo vi, VideoFormat outfmt) : n(0) {
+		StringBuilder sb;
+		sb.append("YUV4MPEG2 W%d H%d C%s I%s F%d:%d A%d:%d",
+			outfmt.width, outfmt.height,
+			getPixelFormat(vi), outfmt.progressive ? "p" : "t",
+			vi.fps_numerator, vi.fps_denominator,
+			outfmt.sarWidth, outfmt.sarHeight);
+		header = sb.str();
+		header.push_back(0x0a);
+		frameHeader = "FRAME";
+		frameHeader.push_back(0x0a);
+		nc = vi.IsY() ? 1 : 3;
+	}
+	void inputFrame(const PVideoFrame& frame) {
+		if (n++ == 0) {
+			buffer.add(MemoryChunk((uint8_t*)header.data(), header.size()));
+		}
+		buffer.add(MemoryChunk((uint8_t*)frameHeader.data(), frameHeader.size()));
+		int yuv[] = { PLANAR_Y, PLANAR_U, PLANAR_V };
+		for (int c = 0; c < nc; ++c) {
+			const uint8_t* plane = frame->GetReadPtr(yuv[c]);
+			int pitch = frame->GetPitch(yuv[c]);
+			int height = frame->GetHeight(yuv[c]);
+			int rowsize = frame->GetRowSize(yuv[c]);
+			for (int y = 0; y < height; ++y) {
+				buffer.add(MemoryChunk((uint8_t*)plane + y * pitch, rowsize));
+			}
+			onWrite(buffer.get());
+			buffer.clear();
+		}
+	}
+protected:
+	virtual void onWrite(MemoryChunk mc) = 0;
+private:
+	int n;
+	int nc;
+	std::string header;
+	std::string frameHeader;
+	AutoBuffer buffer;
+};
+
+class Y4MEncodeWriter : AMTObject, NonCopyable
+{
+	static const char* getYUV(VideoInfo vi) {
+		if (vi.Is420()) return "420";
+		if (vi.Is422()) return "422";
+		if (vi.Is444()) return "424";
+		return "Unknown";
+	}
+public:
+	Y4MEncodeWriter(AMTContext& ctx, const std::string& encoder_args, VideoInfo vi, VideoFormat fmt)
+		: AMTObject(ctx)
+		, y4mWriter_(new MyVideoWriter(this, vi, fmt))
+		, process_(new StdRedirectedSubProcess(encoder_args, 5))
+	{
+		ctx.info("y4m format: YUV%sp%d %s %dx%d SAR %d:%d %d/%dfps",
+			getYUV(vi), vi.BitsPerComponent(), fmt.progressive ? "progressive" : "tff",
+			fmt.width, fmt.height, fmt.sarWidth, fmt.sarHeight, vi.fps_numerator, vi.fps_denominator);
+	}
+	~Y4MEncodeWriter()
+	{
+		if (process_->isRunning()) {
+			THROW(InvalidOperationException, "call finish before destroy object ...");
+		}
+	}
+
+	void inputFrame(const PVideoFrame& frame) {
+		y4mWriter_->inputFrame(frame);
+	}
+
+	void finish() {
+		if (y4mWriter_ != NULL) {
+			process_->finishWrite();
+			int ret = process_->join();
+			if (ret != 0) {
+				ctx.error("↓↓↓↓↓↓エンコーダ最後の出力↓↓↓↓↓↓");
+				for (auto v : process_->getLastLines()) {
+					v.push_back(0); // null terminate
+					ctx.error("%s", v.data());
+				}
+				ctx.error("↑↑↑↑↑↑エンコーダ最後の出力↑↑↑↑↑↑");
+				THROWF(RuntimeException, "エンコーダ終了コード: 0x%x", ret);
+			}
+		}
+	}
+
+	const std::deque<std::vector<char>>& getLastLines() {
+		process_->getLastLines();
+	}
+
+private:
+	class MyVideoWriter : public Y4MWriter {
+	public:
+		MyVideoWriter(Y4MEncodeWriter* this_, VideoInfo vi, VideoFormat fmt)
+			: Y4MWriter(vi, fmt)
+			, this_(this_)
+		{ }
+	protected:
+		virtual void onWrite(MemoryChunk mc) {
+			this_->onVideoWrite(mc);
+		}
+	private:
+		Y4MEncodeWriter* this_;
+	};
+
+	std::unique_ptr<MyVideoWriter> y4mWriter_;
+	std::unique_ptr<StdRedirectedSubProcess> process_;
+
+	void onVideoWrite(MemoryChunk mc) {
+		process_->write(mc);
+	}
+};
+
 class AMTFilterVideoEncoder : public AMTObject {
 public:
   AMTFilterVideoEncoder(
@@ -42,12 +194,11 @@ public:
 
       const std::string& args = encoderOptions[i];
 
-      // 初期化
-      encoder_ = std::unique_ptr<av::EncodeWriter>(new av::EncodeWriter(ctx));
+			ctx.info("[エンコーダ起動]");
+			ctx.info(args.c_str());
 
-      ctx.info("[エンコーダ起動]");
-      ctx.info(args.c_str());
-      encoder_->start(args, outfmt_, false, bufsize);
+			// 初期化
+      encoder_ = std::unique_ptr<Y4MEncodeWriter>(new Y4MEncodeWriter(ctx, args, vi_, outfmt_));
 
       Stopwatch sw;
       // エンコードスレッド開始
@@ -82,8 +233,6 @@ public:
         THROW(RuntimeException, "エンコード中に不明なエラーが発生");
       }
 
-      ctx.info("%dフレーム出力しました",encoder_->getFrameCount());
-
       encoder_ = nullptr;
       sw.stop();
 
@@ -102,7 +251,7 @@ private:
     { }
   protected:
     virtual void OnDataReceived(std::unique_ptr<PVideoFrame>&& data) {
-      this_->onFrameReceived(std::move(data));
+			this_->encoder_->inputFrame(*data);
     }
   private:
     AMTFilterVideoEncoder * this_;
@@ -110,64 +259,9 @@ private:
 
   VideoInfo vi_;
   VideoFormat outfmt_;
-  std::unique_ptr<av::EncodeWriter> encoder_;
+  std::unique_ptr<Y4MEncodeWriter> encoder_;
 
   SpDataPumpThread thread_;
-
-  int getFFformat() {
-    switch (vi_.BitsPerComponent()) {
-    case 8: return AV_PIX_FMT_YUV420P;
-    case 10: return AV_PIX_FMT_YUV420P10;
-    case 12: return AV_PIX_FMT_YUV420P12;
-    case 14: return AV_PIX_FMT_YUV420P14;
-    case 16: return AV_PIX_FMT_YUV420P16;
-    default: THROW(FormatException, "サポートされていないフィルタ出力形式です");
-    }
-    return 0;
-  }
-
-  void onFrameReceived(std::unique_ptr<PVideoFrame>&& frame) {
-
-    // PVideoFrameをav::Frameに変換
-    const PVideoFrame& in = *frame;
-    av::Frame out;
-
-    out()->width = outfmt_.width;
-    out()->height = outfmt_.height;
-    out()->format = getFFformat();
-    out()->sample_aspect_ratio.num = outfmt_.sarWidth;
-    out()->sample_aspect_ratio.den = outfmt_.sarHeight;
-    out()->color_primaries = (AVColorPrimaries)outfmt_.colorPrimaries;
-    out()->color_trc = (AVColorTransferCharacteristic)outfmt_.transferCharacteristics;
-    out()->colorspace = (AVColorSpace)outfmt_.colorSpace;
-
-    // AVFrame.dataは16バイトまで超えたアクセスがあり得るので、
-    // そのままポインタをセットすることはできない
-
-    if (av_frame_get_buffer(out(), 64) != 0) {
-      THROW(RuntimeException, "failed to allocate frame buffer");
-    }
-
-    const uint8_t *src_data[4] = {
-      in->GetReadPtr(PLANAR_Y),
-      in->GetReadPtr(PLANAR_U),
-      in->GetReadPtr(PLANAR_V),
-      nullptr
-    };
-    int src_linesize[4] = {
-      in->GetPitch(PLANAR_Y),
-      in->GetPitch(PLANAR_U),
-      in->GetPitch(PLANAR_V),
-      0
-    };
-
-    av_image_copy(
-      out()->data, out()->linesize, src_data, src_linesize,
-      (AVPixelFormat)out()->format, out()->width, out()->height);
-
-    encoder_->inputFrame(out);
-  }
-
 };
 
 class AMTSimpleVideoEncoder : public AMTObject {
