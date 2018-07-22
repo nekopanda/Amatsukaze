@@ -168,6 +168,21 @@ public:
 	virtual void onPesPacket(int64_t clock, PESPacket packet)
 	{
 		int64_t PTS = packet.has_PTS() ? packet.PTS : -1;
+		int64_t SysClock = clock / 300;
+
+		// 基本的にPTSを処理可能な受信機だが、
+		// PTSが正しくない場合があるので、その場合は
+		// PTSを処理不能な受信機をエミューレーション
+		// PTSとSysClockとの差は
+		//  - ARIBによれば受信から表示まで少なくとも0.5秒以上空けるようにとある
+		//  - 複数のTSを確認したところだいたい0.75～0.80秒くらいだった
+		// ので、0.5秒～1.5秒を正しいと判定、それ以外は0.8秒先を表示時刻とする
+		auto Td = PTS - SysClock;
+		if (Td < 0.5 * MPEG_CLOCK_HZ || Td > 1.5 * MPEG_CLOCK_HZ) {
+			PTS = SysClock + (int)(0.8 * MPEG_CLOCK_HZ);
+			//ctx.info("字幕PTSを修正 %d", PTS);
+		}
+
 		//int64_t DTS = packet.has_DTS() ? packet.DTS : PTS;
 		MemoryChunk payload = packet.paylod();
 
@@ -323,7 +338,7 @@ public:
 	// 現在入力されたパケットを基準にしてrelativeだけ後のパケットの入力時刻を返す
 	int64_t getClock(int relative) {
 		if (!pcrReceived()) {
-			return -1;
+			return pcrInfo[1].clock;
 		}
 		int index = numTotakPacketsReveived + relative - 1;
 		int64_t clockDiff = pcrInfo[1].clock - pcrInfo[0].clock;

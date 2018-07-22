@@ -370,7 +370,7 @@ public:
 
 class PesParser : public TsPacketHandler {
 public:
-	PesParser() : packetClock(-1), contCounter(0) {}
+	PesParser() : contCounter(0) {}
 
 	/** @brief TSパケット(チェック済み)を入力 */
 	virtual void onTsPacket(int64_t clock, TsPacket packet) {
@@ -391,11 +391,9 @@ public:
 
 				if (buffer.size() > 0) {
 					// 前のパケットデータがある場合は出力
-					checkAndOutPacket(packetClock, buffer.get());
+					checkAndOutPacket(clock, buffer.get());
 					buffer.clear();
 				}
-
-				packetClock = clock;
 			}
 
 			MemoryChunk payload = packet.payload();
@@ -408,7 +406,7 @@ public:
 				int lengthIncludeHeader = PES_packet_length + 6;
 				if (PES_packet_length != 0 && (int)buffer.size() >= lengthIncludeHeader) {
 					// パケットのストア完了
-					checkAndOutPacket(packetClock, MemoryChunk(buffer.ptr(), lengthIncludeHeader));
+					checkAndOutPacket(clock, MemoryChunk(buffer.ptr(), lengthIncludeHeader));
 					buffer.trimHead(lengthIncludeHeader);
 				}
 			}
@@ -420,7 +418,6 @@ protected:
 
 private:
 	AutoBuffer buffer;
-	int64_t packetClock;
 	int contCounter;
 
 	// パケットをチェックして出力
@@ -429,7 +426,7 @@ private:
 		// フォーマットチェック
 		if (packet.parse() && packet.check()) {
 			// OK
-			onPesPacket(packetClock, packet);
+			onPesPacket(clock, packet);
 		}
 	}
 };
@@ -1424,6 +1421,61 @@ private:
 		return (stream_type == 0x06);
 	}
 
+	static const char* streamTypeString(int stream_type) {
+		switch (stream_type) {
+		case 0x00:
+			return "ECM";
+		case 0x02: // ITU-T Rec. H.262 and ISO/IEC 13818-2 (MPEG-2 higher rate interlaced video) in a packetized stream
+			return "MPEG2-VIDEO";
+		case 0x04: // ISO/IEC 13818-3 (MPEG-2 halved sample rate audio) in a packetized stream
+			return "MPEG2-AUDIO";
+		case 0x06: // ITU-T Rec. H.222 and ISO/IEC 13818-1 (MPEG-2 packetized data) privately defined (i.e., DVB subtitles / VBI and AC - 3)
+			return "字幕";
+		case 0x0D: // ISO/IEC 13818-6 DSM CC tabled data
+			return "データカルーセル";
+		case 0x0F: // ISO/IEC 13818-7 ADTS AAC (MPEG-2 lower bit-rate audio) in a packetized stream
+			return "ADTS AAC";
+		case 0x11: // ISO/IEC 14496-3 (MPEG-4 LOAS multi-format framed audio) in a packetized stream
+			return "MPEG4 AAC";
+		case 0x1B: // ITU-T Rec. H.264 and ISO/IEC 14496-10 (lower bit-rate video) in a packetized stream
+			return "H.264/AVC";
+		case 0x24: // ITU-T Rec. H.265 and ISO/IEC 23008-2 (Ultra HD video) in a packetized stream
+			return "H.265/HEVC";
+		}
+		return nullptr;
+	}
+
+	static const char* componentTagString(int component_tag) {
+		if (component_tag >= 0x00 && component_tag <= 0x0F) return "MPEG2 映像";
+		if (component_tag >= 0x10 && component_tag <= 0x2F) return "MPEG2 AAC 音声";
+		if (component_tag >= 0x30 && component_tag <= 0x37) return "字幕";
+		if (component_tag >= 0x38 && component_tag <= 0x3F) return "文字スーパー";
+		if (component_tag >= 0x40 && component_tag <= 0x7F) return "データ";
+		switch (component_tag) {
+		case 0x81:
+		case 0x82:
+			return "簡易動画 映像";
+		case 0x83:
+		case 0x84:
+		case 0x85:
+		case 0x86:
+		case 0x8C:
+		case 0x8D:
+		case 0x8E:
+		case 0x8F:
+			return "MPEG2 AAC 音声";
+		case 0x87:
+			return "字幕";
+		case 0x80:
+		case 0x8B:
+			return "データ";
+		case 0x89:
+		case 0x8A:
+			return "イベントメッセージ";
+		}
+		return nullptr;
+	}
+
 	void printPMT(const PMT& pmt) {
 		if (currentClock == -1 || startClock == -1) {
 			ctx.info("[PMT更新]");
@@ -1438,41 +1490,29 @@ private:
 		const char* content = NULL;
 		for (int i = 0; i < pmt.numElems(); ++i) {
 			PMTElement elem = pmt.get(i);
-			switch (elem.stream_type()) {
-			case 0x00:
-				content = "ECM";
-				break;
-			case 0x02: // ITU-T Rec. H.262 and ISO/IEC 13818-2 (MPEG-2 higher rate interlaced video) in a packetized stream
-				content = "MPEG2-VIDEO";
-				break;
-			case 0x04: // ISO/IEC 13818-3 (MPEG-2 halved sample rate audio) in a packetized stream
-				content = "MPEG2-AUDIO";
-				break;
-			case 0x06: // ITU-T Rec. H.222 and ISO/IEC 13818-1 (MPEG-2 packetized data) privately defined (i.e., DVB subtitles / VBI and AC - 3)
-				content = "字幕";
-				break;
-			case 0x0D: // ISO/IEC 13818-6 DSM CC tabled data
-				content = "データカルーセル";
-				break;
-			case 0x0F: // ISO/IEC 13818-7 ADTS AAC (MPEG-2 lower bit-rate audio) in a packetized stream
-				content = "ADTS AAC";
-				break;
-			case 0x11: // ISO/IEC 14496-3 (MPEG-4 LOAS multi-format framed audio) in a packetized stream
-				content = "MPEG4 AAC";
-				break;
-			case 0x1B: // ITU-T Rec. H.264 and ISO/IEC 14496-10 (lower bit-rate video) in a packetized stream
-				content = "H.264/AVC";
-				break;
-			case 0x24: // ITU-T Rec. H.265 and ISO/IEC 23008-2 (Ultra HD video) in a packetized stream
-				content = "H.265/HEVC";
-				break;
-			default:
-				content = NULL;
-				break;
+			// コンポーネントタグを取得
+			int component_tag = -1;
+			auto descs = ParseDescriptors(elem.descriptor());
+			for (int i = 0; i < (int)descs.size(); ++i) {
+				if (descs[i].tag() == 0x52) { // ストリーム識別記述子
+					StreamIdentifierDescriptor streamdesc(descs[i]);
+					if (streamdesc.parse()) {
+						component_tag = streamdesc.component_tag();
+					}
+				}
 			}
-
+			const char* content = streamTypeString(elem.stream_type());
+			const char* tag = componentTagString(component_tag);
 			if (content != NULL) {
-				ctx.info("PID: 0x%04x TYPE: %s", elem.elementary_PID(), content);
+				if (tag != NULL) {
+					ctx.info("PID: 0x%04x TYPE: %s TAG: %s(0x%02x)", elem.elementary_PID(), content, tag, component_tag);
+				}
+				else if(component_tag != -1) {
+					ctx.info("PID: 0x%04x TYPE: %s TAG: 不明(0x%02x)", elem.elementary_PID(), content, component_tag);
+				}
+				else {
+					ctx.info("PID: 0x%04x TYPE: %s", elem.elementary_PID(), content);
+				}
 			}
 			else {
 				ctx.info("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());

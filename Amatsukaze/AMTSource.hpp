@@ -406,7 +406,7 @@ class AMTSource : public IClip, AMTObject
 		while (av_read_frame(inputCtx(), &packet) == 0) {
 			if (packet.stream_index == videoStream->index) {
 				if (avcodec_send_packet(codecCtx(), &packet) != 0) {
-               ctx.incrementCounter(AMT_ERR_DECODE_PACKET_FAILED);
+					ctx.incrementCounter(AMT_ERR_DECODE_PACKET_FAILED);
 					ctx.warn("avcodec_send_packet failed");
 				}
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
