@@ -230,6 +230,18 @@ namespace Amatsukaze.ViewModels
 
                 Messenger.Raise(new WindowActionMessage(WindowAction.Close, "MainWindowAction"));
             }
+            catch(Exception e)
+            {
+                var message = new InformationMessage(
+                    "起動処理でエラーが発生しました\r\n" +
+                    e.Message + "\r\n" + e.StackTrace,
+                    "AmatsukazeServer",
+                    "Message");
+
+                await Messenger.RaiseAsync(message);
+
+                Messenger.Raise(new WindowActionMessage(WindowAction.Close, "MainWindowAction"));
+            }
         }
 
         protected override void Dispose(bool disposing)

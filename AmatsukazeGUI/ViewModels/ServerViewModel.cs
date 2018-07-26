@@ -67,16 +67,31 @@ namespace Amatsukaze.ViewModels
         {
             await GetGlobalLock();
 
-            var logpath = ServerSupport.GetServerLogPath();
-            file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
-            Util.LogHandlers.Add(AddLog);
-            Server = new EncodeServer(App.Option.ServerPort, null, async () =>
+            try
             {
+                var logpath = ServerSupport.GetServerLogPath();
+                file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
+                Util.LogHandlers.Add(AddLog);
+                Server = new EncodeServer(App.Option.ServerPort, null, async () =>
+                {
+                    await RealCloseWindow();
+                });
+                await Server.Init();
+                RaisePropertyChanged("Server");
+                WindowCaption = "AmatsukazeServer@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
+            }
+            catch(Exception e)
+            {
+                var message = new InformationMessage(
+                    "起動処理でエラーが発生しました\r\n" +
+                    e.Message + "\r\n" + e.StackTrace,
+                    "AmatsukazeServer",
+                    "Message");
+
+                await Messenger.RaiseAsync(message);
+
                 await RealCloseWindow();
-            });
-            await Server.Init();
-            RaisePropertyChanged("Server");
-            WindowCaption = "AmatsukazeServer@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
+            }
 
             if (App.Option.LaunchType == LaunchType.Debug)
             {

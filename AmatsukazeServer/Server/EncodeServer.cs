@@ -356,7 +356,14 @@ namespace Amatsukaze.Server
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
 
                     // キュー状態を保存する
-                    queueManager.SaveQueueData(false);
+                    try
+                    {
+                        queueManager.SaveQueueData(false);
+                    }
+                    catch(Exception)
+                    {
+                        // Dispose中の例外は仕方ないので無視する
+                    }
 
                     // 終了時にプロセスが残らないようにする
                     if (workerPool != null)
@@ -378,13 +385,27 @@ namespace Amatsukaze.Server
                     if (settingUpdated)
                     {
                         settingUpdated = false;
-                        SaveAppData();
+                        try
+                        {
+                            SaveAppData();
+                        }
+                        catch (Exception)
+                        {
+                            // Dispose中の例外は仕方ないので無視する
+                        }
                     }
 
                     if(autoSelectUpdated)
                     {
                         autoSelectUpdated = false;
-                        SaveAutoSelectData();
+                        try
+                        {
+                            SaveAutoSelectData();
+                        }
+                        catch (Exception)
+                        {
+                            // Dispose中の例外は仕方ないので無視する
+                        }
                     }
                 }
 
@@ -1825,17 +1846,38 @@ namespace Amatsukaze.Server
                 {
                     if(settingUpdated)
                     {
-                        SaveAppData();
+                        try
+                        {
+                            SaveAppData();
+                        }
+                        catch(Exception e)
+                        {
+                            await FatalError("設定保存に失敗しました", e);
+                        }
                         settingUpdated = false;
                     }
 
                     if(autoSelectUpdated)
                     {
-                        SaveAutoSelectData();
+                        try
+                        {
+                            SaveAutoSelectData();
+                        }
+                        catch (Exception e)
+                        {
+                            await FatalError("自動選択設定保存に失敗しました", e);
+                        }
                         autoSelectUpdated = false;
                     }
 
-                    queueManager.SaveQueueData(false);
+                    try
+                    {
+                        queueManager.SaveQueueData(false);
+                    }
+                    catch (Exception e)
+                    {
+                        await FatalError("キュー状態保存に失敗しました", e);
+                    }
 
                     if (await Task.WhenAny(completion, Task.Delay(5000)) == completion)
                     {

@@ -621,7 +621,15 @@ namespace Amatsukaze.Server
                             if (File.Exists(movedPath))
                             {
                                 // EDCB関連ファイルも移動したかどうかは分からないが、あれば戻す
-                                ServerSupport.MoveTSFile(movedPath, dirPath, true);
+                                try
+                                {
+                                    ServerSupport.MoveTSFile(movedPath, dirPath, true);
+                                }
+                                catch (Exception e)
+                                {
+                                    return server.FatalError(
+                                        "ファイルの移動に失敗しました", e);
+                                }
                             }
                         }
                     }
@@ -760,7 +768,15 @@ namespace Amatsukaze.Server
                 if (File.Exists(movedPath))
                 {
                     // EDCB関連ファイルも移動したかどうかは分からないが、あれば消す
-                    ServerSupport.DeleteTSFile(movedPath, true);
+                    try
+                    {
+                        ServerSupport.DeleteTSFile(movedPath, true);
+                    }
+                    catch (Exception e)
+                    {
+                        return server.FatalError(
+                            "ファイルの削除に失敗しました", e);
+                    }
                 }
 
                 // アイテム削除
