@@ -123,7 +123,13 @@ namespace Amatsukaze.Server
         {
             if (item.Profile != server.PendingProfile)
             {
+                // すでにプロファイルが決定済み
                 return true;
+            }
+            if(item.State == QueueState.PreFailed)
+            {
+                // TSファイルの情報取得に失敗している
+                return false;
             }
 
             // ペンディングならプロファイルの決定を試みる
@@ -578,6 +584,10 @@ namespace Amatsukaze.Server
                 data.ChangeType == ChangeItemType.UpdateProfile ||
                 data.ChangeType == ChangeItemType.Duplicate)
             {
+                if(target.State == QueueState.PreFailed)
+                {
+                    return server.NotifyError("このアイテムは追加処理に失敗しているため操作できません", false);
+                }
                 if (data.ChangeType == ChangeItemType.ResetState)
                 {
                     // エンコード中は変更できない

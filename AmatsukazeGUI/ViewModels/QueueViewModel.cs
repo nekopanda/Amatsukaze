@@ -633,7 +633,7 @@ namespace Amatsukaze.ViewModels
         public void CopySettingText(IEnumerable selectedItems)
         {
             var item = selectedItems.OfType<DisplayQueueItem>().FirstOrDefault();
-            if(item != null && item.Model.Profile != null)
+            if(item?.Model?.Profile?.Bitrate != null)
             {
                 try
                 {

@@ -81,8 +81,11 @@ namespace Amatsukaze.Models
 
         public string GenreString
         {
-            get { return string.Join(", ", 
-                Model.Genre.Select(s => SubGenre.GetFromItem(s)?.FullName).Where(s => s != null)); }
+            get {
+                if (Model.Genre == null) return "";
+                return string.Join(", ", 
+                    Model.Genre.Select(s => SubGenre.GetFromItem(s)?.FullName).Where(s => s != null));
+            }
         }
 
         public string VideoSizeString
@@ -141,6 +144,10 @@ namespace Amatsukaze.Models
         {
             get
             {
+                if(Model.Profile == null)
+                {
+                    return "";
+                }
                 if (Model.Profile.LastUpdate == DateTime.MinValue)
                 {
                     return "";

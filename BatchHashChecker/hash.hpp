@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <set>
+#include <string>
 
 #include "openssl/sha.h"
 
@@ -284,6 +286,18 @@ public:
 			hfptr = next;
 
 			filelist.push_back(tmpHD);
+		}
+
+		// 重複チェック
+		std::set<std::wstring> fileset;
+		for (int i = 0; i < (int)filelist.size(); ++i) {
+			std::wstring filename(filelist[i].filename, filelist[i].filename + filelist[i].flen);
+			if (fileset.find(filename) != fileset.end()) {
+				wprintf(L"重複: %s\n", filename.c_str());
+			}
+			else {
+				fileset.insert(filename);
+			}
 		}
 
 		delete[] objname;
