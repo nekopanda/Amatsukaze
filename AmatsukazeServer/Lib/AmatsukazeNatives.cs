@@ -1,10 +1,9 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.IO;
-using System.Windows.Media.Imaging;
 using System.Windows.Media;
-using System.Collections.Generic;
+using System.Windows.Media.Imaging;
 
 namespace Amatsukaze.Lib
 {
