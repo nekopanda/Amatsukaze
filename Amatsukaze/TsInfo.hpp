@@ -50,12 +50,12 @@ public:
 		, timeOK(false)
 		, numPrograms(0)
 	{
-		handlerTable.addConstant(0x0000, newPsiHandler()); // PAT
-		handlerTable.addConstant(0x0011, newPsiHandler()); // SDT/BAT
-		handlerTable.addConstant(0x0012, newPsiHandler()); // H-EIT
-		handlerTable.addConstant(0x0026, newPsiHandler()); // M-EIT
-		handlerTable.addConstant(0x0027, newPsiHandler()); // L-EIT
-		handlerTable.addConstant(0x0014, newPsiHandler()); // TDT/TOT
+		AddConstantHandler(0x0000); // PAT
+		AddConstantHandler(0x0011); // SDT/BAT
+		AddConstantHandler(0x0012); // H-EIT
+		AddConstantHandler(0x0026); // M-EIT
+		AddConstantHandler(0x0027); // L-EIT
+		AddConstantHandler(0x0014); // TDT/TOT
 	}
 
 	void inputTsPacket(int64_t clock, TsPacket packet) {
@@ -134,15 +134,18 @@ public:
 private:
 	class PSIDelegator : public PsiUpdatedDetector {
 		TsInfoParser& this_;
+		int pid;
 	public:
-		PSIDelegator(AMTContext&ctx, TsInfoParser& this_) : PsiUpdatedDetector(ctx), this_(this_) { }
+		PSIDelegator(AMTContext&ctx, TsInfoParser& this_, int pid)
+			: PsiUpdatedDetector(ctx), this_(this_) , pid(pid) { }
 		virtual void onTableUpdated(int64_t clock, PsiSection section) {
-			this_.onPsiUpdated(section);
+			this_.onPsiUpdated(pid, section);
 		}
 	};
 	struct ProgramItem : ProgramInfo {
 		bool programOK;
     bool hasScramble;
+		int pmtPid;
 		std::unique_ptr<PSIDelegator> pmtHandler;
 		std::unique_ptr<VideoFrameParser> videoHandler;
 
@@ -152,6 +155,7 @@ private:
 		ProgramItem()
 			: programOK(false)
       , hasScramble(false)
+			, pmtPid(-1)
 			, eventOK(false)
 		{
 			programId = -1;
@@ -208,10 +212,14 @@ private:
 	// イベント情報から
 	JSTTime startTime;
 
-	PSIDelegator* newPsiHandler() {
-		auto p = new PSIDelegator(ctx, *this);
+	PSIDelegator* newPsiHandler(int pid) {
+		auto p = new PSIDelegator(ctx, *this, pid);
 		psiHandlers.emplace_back(p);
 		return p;
+	}
+
+	void AddConstantHandler(int pid) {
+		handlerTable.addConstant(pid, newPsiHandler(pid));
 	}
 
 	ProgramItem* getProgramItem(int programId) {
@@ -223,26 +231,38 @@ private:
 		return nullptr;
 	}
 
-	void onPsiUpdated(PsiSection section)
+	void onPsiUpdated(int pid, PsiSection section)
 	{
+		// すべてのPIDを一緒くたににしてるので、PIDもチェックする
 		switch (section.table_id()) {
 		case 0x00: // PAT
-			onPAT(section);
+			if (pid == 0x0000) {
+				onPAT(section);
+			}
 			break;
 		case 0x02: // PMT
-			onPMT(section);
+			// PMTのPIDはonPMTでチェックする
+			onPMT(pid, section);
 			break;
 		case 0x42: // SDT（自ストリーム）
-			onSDT(section);
+			if (pid == 0x0011) {
+				onSDT(section);
+			}
 			break;
 		case 0x4E: // EIT（自ストリームの現在と次）
-			onEIT(section);
+			if (pid == 0x0012 || pid == 0x0026 || pid == 0x0027) {
+				onEIT(section);
+			}
 			break;
 		case 0x70: // TDT
-			onTDT(section);
+			if (pid == 0x0014) {
+				onTDT(section);
+			}
 			break;
 		case 0x73: // TOT
-			onTOT(section);
+			if (pid == 0x0014) {
+				onTOT(section);
+			}
 			break;
 		}
 	}
@@ -270,24 +290,26 @@ private:
 				programList.resize(programs.size());
 			}
 			for (int i = 0; i < (int)programs.size(); ++i) {
+				int pid = programs[i].PID();
 				if (programList[i].pmtHandler == nullptr) {
 					programList[i].pmtHandler =
-						std::unique_ptr<PSIDelegator>(new PSIDelegator(ctx, *this));
+						std::unique_ptr<PSIDelegator>(new PSIDelegator(ctx, *this, pid));
 				}
+				programList[i].pmtPid = pid;
 				programList[i].programId = programs[i].program_number();
-				handlerTable.add(programs[i].PID(), programList[i].pmtHandler.get());
+				handlerTable.add(pid, programList[i].pmtHandler.get());
 			}
 			patOK = true;
 		}
 	}
 
-	void onPMT(PsiSection section)
+	void onPMT(int pid, PsiSection section)
 	{
 		PMT pmt = section;
 		if (section.current_next_indicator() && pmt.parse() && pmt.check()) {
 			// 該当プログラムを探す
 			ProgramItem* item = getProgramItem(pmt.program_number());
-			if (item != nullptr) {
+			if (item != nullptr && item->pmtPid == pid) { // PMT-PIDが合ってるかもチェック
 				// 映像をみつける
 				item->hasVideo = false;
 				for (int i = 0; i < pmt.numElems(); ++i) {

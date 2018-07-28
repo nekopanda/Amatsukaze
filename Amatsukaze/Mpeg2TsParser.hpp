@@ -640,6 +640,9 @@ struct PAT {
 	}
 
 	bool check() const {
+		if (section.table_id() != 0x00) return false;
+		// これをチェックしないとCRCなしをOKとしてしまうので重要
+		if (section.section_syntax_indicator() != 1) return false;
 		return (payload_.length % 4) == 0;
 	}
 
@@ -690,6 +693,8 @@ struct PMT {
 	}
 
 	bool check() const {
+		if (section.table_id() != 0x02) return false;
+		if (section.section_syntax_indicator() != 1) return false;
 		return true;
 	}
 
@@ -738,6 +743,7 @@ struct SDT {
 	}
 
 	bool check() const {
+		if (section.section_syntax_indicator() != 1) return false;
 		return true;
 	}
 
@@ -820,7 +826,12 @@ struct TOT {
 		return true;
 	}
 
-	bool check() const { return true; }
+	bool check() const {
+		if (section.section_syntax_indicator() != 0) return false;
+		// section_syntax_indicatorは0だがCRCがあるのでチェックする
+		if (section.ctx.getCRC()->calc(section.data, (int)section.length, 0xFFFFFFFFUL)) return false;
+		return true;
+	}
 
 private:
 	PsiSection section;
