@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,8 +14,15 @@ namespace Amatsukaze.Server
         public static readonly int MAX_GPU = 16;
         public static readonly int MAX = 100;
 
+        private class WaitinResource
+        {
+            public ReqResource Req;
+            public int Cost;
+        }
+
         private TaskCompletionSource<int> waitTask = new TaskCompletionSource<int>();
         private int curHDD, curCPU;
+        private List<WaitinResource> waitingResources = new List<WaitinResource>();
 
         private int numGPU;
         private int[] curGPU;
@@ -39,9 +47,19 @@ namespace Amatsukaze.Server
             }
             this.numGPU = numGPU;
             this.maxGPU = maxGPU;
+            RecalculateCosts();
 
             // 待っている人全員に通知
             SignalAll();
+        }
+
+        private void RecalculateCosts()
+        {
+            foreach (var w in waitingResources)
+            {
+                w.Cost = ResourceCost(w.Req);
+            }
+            waitingResources.Sort((a, b) => a.Cost - b.Cost);
         }
 
         private void DoRelResource(Resource res)
@@ -49,6 +67,7 @@ namespace Amatsukaze.Server
             curCPU -= res.Req.CPU;
             curHDD -= res.Req.HDD;
             curGPU[res.GpuIndex] -= res.Req.GPU;
+            RecalculateCosts();
         }
 
         // 最も余裕のあるGPUを返す
@@ -71,10 +90,11 @@ namespace Amatsukaze.Server
         public Resource ForceGetResource(ReqResource req)
         {
             int gpuIndex = MostCapableGPU();
-
             curCPU += req.CPU;
             curHDD += req.HDD;
             curGPU[gpuIndex] += req.GPU;
+            RecalculateCosts();
+
             return new Resource()
             {
                 Req = req,
@@ -84,32 +104,25 @@ namespace Amatsukaze.Server
 
         public Resource TryGetResource(ReqResource req)
         {
+            int cost = ResourceCost(req);
 
-            // CPU,HDDをチェック
-            int nextCPU = curCPU + req.CPU;
-            int nextHDD = curHDD + req.HDD;
-            if (nextCPU > MAX || nextHDD > MAX)
+            if(cost > 0)
             {
+                // 上限を超えるのでダメ
                 return null;
             }
 
-            // GPUをチェック
-            int gpuIndex = MostCapableGPU();
-            int nextGPU = curGPU[gpuIndex] + req.GPU;
-            if (nextGPU > maxGPU[gpuIndex])
+            if (waitingResources.Count > 0)
             {
-                return null;
+                // 待っている人がいる場合は、コストが最小値以下でない場合はダメ
+                if (cost > waitingResources[0].Cost)
+                {
+                    return null;
+                }
             }
 
             // OK
-            curCPU = nextCPU;
-            curHDD = nextHDD;
-            curGPU[gpuIndex] = nextGPU;
-            return new Resource()
-            {
-                Req = req,
-                GpuIndex = gpuIndex
-            };
+            return ForceGetResource(req);
         }
 
         /// <summary>
@@ -120,19 +133,26 @@ namespace Amatsukaze.Server
         /// <returns>確保されたリソース</returns>
         public async Task<Resource> GetResource(ReqResource req, CancellationToken cancelToken)
         {
+            var waiting = new WaitinResource() { Req = req };
+
             cancelToken.Register((Action)(() =>
             {
+                waitingResources.Remove(waiting);
                 // キャンセルされたら一旦動かす
                 SignalAll();
             }), true);
 
+            waitingResources.Add(waiting);
+            RecalculateCosts();
+
             while (true)
             {
-                // リソース取得を試みる
-                var res = TryGetResource(req);
-                if(res != null)
+                // リソース確保可能 かつ 最小コスト
+                if(waiting.Cost <= 0 && waiting.Cost <= waitingResources[0].Cost)
                 {
-                    //Util.AddLog("リソース確保成功: " + req.CPU + ":" + req.HDD + ":" + req.GPU);
+                    waitingResources.Remove(waiting);
+                    var res = ForceGetResource(req);
+                    SignalAll();
                     return res;
                 }
                 // リソースに空きがないので待つ
