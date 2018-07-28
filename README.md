@@ -38,7 +38,7 @@ x264, x265, QSVEnc, NVEnc
 - AviSynthスクリプトによるフィルタ処理
 - マルチパステレシネ判定によるVFR化
 - 高ビットフィルタ処理およびエンコード
-- 複数エンコーダの並列実行
+- 複数エンコーダの並列実行およびスケジューリング
 - EDCBからの録画後自動エンコード
 
 ### 対応環境
@@ -573,7 +573,7 @@ GPLのライブラリを組み込んでいるので、全体にGPLが適用さ�
 - [x264](https://www.videolan.org/developers/x264.html)
 - [x265](http://x265.org/)（~~本家版はzonesを多く指定すると落ちるバグがあるので改造しています~~修正されたので今は本家版を入れてます）
 - [Ut Video Codec Suite](http://umezawa.dyndns.info/wordpress/)
-- [AviSynthPlus CUDA](https://github.com/nekopanda/AviSynthPlus)
+- [AviSynthNeo](https://github.com/nekopanda/AviSynthPlus)
 - [join_logo_scp ver 3.06](https://mevius.5ch.net/test/read.cgi/avi/1484985868/794)
 - [chapter_exe 改造版](https://github.com/nekopanda/chapter_exe)（VFWに依存しないでAvisynthスクリプトを読めるように改造しています）
 - [Livet](http://ugaya40.hateblo.jp/entry/Livet)
@@ -606,7 +606,7 @@ Ut Video Codec Suite（ライブラリ）が必要です。ソースを落とし
 ビルドしてください。必要なのはutv_core.libだけです。これを
 lib/x64(or x86)へコピーしてください。ビルドにはcygwinが必要なので注意。
 
-AvisynthPlusCUDAが必要です。ソースを落として、ビルドしてください。
+AvisynthNeoが必要です。ソースを落として、ビルドしてください。
 ビルドにはCMakeが必要です。AviSynth.libをlib/x64(or x86)へコピーしてください。
 
 単体テストプロジェクト(AmatsukazeUnitTest)は、他にgoogletestのライブラリが必要です。
