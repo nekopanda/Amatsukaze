@@ -10,6 +10,7 @@ using System.Threading;
 using System.Collections.Concurrent;
 using Amatsukaze.Server;
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace Amatsukaze
 {
@@ -27,6 +28,13 @@ namespace Amatsukaze
         public static void Main(string[] args)
         {
             Option = new GUIOPtion(args);
+
+            // RootDirが定義されていればカレントディレクトリを設定
+            if(string.IsNullOrEmpty(Option.RootDir) == false &&
+                Directory.Exists(Option.RootDir))
+            {
+                Directory.SetCurrentDirectory(Option.RootDir);
+            }
 
             Amatsukaze.App app = new Amatsukaze.App();
 

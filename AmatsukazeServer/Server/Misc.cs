@@ -31,6 +31,7 @@ namespace Amatsukaze.Server
 
     public class GUIOPtion
     {
+        public string RootDir;
         public LaunchType LaunchType = LaunchType.Standalone;
         public int ServerPort = ServerSupport.DEFAULT_PORT;
 
@@ -76,6 +77,11 @@ namespace Amatsukaze.Server
                     {
                         LaunchType = LaunchType.Add;
                     }
+                }
+                else if(arg == "-r" || arg == "--root")
+                {
+                    RootDir = args[i + 1];
+                    ++i;
                 }
                 else if(arg == "--file")
                 {
@@ -529,11 +535,6 @@ namespace Amatsukaze.Server
 
     public static class ServerSupport
     {
-        static ServerSupport()
-        {
-            Directory.CreateDirectory("data");
-        }
-
         public static readonly int DEFAULT_PORT = 32768;
         public static readonly string AUTO_PREFIX = "自動選択_";
         public static readonly string SUCCESS_DIR = "succeeded";
