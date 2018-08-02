@@ -662,4 +662,20 @@ static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
   return 0;
 }
 
+static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	File dump(setting.getSrcFilePath(), "rb");
+	auto durations = dump.readArray<int>();
+	auto cmzones = dump.readArray<EncoderZone>();
+	auto bitrateCM = dump.readValue<double>();
+	auto fpsNum = dump.readValue<int>();
+	auto fpsDenom = dump.readValue<int>();
+	auto timeFactor = dump.readValue<double>();
+	auto costLimit = dump.readValue<double>();
+
+	auto ret = MakeVFRBitrateZones(durations, cmzones, bitrateCM, fpsNum, fpsDenom, timeFactor, costLimit);
+
+	return 0;
+}
+
 } // namespace test

@@ -479,6 +479,17 @@ TEST_F(TestBase, DecodePerformance)
 	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
 }
 
+TEST_F(TestBase, VfrZonesBug)
+{
+	std::wstring srcfile = L"zone_param.dat";
+
+	const wchar_t* args[] = {
+		L"AmatsukazeTest.exe", L"--mode", L"test_zone2",
+		L"-i", srcfile.c_str(),
+	};
+	EXPECT_EQ(AmatsukazeCLI(LEN(args), args), 0);
+}
+
 void my_purecall_handler() {
 	printf("It's pure virtual call !!!\n");
 }
@@ -488,7 +499,7 @@ int main(int argc, char **argv)
 	// エラーハンドラをセット
 	_set_purecall_handler(my_purecall_handler);
 
-	::testing::GTEST_FLAG(filter) = "*DecodePerformance*";
+	::testing::GTEST_FLAG(filter) = "*VfrZonesBug*";
 	::testing::InitGoogleTest(&argc, argv);
 	int result = RUN_ALL_TESTS();
 

@@ -488,6 +488,18 @@ static std::vector<BitrateZone> MakeBitrateZones(
 	else {
 		if (setting.isZoneAvailable()) {
 			// VFR非対応エンコーダでゾーンに対応していればビットレートゾーン生成
+#if 0
+			{
+				File dump("zone_param.dat", "wb");
+				dump.writeArray(frameDurations);
+				dump.writeArray(cmzones);
+				dump.writeValue(setting.getBitrateCM());
+				dump.writeValue(outvi.fps_numerator);
+				dump.writeValue(outvi.fps_denominator);
+				dump.writeValue(setting.getX265TimeFactor());
+				dump.writeValue(0.05);
+			}
+#endif
 			return MakeVFRBitrateZones(
 				frameDurations, cmzones, setting.getBitrateCM(),
 				outvi.fps_numerator, outvi.fps_denominator,
