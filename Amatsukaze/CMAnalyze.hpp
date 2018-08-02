@@ -291,6 +291,7 @@ private:
 		std::string comment;
 		bool isCut;
 		bool isCM;
+		bool isOld;
 	};
 
 	const ConfigWrapper& setting;
@@ -322,6 +323,7 @@ private:
 	{
 		File file(jlspath, "r");
 		std::regex re("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+).*:(\\S+)");
+		std::regex reOld("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+)");
 		std::string str;
 		std::vector<JlsElement> elements;
 		while(file.getline(str)) {
@@ -332,6 +334,15 @@ private:
 					std::stoi(m[2].str()) + 1,
 					std::stoi(m[3].str()),
 					m[6].str()
+				};
+				elements.push_back(elem);
+			}
+			else if (std::regex_search(str, m, reOld)) {
+				JlsElement elem = {
+					std::stoi(m[1].str()),
+					std::stoi(m[2].str()) + 1,
+					std::stoi(m[3].str()),
+					""
 				};
 				elements.push_back(elem);
 			}
@@ -353,6 +364,7 @@ private:
 			int trimIdx = (int)(std::lower_bound(trims.begin(), trims.end(), (e.frameStart + e.frameEnd) / 2) - trims.begin());
 			e.isCut = !(trimIdx % 2);
 			e.isCM = (e.comment == "CM");
+			e.isOld = (e.comment.size() == 0);
 		}
 
 		// 余分なものはマージ
@@ -382,7 +394,7 @@ private:
 		for (int i = 0; i < (int)chapters.size(); ++i) {
 			auto& c = chapters[i];
 			if (c.isCut) {
-				if (c.isCM) c.comment = "CM";
+				if (c.isCM || c.isOld) c.comment = "CM";
 				else c.comment = "CM?";
 				prevCM = true;
 			}
