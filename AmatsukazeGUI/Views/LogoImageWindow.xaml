@@ -6,7 +6,7 @@
         xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
-        Title="ロゴ確認" Height="180" Width="300">
+        Title="ロゴ確認" SizeToContent="WidthAndHeight">
 
     <Window.DataContext>
         <vm:LogoImageViewModel/>
