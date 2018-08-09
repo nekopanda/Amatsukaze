@@ -400,6 +400,89 @@ protected:
 	}
 };
 
+class SubtitleDetectorSplitter : public TsSplitter {
+public:
+	SubtitleDetectorSplitter(AMTContext& ctx, const ConfigWrapper& setting)
+		: TsSplitter(ctx, true, false, true)
+		, setting_(setting)
+		, hasSubtltle_(false)
+	{ }
+
+	void readAll()
+	{
+		enum { BUFSIZE = 4 * 1024 * 1024 };
+		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
+		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
+		File srcfile(setting_.getSrcFilePath(), "rb");
+		auto fileSize = srcfile.size();
+		// ファイル先頭から10%のところから読む
+		srcfile.seek(fileSize / 10, SEEK_SET);
+		int64_t totalRead = 0;
+		// 最後の10%は読まない
+		int64_t end = fileSize / 10 * 9;
+		size_t readBytes;
+		do {
+			readBytes = srcfile.read(buffer);
+			inputTsData(MemoryChunk(buffer.data, readBytes));
+			totalRead += readBytes;
+		} while (totalRead < end && !hasSubtltle_ && videoFrameList_.size() < 30 * 300);
+	}
+
+	bool getHasSubtitle() const {
+		return hasSubtltle_;
+	}
+
+protected:
+	const ConfigWrapper& setting_;
+	std::vector<VideoFrameInfo> videoFrameList_;
+	bool hasSubtltle_;
+
+	// TsSplitter仮想関数 //
+
+	virtual void onVideoPesPacket(
+		int64_t clock,
+		const std::vector<VideoFrameInfo>& frames,
+		PESPacket packet)
+	{
+		// 今の所最初のフレームしか必要ないけど
+		for (const VideoFrameInfo& frame : frames) {
+			videoFrameList_.push_back(frame);
+		}
+	}
+
+	virtual void onVideoFormatChanged(VideoFormat fmt) { }
+
+	virtual void onAudioPesPacket(
+		int audioIdx,
+		int64_t clock,
+		const std::vector<AudioFrameData>& frames,
+		PESPacket packet)
+	{ }
+
+	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) { }
+
+	virtual void onCaptionPesPacket(
+		int64_t clock,
+		std::vector<CaptionItem>& captions,
+		PESPacket packet)
+	{ }
+
+	virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
+		DRCSOutInfo info;
+		info.elapsed = (videoFrameList_.size() > 0) ? (double)(PTS - videoFrameList_[0].PTS) : -1.0;
+		info.filename = setting_.getDRCSOutPath(md5);
+		return info;
+	}
+
+	virtual void onTime(int64_t clock, JSTTime time) {
+		//
+	}
+
+	virtual void onCaptionPacket(int64_t clock, TsPacket packet) {
+		hasSubtltle_ = true;
+	}
+};
+
 class EncoderArgumentGenerator
 {
 public:
@@ -906,6 +989,16 @@ static void searchDrcsMain(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 	splitter->readAll();
 	ctx.infoF("完了: %.2f秒", sw.getAndReset());
+}
+
+static void detectSubtitleMain(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	auto splitter = std::unique_ptr<SubtitleDetectorSplitter>(new SubtitleDetectorSplitter(ctx, setting));
+	if (setting.getServiceId() > 0) {
+		splitter->setServiceId(setting.getServiceId());
+	}
+	splitter->readAll();
+	printf("字幕%s\n", splitter->getHasSubtitle() ? "あり" : "なし");
 }
 
 static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)

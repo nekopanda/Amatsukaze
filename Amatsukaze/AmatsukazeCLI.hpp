@@ -55,7 +55,7 @@ static void printCopyright() {
 }
 
 static void printHelp(const tchar* bin) {
-	printf(
+	PRINTF(
 		"%" PRITSTR " <オプション> -i <input.ts> -o <output.mp4>\n"
 		"オプション []はデフォルト値 \n"
 		"  -i|--input  <パス>  入力ファイルパス\n"
@@ -122,6 +122,7 @@ static void printHelp(const tchar* bin) {
 		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
 		"                      cm : エンコードまで行わず、CM解析までで終了するモード\n"
 		"                      drcs : マッピングのないDRCS外字画像だけ出力するモード\n"
+		"                      has_sub : 字幕があるか判定\n"
 		"  --resource-manager <入力パイプ>:<出力パイプ> リソース管理ホストとの通信パイプ\n"
 		"  --affinity <グループ>:<マスク> CPUアフィニティ\n"
 		"                      グループはプロセッサグループ（64論理コア以下のシステムでは0のみ）\n"
@@ -484,12 +485,18 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (conf.mode == "ts" || conf.mode == "g") {
+	if (conf.mode == "ts" || conf.mode == "cm" || conf.mode == "g") {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
 		if (conf.outVideoPath.size() == 0) {
 			THROWF(ArgumentException, "出力ファイルを指定してください");
+		}
+	}
+
+	if (conf.mode == "drcs" || conf.mode == "has_sub") {
+		if (conf.srcFilePath.size() == 0) {
+			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
 	}
 
@@ -515,14 +522,16 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	}
 
 	// exeを探す
-	conf.chapterExePath = SearchExe(conf.chapterExePath);
-	conf.encoderPath = SearchExe(conf.encoderPath);
-	conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
-	conf.nicoConvAssPath = SearchExe(conf.nicoConvAssPath);
-	conf.nicoConvChSidPath = GetDirectoryPath(conf.nicoConvAssPath) + "\\ch_sid.txt";
-	conf.mp4boxPath = SearchExe(conf.mp4boxPath);
-	conf.muxerPath = SearchExe(conf.muxerPath);
-	conf.timelineditorPath = SearchExe(conf.timelineditorPath);
+	if (conf.mode != "drcs" && conf.mode != "has_sub") {
+		conf.chapterExePath = SearchExe(conf.chapterExePath);
+		conf.encoderPath = SearchExe(conf.encoderPath);
+		conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
+		conf.nicoConvAssPath = SearchExe(conf.nicoConvAssPath);
+		conf.nicoConvChSidPath = GetDirectoryPath(conf.nicoConvAssPath) + "\\ch_sid.txt";
+		conf.mp4boxPath = SearchExe(conf.mp4boxPath);
+		conf.muxerPath = SearchExe(conf.muxerPath);
+		conf.timelineditorPath = SearchExe(conf.timelineditorPath);
+	}
 
 	return std::unique_ptr<ConfigWrapper>(new ConfigWrapper(ctx, conf));
 }
@@ -585,6 +594,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			transcodeSimpleMain(ctx, setting);
 		else if (mode == "drcs")
 			searchDrcsMain(ctx, setting);
+		else if (mode == "has_sub")
+			detectSubtitleMain(ctx, setting);
 
 		else if (mode == "test_print_crc")
 			test::PrintCRCTable(ctx, setting);
