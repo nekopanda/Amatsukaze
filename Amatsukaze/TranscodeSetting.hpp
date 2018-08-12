@@ -485,6 +485,8 @@ struct Config {
 	std::string joinLogoScpCmdPath;
 	std::string joinLogoScpOptions;
 	int cmoutmask;
+	// 検出モード用
+	int maxframes;
 	// ホストプロセスとの通信用
 	HANDLE inPipe;
 	HANDLE outPipe;
@@ -685,6 +687,10 @@ public:
 
 	const std::vector<NicoJKType>& getNicoJKTypes() const {
 		return nicojktypes;
+	}
+
+	int getMaxFrames() const {
+		return conf.maxframes;
 	}
 
 	HANDLE getInPipe() const {

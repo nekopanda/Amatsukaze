@@ -1728,6 +1728,19 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ProcessPriority変更通知プロパティ
+        public int ProcessPriority {
+            get { return 1 - Model.ProcessPriority; }
+            set {
+                int newValue = 1 - value;
+                if (Model.ProcessPriority == newValue)
+                    return;
+                Model.ProcessPriority = newValue;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region SchedulingEnabled変更通知プロパティ
         public bool SchedulingEnabled {
             get { return Model.SchedulingEnabled; }

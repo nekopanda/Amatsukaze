@@ -484,7 +484,7 @@ namespace Amatsukaze.Server
         }
 
         private async Task HostThread(EncodeServer server, TranscodeTask transcode,
-            PipeStream readPipe, PipeStream writePipe, bool ignoreResource)
+            PipeCommunicator pipes, bool ignoreResource)
         {
             if (!server.AppData_.setting.SchedulingEnabled)
             {
@@ -503,7 +503,7 @@ namespace Amatsukaze.Server
                 // 子プロセスが終了するまでループ
                 while (true)
                 {
-                    var cmd = await ReadCommand(readPipe);
+                    var cmd = await ReadCommand(pipes.ReadPipe);
 
                     if (resource != null)
                     {
@@ -544,7 +544,7 @@ namespace Amatsukaze.Server
                     // 確保したリソースを通知
                     // 確保に失敗したら-1
                     //Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
-                    await WriteCommand(writePipe, cmd, resource?.GpuIndex ?? -1);
+                    await WriteCommand(pipes.WritePipe, cmd, resource?.GpuIndex ?? -1);
 
                     // UIクライアントに通知
                     consoleText.State = new EncodeState()
@@ -750,14 +750,10 @@ namespace Amatsukaze.Server
                 }
 
                 // リソース管理用
-                AnonymousPipeServerStream readPipe = null, writePipe = null;
-                string outHandle = null, inHandle = null;
+                PipeCommunicator pipes = null;
                 if (server.AppData_.setting.SchedulingEnabled)
                 {
-                    readPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
-                    writePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
-                    outHandle = readPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
-                    inHandle = writePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+                    pipes = new PipeCommunicator();
                 }
 
                 string json = Path.Combine(
@@ -781,7 +777,7 @@ namespace Amatsukaze.Server
                     isMp4,
                     srcpath, localdst + ext, json,
                     src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt,
-                    inHandle, outHandle, id);
+                    pipes.InHandle, pipes.OutHandle, id);
                 string exename = server.AppData_.setting.AmatsukazePath;
 
                 int outputMask = profile.OutputMask;
@@ -811,7 +807,7 @@ namespace Amatsukaze.Server
                             if(src.IsCheck == false)
                             {
                                 // 優先度を設定
-                                p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                                p.PriorityClass = server.AppData_.setting.ProcessPriorityClass;
                             }
                         }
                         catch (InvalidOperationException)
@@ -820,8 +816,7 @@ namespace Amatsukaze.Server
                         }
 
                         // これをやらないと子プロセスが終了してもreadが帰って来ないので注意
-                        readPipe?.DisposeLocalCopyOfClientHandle();
-                        writePipe?.DisposeLocalCopyOfClientHandle();
+                        pipes?.DisposeLocalCopyOfClientHandle();
 
                         current = new TranscodeTask()
                         {
@@ -850,7 +845,7 @@ namespace Amatsukaze.Server
                                 await Task.WhenAll(
                                     RedirectOut(server, current, p.StandardOutput.BaseStream),
                                     RedirectOut(server, current, p.StandardError.BaseStream),
-                                    HostThread(server, current, readPipe, writePipe, ignoreResource),
+                                    HostThread(server, current, pipes, ignoreResource),
                                     Task.Run(() => p.WaitForExit()));
                             }
 

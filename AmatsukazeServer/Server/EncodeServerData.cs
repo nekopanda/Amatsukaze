@@ -248,6 +248,8 @@ namespace Amatsukaze.Server
         public int NumParallel { get; set; }
         [DataMember]
         public int AffinitySetting { get; set; } // 中身はProcessGroupKind
+        [DataMember]
+        public int ProcessPriority { get; set; } // 0が"通常以下"
 
         [DataMember]
         public bool ClearWorkDirOnStart { get; set; }
@@ -276,6 +278,17 @@ namespace Amatsukaze.Server
             get
             {
                 return string.IsNullOrEmpty(WorkPath) ? "./" : WorkPath;
+            }
+        }
+
+        public System.Diagnostics.ProcessPriorityClass ProcessPriorityClass {
+            get {
+                return new System.Diagnostics.ProcessPriorityClass[]
+                {
+                    System.Diagnostics.ProcessPriorityClass.Idle,
+                    System.Diagnostics.ProcessPriorityClass.BelowNormal,
+                    System.Diagnostics.ProcessPriorityClass.Normal
+                }[ProcessPriority + 1];
             }
         }
     }

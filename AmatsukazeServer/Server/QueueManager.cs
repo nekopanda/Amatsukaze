@@ -335,6 +335,9 @@ namespace Amatsukaze.Server
                                                 LogoSettings = new List<LogoSetting>()
                                             }));
                                         }
+
+                                        // TODO: 追加時バッチ
+
                                         ++numFiles;
                                     }
 

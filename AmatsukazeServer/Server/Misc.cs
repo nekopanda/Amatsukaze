@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -1020,6 +1021,65 @@ namespace Amatsukaze.Server
         {
             _Context.Finish();
         }
+    }
+
+    public class PipeCommunicator : IDisposable
+    {
+        public AnonymousPipeServerStream ReadPipe { get; private set; } // 読み取りパイプ
+        public AnonymousPipeServerStream WritePipe { get; private set; } // 書き込みパイプ
+        public string OutHandle { get; private set; } // 子プロセスの書き込みパイプ
+        public string InHandle { get; private set; }  // 子プロセスの読み取りパイプ
+
+        public PipeCommunicator()
+        {
+            ReadPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+            WritePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+            OutHandle = ReadPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+            InHandle = WritePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+        }
+
+        public void DisposeLocalCopyOfClientHandle()
+        {
+            ReadPipe.DisposeLocalCopyOfClientHandle();
+            WritePipe.DisposeLocalCopyOfClientHandle();
+        }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // 重複する呼び出しを検出するには
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
+                    ReadPipe.Dispose();
+                    WritePipe.Dispose();
+                }
+
+                // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
+                // TODO: 大きなフィールドを null に設定します。
+
+                disposedValue = true;
+            }
+        }
+
+        // TODO: 上の Dispose(bool disposing) にアンマネージ リソースを解放するコードが含まれる場合にのみ、ファイナライザーをオーバーライドします。
+        // ~PipeCommunicator() {
+        //   // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+        //   Dispose(false);
+        // }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(true);
+            // TODO: 上のファイナライザーがオーバーライドされる場合は、次の行のコメントを解除してください。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
     }
 
     public static class Extentions

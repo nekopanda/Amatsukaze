@@ -132,6 +132,7 @@
                   <TextBlock HorizontalAlignment="Right" Text="x265VFR時間レート" VerticalAlignment="Top" Margin="0,10,0,4"/>
                   <TextBlock HorizontalAlignment="Right" Text="フィルタグラフ出力" VerticalAlignment="Top" Margin="0,4,0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="エンコード最大並列数" VerticalAlignment="Top" Margin="0,4"/>
+                    <TextBlock HorizontalAlignment="Right" Text="プロセス優先度" VerticalAlignment="Top" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="CPUアフィニティ" VerticalAlignment="Top" Margin="0,4"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,4"/>
                     <TextBlock HorizontalAlignment="Right" Text="スケジューリング" VerticalAlignment="Top" Margin="0,4"/>
@@ -165,6 +166,10 @@
                                 Value="{Binding Model.Setting.NumParallelIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。&#xA;リソーススケジューリングで中断しているインスタンスも並列数にカウントされるので&#xA;リソーススケジューリングを使う場合は多めに設定してください。"/>
                     </DockPanel>
+                    <ComboBox IsReadOnly="True" Width="70" HorizontalAlignment="Left" Margin="0,3"
+                                  ItemsSource="{Binding Model.ProcessPriorityList}"
+                                  SelectedIndex="{Binding Model.Setting.ProcessPriority, Mode=TwoWay}"
+                                  ToolTip="「通常以下」または「低」推奨です"/>
                     <DockPanel>
                         <DockPanel.Resources>
                             <ControlTemplate x:Key="ShowPartitions">

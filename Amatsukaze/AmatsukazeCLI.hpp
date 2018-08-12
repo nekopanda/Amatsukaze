@@ -122,10 +122,12 @@ static void printHelp(const tchar* bin) {
 		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
 		"                      cm : エンコードまで行わず、CM解析までで終了するモード\n"
 		"                      drcs : マッピングのないDRCS外字画像だけ出力するモード\n"
-		"                      has_sub : 字幕があるか判定\n"
+		"                      probe_subtitles : 字幕があるか判定\n"
+		"                      probe_audio : 音声フォーマットを出力\n"
 		"  --resource-manager <入力パイプ>:<出力パイプ> リソース管理ホストとの通信パイプ\n"
 		"  --affinity <グループ>:<マスク> CPUアフィニティ\n"
 		"                      グループはプロセッサグループ（64論理コア以下のシステムでは0のみ）\n"
+		"  --max-frames        probe_*モード時のみ有効。TSを見る時間を映像フレーム数で指定[9000]\n"
 		"  --dump              処理途中のデータをダンプ（デバッグ用）\n",
 		bin);
 }
@@ -136,6 +138,10 @@ static std::tstring getParam(int argc, const tchar* argv[], int ikey) {
 			"%" PRITSTR "オプションはパラメータが必要です", argv[ikey]);
 	}
 	return argv[ikey + 1];
+}
+
+static bool starts_with(const std::string& str, const std::string& test) {
+	return str.compare(0, test.size(), test) == 0;
 }
 
 static std::tstring pathNormalize(std::tstring path) {
@@ -237,6 +243,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.serviceId = -1;
 	conf.cmoutmask = 1;
 	conf.nicojkmask = 1;
+	conf.maxframes = 30 * 300;
 	conf.inPipe = INVALID_HANDLE_VALUE;
 	conf.outPipe = INVALID_HANDLE_VALUE;
 	bool nicojk = false;
@@ -459,6 +466,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 				THROWF(ArgumentException, "--affinityの指定が間違っています");
 			}
 		}
+		else if (key == _T("--max-frames")) {
+			conf.maxframes = std::stoi(getParam(argc, argv, i++));
+		}
 		else if (key.size() == 0) {
 			continue;
 		}
@@ -494,7 +504,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (conf.mode == "drcs" || conf.mode == "has_sub") {
+	if (conf.mode == "drcs" || starts_with(conf.mode, "probe_")) {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
@@ -522,7 +532,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	}
 
 	// exeを探す
-	if (conf.mode != "drcs" && conf.mode != "has_sub") {
+	if (conf.mode != "drcs" && !starts_with(conf.mode, "probe_")) {
 		conf.chapterExePath = SearchExe(conf.chapterExePath);
 		conf.encoderPath = SearchExe(conf.encoderPath);
 		conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
@@ -594,8 +604,10 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			transcodeSimpleMain(ctx, setting);
 		else if (mode == "drcs")
 			searchDrcsMain(ctx, setting);
-		else if (mode == "has_sub")
+		else if (mode == "probe_subtitles")
 			detectSubtitleMain(ctx, setting);
+		else if (mode == "probe_audio")
+			detectAudioMain(ctx, setting);
 
 		else if (mode == "test_print_crc")
 			test::PrintCRCTable(ctx, setting);

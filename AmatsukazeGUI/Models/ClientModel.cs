@@ -203,6 +203,8 @@ namespace Amatsukaze.Models
 
         public string[] AffinityList { get { return new string[] { "なし", "コア", "L2", "L3", "NUMA", "Group" }; } }
 
+        public string[] ProcessPriorityList { get { return new string[] { "通常", "通常以下", "低" }; } }
+
         #region ServerHostName変更通知プロパティ
         private string _ServerHostName;
 

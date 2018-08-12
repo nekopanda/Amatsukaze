@@ -82,6 +82,7 @@
     <Compile Include="Server\ServerConnection.cs" />
     <Compile Include="Server\ServerInterface.cs" />
     <Compile Include="Server\TranscodeWorker.cs" />
+    <Compile Include="Server\UserScriptExecuter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
