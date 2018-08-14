@@ -81,6 +81,10 @@ namespace Amatsukaze.Server
         private bool settingUpdated;
         private bool autoSelectUpdated;
 
+        // DRCS処理用スレッド
+        private Task drcsThread;
+        private BufferBlock<int> drcsQ = new BufferBlock<int>();
+
         private PreventSuspendContext preventSuspend;
 
         // プロファイル未選択状態のダミープロファイル
@@ -274,16 +278,6 @@ namespace Amatsukaze.Server
             SetScheduleParam(AppData_.setting.SchedulingEnabled, 
                 AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
 
-            // キュー状態を戻す
-            queueManager.LoadAppData();
-            if(queueManager.Queue.Any(s => s.IsActive))
-            {
-                // アクティブなアイテムがある状態から開始する場合はキューを凍結する
-                EncodePaused = true;
-                workerPool.SetPause(true);
-                queueManager.UpdateQueueItems(null);
-            }
-
 #if PROFILE
             prof.PrintTime("EncodeServer 2");
 #endif
@@ -300,7 +294,7 @@ namespace Amatsukaze.Server
 #if PROFILE
             prof.PrintTime("EncodeServer A");
 #endif
-
+            // エンコードを開始する前にログは読み込んでおく
             logFile = new DataFile<LogItem>(GetHistoryFilePathV2());
             checkLogFile = new DataFile<CheckLogItem>(GetCheckHistoryFilePath());
 
@@ -309,9 +303,18 @@ namespace Amatsukaze.Server
 #if PROFILE
             prof.PrintTime("EncodeServer B");
 #endif
+            // キュー状態を戻す
+            queueManager.LoadAppData();
+            if (queueManager.Queue.Any(s => s.IsActive))
+            {
+                // アクティブなアイテムがある状態から開始する場合はキューを凍結する
+                EncodePaused = true;
+                workerPool.SetPause(true);
+                queueManager.UpdateQueueItems(null);
+            }
 
             // DRCS文字情報解析に回す
-            foreach(var item in logData.Items)
+            foreach (var item in logData.Items)
             {
                 drcsManager.AddLogFile(GetLogFileBase(item.EncodeStartDate) + ".txt",
                     item.SrcPath, item.EncodeFinishDate);
@@ -324,15 +327,13 @@ namespace Amatsukaze.Server
 #if PROFILE
             prof.PrintTime("EncodeServer C");
 #endif
-
-            queueThread = QueueThread();
             watchFileThread = WatchFileThread();
             saveSettingThread = SaveSettingThread();
+            queueThread = QueueThread();
+            drcsThread = DrcsThread();
 #if PROFILE
             prof.PrintTime("EncodeServer D");
 #endif
-
-            // ログを解析
         }
 
         #region IDisposable Support
@@ -372,6 +373,7 @@ namespace Amatsukaze.Server
                     queueQ.Complete();
                     watchFileQ.Complete();
                     saveSettingQ.Complete();
+                    drcsQ.Complete();
 
                     if (settingUpdated)
                     {
@@ -1309,6 +1311,8 @@ namespace Amatsukaze.Server
             CheckPath("JoinLogoScp", setting.JoinLogoScpPath);
             CheckPath("NicoConvAss", setting.NicoConvASSPath);
 
+            CheckPath("追加時バッチ", setting.OnAddBatchPath);
+
             if (profile != null)
             {
                 string encoderPath = GetEncoderPath(profile.EncoderType, setting);
@@ -1691,8 +1695,6 @@ namespace Amatsukaze.Server
                         }
                     }
 
-                    await drcsManager.Update();
-
                     string profilepath = GetProfileDirectoryPath();
                     if(!Directory.Exists(profilepath))
                     {
@@ -1880,7 +1882,31 @@ namespace Amatsukaze.Server
             catch (Exception exception)
             {
                 await FatalError(
-                    "WatchFileThreadがエラー終了しました", exception);
+                    "SaveSettingThreadがエラー終了しました", exception);
+            }
+        }
+
+        private async Task DrcsThread()
+        {
+            try
+            {
+                var completion = drcsQ.OutputAvailableAsync();
+
+                while (true)
+                {
+                    await drcsManager.Update();
+
+                    if (await Task.WhenAny(completion, Task.Delay(5000)) == completion)
+                    {
+                        // 終了
+                        return;
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                await FatalError(
+                    "DrcsThreadがエラー終了しました", exception);
             }
         }
 

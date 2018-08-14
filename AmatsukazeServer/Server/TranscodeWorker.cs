@@ -777,7 +777,7 @@ namespace Amatsukaze.Server
                     isMp4,
                     srcpath, localdst + ext, json,
                     src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt,
-                    pipes.InHandle, pipes.OutHandle, id);
+                    pipes?.InHandle, pipes?.OutHandle, id);
                 string exename = server.AppData_.setting.AmatsukazePath;
 
                 int outputMask = profile.OutputMask;

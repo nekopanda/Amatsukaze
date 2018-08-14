@@ -55,6 +55,12 @@ namespace Amatsukaze.Server
         void Finish();
     }
 
+    public interface ICommandHost
+    {
+        string AddTag(string tag);
+        string OutInfo(string options);
+    }
+
     public enum RPCMethodId
     {
         SetProfile = 100,
@@ -83,6 +89,9 @@ namespace Amatsukaze.Server
         OnDrcsData,
         OnAddResult,
         OnOperationResult,
+
+        AddTag = 300,
+        OutInfo
     }
 
     public struct RPCInfo
@@ -119,7 +128,10 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnLogoData, typeof(LogoData) },
             { RPCMethodId.OnDrcsData, typeof(DrcsImageUpdate) },
             { RPCMethodId.OnAddResult, typeof(string) },
-            { RPCMethodId.OnOperationResult, typeof(OperationResult) }
+            { RPCMethodId.OnOperationResult, typeof(OperationResult) },
+
+            { RPCMethodId.AddTag, typeof(string) },
+            { RPCMethodId.OutInfo, typeof(string) }
         };
 
         public static readonly int HEADER_SIZE = 6;

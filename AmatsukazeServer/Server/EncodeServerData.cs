@@ -271,6 +271,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public double X265VFRTimeFactor { get; set; }
 
+        [DataMember]
+        public string OnAddBatchPath { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ActualWorkPath
@@ -506,6 +509,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public TimeSpan EncodeTime { get; set; }
 
+        [DataMember]
+        public List<string> Tags { get; set; }
+
         public DateTime EncodeFinish
         {
             get
@@ -536,6 +542,17 @@ namespace Amatsukaze.Server
         public bool IsOneSeg {
             get {
                 return ImageWidth <= 320 || ImageHeight <= 260;
+            }
+        }
+
+        // プロファイルが決定してる時だけ有効
+        public bool IsSeparateHashRequired
+        {
+            get
+            {
+                return Mode == ProcMode.Batch &&
+                    Profile.DisableHashCheck == false &&
+                    SrcPath.StartsWith("\\\\");
             }
         }
 

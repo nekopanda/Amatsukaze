@@ -119,10 +119,13 @@
                 </DockPanel>
 
                 <StackPanel Grid.Row="2" Grid.Column="0">
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="追加時実行バッチ"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                 </StackPanel>
                 <DockPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel>
+                        <TextBox Height="22" Margin="0,3,10,3" Text="{Binding Model.Setting.OnAddBatchPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
+                            ToolTip="TS追加時に実行するバッチファイルを指定します"/>
                         <TextBox Height="22" Margin="0,3,10,3" Text="{Binding Model.Setting.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
                             ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
                     </StackPanel>

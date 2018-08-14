@@ -193,6 +193,10 @@ namespace Amatsukaze.Server
                         item.FailReason = "ロゴ設定がありません";
                         item.Reset();
                     }
+                    else if(item.IsSeparateHashRequired && item.Hash == null)
+                    {
+                        item.Reset();
+                    }
                     else
                     {
                         // OK
@@ -251,14 +255,12 @@ namespace Amatsukaze.Server
             {
                 using (var info = new TsInfo(amtcontext))
                 {
-                    var fileOK = false;
                     var failReason = "";
+                    var addItems = new List<QueueItem>();
                     if (await Task.Run(() => info.ReadFile(additem.Path)) == false)
                     {
                         failReason = "TS情報取得に失敗: " + amtcontext.GetError();
                     }
-                    // 1ソースファイルに対するaddはatomicに実行したいので、
-                    // このスコープでは以降awaitしないこと
                     else
                     {
                         failReason = "TSファイルに映像が見つかりませんでした";
@@ -314,7 +316,8 @@ namespace Amatsukaze.Server
                                         Priority = outitem.Priority,
                                         AddTime = DateTime.Now,
                                         ProfileName = outitem.Profile,
-                                        Genre = genre
+                                        Genre = genre,
+                                        Tags = new List<string>()
                                     };
 
                                     if (item.IsOneSeg)
@@ -336,33 +339,25 @@ namespace Amatsukaze.Server
                                             }));
                                         }
 
-                                        // TODO: 追加時バッチ
+                                        // 追加時バッチ
+                                        if(string.IsNullOrEmpty(server.AppData_.setting.OnAddBatchPath) == false)
+                                        {
+                                            await UserScriptExecuter.ExecuteOnAdd(
+                                                server.AppData_.setting.OnAddBatchPath, item, prog);
+                                        }
 
                                         ++numFiles;
                                     }
 
-                                    // プロファイルを設定
-                                    UpdateProfileItem(item, null);
-                                    // 追加
-                                    Queue.Add(item);
-                                    // まずは内部だけで状態を更新
-                                    UpdateQueueItem(item, null);
-                                    // 状態が決まったらクライアント側に追加通知
-                                    waits.Add(ClientQueueUpdate(new QueueUpdate()
-                                    {
-                                        Type = UpdateType.Add,
-                                        Item = item
-                                    }));
-                                    ++numItems;
-                                    fileOK = true;
+                                    addItems.Add(item);
                                 }
                             }
                         }
-
                     }
 
-                    if (fileOK == false)
+                    if (addItems.Count == 0)
                     {
+                        // アイテムが１つもないときはエラー項目として追加
                         foreach (var outitem in req.Outputs)
                         {
                             bool isAuto = false;
@@ -386,17 +381,35 @@ namespace Amatsukaze.Server
                                 FailReason = failReason,
                                 AddTime = DateTime.Now,
                                 ProfileName = outitem.Profile,
+                                Tags = new List<string>()
                             };
 
-                            Queue.Add(item);
-                            waits.Add(ClientQueueUpdate(new QueueUpdate()
-                            {
-                                Type = UpdateType.Add,
-                                Item = item
-                            }));
-                            ++numItems;
+                            addItems.Add(item);
                         }
                     }
+
+                    // 1ソースファイルに対するaddはatomicに実行したいので、
+                    // このループではawaitしないこと
+                    foreach (var item in addItems)
+                    {
+                        if(item.State != QueueState.PreFailed)
+                        {
+                            // プロファイルを設定
+                            UpdateProfileItem(item, null);
+                        }
+                        // 追加
+                        Queue.Add(item);
+                        // まずは内部だけで状態を更新
+                        UpdateQueueItem(item, null);
+                        // 状態が決まったらクライアント側に追加通知
+                        waits.Add(ClientQueueUpdate(new QueueUpdate()
+                        {
+                            Type = UpdateType.Add,
+                            Item = item
+                        }));
+                    }
+
+                    numItems += addItems.Count;
 
                     UpdateProgress();
                     waits.Add(server.RequestState());
@@ -457,16 +470,14 @@ namespace Amatsukaze.Server
 
                 // ハッシュリスト取得
                 if (profile != server.PendingProfile && // ペンディングの場合は決定したときに実行される
-                    item.Mode == ProcMode.Batch &&
-                    profile.DisableHashCheck == false &&
-                    item.SrcPath.StartsWith("\\\\"))
+                    item.IsSeparateHashRequired)
                 {
                     var hashpath = Path.GetDirectoryName(item.SrcPath) + ".hash";
                     if(hashCache.ContainsKey(hashpath) == false)
                     {
                         if (File.Exists(hashpath) == false)
                         {
-                            item.State = QueueState.PreFailed;
+                            item.State = QueueState.LogoPending;
                             item.FailReason = "ハッシュファイルがありません: " + hashpath;
                             return true;
                         }
@@ -482,7 +493,7 @@ namespace Amatsukaze.Server
                             }
                             catch (IOException e)
                             {
-                                item.State = QueueState.PreFailed;
+                                item.State = QueueState.LogoPending;
                                 item.FailReason = "ハッシュファイルの読み込みに失敗: " + e.Message;
                                 return true;
                             }
@@ -494,7 +505,7 @@ namespace Amatsukaze.Server
 
                     if(cacheItem.HashDict.ContainsKey(filename) == false)
                     {
-                        item.State = QueueState.PreFailed;
+                        item.State = QueueState.LogoPending;
                         item.FailReason = "ハッシュファイルにこのファイルのハッシュがありません";
                         return true;
                     }

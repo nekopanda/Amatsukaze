@@ -1,4 +1,5 @@
 /.vs
+/lib
 
 /*.VC.VC.opendb
 /*.VC.db
@@ -7,3 +8,5 @@ Debug/
 Release/
 
 /packages/
+
+*.bak

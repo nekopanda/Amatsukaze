@@ -1034,8 +1034,8 @@ namespace Amatsukaze.Server
         {
             ReadPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
             WritePipe = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
-            OutHandle = ReadPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
-            InHandle = WritePipe.ClientSafePipeHandle.DangerousGetHandle().ToInt64().ToString();
+            OutHandle = ReadPipe.GetClientHandleAsString();
+            InHandle = WritePipe.GetClientHandleAsString();
         }
 
         public void DisposeLocalCopyOfClientHandle()

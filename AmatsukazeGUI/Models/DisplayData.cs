@@ -1674,6 +1674,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region OnAddBatchPath変更通知プロパティ
+        public string OnAddBatchPath
+        {
+            get { return Model.OnAddBatchPath; }
+            set
+            {
+                if (Model.OnAddBatchPath == value)
+                    return;
+                Model.OnAddBatchPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ClearWorkDirOnStart変更通知プロパティ
         public bool ClearWorkDirOnStart
         {
