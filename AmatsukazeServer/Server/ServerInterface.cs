@@ -91,7 +91,9 @@ namespace Amatsukaze.Server
         OnOperationResult,
 
         AddTag = 300,
-        OutInfo
+        SetOutDir,
+        SetPriority,
+        GetOutFiles
     }
 
     public struct RPCInfo
@@ -131,7 +133,9 @@ namespace Amatsukaze.Server
             { RPCMethodId.OnOperationResult, typeof(OperationResult) },
 
             { RPCMethodId.AddTag, typeof(string) },
-            { RPCMethodId.OutInfo, typeof(string) }
+            { RPCMethodId.SetOutDir, typeof(string) },
+            { RPCMethodId.SetPriority, typeof(string) },
+            { RPCMethodId.GetOutFiles, typeof(string) }
         };
 
         public static readonly int HEADER_SIZE = 6;

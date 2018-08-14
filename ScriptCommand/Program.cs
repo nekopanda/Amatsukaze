@@ -34,9 +34,17 @@ namespace Amatsukaze.Command
             {
                 DoCommand(RPCMethodId.AddTag, args);
             }
-            else if(exeName == "OutInfo")
+            else if (exeName == "SetOutDir")
             {
-                DoCommand(RPCMethodId.OutInfo, args);
+                DoCommand(RPCMethodId.SetOutDir, args);
+            }
+            else if (exeName == "SetPriority")
+            {
+                DoCommand(RPCMethodId.SetPriority, args);
+            }
+            else if(exeName == "GetOutFiles")
+            {
+                DoCommand(RPCMethodId.GetOutFiles, args);
             }
             else
             {

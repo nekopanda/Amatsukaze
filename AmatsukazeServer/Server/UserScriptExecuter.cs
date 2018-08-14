@@ -2,6 +2,7 @@
 using log4net;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,11 @@ namespace Amatsukaze.Server
         private static readonly ILog LOG = LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        private enum Phase
+        {
+            OnAdd, PreEncode, PostEncode
+        }
+
         private static async Task RedirectLog(StreamReader sr)
         {
             while (true)
@@ -25,7 +31,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static async Task RunCommandHost(QueueItem item, PipeCommunicator pipes)
+        private static async Task RunCommandHost(Phase phase, PipeCommunicator pipes, QueueItem item, LogItem log)
         {
             try
             {
@@ -33,6 +39,7 @@ namespace Amatsukaze.Server
                 while (true)
                 {
                     var rpc = await RPCTypes.Deserialize(pipes.ReadPipe);
+                    string ret = "";
                     switch (rpc.id)
                     {
                         case RPCMethodId.AddTag:
@@ -41,19 +48,88 @@ namespace Amatsukaze.Server
                             {
                                 item.Tags.Add(tag);
                             }
-                            var bytes = RPCTypes.Serialize(rpc.id, string.Join(";", item.Tags));
-                            await pipes.WritePipe.WriteAsync(bytes, 0, bytes.Length);
+                            ret = string.Join(";", item.Tags);
                             break;
-                        case RPCMethodId.OutInfo:
+                        case RPCMethodId.SetOutDir:
+                            if(phase == Phase.PostEncode)
+                            {
+                                ret = "エンコードが完了したアイテムの出力先は変更できません";
+                            }
+                            else
+                            {
+                                var outdir = (rpc.arg as string).TrimEnd(Path.DirectorySeparatorChar);
+                                item.DstPath = outdir + "\\" + Path.GetFileName(item.DstPath);
+                                ret = "成功";
+                            }
+                            break;
+                        case RPCMethodId.SetPriority:
+                            if (phase != Phase.OnAdd)
+                            {
+                                ret = "追加時以外の優先度操作はできません";
+                            }
+                            else
+                            {
+                                var priority = int.Parse(rpc.arg as string);
+                                if (priority < 1 && priority > 5)
+                                {
+                                    ret = "優先度が範囲外です";
+                                }
+                                else {
+                                    item.Priority = priority;
+                                    ret = "成功";
+                                }
+                            }
+                            break;
+                        case RPCMethodId.GetOutFiles:
                             // TODO:
                             break;
                     }
+                    var bytes = RPCTypes.Serialize(rpc.id, ret);
+                    await pipes.WritePipe.WriteAsync(bytes, 0, bytes.Length);
                 }
             }
             catch (Exception)
             {
                 // 子プロセスが終了すると例外を吐く
             }
+        }
+
+        private static void SetupEnv(Phase phase, StringDictionary env,
+            PipeCommunicator pipes, QueueItem item, LogItem log)
+        {
+            env.Add("ITEM_ID", item.Id.ToString());
+            env.Add("IN_PATH", item.SrcPath.ToString());
+            env.Add("OUT_PATH", item.DstPath.ToString());
+            env.Add("SERVICE_ID", item.ServiceId.ToString());
+            env.Add("SERVICE_NAME", item.ServiceName.ToString());
+            env.Add("TS_TIME", item.TsTime.ToString());
+            env.Add("ITEM_MODE", item.Mode.ToString());
+            env.Add("ITEM_PRIORITY", item.Priority.ToString());
+            env.Add("EVENT_GENRE", item.Genre.FirstOrDefault()?.ToString() ?? "-");
+            env.Add("IMAGE_WIDTH", item.ImageWidth.ToString());
+            env.Add("IMAGE_HEIGHT", item.ImageHeight.ToString());
+            env.Add("EVENT_NAME", item.EventName.ToString());
+            env.Add("TAG", string.Join(";", item.Tags));
+
+            if(phase != Phase.OnAdd)
+            {
+                env.Add("PROFILE_NAME", item.Profile.Name);
+            }
+            if(phase == Phase.PostEncode)
+            {
+                env.Add("SUCCESS", log.Success ? "1" : "0");
+                env.Add("ERROR_MESSAGE", log.Reason ?? "");
+                env.Add("IN_DURATION", log.SrcVideoDuration.TotalSeconds.ToString());
+                env.Add("OUT_DURATION", log.OutVideoDuration.TotalSeconds.ToString());
+                env.Add("IN_SIZE", log.SrcFileSize.ToString());
+                env.Add("OUT_SIZE", log.OutFileSize.ToString());
+                env.Add("LOGO_FILE", string.Join(";", log.LogoFiles));
+                env.Add("NUM_INCIDENT", log.Incident.ToString());
+            }
+
+            // パイプ通信用
+            env.Add("IN_PIPE_HANDLE", pipes.InHandle);
+            env.Add("OUT_PIPE_HANDLE", pipes.OutHandle);
         }
 
         public static async Task ExecuteOnAdd(string scriptPath, QueueItem item, Program prog)
@@ -71,28 +147,13 @@ namespace Amatsukaze.Server
             };
 
             // exe_filesをパスに追加
+            var exeDir = Path.GetDirectoryName(typeof(UserScriptExecuter).Assembly.Location);
             // Specialized.StringDictionaryのkeyはcase insensitiveであることに注意
-            psi.EnvironmentVariables["path"] = 
-                Path.GetDirectoryName(typeof(UserScriptExecuter).Assembly.Location)
-                + ";" + psi.EnvironmentVariables["path"];
+            psi.EnvironmentVariables["path"] =
+                exeDir + ";" + exeDir + "\\cmd" + ";" + psi.EnvironmentVariables["path"];
 
             // パラメータを環境変数に追加
-            psi.EnvironmentVariables.Add("ITEM_ID", item.Id.ToString());
-            psi.EnvironmentVariables.Add("IN_PATH", item.SrcPath.ToString());
-            psi.EnvironmentVariables.Add("OUT_PATH", item.DstPath.ToString());
-            psi.EnvironmentVariables.Add("SERVICE_ID", item.ServiceId.ToString());
-            psi.EnvironmentVariables.Add("SERVICE_NAME", item.ServiceName.ToString());
-            psi.EnvironmentVariables.Add("TS_TIME", item.TsTime.ToString());
-            psi.EnvironmentVariables.Add("ITEM_MODE", item.Mode.ToString());
-            psi.EnvironmentVariables.Add("ITEM_PRIORITY", item.Priority.ToString());
-            psi.EnvironmentVariables.Add("EVENT_GENRE", item.Genre.FirstOrDefault()?.ToString() ?? "-");
-            psi.EnvironmentVariables.Add("IMAGE_WIDTH", prog.Width.ToString());
-            psi.EnvironmentVariables.Add("IMAGE_HEIGHT", prog.Height.ToString());
-            psi.EnvironmentVariables.Add("EVENT_NAME", prog.EventName.ToString());
-
-            // パイプ通信用
-            psi.EnvironmentVariables.Add("IN_PIPE_HANDLE", pipes.InHandle);
-            psi.EnvironmentVariables.Add("OUT_PIPE_HANDLE", pipes.OutHandle);
+            SetupEnv(Phase.OnAdd, psi.EnvironmentVariables, pipes, item, null);
 
             LOG.Info("追加時バッチ起動: " + item.SrcPath);
 
@@ -103,7 +164,7 @@ namespace Amatsukaze.Server
                 await Task.WhenAll(
                     RedirectLog(p.StandardOutput),
                     RedirectLog(p.StandardError),
-                    RunCommandHost(item, pipes),
+                    RunCommandHost(Phase.OnAdd, pipes, item, null),
                     Task.Run(() => p.WaitForExit()));
             }
         }
