@@ -46,6 +46,10 @@ namespace Amatsukaze.Command
             {
                 DoCommand(RPCMethodId.GetOutFiles, args);
             }
+            else if (exeName == "CancelItem")
+            {
+                DoCommand(RPCMethodId.CancelItem, args);
+            }
             else
             {
                 Console.WriteLine("不明なコマンドです");

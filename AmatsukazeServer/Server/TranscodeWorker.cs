@@ -1,4 +1,5 @@
-﻿using Codeplex.Data;
+﻿using Amatsukaze.Lib;
+using Codeplex.Data;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -477,10 +478,27 @@ namespace Amatsukaze.Server
             return writePipe.WriteAsync(buf, 0, buf.Length);
         }
 
-        private async Task WriteCommand(PipeStream writePipe, ResourcePhase phase, int gpuIndex)
+        private static byte[] Combine(params byte[][] arrays)
         {
+            byte[] rv = new byte[arrays.Sum(a => a.Length)];
+            int offset = 0;
+            foreach (byte[] array in arrays)
+            {
+                System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
+                offset += array.Length;
+            }
+            return rv;
+        }
+
+        private async Task WriteCommand(PipeStream writePipe, ResourcePhase phase, int gpuIndex, int group, ulong mask)
+        {
+            Combine(
+                BitConverter.GetBytes((int)phase),
+                BitConverter.GetBytes(gpuIndex), 
+                BitConverter.GetBytes(gpuIndex),
+                BitConverter.GetBytes(mask));
             await WriteBytes(writePipe, BitConverter.GetBytes((int)phase));
-            await WriteBytes(writePipe, BitConverter.GetBytes(gpuIndex));
+            await WriteBytes(writePipe, BitConverter.GetBytes(res?.GpuIndex ?? -1));
         }
 
         private async Task HostThread(EncodeServer server, TranscodeTask transcode,
@@ -492,6 +510,8 @@ namespace Amatsukaze.Server
             }
 
             var ress = transcode.src.Profile.ReqResources;
+            var ignoreAffinity = transcode.src.Profile.IgnoreEncodeAffinity;
+            
 
             // 現在専有中のリソース
             Resource resource = null;
@@ -511,20 +531,22 @@ namespace Amatsukaze.Server
                         resource = null;
                     }
 
+                    var reqEncoderIndex = (!ignoreAffinity) && (cmd == ResourcePhase.Encode);
+
                     // リソース確保
                     if (ignoreResource)
                     {
                         // リソース上限無視なのでNoWaitは関係ない
                         cmd &= ~ResourcePhase.NoWait;
                         //Util.AddLog("フェーズ移行リクエスト（上限無視）: " + cmd + "@" + id);
-                        resource = server.ResourceManager.ForceGetResource(ress[(int)cmd]);
+                        resource = server.ResourceManager.ForceGetResource(ress[(int)cmd], reqEncoderIndex);
                     }
                     else if ((cmd & ResourcePhase.NoWait) != 0)
                     {
                         // NoWait指定の場合は待たない
                         cmd &= ~ResourcePhase.NoWait;
                         //Util.AddLog("フェーズ移行NoWaitリクエスト: " + cmd + "@" + id);
-                        resource = server.ResourceManager.TryGetResource(ress[(int)cmd]);
+                        resource = server.ResourceManager.TryGetResource(ress[(int)cmd], reqEncoderIndex);
                     }
                     else
                     {
@@ -532,7 +554,7 @@ namespace Amatsukaze.Server
                         {
                             transcode.resourceCancel = new CancellationTokenSource();
                             //Util.AddLog("フェーズ移行リクエスト: " + cmd + "@" + id);
-                            resource = await server.ResourceManager.GetResource(ress[(int)cmd], transcode.resourceCancel.Token);
+                            resource = await server.ResourceManager.GetResource(ress[(int)cmd], transcode.resourceCancel.Token, reqEncoderIndex);
                         }
                         finally
                         {
@@ -544,7 +566,16 @@ namespace Amatsukaze.Server
                     // 確保したリソースを通知
                     // 確保に失敗したら-1
                     //Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
-                    await WriteCommand(pipes.WritePipe, cmd, resource?.GpuIndex ?? -1);
+                    await WriteCommand(pipes.WritePipe, cmd, resource);
+
+                    if(resource.EncoderIndex != -1)
+                    {
+                        var s = server.affinityCreator.GetMask(
+                            (ProcessGroupKind)server.AppData_.setting.AffinitySetting,
+                            resource.EncoderIndex);
+                        s.Group;
+                        s.Mask;
+                    }
 
                     // UIクライアントに通知
                     consoleText.State = new EncodeState()

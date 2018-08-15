@@ -93,7 +93,8 @@ namespace Amatsukaze.Server
         AddTag = 300,
         SetOutDir,
         SetPriority,
-        GetOutFiles
+        GetOutFiles,
+        CancelItem
     }
 
     public struct RPCInfo
@@ -135,7 +136,8 @@ namespace Amatsukaze.Server
             { RPCMethodId.AddTag, typeof(string) },
             { RPCMethodId.SetOutDir, typeof(string) },
             { RPCMethodId.SetPriority, typeof(string) },
-            { RPCMethodId.GetOutFiles, typeof(string) }
+            { RPCMethodId.GetOutFiles, typeof(string) },
+            { RPCMethodId.CancelItem, typeof(string) }
         };
 
         public static readonly int HEADER_SIZE = 6;

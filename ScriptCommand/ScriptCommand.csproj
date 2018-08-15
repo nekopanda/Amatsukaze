@@ -62,7 +62,8 @@
 copy /Y /B "$(TargetPath)" "$(TargetDir)cmd\AddTag.exe"
 copy /Y /B "$(TargetPath)" "$(TargetDir)cmd\SetOutDir.exe"
 copy /Y /B "$(TargetPath)" "$(TargetDir)cmd\SetPriority.exe"
-copy /Y /B "$(TargetPath)" "$(TargetDir)cmd\GetOutFiles.exe"</PostBuildEvent>
+copy /Y /B "$(TargetPath)" "$(TargetDir)cmd\GetOutFiles.exe"
+copy /Y /B "$(TargetPath)" "$(TargetDir)cmd\CancelItem.exe"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

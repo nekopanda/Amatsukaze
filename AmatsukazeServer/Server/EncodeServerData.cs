@@ -86,6 +86,7 @@ namespace Amatsukaze.Server
     {
         public ReqResource Req;
         public int GpuIndex;
+        public int EncoderIndex;
     }
 
     // プロファイル設定データ
@@ -178,6 +179,9 @@ namespace Amatsukaze.Server
         public bool EnableGunreFolder { get; set; }
         [DataMember]
         public ReqResource[] ReqResources { get; set; }
+
+        [DataMember]
+        public bool IgnoreEncodeAffinity { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

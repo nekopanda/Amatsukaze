@@ -28,6 +28,9 @@ namespace Amatsukaze.Server
         private int[] curGPU;
         private int[] maxGPU;
 
+        // エンコーダの番号
+        private List<int> encodeIds;
+
         public ResourceManager()
         {
             numGPU = MAX_GPU;
@@ -67,6 +70,10 @@ namespace Amatsukaze.Server
             curCPU -= res.Req.CPU;
             curHDD -= res.Req.HDD;
             curGPU[res.GpuIndex] -= res.Req.GPU;
+            if(res.EncoderIndex != -1)
+            {
+                encodeIds.Remove(res.EncoderIndex);
+            }
             RecalculateCosts();
         }
 
@@ -75,6 +82,18 @@ namespace Amatsukaze.Server
         {
             var GPUSpace = Enumerable.Range(0, numGPU).Select(i => maxGPU[i] - curGPU[i]).ToList();
             return GPUSpace.IndexOf(GPUSpace.Max());
+        }
+
+        private int AllocateEncoderIndex()
+        {
+            for(int i = 0; ; ++i)
+            {
+                if(!encodeIds.Contains(i))
+                {
+                    encodeIds.Add(i);
+                    return i;
+                }
+            }
         }
 
         public int ResourceCost(ReqResource req)
@@ -87,7 +106,7 @@ namespace Amatsukaze.Server
         }
 
         // 上限を無視してリソースを確保
-        public Resource ForceGetResource(ReqResource req)
+        public Resource ForceGetResource(ReqResource req, bool reqEncoderIndex)
         {
             int gpuIndex = MostCapableGPU();
             curCPU += req.CPU;
@@ -98,11 +117,12 @@ namespace Amatsukaze.Server
             return new Resource()
             {
                 Req = req,
-                GpuIndex = gpuIndex
+                GpuIndex = gpuIndex,
+                EncoderIndex = reqEncoderIndex ? AllocateEncoderIndex() : -1
             };
         }
 
-        public Resource TryGetResource(ReqResource req)
+        public Resource TryGetResource(ReqResource req, bool reqEncoderIndex)
         {
             int cost = ResourceCost(req);
 
@@ -122,7 +142,7 @@ namespace Amatsukaze.Server
             }
 
             // OK
-            return ForceGetResource(req);
+            return ForceGetResource(req, reqEncoderIndex);
         }
 
         /// <summary>
@@ -131,7 +151,7 @@ namespace Amatsukaze.Server
         /// <param name="req">次のフェーズで必要なリソース</param>
         /// <param name="cancelToken">キャンセルトークン</param>
         /// <returns>確保されたリソース</returns>
-        public async Task<Resource> GetResource(ReqResource req, CancellationToken cancelToken)
+        public async Task<Resource> GetResource(ReqResource req, CancellationToken cancelToken, bool reqEncoderIndex)
         {
             var waiting = new WaitinResource() { Req = req };
 
@@ -151,7 +171,7 @@ namespace Amatsukaze.Server
                 if(waiting.Cost <= 0 && waiting.Cost <= waitingResources[0].Cost)
                 {
                     waitingResources.Remove(waiting);
-                    var res = ForceGetResource(req);
+                    var res = ForceGetResource(req, reqEncoderIndex);
                     SignalAll();
                     return res;
                 }

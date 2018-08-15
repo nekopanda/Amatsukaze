@@ -200,6 +200,14 @@ public:
 			THROW(RuntimeException, "failed to set handle information");
 		}
 
+		// Priority Classは明示していないので、デフォルト動作となる
+		// デフォルト動作は、親プロセス（このプロセス）がNORMAL_PRIORITY_CLASS以上で
+		// 動いている場合は、NORMAL_PRIORITY_CLASS
+		// IDLE_PRIORITY_CLASSおよびBELOW_NORMAL_PRIORITY_CLASSで
+		// 動いている場合は、そのPriority Classが継承される
+		// Priority Classは子プロセスに継承される対象ではないが、
+		// NORMAL_PRIORITY_CLASS以下では実質継承されることに注意
+
 		if (CreateProcess(NULL, const_cast<char*>(args.c_str()), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi_) == 0) {
 			THROW(RuntimeException, "プロセス起動に失敗。exeのパスを確認してください。");
 		}

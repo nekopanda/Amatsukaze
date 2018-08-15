@@ -375,7 +375,7 @@ namespace Amatsukaze.Server
                 actives.Add(new ItemPair()
                 {
                     Item = item,
-                    Resource = resourceManager.ForceGetResource(item.Profile.ReqResources[EncodePhase])
+                    Resource = resourceManager.ForceGetResource(item.Profile.ReqResources[EncodePhase], false)
                 });
                 return item;
             }
@@ -387,7 +387,7 @@ namespace Amatsukaze.Server
             actives.Add(new ItemPair()
             {
                 Item = item,
-                Resource = resourceManager.ForceGetResource(item.Profile.ReqResources[EncodePhase])
+                Resource = resourceManager.ForceGetResource(item.Profile.ReqResources[EncodePhase], false)
             });
         }
 
