@@ -556,5 +556,8 @@ bool SetCPUAffinity(int group, uint64_t mask)
 	GROUP_AFFINITY gf = GROUP_AFFINITY();
 	gf.Group = group;
 	gf.Mask = (KAFFINITY)mask;
-	return (SetThreadGroupAffinity(GetCurrentThread(), &gf, nullptr) != FALSE);
+	bool result = (SetThreadGroupAffinity(GetCurrentThread(), &gf, nullptr) != FALSE);
+	// プロセスが複数のグループにまたがってると↓はエラーになるらしい
+	SetProcessAffinityMask(GetCurrentProcess(), (DWORD_PTR)mask);
+	return result;
 }

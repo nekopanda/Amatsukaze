@@ -1013,7 +1013,10 @@ namespace Amatsukaze.Server
                     .Append(outHandle);
             }
 
-            if(setting.AffinitySetting != (int)ProcessGroupKind.None)
+            // スケジューリングが有効な場合はエンコード時にアフィニティを設定するので
+            // ここでは設定しない
+            if (setting.SchedulingEnabled == false &&
+                setting.AffinitySetting != (int)ProcessGroupKind.None)
             {
                 var mask = affinityCreator.GetMask(
                     (ProcessGroupKind)setting.AffinitySetting, pid);

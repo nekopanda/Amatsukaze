@@ -868,6 +868,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region IgnoreEncodeAffinity変更通知プロパティ
+        public bool IgnoreEncodeAffinity
+        {
+            get { return Data.IgnoreEncodeAffinity; }
+            set
+            {
+                if (Data.IgnoreEncodeAffinity == value)
+                    return;
+                Data.IgnoreEncodeAffinity = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region SettingWarningText変更通知プロパティ
         private string _SettingWarningText;
 

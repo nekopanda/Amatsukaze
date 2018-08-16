@@ -90,6 +90,16 @@ enum PipeCommand {
 	HOST_CMD_NoWait = 0x100,
 };
 
+struct ResourceAllocation {
+	int32_t gpuIndex;
+	int32_t group;
+	uint64_t mask;
+
+	bool IsFailed() const {
+		return gpuIndex == -1;
+	}
+};
+
 class ResourceManger : AMTObject
 {
 	HANDLE inPipe;
@@ -129,14 +139,23 @@ class ResourceManger : AMTObject
 	}
   */
 
-	int readCommand(int expected) const {
+	static ResourceAllocation DefaultAllocation() {
+		ResourceAllocation res = { 0, -1, 0 };
+		return res;
+	}
+
+	ResourceAllocation readCommand(int expected) const {
+		struct CommandData {
+			int32_t cmd;
+			ResourceAllocation res;
+		};
 		DWORD bytesRead = 0;
-		int32_t cmd[2];
-		read(MemoryChunk((uint8_t*)cmd, sizeof(cmd)));
-    if (cmd[0] != expected) {
+		CommandData data;
+		read(MemoryChunk((uint8_t*)&data, sizeof(data)));
+    if (data.cmd != expected) {
       THROW(RuntimeException, "invalid return command");
     }
-		return cmd[1];
+		return data.res;
 	}
 
 public:
@@ -146,22 +165,21 @@ public:
 		, outPipe(outPipe)
 	{ }
 
-	// リソース確保できなかったら-1
-	int request(PipeCommand phase) const {
+	ResourceAllocation request(PipeCommand phase) const {
 		if (inPipe == INVALID_HANDLE_VALUE) {
-			return 0;
+			return DefaultAllocation();
 		}
 		writeCommand(phase | HOST_CMD_NoWait);
 		return readCommand(phase);
 	}
 
 	// リソース確保できるまで待つ
-  int wait(PipeCommand phase) const {
+	ResourceAllocation wait(PipeCommand phase) const {
     if (inPipe == INVALID_HANDLE_VALUE) {
-      return 0;
+			return DefaultAllocation();
     }
-    int ret = request(phase);
-    if (ret == -1) {
+		ResourceAllocation ret = request(phase);
+    if (ret.IsFailed()) {
       writeCommand(phase);
       ctx.progress("リソース待ち ...");
       Stopwatch sw; sw.start();

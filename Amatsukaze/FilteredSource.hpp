@@ -177,48 +177,52 @@ public:
     , setting_(setting)
     , env_(make_unique_ptr((IScriptEnvironment2*)nullptr))
   {
-    try {
-      // フィルタ前処理用リソース確保
-      int gpuIndex = rm.wait(HOST_CMD_Filter);
-      std::vector<int> outFrames;
+		try {
+			// フィルタ前処理用リソース確保
+			auto res = rm.wait(HOST_CMD_Filter);
+			std::vector<int> outFrames;
 
-      //Kパスまである場合
-      //<=K-2: 前処理
-      //K-1: タイミング生成
-      //K: 画像生成（タイミングも同時に生成）
-      //PHASE
-      //0: 前処理
-      //1: タイミング生成
-      //2: 画像生成
-      int pass = 0;
-      for (; pass < 4; ++pass) {
-        int phase = FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
-        if (phase == PHASE_PRE_PROCESS) {
-          // 前処理を実行
-          ReadAllFrames(pass, phase);
-        }
-        else if (phase == PHASE_GEN_TIMING) {
-          // タイミング生成
-          ReadAllFrames(pass, phase);
-        }
-        else {
-          break;
-        }
-      }
+			//Kパスまである場合
+			//<=K-2: 前処理
+			//K-1: タイミング生成
+			//K: 画像生成（タイミングも同時に生成）
+			//PHASE
+			//0: 前処理
+			//1: タイミング生成
+			//2: 画像生成
+			int pass = 0;
+			for (; pass < 4; ++pass) {
+				int phase = FilterPass(pass, res.gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+				if (phase == PHASE_PRE_PROCESS) {
+					// 前処理を実行
+					ReadAllFrames(pass, phase);
+				}
+				else if (phase == PHASE_GEN_TIMING) {
+					// タイミング生成
+					ReadAllFrames(pass, phase);
+				}
+				else {
+					break;
+				}
+			}
 
-      // エンコード用リソース確保
-      int encodeIndex = rm.request(HOST_CMD_Encode);
-      if (encodeIndex == -1 || encodeIndex != gpuIndex) {
-        // 確保できなかった or GPUが変更されたら 一旦解放する
-        env_ = nullptr;
-        if (encodeIndex == -1) {
-          // リソースが確保できていなかったら確保できるまで待つ
-          encodeIndex = rm.wait(HOST_CMD_Encode);
-        }
-        // 再生成
-        gpuIndex = encodeIndex;
-        FilterPass(pass, gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
-      }
+			// エンコード用リソース確保
+			auto encodeRes = rm.request(HOST_CMD_Encode);
+			if (encodeRes.IsFailed() || encodeRes.gpuIndex != res.gpuIndex) {
+				// 確保できなかった or GPUが変更されたら 一旦解放する
+				env_ = nullptr;
+				if (encodeRes.IsFailed()) {
+					// リソースが確保できていなかったら確保できるまで待つ
+					encodeRes = rm.wait(HOST_CMD_Encode);
+				}
+			}
+
+			// エンコード用リソースでアフィニティを設定
+			res = encodeRes;
+			SetCPUAffinity(res.group, res.mask);
+			if (env_ == nullptr) {
+				FilterPass(pass, res.gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
+			}
 
       auto& sb = script_.Get();
       std::string postpath = setting.getPostFilterScriptPath();

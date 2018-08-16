@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.Server
@@ -28,6 +29,69 @@ namespace Amatsukaze.Server
                 var line = await sr.ReadLineAsync();
                 if (line == null) break;
                 LOG.Info(line);
+            }
+        }
+
+        private static string GetOutFiles(QueueItem item, LogItem log, string fmt)
+        {
+            int MAIN = 1;        // v
+            int MAIN_CM = 2;     // c
+            int MAIN_SUBS = 4;   // s
+            int OTHER = 8;       // w
+            int OTHER_CM = 16;   // d
+            int OTHER_SUBS = 32; // t
+            int LOG = 64;        // l
+
+            int mask = 255;
+
+            if(string.IsNullOrEmpty(fmt) == false && fmt != "all") {
+                mask = 0;
+                foreach(char c in fmt)
+                {
+                    switch(c)
+                    {
+                        case 'v':
+                            mask |= MAIN;
+                            break;
+                        case 'c':
+                            mask |= MAIN_CM;
+                            break;
+                        case 's':
+                            mask |= MAIN_SUBS;
+                            break;
+                        case 'w':
+                            mask |= OTHER;
+                            break;
+                        case 'd':
+                            mask |= OTHER_CM;
+                            break;
+                        case 't':
+                            mask |= OTHER_SUBS;
+                            break;
+                        case 'l':
+                            mask |= LOG;
+                            break;
+                    }
+                }
+            }
+
+            var mainPath = log.OutPath[0];
+            var mainNoExt = Path.GetFileNameWithoutExtension(mainPath);
+            var prefix = Path.GetDirectoryName(mainPath) + "\\" + mainNoExt;
+            var parser = new Regex("(-(\\d+))?(-cm)?");
+            var list = new List<string>();
+            foreach (var path in log.OutPath)
+            {
+                bool isSubs = (path.EndsWith("ass") || path.EndsWith(".srt"));
+                // TODO:
+            }
+
+            if((mask & LOG) != 0)
+            {
+                if(item.Profile.DisableLogFile == false)
+                {
+                    list.Add(prefix + ".log");
+                }
             }
         }
 
@@ -83,6 +147,17 @@ namespace Amatsukaze.Server
                         case RPCMethodId.GetOutFiles:
                             // TODO:
                             break;
+                        case RPCMethodId.CancelItem:
+                            if(phase == Phase.PostEncode)
+                            {
+                                ret = "エンコードが完了したアイテムはキャンセルできません";
+                            }
+                            else
+                            {
+                                item.State = QueueState.Canceled;
+                                ret = "成功";
+                            }
+                            break;
                     }
                     var bytes = RPCTypes.Serialize(rpc.id, ret);
                     await pipes.WritePipe.WriteAsync(bytes, 0, bytes.Length);
@@ -125,6 +200,7 @@ namespace Amatsukaze.Server
                 env.Add("OUT_SIZE", log.OutFileSize.ToString());
                 env.Add("LOGO_FILE", string.Join(";", log.LogoFiles));
                 env.Add("NUM_INCIDENT", log.Incident.ToString());
+                // TODO: json,logパス
             }
 
             // パイプ通信用

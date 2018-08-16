@@ -490,15 +490,13 @@ namespace Amatsukaze.Server
             return rv;
         }
 
-        private async Task WriteCommand(PipeStream writePipe, ResourcePhase phase, int gpuIndex, int group, ulong mask)
+        private Task WriteCommand(PipeStream writePipe, ResourcePhase phase, int gpuIndex, int group, ulong mask)
         {
-            Combine(
+            return WriteBytes(writePipe, Combine(
                 BitConverter.GetBytes((int)phase),
-                BitConverter.GetBytes(gpuIndex), 
                 BitConverter.GetBytes(gpuIndex),
-                BitConverter.GetBytes(mask));
-            await WriteBytes(writePipe, BitConverter.GetBytes((int)phase));
-            await WriteBytes(writePipe, BitConverter.GetBytes(res?.GpuIndex ?? -1));
+                BitConverter.GetBytes(group),
+                BitConverter.GetBytes(mask)));
         }
 
         private async Task HostThread(EncodeServer server, TranscodeTask transcode,
@@ -566,16 +564,22 @@ namespace Amatsukaze.Server
                     // 確保したリソースを通知
                     // 確保に失敗したら-1
                     //Util.AddLog("フェーズ移行" + ((resource != null) ? "成功" : "失敗") + "通知: " + cmd + "@" + id);
-                    await WriteCommand(pipes.WritePipe, cmd, resource);
-
-                    if(resource.EncoderIndex != -1)
+                    int gpuIndex = -1;
+                    int group = -1;
+                    ulong mask = 0;
+                    if(resource != null)
                     {
-                        var s = server.affinityCreator.GetMask(
-                            (ProcessGroupKind)server.AppData_.setting.AffinitySetting,
-                            resource.EncoderIndex);
-                        s.Group;
-                        s.Mask;
+                        gpuIndex = resource.GpuIndex;
+                        if (resource.EncoderIndex != -1)
+                        {
+                            var s = server.affinityCreator.GetMask(
+                                (ProcessGroupKind)server.AppData_.setting.AffinitySetting,
+                                resource.EncoderIndex);
+                            group = s.Group;
+                            mask = s.Mask;
+                        }
                     }
+                    await WriteCommand(pipes.WritePipe, cmd, gpuIndex, group, mask);
 
                     // UIクライアントに通知
                     consoleText.State = new EncodeState()

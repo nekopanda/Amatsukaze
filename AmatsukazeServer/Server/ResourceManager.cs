@@ -29,7 +29,7 @@ namespace Amatsukaze.Server
         private int[] maxGPU;
 
         // エンコーダの番号
-        private List<int> encodeIds;
+        private List<int> encodeIds = new List<int>();
 
         public ResourceManager()
         {
