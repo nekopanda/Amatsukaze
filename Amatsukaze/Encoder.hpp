@@ -105,7 +105,7 @@ public:
 		, y4mWriter_(new MyVideoWriter(this, vi, fmt))
 		, process_(new StdRedirectedSubProcess(encoder_args, 5))
 	{
-		ctx.info("y4m format: YUV%sp%d %s %dx%d SAR %d:%d %d/%dfps",
+		ctx.infoF("y4m format: YUV%sp%d %s %dx%d SAR %d:%d %d/%dfps",
 			getYUV(vi), vi.BitsPerComponent(), fmt.progressive ? "progressive" : "tff",
 			fmt.width, fmt.height, fmt.sarWidth, fmt.sarHeight, vi.fps_numerator, vi.fps_denominator);
 	}
@@ -128,7 +128,7 @@ public:
 				ctx.error("↓↓↓↓↓↓エンコーダ最後の出力↓↓↓↓↓↓");
 				for (auto v : process_->getLastLines()) {
 					v.push_back(0); // null terminate
-					ctx.error("%s", v.data());
+					ctx.errorF("%s", v.data());
 				}
 				ctx.error("↑↑↑↑↑↑エンコーダ最後の出力↑↑↑↑↑↑");
 				THROWF(RuntimeException, "エンコーダ終了コード: 0x%x", ret);
@@ -189,7 +189,7 @@ public:
 
     int npass = (int)encoderOptions.size();
     for (int i = 0; i < npass; ++i) {
-      ctx.info("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, 
+      ctx.infoF("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, 
         (frameDurations.size() > 0) ? frameDurations.size() : vi_.num_frames);
 
       const std::string& args = encoderOptions[i];
@@ -216,7 +216,7 @@ public:
         }
       }
       catch (const AvisynthError& avserror) {
-        ctx.error("Avisynthフィルタでエラーが発生: %s", avserror.msg);
+        ctx.errorF("Avisynthフィルタでエラーが発生: %s", avserror.msg);
         error = true;
       }
       catch (Exception&) {
@@ -237,7 +237,7 @@ public:
       sw.stop();
 
       double prod, cons; thread_.getTotalWait(prod, cons);
-      ctx.info("Total: %.2fs, FilterWait: %.2fs, EncoderWait: %.2fs", sw.getTotal(), prod, cons);
+      ctx.infoF("Total: %.2fs, FilterWait: %.2fs, EncoderWait: %.2fs", sw.getTotal(), prod, cons);
     }
   }
 
@@ -422,10 +422,10 @@ private:
     File file(setting_.getSrcFilePath(), "rb");
     srcFileSize_ = file.size();
     double srcBitrate = ((double)srcFileSize_ * 8 / 1000) / (stream->duration * av_q2d(stream->time_base));
-    ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
+    ctx.infoF("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
     if (setting_.isAutoBitrate()) {
-      ctx.info("目標映像ビットレート: %d kbps",
+      ctx.infoF("目標映像ビットレート: %d kbps",
         (int)setting_.getBitrate().getTargetBitrate(fmt.format, srcBitrate));
     }
 

@@ -331,7 +331,7 @@ class AMTSource : public IClip, AMTObject
 		if (it->framePTS != pts) {
 			// 一致するフレームがない
 			ctx.incrementCounter(AMT_ERR_UNKNOWN_PTS);
-			ctx.warn("Unknown PTS frame %lld", pts);
+			ctx.warnF("Unknown PTS frame %lld", pts);
 			prevFrame = nullptr; // 連続でなくなる場合はnullリセット
 			return;
 		}

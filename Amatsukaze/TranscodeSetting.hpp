@@ -392,7 +392,7 @@ public:
 			ctx.clearTmpFiles();
 			// ディレクトリ削除
 			if (_rmdir(path_.c_str()) != 0) {
-				ctx.warn("一時ディレクトリ削除に失敗: ", path_.c_str());
+				ctx.warnF("一時ディレクトリ削除に失敗: ", path_.c_str());
 			}
 		}
 	}
@@ -958,44 +958,44 @@ public:
 	void dump() const {
 		ctx.info("[設定]");
 		if (conf.mode != "ts") {
-			ctx.info("Mode: %s", conf.mode.c_str());
+			ctx.infoF("Mode: %s", conf.mode.c_str());
 		}
-		ctx.info("入力: %s", conf.srcFilePath.c_str());
-		ctx.info("出力: %s", conf.outVideoPath.c_str());
-		ctx.info("一時フォルダ: %s", tmpDir.path().c_str());
-		ctx.info("出力フォーマット: %s", formatToString(conf.format));
-		ctx.info("エンコーダ: %s (%s)", conf.encoderPath.c_str(), encoderToString(conf.encoder));
-		ctx.info("エンコーダオプション: %s", conf.encoderOptions.c_str());
+		ctx.infoF("入力: %s", conf.srcFilePath.c_str());
+		ctx.infoF("出力: %s", conf.outVideoPath.c_str());
+		ctx.infoF("一時フォルダ: %s", tmpDir.path().c_str());
+		ctx.infoF("出力フォーマット: %s", formatToString(conf.format));
+		ctx.infoF("エンコーダ: %s (%s)", conf.encoderPath.c_str(), encoderToString(conf.encoder));
+		ctx.infoF("エンコーダオプション: %s", conf.encoderOptions.c_str());
 		if (conf.autoBitrate) {
-			ctx.info("自動ビットレート: 有効 (%g:%g:%g)",
+			ctx.infoF("自動ビットレート: 有効 (%g:%g:%g)",
 				conf.bitrate.a, conf.bitrate.b, conf.bitrate.h264);
 		}
 		else {
 			ctx.info("自動ビットレート: 無効");
 		}
-		ctx.info("エンコード/出力: %s/%s",
+		ctx.infoF("エンコード/出力: %s/%s",
 			conf.twoPass ? "2パス" : "1パス",
 			cmOutMaskToString(conf.cmoutmask));
-		ctx.info("チャプター解析: %s%s",
+		ctx.infoF("チャプター解析: %s%s",
 			conf.chapter ? "有効" : "無効",
 			(conf.chapter && conf.ignoreNoLogo) ? "" : "（ロゴ必須）");
 		if (conf.chapter) {
 			for (int i = 0; i < (int)conf.logoPath.size(); ++i) {
-				ctx.info("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
+				ctx.infoF("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
 			}
-			ctx.info("ロゴ消し: %s", conf.noDelogo ? "しない" : "する");
+			ctx.infoF("ロゴ消し: %s", conf.noDelogo ? "しない" : "する");
 		}
-		ctx.info("字幕: %s", conf.subtitles ? "有効" : "無効");
+		ctx.infoF("字幕: %s", conf.subtitles ? "有効" : "無効");
 		if (conf.subtitles) {
-			ctx.info("DRCSマッピング: %s", conf.drcsMapPath.c_str());
+			ctx.infoF("DRCSマッピング: %s", conf.drcsMapPath.c_str());
 		}
 		if (conf.serviceId > 0) {
-			ctx.info("サービスID: %d", conf.serviceId);
+			ctx.infoF("サービスID: %d", conf.serviceId);
 		}
 		else {
 			ctx.info("サービスID: 指定なし");
 		}
-		ctx.info("デコーダ: MPEG2:%s H264:%s",
+		ctx.infoF("デコーダ: MPEG2:%s H264:%s",
 			decoderToString(conf.decoderSetting.mpeg2),
 			decoderToString(conf.decoderSetting.h264));
 	}

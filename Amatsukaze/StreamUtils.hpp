@@ -349,28 +349,47 @@ public:
 		return &crc;
 	}
 
-	void debug(const char *fmt, ...) const {
+	// ！！入力文字列を含む文字列をfmtに渡すのは禁止！！
+	// （%が含まれていると誤動作するので）
+
+	void debug(const char *str) const {
+		if (!debugEnabled) return;
+		print(str, AMT_LOG_DEBUG);
+	}
+	void debugF(const char *fmt, ...) const {
 		if (!debugEnabled) return;
 		va_list arg; va_start(arg, fmt);
 		print(fmt, arg, AMT_LOG_DEBUG);
 		va_end(arg);
 	}
-	void info(const char *fmt, ...) const {
+	void info(const char *str) const {
+		print(str, AMT_LOG_INFO);
+	}
+	void infoF(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
 		print(fmt, arg, AMT_LOG_INFO);
 		va_end(arg);
 	}
-	void warn(const char *fmt, ...) const {
+	void warn(const char *str) const {
+		print(str, AMT_LOG_WARN);
+	}
+	void warnF(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
 		print(fmt, arg, AMT_LOG_WARN);
 		va_end(arg);
 	}
-	void error(const char *fmt, ...) const {
+	void error(const char *str) const {
+		print(str, AMT_LOG_ERROR);
+	}
+	void errorF(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
 		print(fmt, arg, AMT_LOG_ERROR);
 		va_end(arg);
 	}
-	void progress(const char *fmt, ...) const {
+	void progress(const char *str) const {
+		printProgress(str);
+	}
+	void progressF(const char *fmt, ...) const {
 		va_list arg; va_start(arg, fmt);
 		printProgress(fmt, arg);
 		va_end(arg);
@@ -464,10 +483,19 @@ private:
     return str;
   }
 
+	void print(const char* str, AMT_LOG_LEVEL level) const {
+		static const char* log_levels[] = { "debug", "info", "warn", "error" };
+		PRINTF("AMT [%s] %s\n", log_levels[level], str);
+	}
+
 	void print(const char* fmt, va_list arg, AMT_LOG_LEVEL level) const {
 		static const char* log_levels[] = { "debug", "info", "warn", "error" };
     std::string str = format(fmt, arg);
 		PRINTF("AMT [%s] %s\n", log_levels[level], str.c_str());
+	}
+
+	void printProgress(const char* str) const {
+		PRINTF("AMT %s\r", str);
 	}
 
 	void printProgress(const char* fmt, va_list arg) const {

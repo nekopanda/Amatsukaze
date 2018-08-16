@@ -205,13 +205,13 @@ protected:
 		double sec = (double)totalTime / MPEG_CLOCK_HZ;
 		int minutes = (int)(sec / 60);
 		sec -= minutes * 60;
-		ctx.info("時間: %d分%.3f秒", minutes, sec);
+		ctx.infoF("時間: %d分%.3f秒", minutes, sec);
 
-		ctx.info("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
+		ctx.infoF("FRAME=%d DBL=%d TLP=%d TFF=%d BFF=%d TFF_RFF=%d BFF_RFF=%d",
 			interaceCounter[0], interaceCounter[1], interaceCounter[2], interaceCounter[3], interaceCounter[4], interaceCounter[5], interaceCounter[6]);
 
 		for (const auto& pair : PTSdiffMap) {
-			ctx.info("(PTS_Diff,Cnt)=(%d,%d)", pair.first, pair.second.v);
+			ctx.infoF("(PTS_Diff,Cnt)=(%d,%d)", pair.first, pair.second.v);
 		}
 	}
 
@@ -284,8 +284,8 @@ protected:
 	}
 
 	virtual void onAudioFormatChanged(int audioIdx, AudioFormat fmt) {
-		ctx.info("[音声%dフォーマット変更]", audioIdx);
-		ctx.info("チャンネル: %s サンプルレート: %d",
+		ctx.infoF("[音声%dフォーマット変更]", audioIdx);
+		ctx.infoF("チャンネル: %s サンプルレート: %d",
 			getAudioChannelString(fmt.channels), fmt.sampleRate);
 
 		StreamEvent ev = StreamEvent();
@@ -451,7 +451,7 @@ public:
 	EncodeFileInfo printBitrate(AMTContext& ctx, int videoFileIndex, CMType cmtype) const
 	{
 		double srcBitrate = getSourceBitrate(videoFileIndex);
-		ctx.info("入力映像ビットレート: %d kbps", (int)srcBitrate);
+		ctx.infoF("入力映像ビットレート: %d kbps", (int)srcBitrate);
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
 		double targetBitrate = std::numeric_limits<float>::quiet_NaN();
 		if (setting_.isAutoBitrate()) {
@@ -459,7 +459,7 @@ public:
 			if (cmtype == CMTYPE_CM) {
 				targetBitrate *= setting_.getBitrateCM();
 			}
-			ctx.info("目標映像ビットレート: %d kbps", (int)targetBitrate);
+			ctx.infoF("目標映像ビットレート: %d kbps", (int)targetBitrate);
 		}
 		EncodeFileInfo info;
 		info.srcBitrate = srcBitrate;
@@ -549,7 +549,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		splitter->setServiceId(setting.getServiceId());
 	}
 	StreamReformInfo reformInfo = splitter->split();
-	ctx.info("TS解析完了: %.2f秒", sw.getAndReset());
+	ctx.infoF("TS解析完了: %.2f秒", sw.getAndReset());
 	int serviceId = splitter->getActualServiceId();
 	int64_t numTotalPackets = splitter->getNumTotalPackets();
 	int64_t numScramblePackets = splitter->getNumScramblePackets();
@@ -564,7 +564,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	// スクランブルパケットチェック
 	double scrambleRatio = (double)numScramblePackets / (double)numTotalPackets;
 	if (scrambleRatio > 0.01) {
-		ctx.error("%.2f%%のパケットがスクランブル状態です。", scrambleRatio * 100);
+		ctx.errorF("%.2f%%のパケットがスクランブル状態です。", scrambleRatio * 100);
 		if (scrambleRatio > 0.3) {
 			THROW(FormatException, "スクランブルパケットが多すぎます");
 		}
@@ -661,7 +661,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		{
 			THROW(NoLogoException, "マッチするロゴが見つかりませんでした");
 		}
-		ctx.info("ロゴ・CM解析完了: %.2f秒", sw.getAndReset());
+		ctx.infoF("ロゴ・CM解析完了: %.2f秒", sw.getAndReset());
 	}
 
 	if (isNoEncode) {
@@ -702,7 +702,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			}
 		}
 	}
-	ctx.info("字幕ファイル生成完了: %.2f秒", sw.getAndReset());
+	ctx.infoF("字幕ファイル生成完了: %.2f秒", sw.getAndReset());
 
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
 	std::vector<EncodeFileInfo> outFileInfo;
@@ -742,7 +742,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						auto& frameDurations = filterSource.getFrameDurations();
 						FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
 
-						ctx.info("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
+						ctx.infoF("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
 
 						outFileInfo.push_back(argGen->printBitrate(ctx, videoFileIndex, cmtype));
 						outfiles.push_back(outfmt);
@@ -800,7 +800,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			}
 		}
 	}
-	ctx.info("エンコード完了: %.2f秒", sw.getAndReset());
+	ctx.infoF("エンコード完了: %.2f秒", sw.getAndReset());
 
 	argGen = nullptr;
 
@@ -829,7 +829,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				const auto& vfmt = outfiles[currentOutFile];
 				++currentOutFile;
 
-				ctx.info("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
+				ctx.infoF("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
 				muxer->mux(
 					videoFileIndex, encoderIndex, cmtype,
 					vfmt, eoInfo, OutPathGenerator(setting,
@@ -839,7 +839,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			}
 		}
 	}
-	ctx.info("Mux完了: %.2f秒", sw.getAndReset());
+	ctx.infoF("Mux完了: %.2f秒", sw.getAndReset());
 
 	muxer = nullptr;
 
@@ -905,7 +905,7 @@ static void searchDrcsMain(AMTContext& ctx, const ConfigWrapper& setting)
 		splitter->setServiceId(setting.getServiceId());
 	}
 	splitter->readAll();
-	ctx.info("完了: %.2f秒", sw.getAndReset());
+	ctx.infoF("完了: %.2f秒", sw.getAndReset());
 }
 
 static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)

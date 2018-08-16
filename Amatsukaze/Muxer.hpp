@@ -81,7 +81,7 @@ public:
 			if (frameList.size() > 0) {
 				if (fmt.audioFormat[asrc].channels == AUDIO_2LANG) {
 					// デュアルモノは2つのAACに分離
-					ctx.info("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", encoderIndex, asrc);
+					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", encoderIndex, asrc);
 					SpDualMonoSplitter splitter(ctx);
 					std::string filepath0 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
 					std::string filepath1 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);

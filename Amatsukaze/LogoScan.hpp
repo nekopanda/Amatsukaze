@@ -1575,7 +1575,7 @@ class LogoFrame : AMTObject
 			ScanFrame<pixel_t>(frame, memDeint.get(), memWork.get(), maxv, &evalResults[n * numLogos]);
 
 			if ((n % 5000) == 0) {
-				ctx.info("%6d/%d", n, vi.num_frames);
+				ctx.infoF("%6d/%d", n, vi.num_frames);
 			}
 		}
 		numFrames = vi.num_frames;
@@ -1669,7 +1669,7 @@ public:
       logoScore[i] = (s.numFrames == 0) ? INFINITY :
         (s.cost / s.numFrames) * (numFrames / (float)s.numFrames);
 #if 1
-      ctx.debug("logo%d: %f * %f = %f", i + 1,
+      ctx.debugF("logo%d: %f * %f = %f", i + 1,
         (s.cost / s.numFrames),
         (numFrames / (float)s.numFrames),
         logoScore[i]);

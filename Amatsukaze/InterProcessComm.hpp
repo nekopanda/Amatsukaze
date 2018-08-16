@@ -166,7 +166,7 @@ public:
       ctx.progress("リソース待ち ...");
       Stopwatch sw; sw.start();
       ret = readCommand(phase);
-      ctx.info("リソース待ち %.2f秒", sw.getAndReset());
+      ctx.infoF("リソース待ち %.2f秒", sw.getAndReset());
     }
 		return ret;
 	}

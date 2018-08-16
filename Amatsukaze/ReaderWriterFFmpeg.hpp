@@ -805,7 +805,7 @@ public:
         ctx.error("↓↓↓↓↓↓エンコーダ最後の出力↓↓↓↓↓↓");
         for (auto v : process_->getLastLines()) {
           v.push_back(0); // null terminate
-          ctx.error("%s", v.data());
+          ctx.errorF("%s", v.data());
         }
         ctx.error("↑↑↑↑↑↑エンコーダ最後の出力↑↑↑↑↑↑");
 				THROWF(RuntimeException, "エンコーダ終了コード: 0x%x", ret);

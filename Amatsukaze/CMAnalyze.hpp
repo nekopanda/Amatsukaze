@@ -46,11 +46,11 @@ public:
 			ctx.info("[ロゴ解析]");
 			sw.start();
 			logoFrame(videoFileIndex, avspath);
-			ctx.info("完了: %.2f秒", sw.getAndReset());
+			ctx.infoF("完了: %.2f秒", sw.getAndReset());
 
 			if (logopath.size() > 0) {
 				ctx.info("[ロゴ解析結果]");
-				ctx.info("マッチしたロゴ: %s", logopath.c_str());
+				ctx.infoF("マッチしたロゴ: %s", logopath.c_str());
 				PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
 			}
 		}
@@ -59,7 +59,7 @@ public:
 		ctx.info("[無音・シーンチェンジ解析]");
 		sw.start();
 		chapterExe(videoFileIndex, avspath);
-		ctx.info("完了: %.2f秒", sw.getAndReset());
+		ctx.infoF("完了: %.2f秒", sw.getAndReset());
 
 		ctx.info("[無音・シーンチェンジ解析結果]");
 		PrintFileAll(setting_.getTmpChapterExeOutPath(videoFileIndex));
@@ -68,7 +68,7 @@ public:
 		ctx.info("[CM解析]");
 		sw.start();
 		joinLogoScp(videoFileIndex);
-		ctx.info("完了: %.2f秒", sw.getAndReset());
+		ctx.infoF("完了: %.2f秒", sw.getAndReset());
 
 		ctx.info("[CM解析結果 - TrimAVS]");
 		PrintFileAll(setting_.getTmpTrimAVSPath(videoFileIndex));
@@ -480,14 +480,14 @@ private:
 		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
 		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
 
-		ctx.info("ファイル: %d-%d %s", videoFileIndex, encoderIndex, CMTypeToString(cmtype));
+		ctx.infoF("ファイル: %d-%d %s", videoFileIndex, encoderIndex, CMTypeToString(cmtype));
 
 		StringBuilder sb;
 		int sumframes = 0;
 		for (int i = 0; i < (int)chapters.size(); ++i) {
 			auto& c = chapters[i];
 
-			ctx.info("%5d: %s", c.frameStart, c.comment.c_str());
+			ctx.infoF("%5d: %s", c.frameStart, c.comment.c_str());
 
 			int ms = (int)std::round(sumframes * frameMs);
 			int s = ms / 1000;

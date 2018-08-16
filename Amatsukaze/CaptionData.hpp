@@ -410,11 +410,11 @@ private:
 											double seconds = info.elapsed / MPEG_CLOCK_HZ;
 											int minutes = (int)(seconds / 60);
 											seconds -= minutes * 60;
-											ctx.warn("[字幕] 映像時刻%d分%d秒付近にマッピングのないDRCS外字があります。追加してください -> %s",
+											ctx.warnF("[字幕] 映像時刻%d分%d秒付近にマッピングのないDRCS外字があります。追加してください -> %s",
 												minutes, (int)seconds, info.filename.c_str());
 										}
 										else {
-											ctx.warn("[字幕] マッピングのないDRCS外字があります。追加してください -> %s",
+											ctx.warnF("[字幕] マッピングのないDRCS外字があります。追加してください -> %s",
 												info.filename.c_str());
 										}
 									}

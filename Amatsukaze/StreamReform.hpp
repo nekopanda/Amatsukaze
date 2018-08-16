@@ -107,18 +107,18 @@ struct AudioDiffInfo {
 		double maxDiff = this->maxDiff() * 1000;
 		int notIncluded = totalSrcFrames - totalUniquAudioFrames;
 
-		ctx.info("出力音声フレーム: %d（うち水増しフレーム%d）",
+		ctx.infoF("出力音声フレーム: %d（うち水増しフレーム%d）",
 			totalAudioFrames, totalAudioFrames - totalUniquAudioFrames);
-		ctx.info("未出力フレーム: %d（%.3f%%）",
+		ctx.infoF("未出力フレーム: %d（%.3f%%）",
 			notIncluded, (double)notIncluded * 100 / totalSrcFrames);
 
-		ctx.info("音ズレ: 平均 %.2fms 最大 %.2fms",
+		ctx.infoF("音ズレ: 平均 %.2fms 最大 %.2fms",
 			avgDiff, maxDiff);
 		if (maxPtsDiff > 0 && maxDiff - avgDiff > 1) {
 			double sec = elapsedTime(maxPtsDiffPos);
 			int minutes = (int)(sec / 60);
 			sec -= minutes * 60;
-			ctx.info("最大音ズレ位置: 入力最初の映像フレームから%d分%.3f秒後",
+			ctx.infoF("最大音ズレ位置: 入力最初の映像フレームから%d分%.3f秒後",
 				minutes, sec);
 		}
 	}
@@ -392,7 +392,7 @@ public:
 	{
 		ctx.info("[出力ファイル]");
 		for (int i = 0; i < (int)fileFormatId_.size(); ++i) {
-			ctx.info("%d: %s", i, getFileName(i).c_str());
+			ctx.infoF("%d: %s", i, getFileName(i).c_str());
 		}
 
 		ctx.info("[入力->出力マッピング]");
@@ -406,7 +406,7 @@ public:
 				// print
 				auto from = elapsedTime(fromPTS);
 				auto to = elapsedTime(pts);
-				ctx.info("%3d分%05.3f秒 - %3d分%05.3f秒 -> %d",
+				ctx.infoF("%3d分%05.3f秒 - %3d分%05.3f秒 -> %d",
 					from.first, from.second, to.first, to.second, outFileIndex_[prevFileId]);
 				prevFileId = fileId;
 				fromPTS = pts;
@@ -414,7 +414,7 @@ public:
 		}
 		auto from = elapsedTime(fromPTS);
 		auto to = elapsedTime(dataPTS_.back());
-		ctx.info("%3d分%05.3f秒 - %3d分%05.3f秒 -> %d",
+		ctx.infoF("%3d分%05.3f秒 - %3d分%05.3f秒 -> %d",
 			from.first, from.second, to.first, to.second, outFileIndex_[prevFileId]);
 	}
 
@@ -679,7 +679,7 @@ private:
 				if (startPts == -1) {
 					startPts = curFromPTS;
 				}
-				ctx.info("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
+				ctx.infoF("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
 				curFromPTS = -1;
 			}
 			// 変更を反映
@@ -726,7 +726,7 @@ private:
 			if (startPts == -1) {
 				startPts = curFromPTS;
 			}
-			ctx.info("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
+			ctx.infoF("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
 		}
 		startPtsList.push_back(endPTS);
 		videoFormatStartIndex_.push_back((int)outFormat_.size());
@@ -991,7 +991,7 @@ private:
 			if (modifiedPTS[i] - modifiedPTS[i - 1] < -60 * MPEG_CLOCK_HZ) {
 				// 1分以上戻っている
 				ctx.incrementCounter(AMT_ERR_NON_CONTINUOUS_PTS);
-				ctx.warn("PTSが戻っています。正しく処理できないかもしれません。 [%d] %.0f -> %.0f",
+				ctx.warnF("PTSが戻っています。正しく処理できないかもしれません。 [%d] %.0f -> %.0f",
 					i, modifiedPTS[i - 1], modifiedPTS[i]);
 			}
 		}
@@ -1244,7 +1244,7 @@ private:
 				state.lostPts = pts;
 				if (adiff) {
 					auto elapsed = elapsedTime(pts);
-					ctx.debug("%d分%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
+					ctx.debugF("%d分%.3f秒で音声%d-%dの同期ポイントを見失ったので再検索",
 						elapsed.first, elapsed.second, file.formatId, index);
 				}
 			}
@@ -1304,17 +1304,17 @@ private:
 			if (adiff) {
 				if (nframes > 1) {
 					auto elapsed = elapsedTime(modPTS);
-					ctx.debug("%d分%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
+					ctx.debugF("%d分%.3f秒で音声%d-%dにずれがあるので%dフレーム水増し",
 						elapsed.first, elapsed.second, file.formatId, index, nframes - 1);
 				}
 				if (nskipped > 0) {
 					if (state.lastFrame == -1) {
-						ctx.debug("音声%d-%dは%dフレーム目から開始",
+						ctx.debugF("音声%d-%dは%dフレーム目から開始",
 							file.formatId, index, nskipped);
 					}
 					else {
 						auto elapsed = elapsedTime(modPTS);
-						ctx.debug("%d分%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
+						ctx.debugF("%d分%.3f秒で音声%d-%dにずれがあるので%dフレームスキップ",
 							elapsed.first, elapsed.second, file.formatId, index, nskipped);
 					}
 					nskipped = 0;

@@ -76,7 +76,7 @@ class FpsPrinter : AMTObject
 		current = TimeCount();
 
 		if (last) {
-			ctx.info("complete. %.2ffps (%dフレーム)", sum.count / sum.span, total);
+			ctx.infoF("complete. %.2ffps (%dフレーム)", sum.count / sum.span, total);
 		}
 		else {
 			float sumtime = 0;
@@ -85,7 +85,7 @@ class FpsPrinter : AMTObject
 				sumtime += times[i].span;
 				sumcount += times[i].count;
 			}
-			ctx.progress("%d/%d %.2ffps", sum.count, total, sumcount / sumtime);
+			ctx.progressF("%d/%d %.2ffps", sum.count, total, sumcount / sumtime);
 
 			if ((int)times.size() > navg) {
 				times.pop_front();

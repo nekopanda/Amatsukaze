@@ -373,7 +373,7 @@ private:
     PClip clip = env_->GetVar("last").AsClip();
     const VideoInfo vi = clip->GetVideoInfo();
 
-    ctx.info("フィルタパス%d 予定フレーム数: %d", pass + 1, vi.num_frames);
+    ctx.infoF("フィルタパス%d 予定フレーム数: %d", pass + 1, vi.num_frames);
     Stopwatch sw;
     sw.start();
     int prevFrames = 0;
@@ -394,14 +394,14 @@ private:
       double elapsed = sw.current();
       if (elapsed >= 1.0) {
         double fps = (i - prevFrames) / elapsed;
-        ctx.progress("%dフレーム完了 %.2ffps", i, fps);
+        ctx.progressF("%dフレーム完了 %.2ffps", i, fps);
 
         prevFrames = i;
         sw.stop();
       }
     }
 
-    ctx.info("フィルタパス%d 完了: %.2f秒", pass + 1, sw.getTotal());
+    ctx.infoF("フィルタパス%d 完了: %.2f秒", pass + 1, sw.getTotal());
   }
 
   void makeMainFilterSource(
@@ -524,11 +524,11 @@ private:
     double clipDuration = (double)outvi.num_frames * outvi.fps_denominator / outvi.fps_numerator;
     bool outParity = filter_->GetParity(0);
 
-    ctx.info("フィルタ入力: %dフレーム %d/%dfps (%s)",
+    ctx.infoF("フィルタ入力: %dフレーム %d/%dfps (%s)",
       numSrcFrames, infmt.frameRateNum, infmt.frameRateDenom,
       infmt.progressive ? "プログレッシブ" : "インターレース");
 
-    ctx.info("フィルタ出力: %dフレーム %d/%dfps (%s)",
+    ctx.infoF("フィルタ出力: %dフレーム %d/%dfps (%s)",
       outvi.num_frames, outvi.fps_numerator, outvi.fps_denominator,
       outParity ? "インターレース" : "プログレッシブ");
 
@@ -678,7 +678,7 @@ public:
   void makeTimecode(const std::string& filepath) const {
     StringBuilder sb;
     sb.append("# timecode format v2\n");
-    ctx.info("[VFR] %d fpsタイミングでタイムコードを生成します", is120fps ? 120 : 60);
+    ctx.infoF("[VFR] %d fpsタイミングでタイムコードを生成します", is120fps ? 120 : 60);
     if (is120fps) {
       const double timestep = (double)fpsDenom / fpsNum;
       const double time24 = (fpsDenom * 10.0) / (fpsNum * 4.0);
@@ -689,7 +689,7 @@ public:
         sb.append("%d\n", (int)std::round(curTime * 1000));
         curTime += (frameFps_[i] == -1) ? time24 : (frameFps_[i] * timestep);
       }
-      ctx.info("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
+      ctx.infoF("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
       if (std::abs(curTime - totalDuration) >= 0.000001) {
         // 1us以上のズレがあったらエラーとする
         THROWF(RuntimeException, "タイムコードの合計時間と映像時間の合計にズレがあります。(%f != %f)", curTime, totalDuration);

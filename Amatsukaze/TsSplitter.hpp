@@ -72,7 +72,7 @@ protected:
 		MemoryChunk payload = packet.paylod();
 
 		if (!parser->inputFrame(payload, frameInfo, PTS, DTS)) {
-			ctx.error("フレーム情報の取得に失敗 PTS=%lld", PTS);
+			ctx.errorF("フレーム情報の取得に失敗 PTS=%lld", PTS);
 			return;
 		}
 
@@ -490,7 +490,7 @@ protected:
 				this_.tsSystemClock.backTs();
 
 				int64_t startClock = this_.tsSystemClock.getClock(0);
-				this_.ctx.info("開始Clock: %lld", startClock);
+				this_.ctx.infoF("開始Clock: %lld", startClock);
 				this_.tsPacketSelector.setStartClock(startClock);
 				
 				this_.tsPacketParser.backAndInput();
@@ -600,7 +600,7 @@ protected:
 		for (int i = 0; i < int(pids.size()); ++i) {
 			if (preferedServiceId == pids[i]) {
 				selectedServiceId = pids[i];
-				ctx.info("サービス %d を選択", selectedServiceId);
+				ctx.infoF("サービス %d を選択", selectedServiceId);
 				return i;
 			}
 		}
@@ -617,7 +617,7 @@ protected:
 			THROW(InvalidOperationException, "failed to select service");
 		}
 		selectedServiceId = pids[0];
-		ctx.info("サービス %d を選択（指定がありませんでした）", selectedServiceId);
+		ctx.infoF("サービス %d を選択（指定がありませんでした）", selectedServiceId);
 		return 0;
 	}
 
@@ -651,7 +651,7 @@ protected:
 			while (audioParsers.size() < numAudios) {
 				int audioIdx = int(audioParsers.size());
 				audioParsers.push_back(new SpAudioFrameParser(ctx, *this, audioIdx));
-				ctx.info("音声パーサ %d を追加", audioIdx);
+				ctx.infoF("音声パーサ %d を追加", audioIdx);
 			}
 		}
 	}

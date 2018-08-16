@@ -41,22 +41,22 @@ public:
 			}
 			t.tm_hour += 9; // GMT+9
 			mktime(&t);
-			ctx.info("%s (jk%d) %d年%02d月%02d日 %02d時%02d分%02d秒 から %d時間%02d分%02d秒",
+			ctx.infoF("%s (jk%d) %d年%02d月%02d日 %02d時%02d分%02d秒 から %d時間%02d分%02d秒",
 				tvname_.c_str(), jknum_,
 				t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec,
 				duration / 3600, (duration / 60) % 60, duration % 60);
 
 			if (!getNicoJKXml(startTime, duration)) return false;
-			ctx.info("コメントXML取得: %.2f秒", sw.getAndReset());
+			ctx.infoF("コメントXML取得: %.2f秒", sw.getAndReset());
 			if (!nicoConvASS(false, startTime)) return false;
-			ctx.info("コメントASS生成: %.2f秒", sw.getAndReset());
+			ctx.infoF("コメントASS生成: %.2f秒", sw.getAndReset());
 		}
 		else {
 			if (!nicoConvASS(true, startTime)) return false;
-			ctx.info("コメントASS生成: %.2f秒", sw.getAndReset());
+			ctx.infoF("コメントASS生成: %.2f秒", sw.getAndReset());
 		}
 		readASS();
-		ctx.info("コメントASS読み込み: %.2f秒", sw.getAndReset());
+		ctx.infoF("コメントASS読み込み: %.2f秒", sw.getAndReset());
 		return true;
 	}
 

@@ -1495,7 +1495,7 @@ private:
 			double sec = (currentClock - startClock) / 27000000.0;
 			int minutes = (int)(sec / 60);
 			sec -= minutes * 60;
-			ctx.info("[PMT更新] ストリーム時刻: %d分%.2f秒", minutes, sec);
+			ctx.infoF("[PMT更新] ストリーム時刻: %d分%.2f秒", minutes, sec);
 		}
 
 		const char* content = NULL;
@@ -1516,17 +1516,17 @@ private:
 			const char* tag = componentTagString(component_tag);
 			if (content != NULL) {
 				if (tag != NULL) {
-					ctx.info("PID: 0x%04x TYPE: %s TAG: %s(0x%02x)", elem.elementary_PID(), content, tag, component_tag);
+					ctx.infoF("PID: 0x%04x TYPE: %s TAG: %s(0x%02x)", elem.elementary_PID(), content, tag, component_tag);
 				}
 				else if(component_tag != -1) {
-					ctx.info("PID: 0x%04x TYPE: %s TAG: 不明(0x%02x)", elem.elementary_PID(), content, component_tag);
+					ctx.infoF("PID: 0x%04x TYPE: %s TAG: 不明(0x%02x)", elem.elementary_PID(), content, component_tag);
 				}
 				else {
-					ctx.info("PID: 0x%04x TYPE: %s", elem.elementary_PID(), content);
+					ctx.infoF("PID: 0x%04x TYPE: %s", elem.elementary_PID(), content);
 				}
 			}
 			else {
-				ctx.info("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());
+				ctx.infoF("PID: 0x%04x TYPE: Unknown (0x%04x)", elem.elementary_PID(), elem.stream_type());
 			}
 		}
 	}

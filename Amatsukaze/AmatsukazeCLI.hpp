@@ -626,6 +626,8 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			test::BitrateZones(ctx, setting);
 		else if (mode == "test_zone2")
 			test::BitrateZonesBug(ctx, setting);
+		else if (mode == "test_printf")
+			test::PrintfBug(ctx, setting);
 
 		else
 			PRINTF("--mode‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %s\n", mode.c_str());

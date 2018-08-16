@@ -678,4 +678,15 @@ static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)
 	return 0;
 }
 
+static int PrintfBug(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	File txtf(setting.getSrcFilePath(), "rb");
+	std::vector<char> strv(txtf.size());
+	txtf.read(MemoryChunk((uint8_t*)strv.data(), strv.size()));
+	printf("txt len: %d\n", (int)strv.size());
+	std::string str(strv.begin(), strv.end());
+	ctx.info(str.c_str());
+	return 0;
+}
+
 } // namespace test
