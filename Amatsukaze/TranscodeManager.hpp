@@ -1088,7 +1088,7 @@ static void searchDrcsMain(AMTContext& ctx, const ConfigWrapper& setting)
 		splitter->setServiceId(setting.getServiceId());
 	}
 	splitter->readAll();
-	ctx.info("Š®—¹: %.2f•b", sw.getAndReset());
+	ctx.infoF("Š®—¹: %.2f•b", sw.getAndReset());
 }
 
 static void detectSubtitleMain(AMTContext& ctx, const ConfigWrapper& setting)
