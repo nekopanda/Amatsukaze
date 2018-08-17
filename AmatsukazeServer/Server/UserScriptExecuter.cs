@@ -75,23 +75,76 @@ namespace Amatsukaze.Server
                 }
             }
 
-            var mainPath = log.OutPath[0];
-            var mainNoExt = Path.GetFileNameWithoutExtension(mainPath);
-            var prefix = Path.GetDirectoryName(mainPath) + "\\" + mainNoExt;
-            var parser = new Regex("(-(\\d+))?(-cm)?");
-            var list = new List<string>();
-            foreach (var path in log.OutPath)
+            var tailParser = new Regex("(-(\\d+))?(-cm)?(\\..+)");
+            Func<string, int> fileType = tail =>
             {
-                bool isSubs = (path.EndsWith("ass") || path.EndsWith(".srt"));
-                // TODO:
-            }
-
-            if((mask & LOG) != 0)
-            {
-                if(item.Profile.DisableLogFile == false)
+                var m = tailParser.Match(tail);
+                if (m.Success == false)
                 {
-                    list.Add(prefix + ".log");
+                    throw new FormatException("出力ファイルのフォーマットがパースできません");
                 }
+                var numStr = m.Groups[2].Value;
+                var cmStr = m.Groups[3].Value;
+                var ext = m.Groups[4].Value;
+                bool isSubs = (ext == ".ass") || (ext == ".srt");
+                int number = (numStr.Length == 0) ? 0 : int.Parse(numStr);
+                bool isCM = (cmStr.Length > 0);
+                if (number > 0)
+                {
+                    if (isSubs)
+                    {
+                        return MAIN_SUBS;
+                    }
+                    else if (isCM)
+                    {
+                        return MAIN_CM;
+                    }
+                    else
+                    {
+                        return MAIN;
+                    }
+                }
+                else
+                {
+                    if (isSubs)
+                    {
+                        return OTHER_SUBS;
+                    }
+                    else if (isCM)
+                    {
+                        return OTHER_CM;
+                    }
+                    else
+                    {
+                        return OTHER;
+                    }
+                }
+            };
+
+            try
+            {
+                var mainPath = log.OutPath[0];
+                var mainNoExt = Path.GetFileNameWithoutExtension(mainPath);
+                var list = log.OutPath.Where(path =>
+                {
+                    var type = fileType(Path.GetFileName(path).Substring(mainNoExt.Length));
+                    return (mask & type) != 0;
+                }).ToList();
+
+                if ((mask & LOG) != 0)
+                {
+                    if (item.Profile.DisableLogFile == false)
+                    {
+                        var prefix = Path.GetDirectoryName(mainPath) + "\\" + mainNoExt;
+                        list.Add(prefix + ".log");
+                    }
+                }
+
+                return string.Join(";", list);
+            }
+            catch(FormatException e)
+            {
+                return e.Message;
             }
         }
 
@@ -145,7 +198,7 @@ namespace Amatsukaze.Server
                             }
                             break;
                         case RPCMethodId.GetOutFiles:
-                            // TODO:
+                            ret = GetOutFiles(item, log, (string)rpc.arg);
                             break;
                         case RPCMethodId.CancelItem:
                             if(phase == Phase.PostEncode)
@@ -169,7 +222,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static void SetupEnv(Phase phase, StringDictionary env,
+        private static void SetupEnv(EncodeServer server, Phase phase, StringDictionary env,
             PipeCommunicator pipes, QueueItem item, LogItem log)
         {
             env.Add("ITEM_ID", item.Id.ToString());
@@ -200,7 +253,8 @@ namespace Amatsukaze.Server
                 env.Add("OUT_SIZE", log.OutFileSize.ToString());
                 env.Add("LOGO_FILE", string.Join(";", log.LogoFiles));
                 env.Add("NUM_INCIDENT", log.Incident.ToString());
-                // TODO: json,logパス
+                env.Add("JSON_PATH", server.GetLogFileBase(log.EncodeStartDate) + ".json");
+                env.Add("LOG_PATH", server.GetLogFileBase(log.EncodeStartDate) + ".log");
             }
 
             // パイプ通信用
@@ -208,7 +262,7 @@ namespace Amatsukaze.Server
             env.Add("OUT_PIPE_HANDLE", pipes.OutHandle);
         }
 
-        public static async Task ExecuteOnAdd(string scriptPath, QueueItem item, Program prog)
+        public static async Task ExecuteOnAdd(EncodeServer server, string scriptPath, QueueItem item, Program prog)
         {
             PipeCommunicator pipes = new PipeCommunicator();
 
@@ -229,7 +283,7 @@ namespace Amatsukaze.Server
                 exeDir + ";" + exeDir + "\\cmd" + ";" + psi.EnvironmentVariables["path"];
 
             // パラメータを環境変数に追加
-            SetupEnv(Phase.OnAdd, psi.EnvironmentVariables, pipes, item, null);
+            SetupEnv(server, Phase.OnAdd, psi.EnvironmentVariables, pipes, item, null);
 
             LOG.Info("追加時バッチ起動: " + item.SrcPath);
 
