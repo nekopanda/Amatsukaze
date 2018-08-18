@@ -905,6 +905,25 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region CancelAddQueueCommand
+        private ViewModelCommand _CancelAddQueueCommand;
+
+        public ViewModelCommand CancelAddQueueCommand {
+            get {
+                if (_CancelAddQueueCommand == null)
+                {
+                    _CancelAddQueueCommand = new ViewModelCommand(CancelAddQueue);
+                }
+                return _CancelAddQueueCommand;
+            }
+        }
+
+        public void CancelAddQueue()
+        {
+            Model.Server.CancelAddQueue();
+        }
+        #endregion
+
         #region ListStyle変更通知プロパティ
         private int _ListStyle;
 

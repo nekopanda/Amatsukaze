@@ -36,10 +36,8 @@ namespace Amatsukaze.Models
         }
     }
 
-    public class DisplayConsole : ConsoleTextBase
+    public class SimpleDisplayConsole : ConsoleTextBase
     {
-        public int Id { get; set; }
-
         #region TextLines変更通知プロパティ
         private ObservableCollection<string> _TextLines = new ObservableCollection<string>();
 
@@ -60,6 +58,45 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+
+        public override void OnAddLine(string text)
+        {
+            if (TextLines.Count > 800)
+            {
+                TextLines.RemoveAt(0);
+            }
+            TextLines.Add(text);
+            RaisePropertyChanged("LastLine");
+        }
+
+        public override void OnReplaceLine(string text)
+        {
+            if (TextLines.Count == 0)
+            {
+                TextLines.Add(text);
+            }
+            else
+            {
+                TextLines[TextLines.Count - 1] = text;
+            }
+            RaisePropertyChanged("LastLine");
+        }
+
+        public void SetTextLines(List<string> lines)
+        {
+            Clear();
+            TextLines.Clear();
+            foreach (var s in lines)
+            {
+                TextLines.Add(s);
+            }
+            RaisePropertyChanged("LastLine");
+        }
+    }
+
+    public class DisplayConsole : SimpleDisplayConsole
+    {
+        public int Id { get; set; }
 
         #region Phase変更通知プロパティ
         private ResourcePhase _Phase;
@@ -118,40 +155,6 @@ namespace Amatsukaze.Models
         public int GPU { get { return _Resource?.Req.GPU ?? 0; } }
         public int GpuIndex { get { return _Resource?.GpuIndex ?? -1; } }
         #endregion
-
-        public override void OnAddLine(string text)
-        {
-            if (TextLines.Count > 800)
-            {
-                TextLines.RemoveAt(0);
-            }
-            TextLines.Add(text);
-            RaisePropertyChanged("LastLine");
-        }
-
-        public override void OnReplaceLine(string text)
-        {
-            if (TextLines.Count == 0)
-            {
-                TextLines.Add(text);
-            }
-            else
-            {
-                TextLines[TextLines.Count - 1] = text;
-            }
-            RaisePropertyChanged("LastLine");
-        }
-
-        public void SetTextLines(List<string> lines)
-        {
-            Clear();
-            TextLines.Clear();
-            foreach (var s in lines)
-            {
-                TextLines.Add(s);
-            }
-            RaisePropertyChanged("LastLine");
-        }
     }
 
     public class DisplayQueueItem : NotificationObject
@@ -284,6 +287,12 @@ namespace Amatsukaze.Models
                     return "（" + ((int)ts.TotalHours).ToString() + "時間前に更新）";
                 }
                 return "（" + ((int)ts.TotalDays).ToString() + "日前に更新）";
+            }
+        }
+
+        public string TagString {
+            get {
+                return string.Join(" ", Model.Tags);
             }
         }
 
@@ -2489,6 +2498,32 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region TagEnabled変更通知プロパティ
+        public bool TagEnabled {
+            get { return Item.TagEnabled; }
+            set { 
+                if (Item.TagEnabled == value)
+                    return;
+                Item.TagEnabled = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Tag変更通知プロパティ
+        public string Tag {
+            get { return Item.Tag; }
+            set { 
+                if (Item.Tag == value)
+                    return;
+                Item.Tag = value;
+                ApplyCondition();
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         // 有効な必要な項目だけ抜き出す
         private static GenreItem SelectItemToGenreItem(NotificationObject s)
         {
@@ -2521,7 +2556,11 @@ namespace Amatsukaze.Models
             bool never = false;
             WarningText = "";
             var conds = new List<string>();
-            if(Item.FileNameEnabled)
+            if (Item.TagEnabled)
+            {
+                conds.Add("タグ「" + Item.Tag + "」を含む");
+            }
+            if (Item.FileNameEnabled)
             {
                 conds.Add("ファイル名に「" + Item.FileName + "」を含む");
             }

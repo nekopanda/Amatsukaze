@@ -26,12 +26,12 @@ namespace Amatsukaze.Command
             Console.WriteLine((string)ret.arg);
         }
 
-        static void Main(string[] args)
+        static void CommandMain(string[] args)
         {
-            if(Environment.GetEnvironmentVariable("IN_PIPE_HANDLE") == null)
+            if (Environment.GetEnvironmentVariable("IN_PIPE_HANDLE") == null)
             {
                 // バッチファイルテスト用動作
-                if(args.Length >= 2)
+                if (args.Length >= 2)
                 {
                     Console.WriteLine(args[1]);
                 }
@@ -68,6 +68,20 @@ namespace Amatsukaze.Command
             {
                 Console.WriteLine("不明なコマンドです");
             }
+        }
+
+        static void Main(string[] args)
+        {
+            // 親ディレクトリのDLLを参照できるようにする
+            //（CLRはDLLをロードするときに環境変数PATHやカレントディレクトリは見ないことに注意）
+            AppDomain.CurrentDomain.AssemblyResolve += (_, e) =>
+            {
+                var dir = Path.GetDirectoryName(typeof(ScriptCommand).Assembly.Location);
+                return System.Reflection.Assembly.LoadFrom(Path.GetDirectoryName(dir) + 
+                    "\\" + new System.Reflection.AssemblyName(e.Name).Name + ".dll");
+            };
+
+            CommandMain(args);
         }
     }
 }

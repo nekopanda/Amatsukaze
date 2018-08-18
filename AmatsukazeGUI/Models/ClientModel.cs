@@ -500,6 +500,8 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        public SimpleDisplayConsole AddQueueConsole { get; } = new SimpleDisplayConsole();
+
         public ClientModel()
         {
             Util.LogHandlers.Add(AddLog);
@@ -972,8 +974,16 @@ namespace Amatsukaze.Models
             }
             if(data.ConsoleData != null)
             {
-                ensureConsoleNum(data.ConsoleData.index);
-                ConsoleList[data.ConsoleData.index].SetTextLines(data.ConsoleData.text);
+                if(data.ConsoleData.index == -1)
+                {
+                    // キュー追加コンソール
+                    AddQueueConsole.SetTextLines(data.ConsoleData.text);
+                }
+                else
+                {
+                    ensureConsoleNum(data.ConsoleData.index);
+                    ConsoleList[data.ConsoleData.index].SetTextLines(data.ConsoleData.text);
+                }
             }
             if(data.EncodeState != null)
             {
@@ -1074,8 +1084,16 @@ namespace Amatsukaze.Models
 
         public Task OnConsoleUpdate(ConsoleUpdate update)
         {
-            ensureConsoleNum(update.index);
-            ConsoleList[update.index].AddBytes(update.data, 0, update.data.Length);
+            if(update.index == -1)
+            {
+                // キュー追加コンソール
+                AddQueueConsole.AddBytes(update.data, 0, update.data.Length);
+            }
+            else
+            {
+                ensureConsoleNum(update.index);
+                ConsoleList[update.index].AddBytes(update.data, 0, update.data.Length);
+            }
             return Task.FromResult(0);
         }
 

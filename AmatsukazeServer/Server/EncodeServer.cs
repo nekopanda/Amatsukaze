@@ -1427,7 +1427,7 @@ namespace Amatsukaze.Server
             public int Priority;
         }
 
-        internal ProfileTuple GetProfile(string fileName, int width, int height,
+        internal ProfileTuple GetProfile(List<string> tags, string fileName, int width, int height,
             List<GenreItem> genre, int serviceId, string profileName)
         {
             bool isAuto = false;
@@ -1444,7 +1444,7 @@ namespace Amatsukaze.Server
                     // TS情報がない
                     return null;
                 }
-                var resolvedProfile = ServerSupport.AutoSelectProfile(fileName, width, height,
+                var resolvedProfile = ServerSupport.AutoSelectProfile(tags, fileName, width, height,
                     genre, serviceId, autoSelects[profileName], out resolvedPriority);
                 if (resolvedProfile == null)
                 {
@@ -1465,7 +1465,7 @@ namespace Amatsukaze.Server
 
         internal ProfileTuple GetProfile(QueueItem item, string profileName)
         {
-            return GetProfile(Path.GetFileName(item.SrcPath), item.ImageWidth, item.ImageHeight,
+            return GetProfile(item.Tags, Path.GetFileName(item.SrcPath), item.ImageWidth, item.ImageHeight,
                 item.Genre, item.ServiceId, profileName);
         }
 
@@ -2126,6 +2126,12 @@ namespace Amatsukaze.Server
             await task;
         }
 
+        public Task CancelAddQueue()
+        {
+            queueManager.CancelAddQueue();
+            return Task.FromResult(0);
+        }
+
         // 指定した名前のプロファイルを取得
         internal ProfileSetting GetProfile(string name)
         {
@@ -2350,7 +2356,14 @@ namespace Amatsukaze.Server
                         text = w.TextLines
                     },
                     EncodeState = w.State
-                })));
+                })).Concat(new Task[] { Client.OnUIData(new UIData()
+                {
+                    ConsoleData = new ConsoleData()
+                    {
+                        index = -1,
+                        text = queueManager.TextLines
+                    }
+                }) }));
         }
 
         internal Task RequestUIState()

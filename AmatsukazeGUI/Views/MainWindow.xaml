@@ -104,8 +104,8 @@
             <DataTemplate DataType="{x:Type vm:DrcsImageListViewModel}">
                 <v:DrcsImageListPanel />
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:MainWindowViewModel}">
-                <v:MakeScriptPanel />
+            <DataTemplate DataType="{x:Type vm:AddQueueConsoleViewModel}">
+                <v:AddQueueConsolePanel />
             </DataTemplate>
         </Grid.Resources>
         

@@ -18,6 +18,7 @@ namespace Amatsukaze.Server
         Task AddQueue(AddQueueRequest dir);
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
+        Task CancelAddQueue();
 
         Task SetCommonData(CommonData data);
         Task SetServiceSetting(ServiceSettingUpdate update);
@@ -68,6 +69,7 @@ namespace Amatsukaze.Server
         AddQueue,
         ChangeItem,
         PauseEncode,
+        CancelAddQueue,
         SetCommonData,
         SetServiceSetting,
         AddDrcsMap,
@@ -111,6 +113,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.AddQueue, typeof(AddQueueRequest) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
+            { RPCMethodId.CancelAddQueue, null },
             { RPCMethodId.SetCommonData, typeof(CommonData) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
@@ -488,6 +491,11 @@ namespace Amatsukaze.Server
         public Task PauseEncode(bool pause)
         {
             return Server.PauseEncode(Copy(pause));
+        }
+
+        public Task CancelAddQueue()
+        {
+            return Server.CancelAddQueue();
         }
 
         public Task Request(ServerRequest req)

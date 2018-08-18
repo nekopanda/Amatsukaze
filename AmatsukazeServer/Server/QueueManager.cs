@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.Server
@@ -21,9 +22,16 @@ namespace Amatsukaze.Server
         }
 
         private Dictionary<string, DirHash> hashCache = new Dictionary<string, DirHash>();
+        private ConsoleText consoleText = new ConsoleText(500);
+
+        public List<string> TextLines { get { return consoleText.TextLines; } }
 
         private int nextItemId = 1;
         private bool queueUpdated = false;
+
+        // キャンセルサポート
+        private IProcessExecuter process;
+        private bool addQueueCanceled;
 
         public QueueManager(EncodeServer server)
         {
@@ -84,6 +92,25 @@ namespace Amatsukaze.Server
                 // ファイル置き換え
                 Util.MoveFileEx(tmp, path, 11);
             }
+        }
+
+        private Task WriteTextBytes(byte[] buffer, int offset, int length)
+        {
+            consoleText.AddBytes(buffer, offset, length);
+
+            byte[] newbuf = new byte[length];
+            Array.Copy(buffer, newbuf, length);
+            return server.Client.OnConsoleUpdate(new ConsoleUpdate() { index = -1, data = newbuf });
+        }
+
+        private Task WriteTextBytes(byte[] buffer)
+        {
+            return WriteTextBytes(buffer, 0, buffer.Length);
+        }
+
+        private Task WriteLine(string line)
+        {
+            return WriteTextBytes(Encoding.Default.GetBytes(line + "\n"));
         }
 
         private Task ClientQueueUpdate(QueueUpdate update)
@@ -219,6 +246,8 @@ namespace Amatsukaze.Server
         {
             List<Task> waits = new List<Task>();
 
+            addQueueCanceled = false;
+
             // ユーザ操作でない場合はログを記録する
             bool enableLog = (req.Mode == ProcMode.AutoBatch);
 
@@ -245,7 +274,9 @@ namespace Amatsukaze.Server
                         return lower.EndsWith(".ts") || lower.EndsWith(".m2t");
                     })
                     .Select(f => new AddQueueItem() { Path = f }))
-                    .Where(f => !ignoreSet.Contains(f.Path));
+                    .Where(f => !ignoreSet.Contains(f.Path)).ToList();
+
+            waits.Add(WriteLine("" + items.Count + "件を追加処理します"));
 
             var map = server.ServiceMap;
             var numItems = 0;
@@ -342,15 +373,26 @@ namespace Amatsukaze.Server
                                         // 追加時バッチ
                                         if(string.IsNullOrEmpty(server.AppData_.setting.OnAddBatchPath) == false)
                                         {
-                                            var e = new UserScriptExecuter()
+                                            waits.Add(WriteLine("追加時バッチ起動"));
+                                            using (var scriptExecuter = new UserScriptExecuter()
                                             {
                                                 Server = server,
                                                 Phase = ScriptPhase.OnAdd,
                                                 ScriptPath = server.AppData_.setting.OnAddBatchPath,
                                                 Item = item,
                                                 Prog = prog,
-                                            };
-                                            await e.Execute();
+                                                OnOutput = WriteTextBytes
+                                            })
+                                            {
+                                                process = scriptExecuter;
+                                                await scriptExecuter.Execute();
+                                                process = null;
+                                            }
+
+                                            if (addQueueCanceled)
+                                            {
+                                                break;
+                                            }
                                         }
 
                                         ++numFiles;
@@ -421,7 +463,19 @@ namespace Amatsukaze.Server
                     UpdateProgress();
                     waits.Add(server.RequestState());
                 }
+
+                if(addQueueCanceled)
+                {
+                    break;
+                }
             }
+
+            if(addQueueCanceled)
+            {
+                waits.Add(WriteLine("キャンセルされました"));
+            }
+
+            waits.Add(WriteLine("" + numItems + "件追加しました"));
 
             if (numItems == 0)
             {
@@ -448,6 +502,12 @@ namespace Amatsukaze.Server
             waits.Add(server.RequestFreeSpace());
 
             await Task.WhenAll(waits);
+        }
+
+        public void CancelAddQueue()
+        {
+            addQueueCanceled = true;
+            process?.Canel();
         }
 
         private void ResetStateItem(QueueItem item, List<Task> waits)

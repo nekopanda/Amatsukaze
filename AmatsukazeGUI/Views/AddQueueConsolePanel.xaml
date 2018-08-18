@@ -1,0 +1,38 @@
+﻿<UserControl x:Class="Amatsukaze.Views.AddQueueConsolePanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type vm:AddQueueConsoleViewModel}}">
+    <ListBox x:Name="lst" ItemsSource="{Binding Model.AddQueueConsole.TextLines}" SelectionMode="Extended">
+        <ListBox.Template>
+            <ControlTemplate>
+                <c:LogScrollViewer BindableVerticalOffset="{Binding ScrollOffset, Mode=TwoWay}"
+                                   AutoScroll="{Binding AutoScroll, Mode=TwoWay}"
+                                   HorizontalScrollBarVisibility="Disabled" CanContentScroll="True">
+                    <ItemsPresenter/>
+                </c:LogScrollViewer>
+            </ControlTemplate>
+        </ListBox.Template>
+        <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel IsVirtualizing="True"/>
+            </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="選択項目をコピー" Click="MenuItem_Click" />
+            </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
+            <DataTemplate>
+                <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>

@@ -163,6 +163,10 @@
                     </DockPanel>
 
                     <DockPanel Grid.Column="2">
+                        <CheckBox Content="タグ↓を含む" DockPanel.Dock="Top"
+                              IsChecked="{Binding TagEnabled, Mode=TwoWay}"/>
+                        <TextBox IsEnabled="{Binding TagEnabled}" DockPanel.Dock="Top"
+                             Text="{Binding Tag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         <CheckBox Content="映像サイズ" DockPanel.Dock="Top"
                               IsChecked="{Binding VideoSizeEnabled, Mode=TwoWay}"/>
                         <ListBox ItemsSource="{Binding VideoSizes}"

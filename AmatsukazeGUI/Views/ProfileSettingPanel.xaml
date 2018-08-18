@@ -385,7 +385,7 @@
                         </StackPanel>
                     </DockPanel>
                     <CheckBox DockPanel.Dock="Top" Content="CPUアフィニティを無視する" 
-                              Checked="{Binding Model.SelectedProfile.IgnoreEncodeAffinity, Mode=TwoWay}"/>
+                              IsChecked="{Binding Model.SelectedProfile.IgnoreEncodeAffinity, Mode=TwoWay}"/>
                     <RichTextBox IsReadOnly="True" Margin="0,5" DockPanel.Dock="Bottom"
                                  BorderThickness="0" Background="Transparent"
                                  Visibility="{Binding ResourceDescriptionVisible, Converter={StaticResource VisibilityAndBooleanConverter}}">

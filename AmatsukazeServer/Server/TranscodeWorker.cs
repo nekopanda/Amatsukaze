@@ -643,16 +643,19 @@ namespace Amatsukaze.Server
             // 実行前バッチ
             if(!string.IsNullOrEmpty(profile.PreBatchPath))
             {
-                var scriptExecuter = new UserScriptExecuter()
+                using (var scriptExecuter = new UserScriptExecuter()
                 {
                     Server = server,
                     Phase = ScriptPhase.PreEncode,
                     ScriptPath = profile.PreBatchPath,
                     Item = item,
                     OnOutput = WriteTextBytes
-                };
-                process = scriptExecuter;
-                await scriptExecuter.Execute();
+                })
+                {
+                    process = scriptExecuter;
+                    await scriptExecuter.Execute();
+                    process = null;
+                }
             }
 
             // キャンセルチェック
@@ -1222,6 +1225,8 @@ namespace Amatsukaze.Server
                     {
                         process = scriptExecuter;
                         await scriptExecuter.Execute();
+                        process = null;
+                        scriptExecuter.Dispose();
                     }
 
                     if (item.IsCheck)

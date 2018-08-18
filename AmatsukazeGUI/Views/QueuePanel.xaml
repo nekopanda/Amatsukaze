@@ -174,6 +174,9 @@
                             Command="{Binding RemoveCompletedAllCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}"
                             ToolTip="Shiftを押しながらクリックでTSファイルも同時に削除"/>
+                    <Button Margin="3" Height="24" Content="追加処理をキャンセル"
+                            Command="{Binding CancelAddQueueCommand}"
+                            ToolTip="キュー追加処理をキャンセルします"/>
                 </UniformGrid>
             </DockPanel>
         </Expander>
@@ -328,6 +331,7 @@
                                         <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
                                         <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
                                         <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                        <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
                                 </TextBlock>
                             </TextBlock.ToolTip>
                             </TextBlock>
@@ -349,7 +353,7 @@
                                             <LineBreak/>放送日時: <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
                                             <LineBreak/>チャンネル: <Run Text="{Binding ServiceString, Mode=OneWay}"/>
                                             <LineBreak/>プロファイル: <Run Text="{Binding Model.Profile.Name}"/><Run Text="{Binding ProfileLastUpdate, Mode=OneWay}"/>
-                                    </TextBlock>
+                                        </TextBlock>
                                     </TextBlock.ToolTip>
                                     タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
                                     <LineBreak/><Run Text="{Binding Model.Profile.Name}"/>
@@ -363,10 +367,11 @@
                                 <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
                             <TextBlock.ToolTip>
                                 <TextBlock>
-                                        <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
-                                        <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
-                                        <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
-                                        <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                    <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
+                                    <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                                    <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
+                                    <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                    <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
                                 </TextBlock>
                             </TextBlock.ToolTip>
                             </TextBlock>
@@ -406,6 +411,7 @@
                                         <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
                                         <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
                                         <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                        <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
                                     </TextBlock>
                                     <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
                                 </DockPanel>

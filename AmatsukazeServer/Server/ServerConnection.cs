@@ -96,6 +96,11 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.PauseEncode, pause);
         }
 
+        public Task CancelAddQueue()
+        {
+            return Send(RPCMethodId.CancelAddQueue, null);
+        }
+
         public Task SetCommonData(CommonData setting)
         {
             return Send(RPCMethodId.SetCommonData, setting);

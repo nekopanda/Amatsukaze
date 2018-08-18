@@ -1144,6 +1144,10 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<VideoSizeCondition> VideoSizes { get; set; }
         [DataMember]
+        public bool TagEnabled { get; set; }
+        [DataMember]
+        public string Tag { get; set; }
+        [DataMember]
         public string Profile { get; set; }
         [DataMember]
         public int Priority { get; set; }

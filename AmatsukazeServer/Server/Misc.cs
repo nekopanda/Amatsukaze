@@ -828,12 +828,19 @@ namespace Amatsukaze.Server
             return VideoSizeCondition.OneSeg;
         }
 
-        public static string AutoSelectProfile(string fileName, int width, int height,
+        public static string AutoSelectProfile(List<string> tags, string fileName, int width, int height,
             List<GenreItem> genre, int serviceId, AutoSelectProfile conds, out int priority)
         {
             var videoSize = GetVideoSize(width, height);
             foreach (var cond in conds.Conditions)
             {
+                if(cond.TagEnabled)
+                {
+                    if (tags.Contains(cond.Tag) == false)
+                    {
+                        continue;
+                    }
+                }
                 if(cond.FileNameEnabled)
                 {
                     if(fileName.Contains(cond.FileName) == false)
@@ -873,7 +880,7 @@ namespace Amatsukaze.Server
 
         public static string AutoSelectProfile(QueueItem item, AutoSelectProfile conds, out int priority)
         {
-            return AutoSelectProfile(Path.GetFileName(item.SrcPath), item.ImageWidth, item.ImageHeight,
+            return AutoSelectProfile(item.Tags, Path.GetFileName(item.SrcPath), item.ImageWidth, item.ImageHeight,
                 item.Genre, item.ServiceId, conds, out priority);
         }
 
