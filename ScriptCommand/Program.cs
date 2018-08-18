@@ -28,9 +28,23 @@ namespace Amatsukaze.Command
 
         static void Main(string[] args)
         {
+            if(Environment.GetEnvironmentVariable("IN_PIPE_HANDLE") == null)
+            {
+                // バッチファイルテスト用動作
+                if(args.Length >= 2)
+                {
+                    Console.WriteLine(args[1]);
+                }
+                else
+                {
+                    Console.WriteLine("テスト実行です");
+                }
+                return;
+            }
+
             // 自分のexe名がコマンドになる
             var exeName = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
-            if(exeName == "AddTag")
+            if (exeName == "AddTag")
             {
                 DoCommand(RPCMethodId.AddTag, args);
             }
@@ -42,7 +56,7 @@ namespace Amatsukaze.Command
             {
                 DoCommand(RPCMethodId.SetPriority, args);
             }
-            else if(exeName == "GetOutFiles")
+            else if (exeName == "GetOutFiles")
             {
                 DoCommand(RPCMethodId.GetOutFiles, args);
             }

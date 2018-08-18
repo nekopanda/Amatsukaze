@@ -342,8 +342,15 @@ namespace Amatsukaze.Server
                                         // 追加時バッチ
                                         if(string.IsNullOrEmpty(server.AppData_.setting.OnAddBatchPath) == false)
                                         {
-                                            await UserScriptExecuter.ExecuteOnAdd(
-                                                server.AppData_.setting.OnAddBatchPath, item, prog);
+                                            var e = new UserScriptExecuter()
+                                            {
+                                                Server = server,
+                                                Phase = ScriptPhase.OnAdd,
+                                                ScriptPath = server.AppData_.setting.OnAddBatchPath,
+                                                Item = item,
+                                                Prog = prog,
+                                            };
+                                            await e.Execute();
                                         }
 
                                         ++numFiles;

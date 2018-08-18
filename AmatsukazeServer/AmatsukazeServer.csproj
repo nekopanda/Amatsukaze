@@ -79,6 +79,7 @@
     <Compile Include="Server\EncodeServer.cs" />
     <Compile Include="Server\EncodeServerData.cs" />
     <Compile Include="Server\GenreData.cs" />
+    <Compile Include="Server\ProcessExecuter.cs" />
     <Compile Include="Server\Misc.cs" />
     <Compile Include="Server\QueueManager.cs" />
     <Compile Include="Server\ResourceManager.cs" />

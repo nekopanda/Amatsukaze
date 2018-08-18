@@ -213,12 +213,7 @@ namespace Amatsukaze.Server
             workerPool = new WorkerPool()
             {
                 Queue = scheduledQueue,
-                NewWorker = id => new TranscodeWorker() {
-                    id = id,
-                    server = this,
-                    logText = new ConsoleText(1 * 1024 * 1024),
-                    consoleText = new ConsoleText(500),
-                },
+                NewWorker = id => new TranscodeWorker(id, this),
                 OnStart = () => {
                     if(!Directory.Exists(GetDRCSDirectoryPath()))
                     {
@@ -2351,10 +2346,10 @@ namespace Amatsukaze.Server
                 {
                     ConsoleData = new ConsoleData()
                     {
-                        index = w.id,
-                        text = w.consoleText.TextLines as List<string>
+                        index = w.Id,
+                        text = w.TextLines
                     },
-                    EncodeState = w.consoleText.State
+                    EncodeState = w.State
                 })));
         }
 

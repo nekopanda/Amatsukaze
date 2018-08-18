@@ -12,15 +12,85 @@ using System.Threading.Tasks;
 
 namespace Amatsukaze.Server
 {
-    public static class UserScriptExecuter
+    public enum ScriptPhase
+    {
+        OnAdd, PreEncode, PostEncode
+    }
+
+    public class UserScriptExecuter : IProcessExecuter
     {
         private static readonly ILog LOG = LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        private enum Phase
-        {
-            OnAdd, PreEncode, PostEncode
+        // 必須
+        public EncodeServer Server;
+        public ScriptPhase Phase;
+        public string ScriptPath;
+        public QueueItem Item;
+        public Func<byte[], int, int, Task> OnOutput;
+
+        // 追加時用
+        public Program Prog;
+
+        // 実行後用
+        public LogItem Log;
+        public List<string> RelatedFiles; // コピーしたEDCB関連ファイル
+        public string MovedSrcPath; // 移動したソースファイルのパス
+
+        private PipeCommunicator pipes = new PipeCommunicator();
+        private NormalProcess process;
+
+        private string PhaseString {
+            get {
+                switch (Phase)
+                {
+                    case ScriptPhase.OnAdd:
+                        return "追加時";
+                    case ScriptPhase.PreEncode:
+                        return "実行前";
+                    case ScriptPhase.PostEncode:
+                        return "実行後";
+                }
+                return "不明フェーズ";
+            }
         }
+
+        #region IDisposable Support
+        private bool disposedValue = false; // 重複する呼び出しを検出するには
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
+                }
+
+                // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
+                process?.Dispose();
+                // TODO: 大きなフィールドを null に設定します。
+                process = null;
+
+                disposedValue = true;
+            }
+        }
+
+        // TODO: 上の Dispose(bool disposing) にアンマネージ リソースを解放するコードが含まれる場合にのみ、ファイナライザーをオーバーライドします。
+        // ~UserScriptExecuter() {
+        //   // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+        //   Dispose(false);
+        // }
+
+        // このコードは、破棄可能なパターンを正しく実装できるように追加されました。
+        public void Dispose()
+        {
+            // このコードを変更しないでください。クリーンアップ コードを上の Dispose(bool disposing) に記述します。
+            Dispose(true);
+            // TODO: 上のファイナライザーがオーバーライドされる場合は、次の行のコメントを解除してください。
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
 
         private static async Task RedirectLog(StreamReader sr)
         {
@@ -32,7 +102,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static string GetOutFiles(QueueItem item, LogItem log, string fmt)
+        private string GetOutFiles(string fmt)
         {
             int MAIN = 1;        // v
             int MAIN_CM = 2;     // c
@@ -40,7 +110,8 @@ namespace Amatsukaze.Server
             int OTHER = 8;       // w
             int OTHER_CM = 16;   // d
             int OTHER_SUBS = 32; // t
-            int LOG = 64;        // l
+            int RELATED = 64;    // r
+            int LOG = 128;        // l
 
             int mask = 255;
 
@@ -67,6 +138,9 @@ namespace Amatsukaze.Server
                             break;
                         case 't':
                             mask |= OTHER_SUBS;
+                            break;
+                        case 'r':
+                            mask |= RELATED;
                             break;
                         case 'l':
                             mask |= LOG;
@@ -123,17 +197,25 @@ namespace Amatsukaze.Server
 
             try
             {
-                var mainPath = log.OutPath[0];
+                var mainPath = Log.OutPath[0];
                 var mainNoExt = Path.GetFileNameWithoutExtension(mainPath);
-                var list = log.OutPath.Where(path =>
+                var list = Log.OutPath.Where(path =>
                 {
                     var type = fileType(Path.GetFileName(path).Substring(mainNoExt.Length));
                     return (mask & type) != 0;
                 }).ToList();
 
+                if ((mask & RELATED) != 0)
+                {
+                    if(RelatedFiles != null)
+                    {
+                        list.AddRange(RelatedFiles);
+                    }
+                }
+
                 if ((mask & LOG) != 0)
                 {
-                    if (item.Profile.DisableLogFile == false)
+                    if (Item.Profile.DisableLogFile == false)
                     {
                         var prefix = Path.GetDirectoryName(mainPath) + "\\" + mainNoExt;
                         list.Add(prefix + ".log");
@@ -148,7 +230,7 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static async Task RunCommandHost(Phase phase, PipeCommunicator pipes, QueueItem item, LogItem log)
+        private async Task RunCommandHost()
         {
             try
             {
@@ -163,24 +245,24 @@ namespace Amatsukaze.Server
                             var tag = (string)rpc.arg;
                             if (!string.IsNullOrEmpty(tag))
                             {
-                                item.Tags.Add(tag);
+                                Item.Tags.Add(tag);
                             }
-                            ret = string.Join(";", item.Tags);
+                            ret = string.Join(";", Item.Tags);
                             break;
                         case RPCMethodId.SetOutDir:
-                            if(phase == Phase.PostEncode)
+                            if(Phase == ScriptPhase.PostEncode)
                             {
                                 ret = "エンコードが完了したアイテムの出力先は変更できません";
                             }
                             else
                             {
                                 var outdir = (rpc.arg as string).TrimEnd(Path.DirectorySeparatorChar);
-                                item.DstPath = outdir + "\\" + Path.GetFileName(item.DstPath);
+                                Item.DstPath = outdir + "\\" + Path.GetFileName(Item.DstPath);
                                 ret = "成功";
                             }
                             break;
                         case RPCMethodId.SetPriority:
-                            if (phase != Phase.OnAdd)
+                            if (Phase != ScriptPhase.OnAdd)
                             {
                                 ret = "追加時以外の優先度操作はできません";
                             }
@@ -192,22 +274,22 @@ namespace Amatsukaze.Server
                                     ret = "優先度が範囲外です";
                                 }
                                 else {
-                                    item.Priority = priority;
+                                    Item.Priority = priority;
                                     ret = "成功";
                                 }
                             }
                             break;
                         case RPCMethodId.GetOutFiles:
-                            ret = GetOutFiles(item, log, (string)rpc.arg);
+                            ret = GetOutFiles((string)rpc.arg);
                             break;
                         case RPCMethodId.CancelItem:
-                            if(phase == Phase.PostEncode)
+                            if(Phase == ScriptPhase.PostEncode)
                             {
                                 ret = "エンコードが完了したアイテムはキャンセルできません";
                             }
                             else
                             {
-                                item.State = QueueState.Canceled;
+                                Item.State = QueueState.Canceled;
                                 ret = "成功";
                             }
                             break;
@@ -222,39 +304,38 @@ namespace Amatsukaze.Server
             }
         }
 
-        private static void SetupEnv(EncodeServer server, Phase phase, StringDictionary env,
-            PipeCommunicator pipes, QueueItem item, LogItem log)
+        private void SetupEnv(StringDictionary env)
         {
-            env.Add("ITEM_ID", item.Id.ToString());
-            env.Add("IN_PATH", item.SrcPath.ToString());
-            env.Add("OUT_PATH", item.DstPath.ToString());
-            env.Add("SERVICE_ID", item.ServiceId.ToString());
-            env.Add("SERVICE_NAME", item.ServiceName.ToString());
-            env.Add("TS_TIME", item.TsTime.ToString());
-            env.Add("ITEM_MODE", item.Mode.ToString());
-            env.Add("ITEM_PRIORITY", item.Priority.ToString());
-            env.Add("EVENT_GENRE", item.Genre.FirstOrDefault()?.ToString() ?? "-");
-            env.Add("IMAGE_WIDTH", item.ImageWidth.ToString());
-            env.Add("IMAGE_HEIGHT", item.ImageHeight.ToString());
-            env.Add("EVENT_NAME", item.EventName.ToString());
-            env.Add("TAG", string.Join(";", item.Tags));
+            env.Add("ITEM_ID", Item.Id.ToString());
+            env.Add("IN_PATH", MovedSrcPath ?? Item.SrcPath);
+            env.Add("OUT_PATH", Item.DstPath);
+            env.Add("SERVICE_ID", Item.ServiceId.ToString());
+            env.Add("SERVICE_NAME", Item.ServiceName);
+            env.Add("TS_TIME", Item.TsTime.ToString());
+            env.Add("ITEM_MODE", Item.Mode.ToString());
+            env.Add("ITEM_PRIORITY", Item.Priority.ToString());
+            env.Add("EVENT_GENRE", Item.Genre.FirstOrDefault()?.ToString() ?? "-");
+            env.Add("IMAGE_WIDTH", Item.ImageWidth.ToString());
+            env.Add("IMAGE_HEIGHT", Item.ImageHeight.ToString());
+            env.Add("EVENT_NAME", Item.EventName);
+            env.Add("TAG", string.Join(";", Item.Tags));
 
-            if(phase != Phase.OnAdd)
+            if(Phase != ScriptPhase.OnAdd)
             {
-                env.Add("PROFILE_NAME", item.Profile.Name);
+                env.Add("PROFILE_NAME", Item.Profile.Name);
             }
-            if(phase == Phase.PostEncode)
+            if(Log != null)
             {
-                env.Add("SUCCESS", log.Success ? "1" : "0");
-                env.Add("ERROR_MESSAGE", log.Reason ?? "");
-                env.Add("IN_DURATION", log.SrcVideoDuration.TotalSeconds.ToString());
-                env.Add("OUT_DURATION", log.OutVideoDuration.TotalSeconds.ToString());
-                env.Add("IN_SIZE", log.SrcFileSize.ToString());
-                env.Add("OUT_SIZE", log.OutFileSize.ToString());
-                env.Add("LOGO_FILE", string.Join(";", log.LogoFiles));
-                env.Add("NUM_INCIDENT", log.Incident.ToString());
-                env.Add("JSON_PATH", server.GetLogFileBase(log.EncodeStartDate) + ".json");
-                env.Add("LOG_PATH", server.GetLogFileBase(log.EncodeStartDate) + ".log");
+                env.Add("SUCCESS", Log.Success ? "1" : "0");
+                env.Add("ERROR_MESSAGE", Log.Reason ?? "");
+                env.Add("IN_DURATION", Log.SrcVideoDuration.TotalSeconds.ToString());
+                env.Add("OUT_DURATION", Log.OutVideoDuration.TotalSeconds.ToString());
+                env.Add("IN_SIZE", Log.SrcFileSize.ToString());
+                env.Add("OUT_SIZE", Log.OutFileSize.ToString());
+                env.Add("LOGO_FILE", string.Join(";", Log.LogoFiles));
+                env.Add("NUM_INCIDENT", Log.Incident.ToString());
+                env.Add("JSON_PATH", Server.GetLogFileBase(Log.EncodeStartDate) + ".json");
+                env.Add("LOG_PATH", Server.GetLogFileBase(Log.EncodeStartDate) + ".log");
             }
 
             // パイプ通信用
@@ -262,11 +343,9 @@ namespace Amatsukaze.Server
             env.Add("OUT_PIPE_HANDLE", pipes.OutHandle);
         }
 
-        public static async Task ExecuteOnAdd(EncodeServer server, string scriptPath, QueueItem item, Program prog)
+        public async Task Execute()
         {
-            PipeCommunicator pipes = new PipeCommunicator();
-
-            var psi = new ProcessStartInfo("cmd.exe", "/C " + scriptPath)
+            var psi = new ProcessStartInfo("cmd.exe", "/C " + ScriptPath)
             {
                 UseShellExecute = false,
                 WorkingDirectory = Directory.GetCurrentDirectory(),
@@ -283,20 +362,26 @@ namespace Amatsukaze.Server
                 exeDir + ";" + exeDir + "\\cmd" + ";" + psi.EnvironmentVariables["path"];
 
             // パラメータを環境変数に追加
-            SetupEnv(server, Phase.OnAdd, psi.EnvironmentVariables, pipes, item, null);
+            SetupEnv(psi.EnvironmentVariables);
 
-            LOG.Info("追加時バッチ起動: " + item.SrcPath);
+            LOG.Info(PhaseString + "バッチ起動: " + Item.SrcPath);
 
-            using (var p = Process.Start(psi))
+            using (process = new NormalProcess(psi)
+            {
+                OnOutput = OnOutput
+            })
             {
                 pipes.DisposeLocalCopyOfClientHandle();
 
                 await Task.WhenAll(
-                    RedirectLog(p.StandardOutput),
-                    RedirectLog(p.StandardError),
-                    RunCommandHost(Phase.OnAdd, pipes, item, null),
-                    Task.Run(() => p.WaitForExit()));
+                    process.WaitForExitAsync(),
+                    RunCommandHost());
             }
+        }
+
+        public void Canel()
+        {
+            process?.Canel();
         }
     }
 }

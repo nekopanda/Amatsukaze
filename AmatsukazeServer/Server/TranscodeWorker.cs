@@ -17,7 +17,6 @@ namespace Amatsukaze.Server
     internal class ConsoleText : ConsoleTextBase
     {
         public List<string> TextLines = new List<string>();
-        public EncodeState State;
 
         private int maxLines;
 
@@ -54,39 +53,47 @@ namespace Amatsukaze.Server
         }
     }
 
-    internal class TranscodeTask
-    {
-        public TranscodeWorker thread;
-        public QueueItem src;
-        public FileStream logWriter;
-        public CancellationTokenSource resourceCancel;
-        public Process process;
-    }
-
     internal class TranscodeWorker : IScheduleWorker
     {
-        public int id;
-        public EncodeServer server;
-        public ConsoleText logText;
-        public ConsoleText consoleText;
+        public int Id { get; private set; }
+        
+        private EncodeServer server;
+        private ConsoleText logText = new ConsoleText(1 * 1024 * 1024);
+        private ConsoleText consoleText = new ConsoleText(500);
 
-        public TranscodeTask current { get; private set; }
+        private QueueItem item;
+        private FileStream logWriter;
+        private CancellationTokenSource resourceCancel;
+        private IProcessExecuter process;
+
+        public List<string> TextLines { get { return consoleText.TextLines; } }
+        public EncodeState State { get; private set; }
 
         private List<Task> waitList;
 
+        public TranscodeWorker(int id, EncodeServer server)
+        {
+            this.Id = id;
+            this.server = server;
+        }
+
         public void CancelCurrentItem()
         {
-            if (current != null)
+            if (item != null)
             {
                 // キャンセル状態にする
-                current.src.State = QueueState.Canceled;
+                item.State = QueueState.Canceled;
+
+                // ここでは早く終わる（呼び出しから戻ってくる）ようにするだけで、リソースの解放等は行わない
+                // リソースの解放は確保した人の仕事。ここでやってしまうと確保した人が
+                // いつ解放されるか分からないリソースを相手にしなければならなくなるので大変
 
                 // プロセスが残っていたら終了
-                if (current.process != null)
+                if (process != null)
                 {
                     try
                     {
-                        current.process.Kill();
+                        process.Canel();
                     }
                     catch (InvalidOperationException)
                     {
@@ -95,63 +102,41 @@ namespace Amatsukaze.Server
                 }
 
                 // リソース待ちだったらキャンセル
-                if(current.resourceCancel != null)
+                if(resourceCancel != null)
                 {
-                    current.resourceCancel.Cancel();
+                    resourceCancel.Cancel();
                 }
             }
         }
 
         public void CancelItem(QueueItem item)
         {
-            if(item == current?.src)
+            if(item == this.item)
             {
                 CancelCurrentItem();
             }
         }
 
-        private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer, int offset, int length)
+        private Task WriteTextBytes(byte[] buffer, int offset, int length)
         {
-            if (transcode.logWriter != null)
+            if (logWriter != null)
             {
-                transcode.logWriter.Write(buffer, offset, length);
+                logWriter.Write(buffer, offset, length);
             }
             logText.AddBytes(buffer, offset, length);
             consoleText.AddBytes(buffer, offset, length);
 
             byte[] newbuf = new byte[length];
             Array.Copy(buffer, newbuf, length);
-            return server.Client.OnConsoleUpdate(new ConsoleUpdate() { index = id, data = newbuf });
+            return server.Client.OnConsoleUpdate(new ConsoleUpdate() { index = Id, data = newbuf });
         }
 
-        private Task WriteTextBytes(EncodeServer server, TranscodeTask transcode, byte[] buffer)
+        private Task WriteTextBytes(byte[] buffer)
         {
-            return WriteTextBytes(server, transcode, buffer, 0, buffer.Length);
+            return WriteTextBytes(buffer, 0, buffer.Length);
         }
 
-        private async Task RedirectOut(EncodeServer server, TranscodeTask transcode, Stream stream)
-        {
-            try
-            {
-                byte[] buffer = new byte[1024];
-                while (true)
-                {
-                    var readBytes = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if (readBytes == 0)
-                    {
-                        // 終了
-                        return;
-                    }
-                    await WriteTextBytes(server, transcode, buffer, 0, readBytes);
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.Print("RedirectOut exception " + e.Message);
-            }
-        }
-
-        private async Task RedirectOut(EncodeServer server, TranscodeTask transcode, StreamReader stream)
+        private async Task RedirectOut(StreamReader stream)
         {
             try
             {
@@ -163,7 +148,7 @@ namespace Amatsukaze.Server
                         // 終了
                         return;
                     }
-                    await WriteTextBytes(server, transcode, Encoding.Default.GetBytes(line + "\n"));
+                    await WriteTextBytes(Encoding.Default.GetBytes(line + "\n"));
                 }
             }
             catch (Exception e)
@@ -177,7 +162,7 @@ namespace Amatsukaze.Server
             public string renamed;
         }
 
-        private async Task GetRenamed(EncodeServer server, RenamedResult result, StreamReader stream)
+        private async Task GetRenamed(RenamedResult result, StreamReader stream)
         {
             try
             {
@@ -225,12 +210,12 @@ namespace Amatsukaze.Server
         }
 
         // 拡張子なしの相対パスを返す
-        private async Task<string> SCRename(string screnamepath, string tmppath, string format, QueueItem src)
+        private async Task<string> SCRename(string screnamepath, string tmppath, string format, QueueItem item)
         {
-            var filename = src.FileName;
-            var time = src.TsTime;
-            var eventName = src.EventName;
-            var serviceName = src.ServiceName;
+            var filename = item.FileName;
+            var time = item.TsTime;
+            var eventName = item.EventName;
+            var serviceName = item.ServiceName;
 
             var ext = ".ts";
 
@@ -272,23 +257,24 @@ namespace Amatsukaze.Server
                     CreateNoWindow = true
                 };
 
-                var result = new RenamedResult();
-                using (var p = Process.Start(psi))
+                // キャンセルチェック
+                if(item.State == QueueState.Canceled)
                 {
-                    current = new TranscodeTask()
-                    {
-                        thread = this,
-                        src = src,
-                        process = p,
-                    };
+                    return null;
+                }
+
+                var result = new RenamedResult();
+                using (var p = new NormalProcess(psi))
+                {
+                    process = p;
 
                     // 起動コマンドをログ出力
-                    await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
+                    await WriteTextBytes(Encoding.Default.GetBytes(exename + " " + args + "\n"));
 
                     await Task.WhenAll(
-                        GetRenamed(server, result, p.StandardOutput),
-                        RedirectOut(server, current, p.StandardError),
-                        Task.Run(() => p.WaitForExit()));
+                        GetRenamed(result, p.Process.StandardOutput),
+                        RedirectOut(p.Process.StandardError),
+                        Task.Run(() => p.Process.WaitForExit()));
                 }
 
                 // なぜか標準出力だと取得できないのでリネームされたファイルを探す
@@ -315,33 +301,27 @@ namespace Amatsukaze.Server
                     Directory.Delete(basePath, true);
                 }
                 File.Delete(baseTmp);
-
-                if (current != null)
-                {
-                    current.logWriter = null;
-                    current = null;
-                }
             }
         }
 
-        private LogItem FailLogItem(QueueItem src, string profile, string reason, DateTime start, DateTime finish)
+        private LogItem FailLogItem(QueueItem item, string profile, string reason, DateTime start, DateTime finish)
         {
             return new LogItem()
             {
                 Success = false,
                 Reason = reason,
-                SrcPath = src.SrcPath,
+                SrcPath = item.SrcPath,
                 MachineName = Dns.GetHostName(),
                 EncodeStartDate = start,
                 EncodeFinishDate = finish,
                 Profile = profile,
-                ServiceName = src.ServiceName,
-                ServiceId = src.ServiceId,
-                TsTime = src.TsTime,
+                ServiceName = item.ServiceName,
+                ServiceId = item.ServiceId,
+                TsTime = item.TsTime,
             };
         }
 
-        private LogItem LogFromJson(bool isGeneric, string profile, string jsonpath, DateTime start, DateTime finish, QueueItem src, int outputMask)
+        private LogItem LogFromJson(bool isGeneric, string profile, string jsonpath, DateTime start, DateTime finish, QueueItem item, int outputMask)
         {
             var json = DynamicJson.Parse(File.ReadAllText(jsonpath));
             if (isGeneric)
@@ -411,9 +391,9 @@ namespace Amatsukaze.Server
                 Chapter = json.cmanalyze,
                 NicoJK = json.nicojk,
                 OutputMask = outputMask,
-                ServiceName = src.ServiceName,
-                ServiceId = src.ServiceId,
-                TsTime = src.TsTime,
+                ServiceName = item.ServiceName,
+                ServiceId = item.ServiceId,
+                TsTime = item.TsTime,
                 LogoFiles = logofiles,
                 Incident = error.Sum(s => s.Count),
                 Error = error,
@@ -422,20 +402,20 @@ namespace Amatsukaze.Server
         }
 
         private CheckLogItem MakeCheckLogItem(ProcMode mode, bool success,
-            QueueItem src, string profile, string reason, DateTime start, DateTime finish)
+            QueueItem item, string profile, string reason, DateTime start, DateTime finish)
         {
             return new CheckLogItem()
             {
                 Type = (mode == ProcMode.DrcsCheck) ? CheckType.DRCS : CheckType.CM,
                 Success = success,
                 Reason = reason,
-                SrcPath = src.SrcPath,
+                SrcPath = item.SrcPath,
                 CheckStartDate = start,
                 CheckFinishDate = finish,
                 Profile = profile,
-                ServiceName = src.ServiceName,
-                ServiceId = src.ServiceId,
-                TsTime = src.TsTime,
+                ServiceName = item.ServiceName,
+                ServiceId = item.ServiceId,
+                TsTime = item.TsTime,
             };
         }
 
@@ -499,18 +479,16 @@ namespace Amatsukaze.Server
                 BitConverter.GetBytes(mask)));
         }
 
-        private async Task HostThread(EncodeServer server, TranscodeTask transcode,
-            PipeCommunicator pipes, bool ignoreResource)
+        private async Task HostThread(PipeCommunicator pipes, bool ignoreResource)
         {
             if (!server.AppData_.setting.SchedulingEnabled)
             {
                 return;
             }
 
-            var ress = transcode.src.Profile.ReqResources;
-            var ignoreAffinity = transcode.src.Profile.IgnoreEncodeAffinity;
+            var ress = item.Profile.ReqResources;
+            var ignoreAffinity = item.Profile.IgnoreEncodeAffinity;
             
-
             // 現在専有中のリソース
             Resource resource = null;
 
@@ -550,14 +528,14 @@ namespace Amatsukaze.Server
                     {
                         try
                         {
-                            transcode.resourceCancel = new CancellationTokenSource();
+                            resourceCancel = new CancellationTokenSource();
                             //Util.AddLog("フェーズ移行リクエスト: " + cmd + "@" + id);
-                            resource = await server.ResourceManager.GetResource(ress[(int)cmd], transcode.resourceCancel.Token, reqEncoderIndex);
+                            resource = await server.ResourceManager.GetResource(ress[(int)cmd], resourceCancel.Token, reqEncoderIndex);
                         }
                         finally
                         {
                             // GetResourceを抜けてるならもう必要ない
-                            transcode.resourceCancel = null;
+                            resourceCancel = null;
                         }
                     }
 
@@ -582,13 +560,13 @@ namespace Amatsukaze.Server
                     await WriteCommand(pipes.WritePipe, cmd, gpuIndex, group, mask);
 
                     // UIクライアントに通知
-                    consoleText.State = new EncodeState()
+                    State = new EncodeState()
                     {
-                        ConsoleId = id,
+                        ConsoleId = Id,
                         Phase = (resource != null) ? cmd : ResourcePhase.Max,
                         Resource = resource
                     };
-                    await server.Client.OnEncodeState(consoleText.State);
+                    await server.Client.OnEncodeState(State);
                 }
             }
             catch(Exception)
@@ -606,62 +584,95 @@ namespace Amatsukaze.Server
                 }
 
                 // UIクライアントに通知
-                consoleText.State = new EncodeState()
+                State = new EncodeState()
                 {
-                    ConsoleId = id,
+                    ConsoleId = Id,
                     Phase = ResourcePhase.Max,
                     Resource = null
                 };
-                await server.Client.OnEncodeState(consoleText.State);
+                await server.Client.OnEncodeState(State);
             }
         }
 
-        private async Task<object> ProcessItem(EncodeServer server, QueueItem src, bool ignoreResource)
+        private object GetCancelLog(DateTime start, DateTime finish)
         {
-            DateTime now = src.EncodeStart;
-
-            if (File.Exists(src.SrcPath) == false)
+            if (item.IsCheck)
             {
-                if(src.IsCheck)
+                return MakeCheckLogItem(item.Mode, false, item, item.Profile.Name, "キャンセルされました", start, finish);
+            }
+            else
+            {
+                return FailLogItem(item, item.Profile.Name, "キャンセルされました", start, finish);
+            }
+        }
+
+        private async Task<object> ProcessItem(bool ignoreResource)
+        {
+            DateTime now = item.EncodeStart;
+
+            if (File.Exists(item.SrcPath) == false)
+            {
+                if(item.IsCheck)
                 {
-                    return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "入力ファイルが見つかりません", now, now);
+                    return MakeCheckLogItem(item.Mode, false, item, item.Profile.Name, "入力ファイルが見つかりません", now, now);
                 }
                 else
                 {
-                    return FailLogItem(src, src.Profile.Name, "入力ファイルが見つかりません", now, now);
+                    return FailLogItem(item, item.Profile.Name, "入力ファイルが見つかりません", now, now);
                 }
             }
 
-            if (src.Mode != ProcMode.DrcsCheck && server.AppData_.services.ServiceMap.ContainsKey(src.ServiceId) == false)
+            if (item.Mode != ProcMode.DrcsCheck && server.AppData_.services.ServiceMap.ContainsKey(item.ServiceId) == false)
             {
-                if (src.IsCheck)
+                if (item.IsCheck)
                 {
-                    return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "サービス設定がありません", now, now);
+                    return MakeCheckLogItem(item.Mode, false, item, item.Profile.Name, "サービス設定がありません", now, now);
                 }
                 else
                 {
-                    return FailLogItem(src, src.Profile.Name, "サービス設定がありません", now, now);
+                    return FailLogItem(item, item.Profile.Name, "サービス設定がありません", now, now);
                 }
             }
 
-            ProfileSetting profile = src.Profile;
+            ProfileSetting profile = item.Profile;
             ServiceSettingElement serviceSetting =
-                (src.Mode != ProcMode.DrcsCheck) ?
-                server.AppData_.services.ServiceMap[src.ServiceId] :
+                (item.Mode != ProcMode.DrcsCheck) ?
+                server.AppData_.services.ServiceMap[item.ServiceId] :
                 null;
+
+            // 実行前バッチ
+            if(!string.IsNullOrEmpty(profile.PreBatchPath))
+            {
+                var scriptExecuter = new UserScriptExecuter()
+                {
+                    Server = server,
+                    Phase = ScriptPhase.PreEncode,
+                    ScriptPath = profile.PreBatchPath,
+                    Item = item,
+                    OnOutput = WriteTextBytes
+                };
+                process = scriptExecuter;
+                await scriptExecuter.Execute();
+            }
+
+            // キャンセルチェック
+            if (item.State == QueueState.Canceled)
+            {
+                return GetCancelLog(now, now);
+            }
 
             bool ignoreNoLogo = true;
             string[] logopaths = null;
-            if (src.Mode != ProcMode.DrcsCheck && profile.DisableChapter == false)
+            if (item.Mode != ProcMode.DrcsCheck && profile.DisableChapter == false)
             {
                 var logofiles = serviceSetting.LogoSettings
-                    .Where(s => s.CanUse(src.TsTime))
+                    .Where(s => s.CanUse(item.TsTime))
                     .Select(s => s.FileName)
                     .ToArray();
                 if (logofiles.Length == 0)
                 {
                     // これは必要ないはず
-                    src.FailReason = "ロゴ設定がありません";
+                    item.FailReason = "ロゴ設定がありません";
                     return null;
                 }
                 ignoreNoLogo = !logofiles.All(path => path != LogoSetting.NO_LOGO);
@@ -673,10 +684,10 @@ namespace Amatsukaze.Server
             // datpathは拡張子を含まないこと
             //（拡張子があるのかないのか分からないと.tsで終わる名前とかが使えなくなるので）
             var ext = ServerSupport.GetFileExtension(profile.OutputFormat);
-            string dstpath = src.DstPath;
+            string dstpath = item.DstPath;
             bool renamed = false;
 
-            if (src.IsCheck == false && profile.EnableRename)
+            if (item.IsCheck == false && profile.EnableRename)
             {
                 // SCRenameによるリネーム
                 string newName = null;
@@ -685,11 +696,11 @@ namespace Amatsukaze.Server
                     newName = await SCRename(
                         server.AppData_.setting.SCRenamePath, 
                         server.AppData_.setting.WorkPath,
-                        profile.RenameFormat, src);
+                        profile.RenameFormat, item);
                 }
                 catch (Exception)
                 {
-                    return FailLogItem(src, src.Profile.Name, "SCRenameに失敗", now, now);
+                    return FailLogItem(item, item.Profile.Name, "SCRenameに失敗", now, now);
                 }
 
                 if (newName != null)
@@ -712,13 +723,19 @@ namespace Amatsukaze.Server
                 }
             }
 
-            if(src.IsCheck == false && profile.EnableGunreFolder && renamed == false)
+            // キャンセルチェック
+            if (item.State == QueueState.Canceled)
+            {
+                return GetCancelLog(now, now);
+            }
+
+            if (item.IsCheck == false && profile.EnableGunreFolder && renamed == false)
             {
                 // ジャンルフォルダに入れる
                 string genreName = null;
-                if (src.Genre.Count > 0)
+                if (item.Genre.Count > 0)
                 {
-                    genreName = SubGenre.GetDisplayGenre(src.Genre[0])?.Main?.Name;
+                    genreName = SubGenre.GetDisplayGenre(item.Genre[0])?.Main?.Name;
                 }
                 if (string.IsNullOrEmpty(genreName))
                 {
@@ -740,12 +757,12 @@ namespace Amatsukaze.Server
             if(renamed)
             {
                 // EDCB関連ファイルの移動に使う
-                src.ActualDstPath = dstpath;
+                item.ActualDstPath = dstpath;
                 // ディレクトリは作っておく
                 Directory.CreateDirectory(Path.GetDirectoryName(dstpath));
             }
 
-            if (src.IsCheck == false && src.IsTest)
+            if (item.IsCheck == false && item.IsTest)
             {
                 // 同じ名前のファイルがある場合はサフィックス(-A...)を付ける
                 var baseName = Path.Combine(
@@ -754,15 +771,15 @@ namespace Amatsukaze.Server
                 dstpath = Util.CreateDstFile(baseName, ext);
             }
 
-            bool isMp4 = src.SrcPath.ToLower().EndsWith(".mp4");
-            string srcpath = src.SrcPath;
+            bool isMp4 = item.SrcPath.ToLower().EndsWith(".mp4");
+            string srcpath = item.SrcPath;
             string localsrc = null;
             string localdst = dstpath;
             string tmpBase = null;
 
             try
             {
-                bool hashEnabled = (src.IsCheck == false && src.Hash != null);
+                bool hashEnabled = (item.IsCheck == false && item.Hash != null);
                 if (hashEnabled)
                 {
                     // ハッシュがある（ネットワーク経由）の場合はローカルにコピー
@@ -774,10 +791,10 @@ namespace Amatsukaze.Server
                     string name = Path.GetFileName(srcpath);
 
                     byte[] hash = await HashUtil.CopyWithHash(srcpath, localsrc);
-                    if (hash.SequenceEqual(src.Hash) == false)
+                    if (hash.SequenceEqual(item.Hash) == false)
                     {
                         File.Delete(localsrc);
-                        return FailLogItem(src, src.Profile.Name, "コピーしたファイルのハッシュが一致しません", now, now);
+                        return FailLogItem(item, item.Profile.Name, "コピーしたファイルのハッシュが一致しません", now, now);
                     }
 
                     srcpath = localsrc;
@@ -807,18 +824,24 @@ namespace Amatsukaze.Server
                     : serviceSetting.JLSOption;
 
                 string args = server.MakeAmatsukazeArgs(
-                    src.Mode, profile,
+                    item.Mode, profile,
                     server.AppData_.setting,
                     isMp4,
                     srcpath, localdst + ext, json,
-                    src.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt,
-                    pipes?.InHandle, pipes?.OutHandle, id);
+                    item.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt,
+                    pipes?.InHandle, pipes?.OutHandle, Id);
                 string exename = server.AppData_.setting.AmatsukazePath;
 
                 int outputMask = profile.OutputMask;
 
-                Util.AddLog(id, ModeToString(src.Mode) + "開始: " + src.SrcPath, null);
-                Util.AddLog(id, "Args: " + exename + " " + args, null);
+                Util.AddLog(Id, ModeToString(item.Mode) + "開始: " + item.SrcPath, null);
+                Util.AddLog(Id, "Args: " + exename + " " + args, null);
+
+                // キャンセルチェック
+                if (item.State == QueueState.Canceled)
+                {
+                    return GetCancelLog(now, now);
+                }
 
                 var psi = new ProcessStartInfo(exename, args)
                 {
@@ -835,14 +858,19 @@ namespace Amatsukaze.Server
 
                 try
                 {
-                    using (var p = Process.Start(psi))
+                    using (var p = new NormalProcess(psi)
                     {
+                        OnOutput = WriteTextBytes
+                    })
+                    {
+                        process = p;
+
                         try
                         {
-                            if(src.IsCheck == false)
+                            if (item.IsCheck == false)
                             {
                                 // 優先度を設定
-                                p.PriorityClass = server.AppData_.setting.ProcessPriorityClass;
+                                p.Process.PriorityClass = server.AppData_.setting.ProcessPriorityClass;
                             }
                         }
                         catch (InvalidOperationException)
@@ -853,82 +881,66 @@ namespace Amatsukaze.Server
                         // これをやらないと子プロセスが終了してもreadが帰って来ないので注意
                         pipes?.DisposeLocalCopyOfClientHandle();
 
-                        current = new TranscodeTask()
-                        {
-                            thread = this,
-                            src = src,
-                            process = p,
-                        };
-
                         try
                         {
-                            if (src.IsCheck == false && profile.DisableLogFile == false)
+                            if (item.IsCheck == false && profile.DisableLogFile == false)
                             {
-                                current.logWriter = File.Create(logpath);
+                                logWriter = File.Create(logpath);
                             }
 
                             // 起動コマンドをログ出力
-                            await WriteTextBytes(server, current, Encoding.Default.GetBytes(exename + " " + args + "\n"));
+                            await WriteTextBytes(Encoding.Default.GetBytes(exename + " " + args + "\n"));
 
                             // キャンセルチェック
-                            if (src.State == QueueState.Canceled)
+                            if (item.State == QueueState.Canceled)
                             {
                                 CancelCurrentItem();
                             }
                             else
                             {
                                 await Task.WhenAll(
-                                    RedirectOut(server, current, p.StandardOutput.BaseStream),
-                                    RedirectOut(server, current, p.StandardError.BaseStream),
-                                    HostThread(server, current, pipes, ignoreResource),
-                                    Task.Run(() => p.WaitForExit()));
+                                    p.WaitForExitAsync(),
+                                    HostThread(pipes, ignoreResource));
                             }
 
                         }
                         finally
                         {
-                            current.logWriter?.Close();
+                            logWriter?.Close();
+                            logWriter = null;
                         }
 
-                        exitCode = p.ExitCode;
+                        exitCode = p.Process.ExitCode;
                     }
                 }
                 catch (Win32Exception w32e)
                 {
-                    Util.AddLog(id, "Amatsukazeプロセス起動に失敗", w32e);
-                    if (src.IsCheck)
+                    Util.AddLog(Id, "Amatsukazeプロセス起動に失敗", w32e);
+                    if (item.IsCheck)
                     {
-                        return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "Amatsukazeプロセス起動に失敗", now, now);
+                        return MakeCheckLogItem(item.Mode, false, item, item.Profile.Name, "Amatsukazeプロセス起動に失敗", now, now);
                     }
                     else
                     {
-                        return FailLogItem(src, src.Profile.Name, "Amatsukazeプロセス起動に失敗", now, now);
+                        return FailLogItem(item, item.Profile.Name, "Amatsukazeプロセス起動に失敗", now, now);
                     }
                 }
                 catch (IOException ioe)
                 {
-                    Util.AddLog(id, "ログファイル生成に失敗", ioe);
-                    if (src.IsCheck)
+                    Util.AddLog(Id, "ログファイル生成に失敗", ioe);
+                    if (item.IsCheck)
                     {
-                        return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "ログファイル生成に失敗", now, now);
+                        return MakeCheckLogItem(item.Mode, false, item, item.Profile.Name, "ログファイル生成に失敗", now, now);
                     }
                     else
                     {
-                        return FailLogItem(src, src.Profile.Name, "ログファイル生成に失敗", now, now);
-                    }
-                }
-                finally
-                {
-                    if (current != null)
-                    {
-                        current.logWriter = null;
-                        current = null;
+                        return FailLogItem(item, item.Profile.Name, "ログファイル生成に失敗", now, now);
                     }
                 }
 
-                DateTime start = src.EncodeStart;
+                DateTime start = item.EncodeStart;
                 DateTime finish = DateTime.Now;
-                src.EncodeTime = finish - start;
+                item.EncodeTime = finish - start;
 
                 if (hashEnabled)
                 {
@@ -936,7 +948,7 @@ namespace Amatsukaze.Server
                 }
 
                 // ログを整形したテキストに置き換える
-                if (src.IsCheck == false && profile.DisableLogFile == false)
+                if (item.IsCheck == false && profile.DisableLogFile == false)
                 {
                     using (var fs = new StreamWriter(File.Create(logpath), Encoding.Default))
                     {
@@ -948,7 +960,7 @@ namespace Amatsukaze.Server
                 }
 
                 // 専用フォルダにログを出力
-                string logbase = src.IsCheck
+                string logbase = item.IsCheck
                     ? server.GetCheckLogFileBase(start)
                     : server.GetLogFileBase(start);
                 Directory.CreateDirectory(Path.GetDirectoryName(logbase));
@@ -961,23 +973,22 @@ namespace Amatsukaze.Server
                     }
                 }
 
-                Util.AddLog(id, ModeToString(src.Mode) + "終了: " + src.SrcPath, null);
+                Util.AddLog(Id, ModeToString(item.Mode) + "終了: " + item.SrcPath, null);
 
-                if (src.IsCheck)
+                if (item.IsCheck)
                 {
-                    if (exitCode == 0 && src.State != QueueState.Canceled)
+                    if (item.State == QueueState.Canceled)
                     {
-                        return MakeCheckLogItem(src.Mode, true, src, src.Profile.Name, "", start, finish);
+                        return GetCancelLog(start, finish);
                     }
-                    else if (src.State == QueueState.Canceled)
+                    else if (exitCode == 0)
                     {
-                        // キャンセルされた
-                        return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name, "キャンセルされました", start, finish);
+                        return MakeCheckLogItem(item.Mode, true, item, item.Profile.Name, "", start, finish);
                     }
                     else
                     {
                         // その他
-                        return MakeCheckLogItem(src.Mode, false, src, src.Profile.Name,
+                        return MakeCheckLogItem(item.Mode, false, item, item.Profile.Name,
                             "Amatsukaze.exeはコード" +
                             ServerSupport.ExitCodeString(exitCode) + "で終了しました。", start, finish);
                     }
@@ -992,15 +1003,15 @@ namespace Amatsukaze.Server
                         json = dstjson;
                     }
 
-                    if (exitCode == 0 && src.State != QueueState.Canceled)
+                    if (exitCode == 0 && item.State != QueueState.Canceled)
                     {
                         // 成功
-                        var log = LogFromJson(isMp4, src.Profile.Name, json, start, finish, src, outputMask);
+                        var log = LogFromJson(isMp4, item.Profile.Name, json, start, finish, item, outputMask);
 
                         // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
                         if (hashEnabled)
                         {
-                            log.SrcPath = src.SrcPath;
+                            log.SrcPath = item.SrcPath;
                             string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileName(localdst);
                             string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
                             for (int i = 0; i < log.OutPath.Count; ++i)
@@ -1008,7 +1019,7 @@ namespace Amatsukaze.Server
                                 string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
                                 var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
                                 string name = Path.GetFileName(outpath);
-                                HashUtil.AppendHash(Path.Combine(Path.GetDirectoryName(src.DstPath), "_encoded.hash"), name, hash);
+                                HashUtil.AppendHash(Path.Combine(Path.GetDirectoryName(item.DstPath), "_encoded.hash"), name, hash);
                                 File.Delete(log.OutPath[i]);
                                 log.OutPath[i] = outpath;
                             }
@@ -1019,31 +1030,30 @@ namespace Amatsukaze.Server
 
                     // 失敗 //
 
-                    if (src.IsTest)
+                    if (item.IsTest)
                     {
                         // 出力ファイルを削除
                         File.Delete(dstpath + ext);
                     }
 
-                    if (src.State == QueueState.Canceled)
+                    if (item.State == QueueState.Canceled)
                     {
-                        // キャンセルされた
-                        return FailLogItem(src, src.Profile.Name, "キャンセルされました", start, finish);
+                        return GetCancelLog(start, finish);
                     }
                     else if (exitCode == 100)
                     {
                         // マッチするロゴがなかった
-                        return FailLogItem(src, src.Profile.Name, "マッチするロゴがありませんでした", start, finish);
+                        return FailLogItem(item, item.Profile.Name, "マッチするロゴがありませんでした", start, finish);
                     }
                     else if (exitCode == 101)
                     {
                         // DRCSマッピングがなかった
-                        return FailLogItem(src, src.Profile.Name, "DRCS外字のマッピングがありませんでした", start, finish);
+                        return FailLogItem(item, item.Profile.Name, "DRCS外字のマッピングがありませんでした", start, finish);
                     }
                     else
                     {
                         // その他
-                        return FailLogItem(src, src.Profile.Name,
+                        return FailLogItem(item, item.Profile.Name,
                             "Amatsukaze.exeはコード" + 
                             ServerSupport.ExitCodeString(exitCode) + "で終了しました。", start, finish);
                     }
@@ -1062,28 +1072,28 @@ namespace Amatsukaze.Server
         {
             try
             {
-                var src = workerItem;
+                item = workerItem;
 
                 // キューじゃなかったらダメ
                 // 同じアイテムが複数回スケジューラに登録される事があるのでここで弾く
-                if (src.State != QueueState.Queue)
+                if (item.State != QueueState.Queue)
                 {
                     return true;
                 }
 
-                var srcDir = Path.GetDirectoryName(src.SrcPath);
+                var srcDir = Path.GetDirectoryName(item.SrcPath);
                 var succeededDir = srcDir + "\\" + ServerSupport.SUCCESS_DIR;
                 var failedDir = srcDir + "\\" + ServerSupport.FAIL_DIR;
 
-                if (src.IsBatch)
+                if (item.IsBatch)
                 {
                     Directory.CreateDirectory(succeededDir);
                     Directory.CreateDirectory(failedDir);
                 }
 
-                if (src.IsCheck == false)
+                if (item.IsCheck == false)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(src.DstPath));
+                    Directory.CreateDirectory(Path.GetDirectoryName(item.DstPath));
                 }
 
                 // 待たなくてもいいタスクリスト
@@ -1094,20 +1104,20 @@ namespace Amatsukaze.Server
                 dynamic logItem = null;
                 bool result = true;
 
-                server.UpdateQueueItem(src, waitList);
-                if (src.State == QueueState.Queue)
+                server.UpdateQueueItem(item, waitList);
+                if (item.State == QueueState.Queue)
                 {
-                    src.State = QueueState.Encoding;
-                    src.EncodeStart = DateTime.Now;
-                    src.ConsoleId = id;
-                    waitList.Add(server.NotifyQueueItemUpdate(src));
-                    logItem = await ProcessItem(server, src, forceStart);
+                    item.State = QueueState.Encoding;
+                    item.EncodeStart = DateTime.Now;
+                    item.ConsoleId = Id;
+                    waitList.Add(server.NotifyQueueItemUpdate(item));
+                    logItem = await ProcessItem(forceStart);
                 }
 
                 if (logItem == null)
                 {
                     // ペンディング
-                    src.State = QueueState.LogoPending;
+                    item.State = QueueState.LogoPending;
                     // 他の項目も更新しておく
                     server.UpdateQueueItems(waitList);
                 }
@@ -1115,21 +1125,36 @@ namespace Amatsukaze.Server
                 {
                     if (logItem.Success)
                     {
-                        src.State = QueueState.Complete;
+                        item.State = QueueState.Complete;
                     }
                     else
                     {
-                        if (src.State != QueueState.Canceled)
+                        if (item.State != QueueState.Canceled)
                         {
-                            src.State = QueueState.Failed;
+                            item.State = QueueState.Failed;
                         }
-                        src.FailReason = logItem.Reason;
+                        item.FailReason = logItem.Reason;
                         result = false;
                     }
 
-                    if (src.IsBatch)
+                    UserScriptExecuter scriptExecuter = null;
+                    if(!string.IsNullOrEmpty(item.Profile.PostBatchPath))
                     {
-                        var sameItems = server.GetQueueItems(src.SrcPath);
+                        scriptExecuter = new UserScriptExecuter()
+                        {
+                            Server = server,
+                            Phase = ScriptPhase.PostEncode,
+                            ScriptPath = item.Profile.PostBatchPath,
+                            Item = item,
+                            Log = logItem,
+                            RelatedFiles = new List<string>(),
+                            OnOutput = WriteTextBytes
+                        };
+                    }
+
+                    if (item.IsBatch)
+                    {
+                        var sameItems = server.GetQueueItems(item.SrcPath);
                         if (sameItems.Any(s => s.IsActive) == false)
                         {
                             // もうこのファイルでアクティブなアイテムはない
@@ -1137,22 +1162,27 @@ namespace Amatsukaze.Server
                             if (sameItems.Any(s => s.State == QueueState.Complete))
                             {
                                 // リネームしてる場合は、そのパスを使う
-                                var dstpath = sameItems.FirstOrDefault(s => s.ActualDstPath != null)?.ActualDstPath ?? src.DstPath;
+                                var dstpath = sameItems.FirstOrDefault(s => s.ActualDstPath != null)?.ActualDstPath ?? item.DstPath;
 
                                 // 成功が1つでもあれば関連ファイルをコピー
-                                if (src.Profile.MoveEDCBFiles)
+                                if (item.Profile.MoveEDCBFiles)
                                 {
                                     // ソースパスは拡張子を含むがdstは含まない
-                                    var srcBody = Path.GetDirectoryName(src.SrcPath) + "\\" + Path.GetFileNameWithoutExtension(src.SrcPath);
+                                    var srcBody = Path.GetDirectoryName(item.SrcPath) + "\\" + Path.GetFileNameWithoutExtension(item.SrcPath);
                                     var dstBody = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
                                     foreach (var ext in ServerSupport
-                                        .GetFileExtentions(null, src.Profile.MoveEDCBFiles))
+                                        .GetFileExtentions(null, item.Profile.MoveEDCBFiles))
                                     {
                                         var srcPath = srcBody + ext;
                                         var dstPath = dstBody + ext;
                                         if (File.Exists(srcPath) && !File.Exists(dstPath))
                                         {
                                             File.Copy(srcPath, dstPath);
+
+                                            if(scriptExecuter != null)
+                                            {
+                                                scriptExecuter.RelatedFiles.Add(dstPath);
+                                            }
                                         }
                                     }
                                 }
@@ -1160,34 +1190,53 @@ namespace Amatsukaze.Server
 
                             // キャンセルの場合、削除されている可能性がある
                             // 自分がキャンセルされている場合は、移動しない
-                            if (src.State != QueueState.Canceled && sameItems.All(s => s.State != QueueState.Canceled))
+                            if (item.State != QueueState.Canceled && sameItems.All(s => s.State != QueueState.Canceled))
                             {
                                 // キャンセルが1つもない場合のみ
                                 if (sameItems.Any(s => s.State == QueueState.Failed))
                                 {
                                     // 失敗がある
-                                    ServerSupport.MoveTSFile(src.SrcPath, failedDir, src.Profile.MoveEDCBFiles);
+                                    ServerSupport.MoveTSFile(item.SrcPath, failedDir, item.Profile.MoveEDCBFiles);
+
+                                    if (scriptExecuter != null)
+                                    {
+                                        scriptExecuter.MovedSrcPath = failedDir + "\\" + Path.GetFileName(item.SrcPath);
+                                    }
                                 }
                                 else
                                 {
                                     // 全て成功
-                                    ServerSupport.MoveTSFile(src.SrcPath, succeededDir, src.Profile.MoveEDCBFiles);
+                                    ServerSupport.MoveTSFile(item.SrcPath, succeededDir, item.Profile.MoveEDCBFiles);
+
+                                    if (scriptExecuter != null)
+                                    {
+                                        scriptExecuter.MovedSrcPath = succeededDir + "\\" + Path.GetFileName(item.SrcPath);
+                                    }
                                 }
                             }
                         }
                     }
+                    
+                    // 実行後バッチ
+                    if(scriptExecuter != null)
+                    {
+                        process = scriptExecuter;
+                        await scriptExecuter.Execute();
+                    }
 
-                    if (src.IsCheck)
+                    if (item.IsCheck)
                     {
                         waitList.Add(server.AddCheckLog(logItem));
                     }
                     else
                     {
+                        // 最終状態のタグをログに記録
+                        logItem.Tags = item.Tags;
                         waitList.Add(server.AddEncodeLog(logItem));
                     }
                 }
 
-                waitList.Add(server.NotifyQueueItemUpdate(src));
+                waitList.Add(server.NotifyQueueItemUpdate(item));
                 waitList.Add(server.RequestFreeSpace());
 
                 await Task.WhenAll(waitList);
@@ -1197,8 +1246,12 @@ namespace Amatsukaze.Server
             }
             catch (Exception e)
             {
-                await server.FatalError(id, "エンコード中にエラー", e);
+                await server.FatalError(Id, "エンコード中にエラー", e);
                 return false;
+            }
+            finally
+            {
+                item = null;
             }
         }
     }

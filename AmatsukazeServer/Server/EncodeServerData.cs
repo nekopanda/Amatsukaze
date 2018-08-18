@@ -183,6 +183,11 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool IgnoreEncodeAffinity { get; set; }
 
+        [DataMember]
+        public string PreBatchPath { get; set; }
+        [DataMember]
+        public string PostBatchPath { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public int NicoJKFormatMask
@@ -758,6 +763,9 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public string Profile { get; set; }
+
+        [DataMember]
+        public List<string> Tags { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
