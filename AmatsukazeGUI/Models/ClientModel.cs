@@ -270,6 +270,48 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region AddQueueBatFiles変更通知プロパティ
+        private List<string> _AddQueueBatFiles;
+
+        public List<string> AddQueueBatFiles {
+            get { return _AddQueueBatFiles; }
+            set { 
+                if (_AddQueueBatFiles == value)
+                    return;
+                _AddQueueBatFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PreBatFiles変更通知プロパティ
+        private List<string> _PreBatFiles;
+
+        public List<string> PreBatFiles {
+            get { return _PreBatFiles; }
+            set { 
+                if (_PreBatFiles == value)
+                    return;
+                _PreBatFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PostBatFiles変更通知プロパティ
+        private List<string> _PostBatFiles;
+
+        public List<string> PostBatFiles {
+            get { return _PostBatFiles; }
+            set { 
+                if (_PostBatFiles == value)
+                    return;
+                _PostBatFiles = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region CurrentOperationResult変更通知プロパティ
         private string _CurrentOperationResult;
 
@@ -1069,6 +1111,18 @@ namespace Amatsukaze.Models
                 IsRunning = data.State.Running;
                 ProgressState = IsRunning ? TaskbarItemProgressState.Normal : TaskbarItemProgressState.None;
                 ProgressValue = data.State.Progress;
+            }
+            if (data.AddQueueBatFiles != null)
+            {
+                AddQueueBatFiles = new string[] { "なし" }.Concat(data.AddQueueBatFiles).ToList();
+            }
+            if (data.PreBatFiles != null)
+            {
+                PreBatFiles = new string[] { "なし" }.Concat(data.PreBatFiles).ToList();
+            }
+            if (data.PostBatFiles != null)
+            {
+                PostBatFiles = new string[] { "なし" }.Concat(data.PostBatFiles).ToList();
             }
             return Task.FromResult(0);
         }

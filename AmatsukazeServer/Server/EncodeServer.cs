@@ -64,6 +64,9 @@ namespace Amatsukaze.Server
         private List<string> JlsCommandFiles = new List<string>();
         private List<string> MainScriptFiles = new List<string>();
         private List<string> PostScriptFiles = new List<string>();
+        private List<string> AddQueueBatFiles = new List<string>();
+        private List<string> PreBatFiles = new List<string>();
+        private List<string> PostBatFiles = new List<string>();
         private DRCSManager drcsManager;
 
         // キューに追加されるTSを解析するスレッド
@@ -163,6 +166,17 @@ namespace Amatsukaze.Server
                 if (AppData_.uiState.LastOutputPath != value)
                 {
                     AppData_.uiState.LastOutputPath = value;
+                    settingUpdated = true;
+                }
+            }
+        }
+
+        public string LastAddQueueBat {
+            get { return AppData_.uiState.LastAddQueueBat; }
+            set {
+                if (AppData_.uiState.LastAddQueueBat != value)
+                {
+                    AppData_.uiState.LastAddQueueBat = value;
                     settingUpdated = true;
                 }
             }
@@ -496,9 +510,14 @@ namespace Amatsukaze.Server
             return Path.GetFullPath("JL");
         }
 
-        private string GetAvsDirectoryPath()
+        internal string GetAvsDirectoryPath()
         {
             return Path.GetFullPath("avs");
+        }
+
+        internal string GetBatDirectoryPath()
+        {
+            return Path.GetFullPath("bat");
         }
 
         internal string GetDRCSDirectoryPath()
@@ -1309,8 +1328,6 @@ namespace Amatsukaze.Server
             CheckPath("JoinLogoScp", setting.JoinLogoScpPath);
             CheckPath("NicoConvAss", setting.NicoConvASSPath);
 
-            CheckPath("追加時バッチ", setting.OnAddBatchPath);
-
             if (profile != null)
             {
                 string encoderPath = GetEncoderPath(profile.EncoderType, setting);
@@ -1498,6 +1515,7 @@ namespace Amatsukaze.Server
 
                 var jlsDirTime = DateTime.MinValue;
                 var avsDirTime = DateTime.MinValue;
+                var batDirTime = DateTime.MinValue;
                 var profileDirTime = DateTime.MinValue;
 
                 // 初期化
@@ -1689,6 +1707,36 @@ namespace Amatsukaze.Server
                             {
                                 MainScriptFiles = MainScriptFiles,
                                 PostScriptFiles = PostScriptFiles
+                            });
+                        }
+                    }
+
+                    string batpath = GetBatDirectoryPath();
+                    if (Directory.Exists(batpath))
+                    {
+                        var lastModified = Directory.GetLastWriteTime(batpath);
+                        if (batDirTime != lastModified)
+                        {
+                            batDirTime = lastModified;
+
+                            var files = Directory.GetFiles(batpath)
+                                .Where(f =>
+                                    f.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
+                                .Select(f => Path.GetFileName(f));
+
+                            AddQueueBatFiles = files
+                                .Where(f => f.StartsWith("追加時_")).ToList();
+                            PreBatFiles = files
+                                .Where(f => f.StartsWith("実行前_")).ToList();
+                            PostBatFiles = files
+                                .Where(f => f.StartsWith("実行後_")).ToList();
+
+                            await Client.OnCommonData(new CommonData()
+                            {
+                                AddQueueBatFiles = AddQueueBatFiles,
+                                PreBatFiles = PreBatFiles,
+                                PostBatFiles = PostBatFiles
                             });
                         }
                     }

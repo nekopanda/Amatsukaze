@@ -110,7 +110,8 @@ namespace Amatsukaze.Server
 
         private Task WriteLine(string line)
         {
-            return WriteTextBytes(Encoding.Default.GetBytes(line + "\n"));
+            var formatted = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + line + "\n";
+            return WriteTextBytes(Encoding.Default.GetBytes(formatted));
         }
 
         private Task ClientQueueUpdate(QueueUpdate update)
@@ -280,10 +281,13 @@ namespace Amatsukaze.Server
 
             var map = server.ServiceMap;
             var numItems = 0;
+            var progress = 0;
 
             // TSファイル情報を読む
             foreach (var additem in items)
             {
+                waits.Add(WriteLine("(" + (++progress) + "/" + items.Count + ") " + Path.GetFileName(additem.Path) + " を処理中"));
+
                 using (var info = new TsInfo(amtcontext))
                 {
                     var failReason = "";
@@ -371,14 +375,14 @@ namespace Amatsukaze.Server
                                         }
 
                                         // 追加時バッチ
-                                        if(string.IsNullOrEmpty(server.AppData_.setting.OnAddBatchPath) == false)
+                                        if(string.IsNullOrEmpty(req.AddQueueBat) == false)
                                         {
                                             waits.Add(WriteLine("追加時バッチ起動"));
                                             using (var scriptExecuter = new UserScriptExecuter()
                                             {
                                                 Server = server,
                                                 Phase = ScriptPhase.OnAdd,
-                                                ScriptPath = server.AppData_.setting.OnAddBatchPath,
+                                                ScriptPath = server.GetBatDirectoryPath() + "\\" + req.AddQueueBat,
                                                 Item = item,
                                                 Prog = prog,
                                                 OnOutput = WriteTextBytes
@@ -402,6 +406,11 @@ namespace Amatsukaze.Server
                                 }
                             }
                         }
+                    }
+
+                    if (addQueueCanceled)
+                    {
+                        break;
                     }
 
                     if (addItems.Count == 0)
@@ -477,7 +486,7 @@ namespace Amatsukaze.Server
 
             waits.Add(WriteLine("" + numItems + "件追加しました"));
 
-            if (numItems == 0)
+            if (addQueueCanceled == false && numItems == 0)
             {
                 waits.Add(server.NotifyError(
                     "エンコード対象ファイルがありませんでした。パス:" + req.DirPath, enableLog));
@@ -496,6 +505,7 @@ namespace Amatsukaze.Server
                 // 最後に使った設定を記憶しておく
                 server.LastUsedProfile = req.Outputs[0].Profile;
                 server.LastOutputPath = req.Outputs[0].DstPath;
+                server.LastAddQueueBat = req.AddQueueBat;
                 waits.Add(server.RequestUIState());
             }
 

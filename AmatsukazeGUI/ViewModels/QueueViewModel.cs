@@ -284,7 +284,8 @@ namespace Amatsukaze.ViewModels
                         // デフォルト優先順は3
                         Priority = 3
                     }
-                }
+                },
+                AddQueueBat = Model.UIState.Model?.LastAddQueueBat
             };
 
             // 出力先フォルダ選択

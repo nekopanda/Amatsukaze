@@ -13,23 +13,9 @@
       <conversionPattern value="%date %-5level %logger - %message%newline" />
     </layout>
   </appender>
-
-  <appender name="UserScript" type="log4net.Appender.RollingFileAppender">
-    <file value="UserScript.log" />
-    <encoding value="UTF-8"/>
-    <appendToFile value="true" />
-    <rollingStyle value="size" />
-    <maximumFileSize value="500KB" />
-    <maxSizeRollBackups value="2" />
-
-    <layout type="log4net.Layout.PatternLayout">
-      <conversionPattern value="%message%newline" />
-    </layout>
-  </appender>
-
+  
   <root>
     <level value="DEBUG" />
     <appender-ref ref="Server" />
-    <appender-ref ref="UserScript" />
   </root>
 </log4net>

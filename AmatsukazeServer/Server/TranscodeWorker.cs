@@ -641,13 +641,13 @@ namespace Amatsukaze.Server
                 null;
 
             // 実行前バッチ
-            if(!string.IsNullOrEmpty(profile.PreBatchPath))
+            if(!string.IsNullOrEmpty(profile.PreBatchFile))
             {
                 using (var scriptExecuter = new UserScriptExecuter()
                 {
                     Server = server,
                     Phase = ScriptPhase.PreEncode,
-                    ScriptPath = profile.PreBatchPath,
+                    ScriptPath = server.GetBatDirectoryPath() + "\\" + profile.PreBatchFile,
                     Item = item,
                     OnOutput = WriteTextBytes
                 })
@@ -1010,16 +1010,15 @@ namespace Amatsukaze.Server
                     {
                         // 成功
                         var log = LogFromJson(isMp4, item.Profile.Name, json, start, finish, item, outputMask);
+                        log.DstPath = dstpath;
 
                         // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
                         if (hashEnabled)
                         {
                             log.SrcPath = item.SrcPath;
-                            string localbase = Path.GetDirectoryName(localdst) + "\\" + Path.GetFileName(localdst);
-                            string outbase = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
                             for (int i = 0; i < log.OutPath.Count; ++i)
                             {
-                                string outpath = outbase + log.OutPath[i].Substring(localbase.Length);
+                                string outpath = dstpath + log.OutPath[i].Substring(localdst.Length);
                                 var hash = await HashUtil.CopyWithHash(log.OutPath[i], outpath);
                                 string name = Path.GetFileName(outpath);
                                 HashUtil.AppendHash(Path.Combine(Path.GetDirectoryName(item.DstPath), "_encoded.hash"), name, hash);
@@ -1141,13 +1140,13 @@ namespace Amatsukaze.Server
                     }
 
                     UserScriptExecuter scriptExecuter = null;
-                    if(!string.IsNullOrEmpty(item.Profile.PostBatchPath))
+                    if(!string.IsNullOrEmpty(item.Profile.PostBatchFile))
                     {
                         scriptExecuter = new UserScriptExecuter()
                         {
                             Server = server,
                             Phase = ScriptPhase.PostEncode,
-                            ScriptPath = item.Profile.PostBatchPath,
+                            ScriptPath = server.GetBatDirectoryPath() + "\\" + item.Profile.PostBatchFile,
                             Item = item,
                             Log = logItem,
                             RelatedFiles = new List<string>(),

@@ -119,15 +119,10 @@
                 </DockPanel>
 
                 <StackPanel Grid.Row="2" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Right" TextAlignment="Right" Margin="0,-3">
-                        キュー追加時<LineBreak/>実行バッチ
-                    </TextBlock>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="常時表示ディスク"/>
                 </StackPanel>
                 <DockPanel Grid.Row="2" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel>
-                        <TextBox Height="22" Margin="0,3,10,3" Text="{Binding Model.Setting.OnAddBatchPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
-                            ToolTip="TS追加時に実行するバッチファイルを指定します"/>
                         <TextBox Height="22" Margin="0,3,10,3" Text="{Binding Model.Setting.AlwaysShowDisk, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"
                             ToolTip="「ディスク空き」パネルの表示が追加されます。&#xA;;（セミコロン）で区切ることで複数設定することができます"/>
                     </StackPanel>
@@ -171,7 +166,7 @@
                                 Value="{Binding Model.Setting.NumParallelIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。&#xA;リソーススケジューリングで中断しているインスタンスも並列数にカウントされるので&#xA;リソーススケジューリングを使う場合は多めに設定してください。"/>
                     </DockPanel>
-                    <ComboBox IsReadOnly="True" Width="70" HorizontalAlignment="Left" Margin="0,3"
+                    <ComboBox IsReadOnly="True" Width="100" HorizontalAlignment="Left" Margin="0,3"
                                   ItemsSource="{Binding Model.ProcessPriorityList}"
                                   SelectedIndex="{Binding Model.Setting.ProcessPriority, Mode=TwoWay}"
                                   ToolTip="「通常以下」または「低」推奨です"/>

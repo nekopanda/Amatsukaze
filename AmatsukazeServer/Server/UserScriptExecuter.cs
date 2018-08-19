@@ -195,11 +195,16 @@ namespace Amatsukaze.Server
                 }
             };
 
+            if(Log?.OutPath == null || Log?.DstPath == null)
+            {
+                // 失敗 or キャンセル
+                return "";
+            }
+
             try
             {
-                var mainPath = Log.OutPath[0];
-                var mainNoExt = Path.GetFileNameWithoutExtension(mainPath);
-                var list = Log.OutPath.Where(path =>
+                var mainNoExt = Path.GetFileName(Log.DstPath);
+                var list = Log.OutPath.Select(s => s.Replace('/', '\\')).Where(path =>
                 {
                     var type = fileType(Path.GetFileName(path).Substring(mainNoExt.Length));
                     return (mask & type) != 0;
@@ -217,8 +222,7 @@ namespace Amatsukaze.Server
                 {
                     if (Item.Profile.DisableLogFile == false)
                     {
-                        var prefix = Path.GetDirectoryName(mainPath) + "\\" + mainNoExt;
-                        list.Add(prefix + ".log");
+                        list.Add(Log.DstPath + ".log");
                     }
                 }
 
@@ -239,60 +243,68 @@ namespace Amatsukaze.Server
                 {
                     var rpc = await RPCTypes.Deserialize(pipes.ReadPipe);
                     string ret = "";
-                    switch (rpc.id)
+                    try
                     {
-                        case RPCMethodId.AddTag:
-                            var tag = (string)rpc.arg;
-                            if (!string.IsNullOrEmpty(tag))
-                            {
-                                Item.Tags.Add(tag);
-                            }
-                            ret = string.Join(";", Item.Tags);
-                            break;
-                        case RPCMethodId.SetOutDir:
-                            if(Phase == ScriptPhase.PostEncode)
-                            {
-                                ret = "エンコードが完了したアイテムの出力先は変更できません";
-                            }
-                            else
-                            {
-                                var outdir = (rpc.arg as string).TrimEnd(Path.DirectorySeparatorChar);
-                                Item.DstPath = outdir + "\\" + Path.GetFileName(Item.DstPath);
-                                ret = "成功";
-                            }
-                            break;
-                        case RPCMethodId.SetPriority:
-                            if (Phase != ScriptPhase.OnAdd)
-                            {
-                                ret = "追加時以外の優先度操作はできません";
-                            }
-                            else
-                            {
-                                var priority = int.Parse(rpc.arg as string);
-                                if (priority < 1 && priority > 5)
+                        switch (rpc.id)
+                        {
+                            case RPCMethodId.AddTag:
+                                var tag = (string)rpc.arg;
+                                if (!string.IsNullOrEmpty(tag) && !Item.Tags.Contains(tag))
                                 {
-                                    ret = "優先度が範囲外です";
+                                    Item.Tags.Add(tag);
                                 }
-                                else {
-                                    Item.Priority = priority;
+                                ret = string.Join(";", Item.Tags);
+                                break;
+                            case RPCMethodId.SetOutDir:
+                                if (Phase == ScriptPhase.PostEncode)
+                                {
+                                    ret = "エンコードが完了したアイテムの出力先は変更できません";
+                                }
+                                else
+                                {
+                                    var outdir = (rpc.arg as string).TrimEnd(Path.DirectorySeparatorChar);
+                                    Item.DstPath = outdir + "\\" + Path.GetFileName(Item.DstPath);
                                     ret = "成功";
                                 }
-                            }
-                            break;
-                        case RPCMethodId.GetOutFiles:
-                            ret = GetOutFiles((string)rpc.arg);
-                            break;
-                        case RPCMethodId.CancelItem:
-                            if(Phase == ScriptPhase.PostEncode)
-                            {
-                                ret = "エンコードが完了したアイテムはキャンセルできません";
-                            }
-                            else
-                            {
-                                Item.State = QueueState.Canceled;
-                                ret = "成功";
-                            }
-                            break;
+                                break;
+                            case RPCMethodId.SetPriority:
+                                if (Phase != ScriptPhase.OnAdd)
+                                {
+                                    ret = "追加時以外の優先度操作はできません";
+                                }
+                                else
+                                {
+                                    var priority = int.Parse(rpc.arg as string);
+                                    if (priority < 1 && priority > 5)
+                                    {
+                                        ret = "優先度が範囲外です";
+                                    }
+                                    else
+                                    {
+                                        Item.Priority = priority;
+                                        ret = "成功";
+                                    }
+                                }
+                                break;
+                            case RPCMethodId.GetOutFiles:
+                                ret = GetOutFiles((string)rpc.arg);
+                                break;
+                            case RPCMethodId.CancelItem:
+                                if (Phase == ScriptPhase.PostEncode)
+                                {
+                                    ret = "エンコードが完了したアイテムはキャンセルできません";
+                                }
+                                else
+                                {
+                                    Item.State = QueueState.Canceled;
+                                    ret = "成功";
+                                }
+                                break;
+                        }
+                    }
+                    catch(Exception e)
+                    {
+                        ret = e.Message;
                     }
                     var bytes = RPCTypes.Serialize(rpc.id, ret);
                     await pipes.WritePipe.WriteAsync(bytes, 0, bytes.Length);
@@ -332,7 +344,7 @@ namespace Amatsukaze.Server
                 env.Add("OUT_DURATION", Log.OutVideoDuration.TotalSeconds.ToString());
                 env.Add("IN_SIZE", Log.SrcFileSize.ToString());
                 env.Add("OUT_SIZE", Log.OutFileSize.ToString());
-                env.Add("LOGO_FILE", string.Join(";", Log.LogoFiles));
+                env.Add("LOGO_FILE", (Log.LogoFiles != null) ? string.Join(";", Log.LogoFiles) : "");
                 env.Add("NUM_INCIDENT", Log.Incident.ToString());
                 env.Add("JSON_PATH", Server.GetLogFileBase(Log.EncodeStartDate) + ".json");
                 env.Add("LOG_PATH", Server.GetLogFileBase(Log.EncodeStartDate) + ".log");
@@ -345,7 +357,7 @@ namespace Amatsukaze.Server
 
         public async Task Execute()
         {
-            var psi = new ProcessStartInfo("cmd.exe", "/C " + ScriptPath)
+            var psi = new ProcessStartInfo("cmd.exe", "/C \"" + ScriptPath + "\"")
             {
                 UseShellExecute = false,
                 WorkingDirectory = Directory.GetCurrentDirectory(),

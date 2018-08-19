@@ -111,80 +111,87 @@
 
             <GridSplitter ResizeDirection="Rows" VerticalAlignment="Center" Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
 
-            <DockPanel Grid.Row="2" DataContext="{Binding Model.SelectedAutoSelect.SelectedCondition}">
-                <DockPanel DockPanel.Dock="Top">
-                    <CheckBox Content="ファイル名に" DockPanel.Dock="Left"
-                              IsChecked="{Binding FileNameEnabled, Mode=TwoWay}"/>
-                    <TextBlock Text="を含む" DockPanel.Dock="Right"/>
-                    <TextBox IsEnabled="{Binding FileNameEnabled}"
-                             Text="{Binding FileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <Grid Grid.Row="2" DataContext="{Binding Model.SelectedAutoSelect.SelectedCondition}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition Width="120"/>
+                </Grid.ColumnDefinitions>
+
+                <DockPanel Grid.Column="0" Grid.Row="0">
+                    <CheckBox Content="タグ" DockPanel.Dock="Left" VerticalAlignment="Center"
+                            IsChecked="{Binding TagEnabled, Mode=TwoWay}"/>
+                    <TextBlock Text="を含む" DockPanel.Dock="Right" Margin="0,0,10,0"/>
+                    <TextBox IsEnabled="{Binding TagEnabled}"
+                            Text="{Binding Tag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </DockPanel>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                        <ColumnDefinition Width="120"/>
-                    </Grid.ColumnDefinitions>
 
-                    <DockPanel Grid.Column="0">
-                        <CheckBox Content="ジャンル" DockPanel.Dock="Top"
-                              IsChecked="{Binding ContentConditionEnabled, Mode=TwoWay}"/>
-                        <ListBox ItemsSource="{Binding GenreItems}"
-                             IsEnabled="{Binding ContentConditionEnabled}"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.Resources>
-                                <DataTemplate DataType="{x:Type m:MainGenreSelectItem}">
-                                    <CheckBox Content="{Binding Item.Name}" 
-                                    IsChecked="{Binding IsChecked, Mode=TwoWay}" 
-                                    IsThreeState="False"/>
-                                </DataTemplate>
-                                <DataTemplate DataType="{x:Type m:GenreSelectItem}">
-                                    <CheckBox Content="{Binding Item.Name}" 
-                                    IsChecked="{Binding IsChecked, Mode=TwoWay}" 
-                                    Margin="20,0,0,0"/>
-                                </DataTemplate>
-                            </ListBox.Resources>
-                        </ListBox>
-                    </DockPanel>
+                <DockPanel Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="2">
+                    <CheckBox Content="ファイル名に" DockPanel.Dock="Left" VerticalAlignment="Center"
+                            IsChecked="{Binding FileNameEnabled, Mode=TwoWay}"/>
+                    <TextBlock Text="を含む" DockPanel.Dock="Right" Margin="0,0,10,0"/>
+                    <TextBox IsEnabled="{Binding FileNameEnabled}"
+                            Text="{Binding FileName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </DockPanel>
 
-                    <DockPanel Grid.Column="1">
-                        <CheckBox Content="チャンネル" DockPanel.Dock="Top"
-                              IsChecked="{Binding ServiceEnabled, Mode=TwoWay}"/>
-                        <ListBox ItemsSource="{Binding ServiceList}"
-                             IsEnabled="{Binding ServiceEnabled}"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.Resources>
-                                <DataTemplate DataType="{x:Type m:ServiceSelectItem}">
-                                    <CheckBox Content="{Binding Service}" 
-                                    IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
-                                </DataTemplate>
-                            </ListBox.Resources>
-                        </ListBox>
-                    </DockPanel>
+                <DockPanel Grid.Column="0" Grid.Row="1">
+                    <CheckBox Content="ジャンル" DockPanel.Dock="Top"
+                            IsChecked="{Binding ContentConditionEnabled, Mode=TwoWay}"/>
+                    <ListBox ItemsSource="{Binding GenreItems}"
+                            IsEnabled="{Binding ContentConditionEnabled}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type m:MainGenreSelectItem}">
+                                <CheckBox Content="{Binding Item.Name}" 
+                                IsChecked="{Binding IsChecked, Mode=TwoWay}" 
+                                IsThreeState="False"/>
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type m:GenreSelectItem}">
+                                <CheckBox Content="{Binding Item.Name}" 
+                                IsChecked="{Binding IsChecked, Mode=TwoWay}" 
+                                Margin="20,0,0,0"/>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                </DockPanel>
 
-                    <DockPanel Grid.Column="2">
-                        <CheckBox Content="タグ↓を含む" DockPanel.Dock="Top"
-                              IsChecked="{Binding TagEnabled, Mode=TwoWay}"/>
-                        <TextBox IsEnabled="{Binding TagEnabled}" DockPanel.Dock="Top"
-                             Text="{Binding Tag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <CheckBox Content="映像サイズ" DockPanel.Dock="Top"
-                              IsChecked="{Binding VideoSizeEnabled, Mode=TwoWay}"/>
-                        <ListBox ItemsSource="{Binding VideoSizes}"
-                             IsEnabled="{Binding VideoSizeEnabled}"
-                              DockPanel.Dock="Top" Height="75">
-                            <ListBox.Resources>
-                                <DataTemplate DataType="{x:Type m:VideoSizeSelectItem}">
-                                    <CheckBox Content="{Binding Name}" 
+                <DockPanel Grid.Column="1" Grid.Row="1">
+                    <CheckBox Content="チャンネル" DockPanel.Dock="Top"
+                            IsChecked="{Binding ServiceEnabled, Mode=TwoWay}"/>
+                    <ListBox ItemsSource="{Binding ServiceList}"
+                            IsEnabled="{Binding ServiceEnabled}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type m:ServiceSelectItem}">
+                                <CheckBox Content="{Binding Service}" 
                                 IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
-                                </DataTemplate>
-                            </ListBox.Resources>
-                        </ListBox>
-                        <TextBlock Text="メモ:" DockPanel.Dock="Top"/>
-                        <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             TextWrapping="Wrap" AcceptsReturn="True" ToolTip="{Binding Description}"/>
-                    </DockPanel>
-                </Grid>
-            </DockPanel>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                </DockPanel>
+
+                <DockPanel Grid.Column="2" Grid.Row="1">
+                    <CheckBox Content="映像サイズ" DockPanel.Dock="Top"
+                            IsChecked="{Binding VideoSizeEnabled, Mode=TwoWay}"/>
+                    <ListBox ItemsSource="{Binding VideoSizes}"
+                            IsEnabled="{Binding VideoSizeEnabled}"
+                            DockPanel.Dock="Top" Height="75">
+                        <ListBox.Resources>
+                            <DataTemplate DataType="{x:Type m:VideoSizeSelectItem}">
+                                <CheckBox Content="{Binding Name}" 
+                            IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                            </DataTemplate>
+                        </ListBox.Resources>
+                    </ListBox>
+                    <TextBlock Text="メモ:" DockPanel.Dock="Top"/>
+                    <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            TextWrapping="Wrap" AcceptsReturn="True" ToolTip="{Binding Description}"/>
+                </DockPanel>
+            </Grid>
         </Grid>
     </DockPanel>
 </UserControl>

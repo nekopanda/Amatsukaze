@@ -145,17 +145,15 @@ class ResourceManger : AMTObject
 	}
 
 	ResourceAllocation readCommand(int expected) const {
-		struct CommandData {
-			int32_t cmd;
-			ResourceAllocation res;
-		};
 		DWORD bytesRead = 0;
-		CommandData data;
-		read(MemoryChunk((uint8_t*)&data, sizeof(data)));
-    if (data.cmd != expected) {
+		int32_t cmd;
+		ResourceAllocation res;
+		read(MemoryChunk((uint8_t*)&cmd, sizeof(cmd)));
+    if (cmd != expected) {
       THROW(RuntimeException, "invalid return command");
     }
-		return data.res;
+		read(MemoryChunk((uint8_t*)&res, sizeof(res)));
+		return res;
 	}
 
 public:

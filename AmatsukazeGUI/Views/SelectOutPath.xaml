@@ -83,6 +83,11 @@
                 <CheckBox Content="キューを凍結して追加" IsChecked="{Binding PauseStart, Mode=TwoWay}"
                         VerticalAlignment="Center"/>
             </DockPanel>
+            <DockPanel>
+                <TextBlock Text="追加時バッチ" VerticalAlignment="Center" Margin="5,0"/>
+                <ComboBox ItemsSource="{Binding Model.AddQueueBatFiles}"
+                          SelectedItem="{Binding AddQueueBatFile, Mode=TwoWay}"/>
+            </DockPanel>
         </StackPanel>
         
         <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>
@@ -98,18 +103,22 @@
                 <Run FontSize="20" Text="テストモード"/><LineBreak/><Run Text="エンコード後、入力ファイルは移動しません。"/><LineBreak/><Run Text="同名ファイルがある場合は上書きせず、別名で出力します。"/>
             </TextBlock>
         </Button>
-        
-        <Button Margin="2" Height="Auto" Command="{Binding SearchCommand, Mode=OneWay}">
-            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
-                <Run FontSize="20" Text="DRCS外字チェック"/><LineBreak/><Run Text="入力ファイルを読んで未登録のDRCS外字を見つけます。エンコードはしません。DRCS外字登録をまとめて処理したいときに使ってください。"/>
-            </TextBlock>
-        </Button>
 
-        <Button Margin="2" Height="Auto" Command="{Binding CMCheckCommand, Mode=OneWay}">
-            <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+        <Expander Header="他のモード">
+            <StackPanel>
+                <Button Margin="2" Height="Auto" Command="{Binding SearchCommand, Mode=OneWay}">
+                    <TextBlock TextAlignment="Center" TextWrapping="Wrap">
+                <Run FontSize="20" Text="DRCS外字チェック"/><LineBreak/><Run Text="入力ファイルを読んで未登録のDRCS外字を見つけます。エンコードはしません。DRCS外字登録をまとめて処理したいときに使ってください。"/>
+                    </TextBlock>
+                </Button>
+
+                <Button Margin="2" Height="Auto" Command="{Binding CMCheckCommand, Mode=OneWay}">
+                    <TextBlock TextAlignment="Center" TextWrapping="Wrap">
                 <Run FontSize="20" Text="CM解析のみ"/><LineBreak/><Run Text="CM解析のみ行います。エンコードはしません。結果はログを確認してください。"/>
-            </TextBlock>
-        </Button>
+                    </TextBlock>
+                </Button>
+            </StackPanel>
+        </Expander>
         
         <Button Margin="2" Height="50" >
             <i:Interaction.Triggers>

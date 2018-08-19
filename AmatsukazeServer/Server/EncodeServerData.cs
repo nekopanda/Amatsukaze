@@ -184,9 +184,9 @@ namespace Amatsukaze.Server
         public bool IgnoreEncodeAffinity { get; set; }
 
         [DataMember]
-        public string PreBatchPath { get; set; }
+        public string PreBatchFile { get; set; }
         [DataMember]
-        public string PostBatchPath { get; set; }
+        public string PostBatchFile { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 
@@ -280,9 +280,6 @@ namespace Amatsukaze.Server
         [DataMember]
         public double X265VFRTimeFactor { get; set; }
 
-        [DataMember]
-        public string OnAddBatchPath { get; set; }
-
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ActualWorkPath
@@ -313,12 +310,14 @@ namespace Amatsukaze.Server
         public string LastUsedProfile { get; set; }
         [DataMember]
         public string LastOutputPath { get; set; }
+        [DataMember]
+        public string LastAddQueueBat { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }
 
-        // ロゴ設定
-        [DataContract]
+    // ロゴ設定
+    [DataContract]
     public class LogoSetting : IExtensibleDataObject
     {
         [DataMember]
@@ -419,6 +418,8 @@ namespace Amatsukaze.Server
         public List<OutputInfo> Outputs { get; set; }
         [DataMember]
         public string RequestId { get; set; }
+        [DataMember]
+        public string AddQueueBat { get; set; }
 
         public bool IsBatch { get { return Mode == ProcMode.Batch || Mode == ProcMode.AutoBatch; } }
         public bool IsCheck { get { return Mode == ProcMode.DrcsCheck || Mode == ProcMode.CMCheck; } }
@@ -719,7 +720,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool Success { get; set; }
         [DataMember]
-        public List<string> OutPath { get; set; }
+        public string DstPath { get; set; } // 拡張子を含まないメイン出力先パス
+        [DataMember]
+        public List<string> OutPath { get; set; } // 実際に出力されたファイル
         [DataMember]
         public DateTime EncodeStartDate { get; set; }
         [DataMember]
@@ -1106,6 +1109,12 @@ namespace Amatsukaze.Server
         public ServerInfo ServerInfo { get; set; }
         [DataMember]
         public State State { get; set; }
+        [DataMember]
+        public List<string> AddQueueBatFiles { get; set; }
+        [DataMember]
+        public List<string> PreBatFiles { get; set; }
+        [DataMember]
+        public List<string> PostBatFiles { get; set; }
     }
 
     [DataContract]

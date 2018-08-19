@@ -1009,25 +1009,27 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region PreBatchPath変更通知プロパティ
-        public string PreBatchPath {
-            get { return Data.PreBatchPath; }
-            set { 
-                if (Data.PreBatchPath == value)
+        #region PreBatchFile変更通知プロパティ
+        public string PreBatchFile {
+            get { return string.IsNullOrEmpty(Data.PreBatchFile) ? "なし" : Data.PreBatchFile; }
+            set {
+                string val = (value == "なし") ? "" : value;
+                if (Data.PreBatchFile == val)
                     return;
-                Data.PreBatchPath = value;
+                Data.PreBatchFile = val;
                 RaisePropertyChanged();
             }
         }
         #endregion
 
-        #region PostBatchPath変更通知プロパティ
-        public string PostBatchPath {
-            get { return Data.PostBatchPath; }
-            set { 
-                if (Data.PostBatchPath == value)
+        #region PostBatchFile変更通知プロパティ
+        public string PostBatchFile {
+            get { return string.IsNullOrEmpty(Data.PostBatchFile) ? "なし" : Data.PostBatchFile; }
+            set {
+                string val = (value == "なし") ? "" : value;
+                if (Data.PostBatchFile == val)
                     return;
-                Data.PostBatchPath = value;
+                Data.PostBatchFile = val;
                 RaisePropertyChanged();
             }
         }
@@ -1834,20 +1836,6 @@ namespace Amatsukaze.Models
                 if (Model.AlwaysShowDisk == value)
                     return;
                 Model.AlwaysShowDisk = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region OnAddBatchPath変更通知プロパティ
-        public string OnAddBatchPath
-        {
-            get { return Model.OnAddBatchPath; }
-            set
-            {
-                if (Model.OnAddBatchPath == value)
-                    return;
-                Model.OnAddBatchPath = value;
                 RaisePropertyChanged();
             }
         }
