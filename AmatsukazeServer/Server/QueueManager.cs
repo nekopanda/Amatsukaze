@@ -763,12 +763,8 @@ namespace Amatsukaze.Server
             }
             else if (data.ChangeType == ChangeItemType.Cancel)
             {
-                if (target.IsActive)
+                if (server.CancelItem(target) || target.IsActive)
                 {
-                    if(target.State == QueueState.Encoding)
-                    {
-                        server.CancelItem(target);
-                    }
                     target.State = QueueState.Canceled;
                     return Task.WhenAll(
                         ClientQueueUpdate(new QueueUpdate()
@@ -822,10 +818,7 @@ namespace Amatsukaze.Server
             }
             else if (data.ChangeType == ChangeItemType.RemoveItem)
             {
-                if (target.State == QueueState.Encoding)
-                {
-                    server.CancelItem(target);
-                }
+                server.CancelItem(target);
                 target.State = QueueState.Canceled;
                 Queue.Remove(target);
                 return Task.WhenAll(

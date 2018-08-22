@@ -356,14 +356,27 @@ class TempDirectory : AMTObject, NonCopyable
 public:
 	TempDirectory(AMTContext& ctx, const std::string& tmpdir, bool noRemoveTmp)
 		: AMTObject(ctx)
+		, path_(tmpdir)
+		, initialized_(false)
 		, noRemoveTmp_(noRemoveTmp)
-	{
-		if (tmpdir.size() == 0) {
-			// 指定がなければ作らない
+	{ }
+	~TempDirectory() {
+		if (!initialized_ || noRemoveTmp_) {
 			return;
 		}
+		// 一時ファイルを削除
+		ctx.clearTmpFiles();
+		// ディレクトリ削除
+		if (_rmdir(path_.c_str()) != 0) {
+			ctx.warnF("一時ディレクトリ削除に失敗: ", path_.c_str());
+		}
+	}
+
+	void Initialize() {
+		if (initialized_) return;
+
 		for (int code = (int)time(NULL) & 0xFFFFFF; code > 0; ++code) {
-			auto path = genPath(tmpdir, code);
+			auto path = genPath(path_, code);
 			if (_mkdir(path.c_str()) == 0) {
 				path_ = path;
 				break;
@@ -382,30 +395,19 @@ public:
 		GetFullPathNameA(path_.c_str(), sz, &abolutePath[0], 0);
 		abolutePath.resize(sz - 1);
 		path_ = abolutePath;
-	}
-	~TempDirectory() {
-		if (path_.size() == 0) {
-			return;
-		}
-		if (noRemoveTmp_ == false) {
-			// 一時ファイルを削除
-			ctx.clearTmpFiles();
-			// ディレクトリ削除
-			if (_rmdir(path_.c_str()) != 0) {
-				ctx.warnF("一時ディレクトリ削除に失敗: ", path_.c_str());
-			}
-		}
+		initialized_ = true;
 	}
 
 	std::string path() const {
-		if (path_.size() == 0) {
-			THROW(RuntimeException, "一時フォルダの指定がありません");
+		if (!initialized_) {
+			THROW(InvalidOperationException, "一時ディレクトリを作成していません");
 		}
 		return path_;
 	}
 
 private:
 	std::string path_;
+	bool initialized_;
 	bool noRemoveTmp_;
 
 	std::string genPath(const std::string& base, int code)
@@ -1004,6 +1006,10 @@ public:
 		ctx.infoF("デコーダ: MPEG2:%s H264:%s",
 			decoderToString(conf.decoderSetting.mpeg2),
 			decoderToString(conf.decoderSetting.h264));
+	}
+
+	void CreateTempDir() {
+		tmpDir.Initialize();
 	}
 
 private:

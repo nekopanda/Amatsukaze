@@ -456,6 +456,7 @@ void DoBadThing() {
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
+	const_cast<ConfigWrapper&>(setting).CreateTempDir();
 	setting.dump();
 
 #if 0

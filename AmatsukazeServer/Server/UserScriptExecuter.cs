@@ -163,7 +163,7 @@ namespace Amatsukaze.Server
                 bool isSubs = (ext == ".ass") || (ext == ".srt");
                 int number = (numStr.Length == 0) ? 0 : int.Parse(numStr);
                 bool isCM = (cmStr.Length > 0);
-                if (number > 0)
+                if (number == 0)
                 {
                     if (isSubs)
                     {
@@ -195,7 +195,7 @@ namespace Amatsukaze.Server
                 }
             };
 
-            if(Log?.OutPath == null || Log?.DstPath == null)
+            if (Log?.OutPath == null || Log?.DstPath == null)
             {
                 // 失敗 or キャンセル
                 return "";
@@ -222,7 +222,7 @@ namespace Amatsukaze.Server
                 {
                     if (Item.Profile.DisableLogFile == false)
                     {
-                        list.Add(Log.DstPath + ".log");
+                        list.Add(Log.DstPath + "-enc.log");
                     }
                 }
 
@@ -260,6 +260,10 @@ namespace Amatsukaze.Server
                                 {
                                     ret = "エンコードが完了したアイテムの出力先は変更できません";
                                 }
+                                else if(string.IsNullOrEmpty(rpc.arg as string))
+                                {
+                                    ret = "出力先を指定してください";
+                                }
                                 else
                                 {
                                     var outdir = (rpc.arg as string).TrimEnd(Path.DirectorySeparatorChar);
@@ -274,8 +278,9 @@ namespace Amatsukaze.Server
                                 }
                                 else
                                 {
-                                    var priority = int.Parse(rpc.arg as string);
-                                    if (priority < 1 && priority > 5)
+                                    int priority;
+                                    if (!int.TryParse(rpc.arg as string, out priority) ||
+                                        priority < 1 || priority > 5)
                                     {
                                         ret = "優先度が範囲外です";
                                     }
@@ -287,7 +292,14 @@ namespace Amatsukaze.Server
                                 }
                                 break;
                             case RPCMethodId.GetOutFiles:
-                                ret = GetOutFiles((string)rpc.arg);
+                                if (Phase != ScriptPhase.PostEncode)
+                                {
+                                    ret = "実行後ではないため、出力ファイルを取得できません";
+                                }
+                                else
+                                {
+                                    ret = GetOutFiles((string)rpc.arg);
+                                }
                                 break;
                             case RPCMethodId.CancelItem:
                                 if (Phase == ScriptPhase.PostEncode)
@@ -346,8 +358,8 @@ namespace Amatsukaze.Server
                 env.Add("OUT_SIZE", Log.OutFileSize.ToString());
                 env.Add("LOGO_FILE", (Log.LogoFiles != null) ? string.Join(";", Log.LogoFiles) : "");
                 env.Add("NUM_INCIDENT", Log.Incident.ToString());
-                env.Add("JSON_PATH", Server.GetLogFileBase(Log.EncodeStartDate) + ".json");
-                env.Add("LOG_PATH", Server.GetLogFileBase(Log.EncodeStartDate) + ".log");
+                env.Add("JSON_PATH", Path.GetFullPath(Server.GetLogFileBase(Log.EncodeStartDate) + ".json"));
+                env.Add("LOG_PATH", Path.GetFullPath(Server.GetLogFileBase(Log.EncodeStartDate) + ".log"));
             }
 
             // パイプ通信用

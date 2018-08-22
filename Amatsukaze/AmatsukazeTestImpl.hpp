@@ -293,6 +293,7 @@ static int FileStreamInfo(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int ParseArgs(AMTContext& ctx, const ConfigWrapper& setting)
 {
+	const_cast<ConfigWrapper&>(setting).CreateTempDir();
 	setting.dump();
 	return 0;
 }

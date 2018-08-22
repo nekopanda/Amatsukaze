@@ -109,12 +109,14 @@ namespace Amatsukaze.Server
             }
         }
 
-        public void CancelItem(QueueItem item)
+        public bool CancelItem(QueueItem item)
         {
             if(item == this.item)
             {
                 CancelCurrentItem();
+                return true;
             }
+            return false;
         }
 
         private Task WriteTextBytes(byte[] buffer, int offset, int length)

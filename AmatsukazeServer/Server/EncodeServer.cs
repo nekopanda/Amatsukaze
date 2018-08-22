@@ -2241,15 +2241,19 @@ namespace Amatsukaze.Server
         }
 
         // 指定アイテムをキャンセルする
-        internal void CancelItem(QueueItem item)
+        internal bool CancelItem(QueueItem item)
         {
             foreach (var worker in workerPool.Workers.Cast<TranscodeWorker>())
             {
                 if (worker != null)
                 {
-                    worker.CancelItem(item);
+                    if(worker.CancelItem(item))
+                    {
+                        return true;
+                    }
                 }
             }
+            return false;
         }
 
         // プロファイル更新を適用
