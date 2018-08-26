@@ -638,12 +638,18 @@ struct VideoFormat {
     darHeight /= denom;
   }
 
-	bool operator==(const VideoFormat& o) const {
+	// アスペクト比は見ない
+	bool isBasicEquals(const VideoFormat& o) const {
 		return (width == o.width && height == o.height
-      && displayWidth == o.displayWidth && displayHeight == o.displayHeight
-      && sarWidth == o.sarWidth && sarHeight == o.sarHeight
 			&& frameRateNum == o.frameRateNum && frameRateDenom == o.frameRateDenom
 			&& progressive == o.progressive);
+	}
+
+	// アスペクト比も見る
+	bool operator==(const VideoFormat& o) const {
+		return (isBasicEquals(o)
+			&& displayWidth == o.displayWidth && displayHeight == o.displayHeight
+      && sarWidth == o.sarWidth && sarHeight == o.sarHeight);
 	}
 	bool operator!=(const VideoFormat& o) const {
 		return !(*this == o);

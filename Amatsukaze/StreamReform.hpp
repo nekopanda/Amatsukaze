@@ -279,6 +279,26 @@ public:
 		return videoFrameList_[0].format.format;
 	}
 
+	// PMT変更PTSリスト
+	std::vector<int> getPidChangedList(int videoFileIndex) const {
+		std::vector<int> ret;
+		auto& frames = filterFrameList_[videoFileIndex];
+		for (int i = 0; i < (int)streamEventList_.size(); ++i) {
+			if (streamEventList_[i].type == PID_TABLE_CHANGED) {
+				FilterSourceFrame tmp = FilterSourceFrame();
+				tmp.pts = streamEventPTS_[i];
+				auto idx = std::lower_bound(frames.begin(), frames.end(), tmp,
+					[&](const FilterSourceFrame& e, const FilterSourceFrame& value) {
+					return dataPTS_[e.frameIndex] < value.pts;
+				}) - frames.begin();
+				if (ret.size() == 0 || ret.back() != idx) {
+					ret.push_back((int)idx);
+				}
+			}
+		}
+		return ret;
+	}
+
 	// フィルタ入力映像フレーム
 	const std::vector<FilterSourceFrame>& getFilterSourceFrames(int videoFileIndex) const {
 		return filterFrameList_[videoFileIndex];
@@ -700,8 +720,11 @@ private:
 				break;
 			case VIDEO_FORMAT_CHANGED:
 				// ファイル変更
-				++curFormat.videoFileId;
-				videoFormatStartIndex_.push_back((int)outFormat_.size());
+				if (!curFormat.videoFormat.isBasicEquals(videoFrameList_[ev.frameIdx].format)) {
+					// アスペクト比以外も変更されていたらファイルを分ける
+					++curFormat.videoFileId;
+					videoFormatStartIndex_.push_back((int)outFormat_.size());
+				}
 				curFormat.videoFormat = videoFrameList_[ev.frameIdx].format;
 				// 映像フォーマットの変更時刻を優先させる
 				curFromPTS = dataPTS_[ev.frameIdx];

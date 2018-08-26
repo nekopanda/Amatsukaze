@@ -77,6 +77,11 @@ public:
 
 		// AVSファイルからCM区間を読む
 		readTrimAVS(videoFileIndex, numFrames);
+
+		// シーンチェンジ
+		readSceneChanges(videoFileIndex);
+
+		makeCMZones(numFrames);
 	}
 
 	CMAnalyze(AMTContext& ctx,
@@ -89,8 +94,95 @@ public:
 		return logopath;
 	}
 
+	const std::vector<int>& getTrims() const {
+		return trims;
+	}
+
 	const std::vector<EncoderZone>& getZones() const {
 		return cmzones;
+	}
+
+	// PMT変更情報からCM追加認識
+	void applyPmtCut(
+		int numFrames, const double* rates,
+		const std::vector<int>& pidChanges)
+	{
+		if (sceneChanges.size() == 0) {
+			ctx.info("シーンチェンジ情報がないためPMT変更情報をCM判定に利用できません");
+		}
+
+		int validStart = 0, validEnd = numFrames;
+		std::vector<int> matchedPoints;
+
+		// picChangesに近いsceneChangesを見つける
+		for (int i = 1; i < (int)pidChanges.size(); ++i) {
+			int next = (int)(std::lower_bound(
+				sceneChanges.begin(), sceneChanges.end(),
+				pidChanges[i]) - sceneChanges.begin());
+			int prev = next;
+			if (next > 0) {
+				prev = next - 1;
+			}
+			if (next == sceneChanges.size()) {
+				next = prev;
+			}
+			//ctx.infoF("%d,%d,%d,%d,%d", pidChanges[i], next, sceneChanges[next], prev, sceneChanges[prev]);
+			int diff = std::abs(pidChanges[i] - sceneChanges[next]);
+			if (diff < 30 * 2) { // 次
+				matchedPoints.push_back(sceneChanges[next]);
+			}
+			else {
+				diff = std::abs(pidChanges[i] - sceneChanges[prev]);
+				if (diff < 30 * 2) { // 前
+					matchedPoints.push_back(sceneChanges[prev]);
+				}
+				ctx.infoF("フレーム%dのPMT変更は付近にシーンチェンジがないため無視します", pidChanges[i]);
+			}
+		}
+
+		// 前後カット部分を算出
+		int maxCutFrames0 = (int)(rates[0] * numFrames);
+		int maxCutFrames1 = numFrames - (int)(rates[1] * numFrames);
+		for (int i = 0; i < (int)matchedPoints.size(); ++i) {
+			if (matchedPoints[i] < maxCutFrames0) {
+				validStart = std::max(validStart, matchedPoints[i]);
+			}
+			if (matchedPoints[i] > maxCutFrames1) {
+				validEnd = std::min(validEnd, matchedPoints[i]);
+			}
+		}
+		ctx.info("[PMT更新CM認識]");
+		ctx.infoF("設定区間: 0-%d %d-%d", maxCutFrames0, maxCutFrames1, numFrames);
+		ctx.infoF("検出CM区間: 0-%d %d-%d", validStart, validEnd, numFrames);
+
+		// trimsに反映
+		auto copy = trims;
+		trims.clear();
+		for (int i = 0; i < (int)copy.size(); i += 2) {
+			auto start = copy[i];
+			auto end = copy[i + 1];
+			if (end <= validStart) {
+				// 開始前
+				continue;
+			}
+			else if (start <= validStart) {
+				// 途中から開始
+				start = validStart;
+			}
+			if (start >= validEnd) {
+				// 終了後
+				continue;
+			}
+			else if (end >= validEnd) {
+				// 途中で終了
+				end = validEnd;
+			}
+			trims.push_back(start);
+			trims.push_back(end);
+		}
+
+		// cmzonesに反映
+		makeCMZones(numFrames);
 	}
 
 private:
@@ -120,7 +212,9 @@ private:
 	const ConfigWrapper& setting_;
 
 	std::string logopath;
+	std::vector<int> trims;
 	std::vector<EncoderZone> cmzones;
+	std::vector<int> sceneChanges;
 
 	std::string makeAVSFile(int videoFileIndex)
 	{
@@ -236,12 +330,45 @@ private:
 		std::sregex_iterator iter(str.begin(), str.end(), re);
 		std::sregex_iterator end;
 
-		std::vector<int> split;
-		split.push_back(0);
 		for (; iter != end; ++iter) {
-			split.push_back(std::stoi((*iter)[1].str()));
-			split.push_back(std::stoi((*iter)[2].str()) + 1);
+			trims.push_back(std::stoi((*iter)[1].str()));
+			trims.push_back(std::stoi((*iter)[2].str()) + 1);
 		}
+	}
+
+	void readSceneChanges(int videoFileIndex)
+	{
+		File file(setting_.getTmpChapterExeOutPath(videoFileIndex), "r");
+		std::string str;
+
+		// ヘッダ部分をスキップ
+		while (1) {
+			if (!file.getline(str)) {
+				THROW(FormatException, "ChapterExe.exeの出力ファイルが読めません");
+			}
+			if (starts_with(str, "----")) {
+				break;
+			}
+		}
+
+		std::regex re0("mute\\s*(\\d+):\\s*(\\d+)\\s*-\\s*(\\d+).*");
+		std::regex re1("\\s*SCPos:\\s*(\\d+).*");
+
+		while (file.getline(str)) {
+			std::smatch m;
+			if (std::regex_search(str, m, re0)) {
+				//std::stoi(m[1].str());
+				//std::stoi(m[2].str());
+			}
+			else if (std::regex_search(str, m, re1)) {
+				sceneChanges.push_back(std::stoi(m[1].str()));
+			}
+		}
+	}
+
+	void makeCMZones(int numFrames) {
+		std::deque<int> split(trims.begin(), trims.end());
+		split.push_front(0);
 		split.push_back(numFrames);
 
 		for (int i = 1; i < (int)split.size(); ++i) {
@@ -250,6 +377,7 @@ private:
 			}
 		}
 
+		cmzones.clear();
 		for (int i = 0; i < (int)split.size(); i += 2) {
 			EncoderZone zone = { split[i], split[i + 1] };
 			if (zone.endFrame - zone.startFrame > 30) { // 短すぎる区間は捨てる
@@ -265,14 +393,13 @@ public:
 	MakeChapter(AMTContext& ctx,
 		const ConfigWrapper& setting,
 		const StreamReformInfo& reformInfo,
-		int videoFileIndex)
+		int videoFileIndex,
+		const std::vector<int>& trims)
 		: AMTObject(ctx)
 		, setting(setting)
 		, reformInfo(reformInfo)
 	{
-		makeBase(
-			readTrimAVS(setting.getTmpTrimAVSPath(videoFileIndex)),
-			readJls(setting.getTmpJlsPath(videoFileIndex)));
+		makeBase(trims, readJls(setting.getTmpJlsPath(videoFileIndex)));
 	}
 
 	void exec(int videoFileIndex, int encoderIndex, CMType cmtype)
@@ -298,26 +425,6 @@ private:
 	const StreamReformInfo& reformInfo;
 
 	std::vector<JlsElement> chapters;
-
-	std::vector<int> readTrimAVS(const std::string& trimpath)
-	{
-		File file(trimpath, "r");
-		std::string str;
-		if (!file.getline(str)) {
-			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
-		}
-
-		std::regex re("Trim\\((\\d+),(\\d+)\\)");
-		std::sregex_iterator iter(str.begin(), str.end(), re);
-		std::sregex_iterator end;
-
-		std::vector<int> trims;
-		for (; iter != end; ++iter) {
-			trims.push_back(std::stoi((*iter)[1].str()));
-			trims.push_back(std::stoi((*iter)[2].str()) + 1);
-		}
-		return trims;
-	}
 
 	std::vector<JlsElement> readJls(const std::string& jlspath)
 	{

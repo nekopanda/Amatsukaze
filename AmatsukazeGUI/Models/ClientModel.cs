@@ -1342,7 +1342,10 @@ namespace Amatsukaze.Models
                 profile.EnableGunreFolder = data.Profile.EnableGunreFolder;
                 profile.EnableRename = data.Profile.EnableRename;
                 profile.RenameFormat = data.Profile.RenameFormat;
-                for(int i = 0; i < DisplayResource.MAX; ++i)
+                profile.EnablePmtCut = data.Profile.EnablePmtCut;
+                profile.PmtCutHeadRate = data.Profile.PmtCutHeadRate;
+                profile.PmtCutTailRate = data.Profile.PmtCutTailRate;
+                for (int i = 0; i < DisplayResource.MAX; ++i)
                 {
                     profile.Resources[i].Resource = data.Profile.ReqResources[i];
                 }

@@ -1009,6 +1009,42 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region EnablePmtCut変更通知プロパティ
+        public bool EnablePmtCut {
+            get { return Data.EnablePmtCut; }
+            set { 
+                if (Data.EnablePmtCut == value)
+                    return;
+                Data.EnablePmtCut = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PmtCutHeadRate変更通知プロパティ
+        public double PmtCutHeadRate {
+            get { return Data.PmtCutHeadRate; }
+            set { 
+                if (Data.PmtCutHeadRate == value)
+                    return;
+                Data.PmtCutHeadRate = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PmtCutTailRate変更通知プロパティ
+        public double PmtCutTailRate {
+            get { return Data.PmtCutTailRate; }
+            set { 
+                if (Data.PmtCutTailRate == value)
+                    return;
+                Data.PmtCutTailRate = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region PreBatchFile変更通知プロパティ
         public string PreBatchFile {
             get { return string.IsNullOrEmpty(Data.PreBatchFile) ? "なし" : Data.PreBatchFile; }

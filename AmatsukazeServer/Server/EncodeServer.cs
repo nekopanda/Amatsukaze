@@ -1238,6 +1238,13 @@ namespace Amatsukaze.Server
                 {
                     sb.Append(" --no-remove-tmp");
                 }
+                if(profile.EnablePmtCut)
+                {
+                    sb.Append(" --pmt-cut ")
+                        .Append(profile.PmtCutHeadRate / 100)
+                        .Append(":")
+                        .Append(profile.PmtCutTailRate / 100);
+                }
 
                 if (logofiles != null)
                 {

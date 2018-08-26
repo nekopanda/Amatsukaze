@@ -181,6 +181,13 @@ namespace Amatsukaze.Server
         public ReqResource[] ReqResources { get; set; }
 
         [DataMember]
+        public bool EnablePmtCut { get; set; }
+        [DataMember]
+        public double PmtCutHeadRate { get; set; }
+        [DataMember]
+        public double PmtCutTailRate { get; set; }
+
+        [DataMember]
         public bool IgnoreEncodeAffinity { get; set; }
 
         [DataMember]

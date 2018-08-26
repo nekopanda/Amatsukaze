@@ -479,6 +479,7 @@ struct Config {
 	bool ignoreNoLogo;
 	bool ignoreNoDrcsMap;
 	bool ignoreNicoJKError;
+	double pmtCutSideRate[2];
 	bool looseLogoDetection;
 	bool noDelogo;
 	bool vfr120fps;
@@ -653,6 +654,14 @@ public:
 
 	bool isIgnoreNicoJKError() const {
 		return conf.ignoreNicoJKError;
+	}
+
+	bool isPmtCutEnabled() const {
+		return conf.pmtCutSideRate[0] > 0 || conf.pmtCutSideRate[1] > 0;
+	}
+
+	const double* getPmtCutSideRate() const {
+		return conf.pmtCutSideRate;
 	}
 
 	bool isLooseLogoDetection() const {

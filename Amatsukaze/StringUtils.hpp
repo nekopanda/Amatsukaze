@@ -219,3 +219,7 @@ std::vector<std::string> split(const std::string& text, const char* delimiters)
 	}
 	return ret;
 }
+
+bool starts_with(const std::string& str, const std::string& test) {
+	return str.compare(0, test.size(), test) == 0;
+}

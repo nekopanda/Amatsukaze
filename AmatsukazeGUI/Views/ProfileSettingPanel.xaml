@@ -328,6 +328,19 @@
                               IsChecked="{Binding Model.SelectedProfile.DisableLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="一時ファイルを削除せずに残す"
                               IsChecked="{Binding Model.SelectedProfile.NoRemoveTmp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Margin="0,3"
+                              IsChecked="{Binding Model.SelectedProfile.EnablePmtCut, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <WrapPanel Orientation="Horizontal">
+                            <TextBlock Text="最初から"/>
+                            <TextBox Width="30" IsEnabled="{Binding Model.SelectedProfile.EnablePmtCut, Mode=OneWay}"
+                                     Text="{Binding Model.SelectedProfile.PmtCutHeadRate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="%と最後から"/>
+                            <TextBox Width="30" IsEnabled="{Binding Model.SelectedProfile.EnablePmtCut, Mode=OneWay}"
+                                     Text="{Binding Model.SelectedProfile.PmtCutTailRate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="%に"/>
+                            <TextBlock Text="PMT更新がある場合はCMとする"/>
+                        </WrapPanel>
+                    </CheckBox>
                 </StackPanel>
 
                 <StackPanel Grid.Row="7" Grid.Column="0">

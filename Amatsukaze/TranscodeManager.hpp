@@ -567,12 +567,18 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(
 				new CMAnalyze(ctx, setting, videoFileIndex, numFrames)));
 
+			if (setting.isPmtCutEnabled()) {
+				// PMT変更によるCM追加認識
+				cmanalyze.back()->applyPmtCut(numFrames, setting.getPmtCutSideRate(),
+					reformInfo.getPidChangedList(videoFileIndex));
+			}
+
 			logoFound.emplace_back(numFrames, cmanalyze.back()->getLogoPath().size() > 0);
 			reformInfo.applyCMZones(videoFileIndex, cmanalyze.back()->getZones());
 
 			// チャプター推定
 			ctx.info("[チャプター生成]");
-			MakeChapter makechapter(ctx, setting, reformInfo, videoFileIndex);
+			MakeChapter makechapter(ctx, setting, reformInfo, videoFileIndex, cmanalyze.back()->getTrims());
 			int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
 			for (int i = 0; i < numEncoders; ++i) {
 				for (CMType cmtype : setting.getCMTypes()) {

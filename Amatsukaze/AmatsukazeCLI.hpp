@@ -116,7 +116,10 @@ static void printHelp(const tchar* bin) {
 		"  --no-remove-tmp     一時ファイルを削除せずに残す\n"
 		"  --vfr120fps         VFR時120fpsタイミングでフレーム時刻を生成\n"
 		"                      デフォルトは60fpsタイミングで生成\n"
-		"  --x265-timefactor     x265で疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
+		"  --x265-timefactor <数値>  x265で疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
+		"  --pmt-cut <数値>:<数値>  PMT変更でCM認識するときの最大CM認識時間割合。全再生時間に対する割合で指定する。\n"
+		"                      例えば 0.1:0.2 とすると開始10%%までにPMT変更があった場合はそのPMT変更までをCM認識する。\n"
+		"                      また終わりから20%%までにPMT変更があった場合も同様にCM認識する。[0:0]\n"
 		"  -j|--json   <パス>  出力結果情報をJSON出力する場合は出力ファイルパスを指定[]\n"
 		"  --mode <モード>     処理モード[ts]\n"
 		"                      ts : MPGE2-TSを入力する通常エンコードモード\n"
@@ -138,10 +141,6 @@ static std::tstring getParam(int argc, const tchar* argv[], int ikey) {
 			"%" PRITSTR "オプションはパラメータが必要です", argv[ikey]);
 	}
 	return argv[ikey + 1];
-}
-
-static bool starts_with(const std::string& str, const std::string& test) {
-	return str.compare(0, test.size(), test) == 0;
 }
 
 static std::tstring pathNormalize(std::tstring path) {
@@ -468,6 +467,14 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--max-frames")) {
 			conf.maxframes = std::stoi(getParam(argc, argv, i++));
+		}
+		else if (key == _T("--pmt-cut")) {
+			const auto arg = getParam(argc, argv, i++);
+			int ret = stscanf(arg.c_str(), _T("%lf:%lf"),
+				&conf.pmtCutSideRate[0], &conf.pmtCutSideRate[1]);
+			if (ret < 2) {
+				THROWF(ArgumentException, "--pmt-cutの指定が間違っています");
+			}
 		}
 		else if (key.size() == 0) {
 			continue;
