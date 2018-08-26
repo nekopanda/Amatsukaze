@@ -111,6 +111,8 @@ public:
 			ctx.info("シーンチェンジ情報がないためPMT変更情報をCM判定に利用できません");
 		}
 
+		ctx.info("[PMT更新CM認識]");
+
 		int validStart = 0, validEnd = numFrames;
 		std::vector<int> matchedPoints;
 
@@ -130,13 +132,19 @@ public:
 			int diff = std::abs(pidChanges[i] - sceneChanges[next]);
 			if (diff < 30 * 2) { // 次
 				matchedPoints.push_back(sceneChanges[next]);
+				ctx.infoF("フレーム%dのPMT変更はフレーム%dにシーンチェンジあり",
+					pidChanges[i], sceneChanges[next]);
 			}
 			else {
 				diff = std::abs(pidChanges[i] - sceneChanges[prev]);
 				if (diff < 30 * 2) { // 前
 					matchedPoints.push_back(sceneChanges[prev]);
+					ctx.infoF("フレーム%dのPMT変更はフレーム%dにシーンチェンジあり",
+						pidChanges[i], sceneChanges[prev]);
 				}
-				ctx.infoF("フレーム%dのPMT変更は付近にシーンチェンジがないため無視します", pidChanges[i]);
+				else {
+					ctx.infoF("フレーム%dのPMT変更は付近にシーンチェンジがないため無視します", pidChanges[i]);
+				}
 			}
 		}
 
@@ -151,7 +159,6 @@ public:
 				validEnd = std::min(validEnd, matchedPoints[i]);
 			}
 		}
-		ctx.info("[PMT更新CM認識]");
 		ctx.infoF("設定区間: 0-%d %d-%d", maxCutFrames0, maxCutFrames1, numFrames);
 		ctx.infoF("検出CM区間: 0-%d %d-%d", validStart, validEnd, numFrames);
 

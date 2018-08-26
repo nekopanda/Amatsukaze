@@ -862,6 +862,7 @@ namespace Amatsukaze.Server
         }
         public string DisplayService { get { return ServiceName + "(" + ServiceId + ")"; } }
         public string DisplayTsTime { get { return (TsTime == DateTime.MinValue) ? "不明" : TsTime.ToString("yyyy年M月d日"); } }
+        public string DisplayTags { get { return string.Join(" ", Tags); } }
     }
 
     [DataContract]

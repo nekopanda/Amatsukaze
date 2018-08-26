@@ -1392,6 +1392,8 @@ namespace Amatsukaze.Models
             text.KeyValue("ネットワーク越しに転送する場合のハッシュチェックを無効にする", Data.DisableHashCheck);
             text.KeyValue("ログファイルを出力先に生成しない", Data.DisableLogFile);
             text.KeyValue("一時ファイルを削除せずに残す", Data.NoRemoveTmp);
+            text.KeyValue("PMT更新によるCM認識", Data.EnablePmtCut);
+            text.KeyValue("PMT更新によるCM認識カット幅", string.Format("{0}:{1}", Data.PmtCutHeadRate, Data.PmtCutTailRate));
             text.KeyTable("スケジューリングリソース設定", GetResourceString());
             return text.ToString();
         }

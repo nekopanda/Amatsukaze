@@ -149,10 +149,12 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="2">
+                    <TextBlock HorizontalAlignment="Left" Text="タグ"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力フォルダ"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力ファイル"/>
                 </StackPanel>
                 <StackPanel Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="4">
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTags}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutDirectory}"/>
                     <ItemsControl ItemsSource="{Binding DisplayOutFile}">
                         <ItemsControl.ItemTemplate>
