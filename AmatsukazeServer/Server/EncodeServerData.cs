@@ -163,6 +163,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool NicoJK18 { get; set; }
         [DataMember]
+        public bool NicoJKLog { get; set; }
+        [DataMember]
         public bool[] NicoJKFormats { get; set; }
         [DataMember]
         public bool MoveEDCBFiles { get; set; }

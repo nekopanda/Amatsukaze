@@ -750,6 +750,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region NicoJKLog変更通知プロパティ
+        public bool NicoJKLog {
+            get { return Data.NicoJKLog; }
+            set {
+                if (Data.NicoJKLog == value)
+                    return;
+                Data.NicoJKLog = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region NicoJKFormat720S変更通知プロパティ
         public bool NicoJKFormat720S {
             get { return Data.NicoJKFormats[0]; }
@@ -1380,6 +1392,7 @@ namespace Amatsukaze.Models
             text.KeyValue("ニコニコ実況コメントを有効にする", Data.EnableNicoJK);
             text.KeyValue("ニコニコ実況コメントのエラーを無視する", Data.IgnoreNicoJKError);
             text.KeyValue("NicoJK18サーバからコメントを取得する", Data.NicoJK18);
+            text.KeyValue("NicoJKログからコメントを取得する", Data.NicoJKLog);
             text.KeyValue("コメント出力フォーマット", Data.NicoJKFormatMask.ToString());
             text.KeyValue("関連ファイル(*.err,*.program.txtも処理", Data.MoveEDCBFiles);
             text.KeyValue("字幕を無効にする", Data.DisableSubs);

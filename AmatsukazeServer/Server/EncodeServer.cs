@@ -1151,6 +1151,10 @@ namespace Amatsukaze.Server
                         {
                             sb.Append(" --nicojk18");
                         }
+                        if (profile.NicoJKLog)
+                        {
+                            sb.Append(" --nicojklog");
+                        }
                         sb.Append(" --nicojkmask ")
                             .Append(profile.NicoJKFormatMask);
                         sb.Append(" --nicoass \"")

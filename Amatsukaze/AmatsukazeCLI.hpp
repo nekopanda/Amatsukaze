@@ -106,7 +106,9 @@ static void printHelp(const tchar* bin) {
 		"                      2 : CMをカット\n"
 		"                      4 : CMのみ出力\n"
 		"                      ORも可 例) 6: 本編とCMを分離\n"
-		"  --nicojk18           ニコニコ実況コメントをnicojk18サーバから取得\n"
+		"  --nicojk18          ニコニコ実況コメントをnicojk18サーバから取得\n"
+		"  --nicojklog         ニコニコ実況コメントをNicoJKログフォルダから取得\n"
+		"                      (NicoConvASSを -nicojk 1 で呼び出します)\n"
 		"  --nicojkmask <数値> ニコニコ実況コメントマスク[1]\n"
 		"                      1 : 1280x720不透明\n"
 		"                      2 : 1280x720半透明\n"
@@ -429,6 +431,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--nicojk18")) {
 			conf.nicojk18 = true;
+		}
+		else if (key == _T("--nicojklog")) {
+			conf.useNicoJKLog = true;
 		}
 		else if (key == _T("-om") || key == _T("--cmoutmask")) {
 			conf.cmoutmask = std::stol(getParam(argc, argv, i++));

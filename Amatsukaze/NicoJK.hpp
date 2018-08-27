@@ -17,6 +17,11 @@
 
 class NicoJK : public AMTObject
 {
+	enum ConvMode {
+		CONV_ASS_XML,  // nicojk18でxmlを取得して変換
+		CONV_ASS_TS,   // そのままtsを投げて変換
+		CONV_ASS_LOG,  // NicoJKログを優先的に使って変換
+	};
 public:
 	NicoJK(AMTContext& ctx,
 		const ConfigWrapper& setting)
@@ -26,35 +31,12 @@ public:
 		, jknum_()
 	{	}
 
-	bool makeASS(int serviceId, time_t startTime, int duration) 
+	bool makeASS(int serviceId, time_t startTime, int duration)
 	{
 		Stopwatch sw;
 		sw.start();
-		if (setting_.isNicoJK18Enabled()) {
-			getJKNum(serviceId);
-			if (jknum_ == -1) return false;
-
-			// 取得時刻を表示
-			tm t;
-			if (gmtime_s(&t, &startTime) != 0) {
-				THROW(RuntimeException, "gmtime_s failed ...");
-			}
-			t.tm_hour += 9; // GMT+9
-			mktime(&t);
-			ctx.infoF("%s (jk%d) %d年%02d月%02d日 %02d時%02d分%02d秒 から %d時間%02d分%02d秒",
-				tvname_.c_str(), jknum_,
-				t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec,
-				duration / 3600, (duration / 60) % 60, duration % 60);
-
-			if (!getNicoJKXml(startTime, duration)) return false;
-			ctx.infoF("コメントXML取得: %.2f秒", sw.getAndReset());
-			if (!nicoConvASS(false, startTime)) return false;
-			ctx.infoF("コメントASS生成: %.2f秒", sw.getAndReset());
-		}
-		else {
-			if (!nicoConvASS(true, startTime)) return false;
-			ctx.infoF("コメントASS生成: %.2f秒", sw.getAndReset());
-		}
+		if (!makeASS_(sw, serviceId, startTime, duration)) return false;
+		ctx.infoF("コメントASS生成: %.2f秒", sw.getAndReset());
 		readASS();
 		ctx.infoF("コメントASS読み込み: %.2f秒", sw.getAndReset());
 		return true;
@@ -227,7 +209,7 @@ private:
 		while (file.getline(str)) dst.writeline(str);
 	}
 
-	std::string MakeNicoConvASSArgs(bool isTS, size_t startTime, NicoJKType type)
+	std::string MakeNicoConvASSArgs(ConvMode mode, size_t startTime, NicoJKType type)
 	{
 		int width[] = { 1280, 1280, 1920, 1920 };
 		int height[] = { 720, 720, 1080, 1080 };
@@ -236,14 +218,17 @@ private:
 			setting_.getNicoConvAssPath(),
 			width[(int)type], height[(int)type],
 			setting_.getTmpNicoJKASSPath(type));
-		if (isTS == false) {
+		if (mode == CONV_ASS_LOG) {
+			sb.append(" -nicojk 1", startTime);
+		}
+		if (mode != CONV_ASS_XML) {
 			sb.append(" -tx_starttime %zu", startTime);
 		}
-		sb.append(" \"%s\"", isTS ? setting_.getSrcFilePath() : setting_.getTmpNicoJKXMLPath());
+		sb.append(" \"%s\"", (mode != CONV_ASS_XML) ? setting_.getSrcFilePath() : setting_.getTmpNicoJKXMLPath());
 		return sb.str();
 	}
 
-	bool nicoConvASS(bool isTS, size_t startTime)
+	bool nicoConvASS(ConvMode mode, size_t startTime)
 	{
 		NicoJKMask mask_i[] = { MASK_720X , MASK_1080X };
 		NicoJKType type_s[] = { NICOJK_720S , NICOJK_1080S };
@@ -253,7 +238,7 @@ private:
 		int typemask = setting_.getNicoJKMask();
 		for (int i = 0; i < 2; ++i) {
 			if (mask_i[i] & typemask) {
-				auto args = MakeNicoConvASSArgs(isTS, startTime, type_s[i]);
+				auto args = MakeNicoConvASSArgs(mode, startTime, type_s[i]);
 				ctx.info(args.c_str());
 				MySubProcess process(args);
 				int exitCode = process.join();
@@ -309,6 +294,37 @@ private:
 					}
 				}
 			}
+		}
+	}
+
+	bool makeASS_(Stopwatch& sw, int serviceId, time_t startTime, int duration)
+	{
+		if (setting_.isUseNicoJKLog()) {
+			if (nicoConvASS(CONV_ASS_LOG, startTime)) return true;
+		}
+		if (setting_.isNicoJK18Enabled()) {
+			getJKNum(serviceId);
+			if (jknum_ == -1) return false;
+
+			// 取得時刻を表示
+			tm t;
+			if (gmtime_s(&t, &startTime) != 0) {
+				THROW(RuntimeException, "gmtime_s failed ...");
+			}
+			t.tm_hour += 9; // GMT+9
+			mktime(&t);
+			ctx.infoF("%s (jk%d) %d年%02d月%02d日 %02d時%02d分%02d秒 から %d時間%02d分%02d秒",
+				tvname_.c_str(), jknum_,
+				t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec,
+				duration / 3600, (duration / 60) % 60, duration % 60);
+
+			if (!getNicoJKXml(startTime, duration)) return false;
+			ctx.infoF("コメントXML取得: %.2f秒", sw.getAndReset());
+			return nicoConvASS(CONV_ASS_XML, startTime);
+		}
+		else {
+			if (setting_.isUseNicoJKLog()) return false;
+			return nicoConvASS(CONV_ASS_TS, startTime);
 		}
 	}
 };

@@ -469,6 +469,7 @@ struct Config {
 	bool subtitles;
 	int nicojkmask;
 	bool nicojk18;
+	bool useNicoJKLog;
 	BitrateSetting bitrate;
 	double bitrateCM;
 	double x265TimeFactor;
@@ -614,6 +615,10 @@ public:
 
 	bool isNicoJK18Enabled() const {
 		return conf.nicojk18;
+	}
+
+	bool isUseNicoJKLog() const {
+		return conf.useNicoJKLog;
 	}
 
 	int getNicoJKMask() const {

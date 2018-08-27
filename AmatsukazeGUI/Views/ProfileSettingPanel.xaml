@@ -268,6 +268,15 @@
                                   IsChecked="{Binding Model.SelectedProfile.IgnoreNicoJKError, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}"/>
                     </Grid>
+                    <CheckBox Grid.Row="1" Content="NicoJKログから優先的にコメントを取得する" Margin="0,3"
+                                  IsChecked="{Binding Model.SelectedProfile.NicoJKLog, Mode=TwoWay}"
+                                  IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}">
+                        <CheckBox.ToolTip>
+                            <TextBlock>NicoJKログからのコメント取得は完全にNicoConvAss依存です。
+                            <LineBreak/>NicoConvAss.iniのNicoJK_pathを設定しておいてください。
+                            </TextBlock>
+                        </CheckBox.ToolTip>
+                    </CheckBox>
                     <CheckBox Grid.Row="1" Content="NicoJK18サーバからコメントを取得する（推奨）" Margin="0,3"
                                   IsChecked="{Binding Model.SelectedProfile.NicoJK18, Mode=TwoWay}"
                                   IsEnabled="{Binding IsChecked, ElementName=nicoJKCheck}">
