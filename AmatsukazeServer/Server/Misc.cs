@@ -541,11 +541,6 @@ namespace Amatsukaze.Server
         public static readonly string SUCCESS_DIR = "succeeded";
         public static readonly string FAIL_DIR = "failed";
 
-        public static string GetServerLogPath()
-        {
-            return "data\\Server.log";
-        }
-
         public static string GetDefaultProfileName()
         {
             return "デフォルト";

@@ -36,6 +36,11 @@ namespace Amatsukaze
                 Directory.SetCurrentDirectory(Option.RootDir);
             }
 
+            // ログパスを設定
+            log4net.GlobalContext.Properties["Root"] = Directory.GetCurrentDirectory();
+            log4net.Config.XmlConfigurator.Configure(new FileInfo(
+                Path.GetDirectoryName(typeof(App).Assembly.Location) + "\\Log4net.Config.xml"));
+
             Amatsukaze.App app = new Amatsukaze.App();
 
             if (Option.LaunchType == LaunchType.Server || Option.LaunchType == LaunchType.Debug)

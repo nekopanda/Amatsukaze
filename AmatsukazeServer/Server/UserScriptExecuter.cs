@@ -19,9 +19,6 @@ namespace Amatsukaze.Server
 
     public class UserScriptExecuter : IProcessExecuter
     {
-        private static readonly ILog LOG = LogManager.GetLogger(
-            System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-
         // 必須
         public EncodeServer Server;
         public ScriptPhase Phase;
@@ -91,16 +88,6 @@ namespace Amatsukaze.Server
             // GC.SuppressFinalize(this);
         }
         #endregion
-
-        private static async Task RedirectLog(StreamReader sr)
-        {
-            while (true)
-            {
-                var line = await sr.ReadLineAsync();
-                if (line == null) break;
-                LOG.Info(line);
-            }
-        }
 
         private string GetOutFiles(string fmt)
         {
@@ -387,8 +374,6 @@ namespace Amatsukaze.Server
 
             // パラメータを環境変数に追加
             SetupEnv(psi.EnvironmentVariables);
-
-            LOG.Info(PhaseString + "バッチ起動: " + Item.SrcPath);
 
             using (process = new NormalProcess(psi)
             {

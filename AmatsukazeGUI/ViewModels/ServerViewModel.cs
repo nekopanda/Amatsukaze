@@ -2,6 +2,7 @@
 using Livet;
 using Livet.Messaging;
 using Livet.Messaging.Windows;
+using log4net;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -56,10 +57,12 @@ namespace Amatsukaze.ViewModels
          * LivetのViewModelではプロパティ変更通知(RaisePropertyChanged)やDispatcherCollectionを使ったコレクション変更通知は
          * 自動的にUIDispatcher上での通知に変換されます。変更通知に際してUIDispatcherを操作する必要はありません。
          */
+        private static readonly ILog LOG = LogManager.GetLogger(
+            System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public EncodeServer Server { get; set; }
 
         private FileStream lockFile;
-        private StreamWriter file;
 
         private bool disposed = false;
 
@@ -69,8 +72,6 @@ namespace Amatsukaze.ViewModels
 
             try
             {
-                var logpath = ServerSupport.GetServerLogPath();
-                file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
                 Util.LogHandlers.Add(AddLog);
                 Server = new EncodeServer(App.Option.ServerPort, null, async () =>
                 {
@@ -149,6 +150,8 @@ namespace Amatsukaze.ViewModels
 
         private void AddLog(string text)
         {
+            LOG.Info(text);
+
             var formatted = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + text;
 
             _Log.Add(formatted);
@@ -162,9 +165,6 @@ namespace Amatsukaze.ViewModels
                     _Log.Add(item);
                 }
             }
-
-            file.WriteLine(formatted);
-            file.Flush();
         }
 
         #region Log変更通知プロパティ

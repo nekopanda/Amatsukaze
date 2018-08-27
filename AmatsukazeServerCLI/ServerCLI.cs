@@ -9,18 +9,18 @@ namespace Amatsukaze.Server
         {
             try
             {
+                // ログパスを設定
+                log4net.GlobalContext.Properties["Root"] = Directory.GetCurrentDirectory();
+                log4net.Config.XmlConfigurator.Configure(new FileInfo(
+                    Path.GetDirectoryName(typeof(ServerCLI).Assembly.Location) + "\\Log4net.Config.xml"));
+
                 TaskSupport.SetSynchronizationContext();
                 GUIOPtion option = new GUIOPtion(args);
                 using (var lockFile = ServerSupport.GetLock())
                 {
-                    var logpath = ServerSupport.GetServerLogPath();
-                    var file = new StreamWriter(new FileStream(logpath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite));
-                    Util.LogHandlers.Add(text =>
-                    {
-                        var formatted = DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") + " " + text;
-                        file.WriteLine(formatted);
-                        file.Flush();
-                    });
+                    log4net.ILog LOG = log4net.LogManager.GetLogger(
+                        System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+                    Util.LogHandlers.Add(text => LOG.Info(text));
                     using (var server = new EncodeServer(option.ServerPort, null, () =>
                      {
                          TaskSupport.Finish();
