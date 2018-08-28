@@ -21,8 +21,35 @@ namespace Amatsukaze.Server
             public Dictionary<string, byte[]> HashDict = new Dictionary<string, byte[]>();
         }
 
+        class ConsoleText : ConsoleTextBase
+        {
+            private static log4net.ILog LOG = log4net.LogManager.GetLogger("UserScript.Add");
+
+            private RollingTextLines Lines = new RollingTextLines(500);
+
+            public List<string> TextLines
+            {
+                get
+                {
+                    return Lines.TextLines;
+                }
+            }
+
+            public override void OnAddLine(string text)
+            {
+                Lines.AddLine(text);
+                LOG.Info(text);
+            }
+
+            public override void OnReplaceLine(string text)
+            {
+                Lines.ReplaceLine(text);
+                LOG.Info(text);
+            }
+        }
+
         private Dictionary<string, DirHash> hashCache = new Dictionary<string, DirHash>();
-        private ConsoleText consoleText = new ConsoleText(500);
+        private ConsoleText consoleText = new ConsoleText();
 
         public List<string> TextLines { get { return consoleText.TextLines; } }
 

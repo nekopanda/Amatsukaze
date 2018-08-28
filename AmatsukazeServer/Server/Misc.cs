@@ -335,6 +335,44 @@ namespace Amatsukaze.Server
         }
     }
 
+    public class RollingTextLines
+    {
+        public List<string> TextLines { get; } = new List<string>();
+
+        private int maxLines;
+
+        public RollingTextLines(int maxLines)
+        {
+            this.maxLines = maxLines;
+        }
+
+        public void Clear()
+        {
+            TextLines.Clear();
+        }
+
+        public void AddLine(string text)
+        {
+            if (TextLines.Count > maxLines)
+            {
+                TextLines.RemoveRange(0, 100);
+            }
+            TextLines.Add(text);
+        }
+
+        public void ReplaceLine(string text)
+        {
+            if (TextLines.Count == 0)
+            {
+                TextLines.Add(text);
+            }
+            else
+            {
+                TextLines[TextLines.Count - 1] = text;
+            }
+        }
+    }
+
     public class AffinityCreator
     {
         private ProcessGroup[][] masks = new ProcessGroup[(int)ProcessGroupKind.Count][];

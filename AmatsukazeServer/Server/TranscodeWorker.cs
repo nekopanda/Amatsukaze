@@ -1,5 +1,6 @@
 ﻿using Amatsukaze.Lib;
 using Codeplex.Data;
+using log4net;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,52 +15,17 @@ using System.Threading.Tasks;
 
 namespace Amatsukaze.Server
 {
-    internal class ConsoleText : ConsoleTextBase
-    {
-        public List<string> TextLines = new List<string>();
-
-        private int maxLines;
-
-        public ConsoleText(int maxLines)
-        {
-            this.maxLines = maxLines;
-        }
-
-        public override void Clear()
-        {
-            base.Clear();
-            TextLines.Clear();
-        }
-
-        public override void OnAddLine(string text)
-        {
-            if (TextLines.Count > maxLines)
-            {
-                TextLines.RemoveRange(0, 100);
-            }
-            TextLines.Add(text);
-        }
-
-        public override void OnReplaceLine(string text)
-        {
-            if (TextLines.Count == 0)
-            {
-                TextLines.Add(text);
-            }
-            else
-            {
-                TextLines[TextLines.Count - 1] = text;
-            }
-        }
-    }
-
-    internal class TranscodeWorker : IScheduleWorker
+    internal class TranscodeWorker : ConsoleTextBase, IScheduleWorker
     {
         public int Id { get; private set; }
         
         private EncodeServer server;
-        private ConsoleText logText = new ConsoleText(1 * 1024 * 1024);
-        private ConsoleText consoleText = new ConsoleText(500);
+        private RollingTextLines logText;
+        private RollingTextLines consoleText = new RollingTextLines(500);
+
+        private ILog preScriptLog = LogManager.GetLogger("UserScript.Pre");
+        private ILog postScriptLog = LogManager.GetLogger("UserScript.Post");
+        private ILog currentScriptLog;
 
         private QueueItem item;
         private FileStream logWriter;
@@ -75,6 +41,20 @@ namespace Amatsukaze.Server
         {
             this.Id = id;
             this.server = server;
+        }
+
+        public override void OnAddLine(string text)
+        {
+            logText?.AddLine(text);
+            consoleText.AddLine(text);
+            currentScriptLog?.Info(text);
+        }
+
+        public override void OnReplaceLine(string text)
+        {
+            logText?.ReplaceLine(text);
+            consoleText.ReplaceLine(text);
+            currentScriptLog?.Info(text);
         }
 
         public void CancelCurrentItem()
@@ -125,8 +105,7 @@ namespace Amatsukaze.Server
             {
                 logWriter.Write(buffer, offset, length);
             }
-            logText.AddBytes(buffer, offset, length);
-            consoleText.AddBytes(buffer, offset, length);
+            AddBytes(buffer, offset, length);
 
             byte[] newbuf = new byte[length];
             Array.Copy(buffer, newbuf, length);
@@ -654,9 +633,18 @@ namespace Amatsukaze.Server
                     OnOutput = WriteTextBytes
                 })
                 {
-                    process = scriptExecuter;
-                    await scriptExecuter.Execute();
-                    process = null;
+                    try
+                    {
+                        preScriptLog.Info("実行前バッチ起動: " + item.SrcPath);
+                        process = scriptExecuter;
+                        currentScriptLog = preScriptLog;
+                        await scriptExecuter.Execute();
+                    }
+                    finally
+                    {
+                        process = null;
+                        currentScriptLog = null;
+                    }
                 }
             }
 
@@ -859,7 +847,7 @@ namespace Amatsukaze.Server
                 };
 
                 int exitCode = -1;
-                logText.Clear();
+                logText = new RollingTextLines(1 * 1024 * 1024);
 
                 try
                 {
@@ -977,6 +965,8 @@ namespace Amatsukaze.Server
                         fs.WriteLine(str);
                     }
                 }
+
+                logText = null;
 
                 Util.AddLog(Id, ModeToString(item.Mode) + "終了: " + item.SrcPath, null);
 
@@ -1224,10 +1214,19 @@ namespace Amatsukaze.Server
                     // 実行後バッチ
                     if(scriptExecuter != null)
                     {
-                        process = scriptExecuter;
-                        await scriptExecuter.Execute();
-                        process = null;
-                        scriptExecuter.Dispose();
+                        try
+                        {
+                            postScriptLog.Info("実行後バッチ起動: " + item.SrcPath);
+                            process = scriptExecuter;
+                            currentScriptLog = postScriptLog;
+                            await scriptExecuter.Execute();
+                        }
+                        finally
+                        {
+                            process = null;
+                            scriptExecuter.Dispose();
+                            currentScriptLog = null;
+                        }
                     }
 
                     if (item.IsCheck)

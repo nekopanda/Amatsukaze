@@ -18,8 +18,7 @@ namespace Amatsukaze.Server
                 GUIOPtion option = new GUIOPtion(args);
                 using (var lockFile = ServerSupport.GetLock())
                 {
-                    log4net.ILog LOG = log4net.LogManager.GetLogger(
-                        System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+                    log4net.ILog LOG = log4net.LogManager.GetLogger("Server");
                     Util.LogHandlers.Add(text => LOG.Info(text));
                     using (var server = new EncodeServer(option.ServerPort, null, () =>
                      {
