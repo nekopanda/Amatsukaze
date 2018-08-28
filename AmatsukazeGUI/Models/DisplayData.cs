@@ -1391,8 +1391,8 @@ namespace Amatsukaze.Models
             text.KeyValue("自動ビットレート係数", string.Format("{0}:{1}:{2}", Data.Bitrate.A, Data.Bitrate.B, Data.Bitrate.H264));
             text.KeyValue("ニコニコ実況コメントを有効にする", Data.EnableNicoJK);
             text.KeyValue("ニコニコ実況コメントのエラーを無視する", Data.IgnoreNicoJKError);
+            text.KeyValue("NicoJKログから優先的にコメントを取得する", Data.NicoJKLog);
             text.KeyValue("NicoJK18サーバからコメントを取得する", Data.NicoJK18);
-            text.KeyValue("NicoJKログからコメントを取得する", Data.NicoJKLog);
             text.KeyValue("コメント出力フォーマット", Data.NicoJKFormatMask.ToString());
             text.KeyValue("関連ファイル(*.err,*.program.txtも処理", Data.MoveEDCBFiles);
             text.KeyValue("字幕を無効にする", Data.DisableSubs);
