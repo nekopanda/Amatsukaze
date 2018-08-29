@@ -317,6 +317,9 @@ namespace Amatsukaze.Server
 
         private void SetupEnv(StringDictionary env)
         {
+            var genre = Item.Genre.FirstOrDefault();
+            var displayGenre = (genre != null) ? SubGenre.GetDisplayGenre(genre) : null;
+
             env.Add("ITEM_ID", Item.Id.ToString());
             env.Add("IN_PATH", MovedSrcPath ?? Item.SrcPath);
             env.Add("OUT_PATH", Item.DstPath);
@@ -325,7 +328,7 @@ namespace Amatsukaze.Server
             env.Add("TS_TIME", Item.TsTime.ToString());
             env.Add("ITEM_MODE", Item.Mode.ToString());
             env.Add("ITEM_PRIORITY", Item.Priority.ToString());
-            env.Add("EVENT_GENRE", Item.Genre.FirstOrDefault()?.ToString() ?? "-");
+            env.Add("EVENT_GENRE", displayGenre?.FullName ?? "-");
             env.Add("IMAGE_WIDTH", Item.ImageWidth.ToString());
             env.Add("IMAGE_HEIGHT", Item.ImageHeight.ToString());
             env.Add("EVENT_NAME", Item.EventName);
