@@ -339,7 +339,11 @@ EDCBがサービスで動いてて、EpgTimerもAmatsukazeサーバも立ち上�
 
 「NicoJK18サーバからコメントを取得する」場合は、これだけでOKです。NicoJK18サーバを使わない場合は、[JKCommentGetter](https://github.com/ACUVE/JKCommentGetter)のセットアップが必要になります。
 
+「NicoJKログから優先的にコメントを取得する」は、動作をNicoConvAssに依存しているので、これを有効にしたい場合は、NicoConvAssの設定ファイル`NicoConvAss.ini`の`NicoJK_path`を設定しておいてください。
+
 NicoConvAssのパラメータを設定したい場合は、NicoConvAss.exeを起動して設定してください。
+
+### [バッチファイル実行機能](https://github.com/nekopanda/Amatsukaze/wiki/%E3%83%90%E3%83%83%E3%83%81%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E5%AE%9F%E8%A1%8C%E6%A9%9F%E8%83%BD)
 
 ### メイン/ポストフィルタ
 
