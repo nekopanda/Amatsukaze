@@ -26,6 +26,8 @@ namespace Amatsukaze.AddTask
         public bool ClearSucceeded;
         public bool WithRelated;
 
+        public string RemoteDir;
+
         public string Subnet = "255.255.255.0";
         public byte[] MacAddress;
 
@@ -41,7 +43,12 @@ namespace Amatsukaze.AddTask
                 "  -p|--port <ポート番号>  AmatsukazeServerポート番号\r\n" +
                 "  -o|--outdir <パス>      出力先ディレクトリ\r\n" +
                 "  -d|--nasdir <パス>      NASのTSファイル置き場\r\n" +
-                "  -r|--amt-root <パス>    Amatsukazeのルートディレクトリ\r\n" +
+                "  -r|--amt-root <パス>    Amatsukazeのルートディレクトリ（サーバ起動用）\r\n" +
+                "  --remote-dir <パス>     サーバから入力ファイルにアクセスするときのディレクトリパス\r\n" +
+                "                          サーバからだとパスが異なる場合に必要\r\n" +
+                "                          ファイル名部分は入力ファイル名からコピーされるのでディレクトリパスのみ入力すること\r\n" +
+                "                          NASにコピーするときはコピー先のディレクトリをサーバからアクセスするときのパスを指定すること\r\n" +
+                "                          例) \\\\rec-pc\\share\\rec\r\n" +
                 "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\r\n" +
                 "  --clear-succeeded       NASにコピーする際、コピー先のsucceededフォルダを空にする\r\n" +
                 "  --with-related          NASにコピーする際、関連ファイルも一緒にコピー・移動する\r\n" +
@@ -72,6 +79,11 @@ namespace Amatsukaze.AddTask
                 else if (arg == "-f" || arg == "--file")
                 {
                     FilePath = args[i + 1];
+                    ++i;
+                }
+                else if (arg == "--remote-dir")
+                {
+                    RemoteDir = args[i + 1].TrimEnd(Path.DirectorySeparatorChar);
                     ++i;
                 }
                 else if (arg == "-s" || arg == "--setting")
@@ -184,7 +196,7 @@ namespace Amatsukaze.AddTask
         }
     }
 
-    class AddTask : IUserClient
+    class AddTask : IAddTaskClient
     {
         public GUIOPtion option;
 
@@ -192,44 +204,27 @@ namespace Amatsukaze.AddTask
         private AddQueueRequest request;
         private bool okReceived;
 
-        private bool IsLocal()
+        private static bool IsRunningOnMono()
         {
-            IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
-            IPHostEntry other = null;
-            try
-            {
-                other = Dns.GetHostEntry(option.ServerIP);
-            }
-            catch
-            {
-                return false;
-            }
-            foreach (IPAddress addr in other.AddressList)
-            {
-                if (IPAddress.IsLoopback(addr) || Array.IndexOf(iphostentry.AddressList, addr) != -1)
-                {
-                    return true;
-                }
-            }
-            return false;
+            return Type.GetType("Mono.Runtime") != null;
         }
 
         public async Task Exec()
         {
-            if (File.Exists(option.FilePath) == false)
-            {
-                throw new Exception("入力ファイルが見つかりません");
-            }
-
             string srcpath = option.FilePath;
             byte[] hash = null;
 
             if (string.IsNullOrEmpty(option.NasDir) == false)
             {
-                if(option.ClearSucceeded)
+                if (File.Exists(option.FilePath) == false)
+                {
+                    throw new Exception("入力ファイルが見つかりません");
+                }
+
+                if (option.ClearSucceeded)
                 {
                     // succeededを空にする
-                    var succeeded = option.NasDir + "\\succeeded";
+                    var succeeded = option.NasDir + Path.DirectorySeparatorChar + "succeeded";
                     if(Directory.Exists(succeeded))
                     {
                         foreach (var file in Directory.GetFiles(succeeded))
@@ -239,7 +234,7 @@ namespace Amatsukaze.AddTask
                     }
                 }
                 // NASにコピー
-                var remotepath = option.NasDir + "\\" + Path.GetFileName(srcpath);
+                var remotepath = option.NasDir + Path.DirectorySeparatorChar + Path.GetFileName(srcpath);
                 hash = await HashUtil.CopyWithHash(option.FilePath, remotepath);
                 srcpath = remotepath;
                 if(option.WithRelated)
@@ -249,8 +244,8 @@ namespace Amatsukaze.AddTask
                     var srcDir = Path.GetDirectoryName(option.FilePath);
                     foreach (var ext in ServerSupport.GetFileExtentions(null, true))
                     {
-                        string srcPath = srcDir + "\\" + body + ext;
-                        string dstPath = option.NasDir + "\\" + body + ext;
+                        string srcPath = srcDir + Path.DirectorySeparatorChar + body + ext;
+                        string dstPath = option.NasDir + Path.DirectorySeparatorChar + body + ext;
                         if (File.Exists(srcPath))
                         {
                             File.Copy(srcPath, dstPath);
@@ -258,6 +253,14 @@ namespace Amatsukaze.AddTask
                     }
                 }
             }
+
+            if(string.IsNullOrEmpty(option.RemoteDir) == false)
+            {
+                // これはサーバからのアクセス用パスなので"\\"で区切る
+                srcpath = option.RemoteDir + "\\" + Path.GetFileName(srcpath);
+            }
+
+            Console.WriteLine(srcpath + " を追加");
 
             // リクエストを生成
             request = new AddQueueRequest()
@@ -280,7 +283,7 @@ namespace Amatsukaze.AddTask
             };
 
             server = new CUIServerConnection(this);
-            bool isLocal = ServerSupport.IsLocalIP(option.ServerIP);
+            bool isLocal = !IsRunningOnMono() && ServerSupport.IsLocalIP(option.ServerIP);
             int maxRetry = isLocal ? 3 : 5;
 
             for (int i = 0; i < maxRetry; ++i)
@@ -295,12 +298,13 @@ namespace Amatsukaze.AddTask
                     // サーバに接続
                     server.Connect(option.ServerIP, option.ServerPort);
                 }
-                catch(Exception)
+                catch(Exception e0)
                 {
+                    Console.WriteLine(e0.StackTrace);
                     // サーバに繋がらなかった
 
                     // ローカルの場合は、起動を試みる
-                    if(isLocal)
+                    if (isLocal)
                     {
                         await ServerSupport.TerminateStandalone(option.AmatsukazeRoot);
                         ServerSupport.LaunchLocalServer(option.ServerPort, option.AmatsukazeRoot);
@@ -347,8 +351,9 @@ namespace Amatsukaze.AddTask
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception e1)
                 {
+                    Console.WriteLine(e1.StackTrace);
                     // なぜか失敗した
                     continue;
                 }
@@ -356,9 +361,9 @@ namespace Amatsukaze.AddTask
                 if (string.IsNullOrEmpty(option.NasDir) == false && !option.NoMove)
                 {
                     // NASにコピーしたファイルはtransferredフォルダに移動
-                    string trsDir = Path.GetDirectoryName(option.FilePath) + "\\transferred";
+                    string trsDir = Path.GetDirectoryName(option.FilePath) + Path.DirectorySeparatorChar + "transferred";
                     Directory.CreateDirectory(trsDir);
-                    string trsFile = trsDir + "\\" + Path.GetFileName(option.FilePath);
+                    string trsFile = trsDir + Path.DirectorySeparatorChar + Path.GetFileName(option.FilePath);
                     if(File.Exists(option.FilePath))
                     {
                         if (File.Exists(trsFile))
@@ -375,8 +380,8 @@ namespace Amatsukaze.AddTask
                         var srcDir = Path.GetDirectoryName(option.FilePath);
                         foreach (var ext in ServerSupport.GetFileExtentions(null, true))
                         {
-                            string srcPath = srcDir + "\\" + body + ext;
-                            string dstPath = trsDir + "\\" + body + ext;
+                            string srcPath = srcDir + Path.DirectorySeparatorChar + body + ext;
+                            string dstPath = trsDir + Path.DirectorySeparatorChar + body + ext;
                             if (File.Exists(srcPath))
                             {
                                 if (File.Exists(dstPath))
@@ -401,7 +406,7 @@ namespace Amatsukaze.AddTask
                 System.Diagnostics.Process.GetCurrentProcess().Id;
         }
 
-        #region IUserClient
+        #region IAddTaskServer
 
         public void Finish()
         {
@@ -417,69 +422,9 @@ namespace Amatsukaze.AddTask
             return Task.FromResult(0);
         }
 
-        public Task OnDrcsData(DrcsImageUpdate update)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnLogFile(string str)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnLogoData(LogoData logoData)
-        {
-            return Task.FromResult(0);
-        }
-
         public Task OnOperationResult(OperationResult result)
         {
             Console.WriteLine(result.Message);
-            return Task.FromResult(0);
-        }
-
-        public Task OnServiceSetting(ServiceSettingUpdate update)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnCommonData(CommonData setting)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnState(State state)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnProfile(ProfileUpdate data)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnAutoSelect(AutoSelectUpdate data)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnServerInfo(ServerInfo setting)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnUIData(UIData data)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnConsoleUpdate(ConsoleUpdate str)
-        {
-            return Task.FromResult(0);
-        }
-
-        public Task OnEncodeState(EncodeState state)
-        {
             return Task.FromResult(0);
         }
 

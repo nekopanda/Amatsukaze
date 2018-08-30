@@ -10,12 +10,19 @@ using System.Windows.Media.Imaging;
 
 namespace Amatsukaze.Server
 {
-    public interface IEncodeServer
+    public interface IAddTaskServer
+    {
+        Task AddQueue(AddQueueRequest dir);
+
+        // スタブ用接続終了
+        void Finish();
+    }
+
+    public interface IEncodeServer : IAddTaskServer
     {
         // 操作系
         Task SetProfile(ProfileUpdate data);
         Task SetAutoSelect(AutoSelectUpdate data);
-        Task AddQueue(AddQueueRequest dir);
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
         Task CancelAddQueue();
@@ -30,12 +37,18 @@ namespace Amatsukaze.Server
         Task RequestLogFile(LogFileRequest req);
         Task RequestLogoData(string fileName);
         Task RequestDrcsImages();
+    }
 
-        // スタブ用接続終了
+    public interface IAddTaskClient
+    {
+        Task OnAddResult(string requestId);
+        Task OnOperationResult(OperationResult result);
+
+        // スタンドアロン用終了
         void Finish();
     }
 
-    public interface IUserClient
+    public interface IUserClient : IAddTaskClient
     {
         Task OnUIData(UIData data);
         Task OnConsoleUpdate(ConsoleUpdate str);
@@ -48,12 +61,6 @@ namespace Amatsukaze.Server
         Task OnServiceSetting(ServiceSettingUpdate update);
         Task OnLogoData(LogoData logoData);
         Task OnDrcsData(DrcsImageUpdate update);
-        Task OnAddResult(string requestId);
-
-        Task OnOperationResult(OperationResult result);
-
-        // スタンドアロン用終了
-        void Finish();
     }
 
     public interface ICommandHost
@@ -105,6 +112,68 @@ namespace Amatsukaze.Server
         public object arg;
     }
 
+    public static class RPCData
+    {
+        public static readonly int HEADER_SIZE = 6;
+
+        public static byte[] Combine(params byte[][] arrays)
+        {
+            byte[] rv = new byte[arrays.Sum(a => a.Length)];
+            int offset = 0;
+            foreach (byte[] array in arrays)
+            {
+                System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
+                offset += array.Length;
+            }
+            return rv;
+        }
+
+        public static byte[] CombineChunks(List<byte[]> arrays)
+        {
+            byte[] rv = new byte[arrays.Sum(a => a.Length) + arrays.Count * 4];
+            int offset = 0;
+            foreach (byte[] array in arrays)
+            {
+                System.Buffer.BlockCopy(
+                    BitConverter.GetBytes((int)array.Length), 0, rv, offset, 4);
+                offset += 4;
+                System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
+                offset += array.Length;
+            }
+            return rv;
+        }
+
+        public static List<MemoryStream> SplitChunks(byte[] bytes)
+        {
+            var ret = new List<MemoryStream>();
+            for (int offset = 0; offset < bytes.Length;)
+            {
+                int sz = BitConverter.ToInt32(bytes, offset);
+                offset += 4;
+                ret.Add(new MemoryStream(bytes, offset, sz));
+                offset += sz;
+            }
+            return ret;
+        }
+
+        public static async Task<byte[]> ReadBytes(Stream ns, int size)
+        {
+            byte[] bytes = new byte[size];
+            int readBytes = 0;
+            while (readBytes < size)
+            {
+                var ret = await ns.ReadAsync(
+                       bytes, readBytes, size - readBytes);
+                if (ret == 0)
+                {
+                    throw new EndOfStreamException();
+                }
+                readBytes += ret;
+            }
+            return bytes;
+        }
+    }
+
     public static class RPCTypes
     {
         public static readonly Dictionary<RPCMethodId, Type> ArgumentTypes = new Dictionary<RPCMethodId, Type>() {
@@ -142,48 +211,6 @@ namespace Amatsukaze.Server
             { RPCMethodId.GetOutFiles, typeof(string) },
             { RPCMethodId.CancelItem, typeof(string) }
         };
-
-        public static readonly int HEADER_SIZE = 6;
-
-        private static byte[] Combine(params byte[][] arrays)
-        {
-            byte[] rv = new byte[arrays.Sum(a => a.Length)];
-            int offset = 0;
-            foreach (byte[] array in arrays)
-            {
-                System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
-                offset += array.Length;
-            }
-            return rv;
-        }
-
-        private static byte[] CombineChunks(List<byte[]> arrays)
-        {
-            byte[] rv = new byte[arrays.Sum(a => a.Length) + arrays.Count * 4];
-            int offset = 0;
-            foreach (byte[] array in arrays)
-            {
-                System.Buffer.BlockCopy(
-                    BitConverter.GetBytes((int)array.Length), 0, rv, offset, 4);
-                offset += 4;
-                System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
-                offset += array.Length;
-            }
-            return rv;
-        }
-
-        private static List<MemoryStream> SplitChunks(byte[] bytes)
-        {
-            var ret = new List<MemoryStream>();
-            for(int offset = 0; offset < bytes.Length; )
-            {
-                int sz = BitConverter.ToInt32(bytes, offset);
-                offset += 4;
-                ret.Add(new MemoryStream(bytes, offset, sz));
-                offset += sz;
-            }
-            return ret;
-        }
 
         private static List<BitmapFrame> GetImage(object obj)
         {
@@ -275,7 +302,7 @@ namespace Amatsukaze.Server
                     }
                 }
             }
-            return CombineChunks(data);
+            return RPCData.CombineChunks(data);
         }
 
         public static byte[] Serialize(RPCMethodId id, object obj)
@@ -283,13 +310,13 @@ namespace Amatsukaze.Server
             Type type = ArgumentTypes[id];
             if (type == null)
             {
-                return Combine(
+                return RPCData.Combine(
                     BitConverter.GetBytes((short)id),
                     BitConverter.GetBytes((int)0));
             }
             var objbyes = Serialize(type, obj);
             //Debug.Print("Send: " + System.Text.Encoding.UTF8.GetString(objbyes));
-            return Combine(
+            return RPCData.Combine(
                 BitConverter.GetBytes((short)id),
                 BitConverter.GetBytes(objbyes.Length),
                 objbyes);
@@ -297,7 +324,7 @@ namespace Amatsukaze.Server
 
         public static object Deserialize(Type type, byte[] bytes)
         {
-            var data = SplitChunks(bytes);
+            var data = RPCData.SplitChunks(bytes);
             var arg = new DataContractSerializer(type).ReadObject(data[0]);
             // 画像だけ特別処理
             var setter = ImageSetter(arg);
@@ -322,35 +349,18 @@ namespace Amatsukaze.Server
 
         public static async Task<RPCInfo> Deserialize(Stream ns)
         {
-            var headerbytes = await ReadBytes(ns, HEADER_SIZE);
+            var headerbytes = await RPCData.ReadBytes(ns, RPCData.HEADER_SIZE);
             var id = (RPCMethodId)BitConverter.ToInt16(headerbytes, 0);
             var csize = BitConverter.ToInt32(headerbytes, 2);
             //Debug.Print("Header: id=" + id + ", size=" + csize);
             object arg = null;
             if (csize > 0)
             {
-                var data = await RPCTypes.ReadBytes(ns, csize);
+                var data = await RPCData.ReadBytes(ns, csize);
                 //Debug.Print("Received: " + System.Text.Encoding.UTF8.GetString(data));
                 arg = Deserialize(RPCTypes.ArgumentTypes[id], data);
             }
             return new RPCInfo() { id = id, arg = arg };
-        }
-
-        private static async Task<byte[]> ReadBytes(Stream ns, int size)
-        {
-            byte[] bytes = new byte[size];
-            int readBytes = 0;
-            while (readBytes < size)
-            {
-                var ret = await ns.ReadAsync(
-                       bytes, readBytes, size - readBytes);
-                if(ret == 0)
-                {
-                    throw new EndOfStreamException();
-                }
-                readBytes += ret;
-            }
-            return bytes;
         }
 
         public static Task RefreshRequest(this IEncodeServer server)

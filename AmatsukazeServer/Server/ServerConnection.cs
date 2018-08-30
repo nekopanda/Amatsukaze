@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.Server
@@ -270,16 +273,18 @@ namespace Amatsukaze.Server
     }
 
     /// <summary>
-    /// ServerConnectionがAddTaskからだと使いにくいので別に定義
+    /// monoでも動くように最小限の依存だけで実装したサーバインターフェース
     /// </summary>
-    public class CUIServerConnection : AbstracrtServerConnection
+    public class CUIServerConnection : IAddTaskServer
     {
-        public CUIServerConnection(IUserClient userClient)
-            : base(userClient) { }
+        internal TcpClient client;
+        internal NetworkStream stream;
 
-        public override void Finish()
+        private IAddTaskClient userClient;
+
+        public CUIServerConnection(IAddTaskClient userClient)
         {
-            Close();
+            this.userClient = userClient;
         }
 
         public void Connect(string serverIp, int port)
@@ -299,10 +304,71 @@ namespace Amatsukaze.Server
             }
         }
 
+        private async Task Send(RPCMethodId id, AddQueueRequest obj)
+        {
+            if (client != null)
+            {
+                var data = new List<byte[]>();
+                var ms = new MemoryStream();
+                var serializer = new DataContractSerializer(typeof(AddQueueRequest));
+                serializer.WriteObject(ms, obj);
+                data.Add(ms.ToArray());
+                var objbyes = RPCData.CombineChunks(data);
+                byte[] bytes = RPCData.Combine(
+                    BitConverter.GetBytes((short)id),
+                    BitConverter.GetBytes(objbyes.Length),
+                    objbyes);
+                await client.GetStream().WriteAsync(bytes, 0, bytes.Length);
+            }
+        }
+
+        internal void OnRequestReceived(RPCMethodId methodId, object arg)
+        {
+            switch (methodId)
+            {
+                case RPCMethodId.OnAddResult:
+                    userClient.OnAddResult((string)arg);
+                    break;
+                case RPCMethodId.OnOperationResult:
+                    userClient.OnOperationResult((OperationResult)arg);
+                    break;
+            }
+        }
+
+        public Task AddQueue(AddQueueRequest dir)
+        {
+            return Send(RPCMethodId.AddQueue, dir);
+        }
+
+        public void Finish()
+        {
+            Close();
+        }
+
         public async Task ProcOneMessage()
         {
-            var rpc = await RPCTypes.Deserialize(stream);
-            OnRequestReceived(rpc.id, rpc.arg);
+            var headerbytes = await RPCData.ReadBytes(stream, RPCData.HEADER_SIZE);
+            var id = (RPCMethodId)BitConverter.ToInt16(headerbytes, 0);
+            var csize = BitConverter.ToInt32(headerbytes, 2);
+            object arg = null;
+            if (csize > 0)
+            {
+                var data = RPCData.SplitChunks(await RPCData.ReadBytes(stream, csize));
+                Type type = null;
+                if(id == RPCMethodId.OnAddResult)
+                {
+                    type = typeof(string);
+                }
+                else if(id == RPCMethodId.OnOperationResult)
+                {
+                    type = typeof(OperationResult);
+                }
+                if(type != null)
+                {
+                    arg = new DataContractSerializer(type).ReadObject(data[0]);
+                }
+            }
+            OnRequestReceived(id, arg);
         }
     }
 }
