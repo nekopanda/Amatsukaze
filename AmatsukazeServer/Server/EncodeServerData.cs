@@ -1094,6 +1094,8 @@ namespace Amatsukaze.Server
         public bool IsDirect { get; set; }
         [DataMember]
         public int Priority { get; set; }
+        [DataMember]
+        public string AddQueueBat { get; set; }
     }
 
     [DataContract]

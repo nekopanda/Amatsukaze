@@ -2176,6 +2176,21 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region AddQueueBat変更通知プロパティ
+        public string AddQueueBat
+        {
+            get { return string.IsNullOrEmpty(Model.AddQueueBat) ? "なし" : Model.AddQueueBat; }
+            set
+            {
+                string val = (value == "なし") ? "" : value;
+                if (Model.AddQueueBat == val)
+                    return;
+                Model.AddQueueBat = val;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 
     public class GenreSelectItem : NotificationObject

@@ -57,6 +57,11 @@
                         <TextBox Drop="TextBox_Drop" PreviewDragOver="TextBox_PreviewDragOver"
                                  Text="{Binding Model.MakeScriptData.OutDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
+                    <DockPanel>
+                        <TextBlock Text="追加時バッチ" VerticalAlignment="Center" Margin="5,0"/>
+                        <ComboBox ItemsSource="{Binding Model.AddQueueBatFiles}"
+                          SelectedItem="{Binding Model.MakeScriptData.AddQueueBat, Mode=TwoWay}"/>
+                    </DockPanel>
 
                     <GroupBox>
                         <GroupBox.Header>

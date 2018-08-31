@@ -19,6 +19,7 @@ namespace Amatsukaze.AddTask
         public string FilePath;
         public string OutPath;
         public string Profile;
+        public string AddQueueBat;
         public int Priority = 3;
 
         public string NasDir;
@@ -38,6 +39,7 @@ namespace Amatsukaze.AddTask
                 "オプション\r\n" +
                 "  -f|--file <パス>        入力ファイルパス\r\n" +
                 "  -s|--setting <プロファイル名> エンコード設定プロファイル\r\n" +
+                "  -b|--bat <バッチファイル名> 追加時実行バッチ\r\n" +
                 "  --priority <優先度>     優先度\r\n" +
                 "  -ip|--ip <IPアドレス>   AmatsukazeServerアドレス\r\n" +
                 "  -p|--port <ポート番号>  AmatsukazeServerポート番号\r\n" +
@@ -89,6 +91,11 @@ namespace Amatsukaze.AddTask
                 else if (arg == "-s" || arg == "--setting")
                 {
                     Profile = args[i + 1];
+                    ++i;
+                }
+                else if (arg == "-b" || arg == "--bat")
+                {
+                    AddQueueBat = args[i + 1];
                     ++i;
                 }
                 else if (arg == "--priority")
@@ -260,7 +267,7 @@ namespace Amatsukaze.AddTask
                 srcpath = option.RemoteDir + "\\" + Path.GetFileName(srcpath);
             }
 
-            Console.WriteLine(srcpath + " を追加");
+            Console.WriteLine(srcpath + " を追加します");
 
             // リクエストを生成
             request = new AddQueueRequest()
@@ -279,7 +286,8 @@ namespace Amatsukaze.AddTask
                     new AddQueueItem() { Path = srcpath, Hash = hash }
                 },
                 Mode = ProcMode.AutoBatch,
-                RequestId = UniqueId()
+                RequestId = UniqueId(),
+                AddQueueBat = option.AddQueueBat
             };
 
             server = new CUIServerConnection(this);

@@ -476,7 +476,7 @@ namespace Amatsukaze.Models
         #endregion
 
         #region MakeScriptData変更通知プロパティ
-        private DisplayMakeScriptData _MakeScriptData = new DisplayMakeScriptData();
+        private DisplayMakeScriptData _MakeScriptData = new DisplayMakeScriptData() { Model = new MakeScriptData() };
 
         public DisplayMakeScriptData MakeScriptData {
             get { return _MakeScriptData; }

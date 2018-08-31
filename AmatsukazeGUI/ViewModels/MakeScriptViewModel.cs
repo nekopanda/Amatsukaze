@@ -99,6 +99,7 @@ namespace Amatsukaze.ViewModels
             string exe = Path.GetDirectoryName(GetType().Assembly.Location);
             string dst = Model.MakeScriptData.OutDir.TrimEnd(Path.DirectorySeparatorChar);
             string prof = DisplayProfile.GetProfileName(Model.MakeScriptData.SelectedProfile);
+            string bat = Model.MakeScriptData.Model.AddQueueBat;
             string nas = null;
             string ip = "localhost";
             int port = Model.ServerPort;
@@ -200,6 +201,10 @@ namespace Amatsukaze.ViewModels
             if (Model.MakeScriptData.WithRelated)
             {
                 sb.Append(" --with-related");
+            }
+            if(!string.IsNullOrEmpty(bat))
+            {
+                sb.AppendFormat(" -b \"{0}\"", bat);
             }
 
             var saveFileDialog = new SaveFileDialog();

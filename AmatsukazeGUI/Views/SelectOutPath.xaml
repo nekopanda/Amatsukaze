@@ -86,7 +86,7 @@
             <DockPanel>
                 <TextBlock Text="追加時バッチ" VerticalAlignment="Center" Margin="5,0"/>
                 <ComboBox ItemsSource="{Binding Model.AddQueueBatFiles}"
-                          SelectedItem="{Binding AddQueueBatFile, Mode=TwoWay}"/>
+                          SelectedItem="{Binding AddQueueBa, Mode=TwoWay}"/>
             </DockPanel>
         </StackPanel>
         

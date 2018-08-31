@@ -242,7 +242,7 @@ namespace Amatsukaze.ViewModels
         #endregion
 
         #region AddQueueBat変更通知プロパティ
-        public string AddQueueBatFile {
+        public string AddQueueBat {
             get { return string.IsNullOrEmpty(Item.AddQueueBat) ? "なし" : Item.AddQueueBat; }
             set {
                 string val = (value == "なし") ? "" : value;
