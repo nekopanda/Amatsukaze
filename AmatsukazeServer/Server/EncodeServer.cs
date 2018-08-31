@@ -2343,7 +2343,10 @@ namespace Amatsukaze.Server
                 {
                     HostName = Dns.GetHostName(),
                     MacAddress = ClientManager?.GetMacAddress()
-                }
+                },
+                AddQueueBatFiles = AddQueueBatFiles,
+                PreBatFiles = PreBatFiles,
+                PostBatFiles = PostBatFiles
             });
 
             // プロファイル

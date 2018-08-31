@@ -51,6 +51,7 @@ namespace Amatsukaze.AddTask
                 "                          ファイル名部分は入力ファイル名からコピーされるのでディレクトリパスのみ入力すること\r\n" +
                 "                          NASにコピーするときはコピー先のディレクトリをサーバからアクセスするときのパスを指定すること\r\n" +
                 "                          例) \\\\rec-pc\\share\\rec\r\n" +
+                "                          Bash等から打つときは\\(バックスラッシュ)がエスケープ文字となることがあるため注意\r\n" +
                 "  --no-move               NASにコピーしたTSファイルをtransferedフォルダに移動しない\r\n" +
                 "  --clear-succeeded       NASにコピーする際、コピー先のsucceededフォルダを空にする\r\n" +
                 "  --with-related          NASにコピーする際、関連ファイルも一緒にコピー・移動する\r\n" +
