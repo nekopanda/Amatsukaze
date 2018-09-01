@@ -488,20 +488,18 @@ namespace Amatsukaze.Server
                         resource = null;
                     }
 
+                    var nowait = (cmd & ResourcePhase.NoWait) != 0;
+                    cmd &= ~ResourcePhase.NoWait;
                     var reqEncoderIndex = (!ignoreAffinity) && (cmd == ResourcePhase.Encode);
 
                     // リソース確保
                     if (ignoreResource)
                     {
-                        // リソース上限無視なのでNoWaitは関係ない
-                        cmd &= ~ResourcePhase.NoWait;
                         //Util.AddLog("フェーズ移行リクエスト（上限無視）: " + cmd + "@" + id);
                         resource = server.ResourceManager.ForceGetResource(ress[(int)cmd], reqEncoderIndex);
                     }
-                    else if ((cmd & ResourcePhase.NoWait) != 0)
+                    else if (nowait)
                     {
-                        // NoWait指定の場合は待たない
-                        cmd &= ~ResourcePhase.NoWait;
                         //Util.AddLog("フェーズ移行NoWaitリクエスト: " + cmd + "@" + id);
                         resource = server.ResourceManager.TryGetResource(ress[(int)cmd], reqEncoderIndex);
                     }
@@ -529,11 +527,12 @@ namespace Amatsukaze.Server
                     if(resource != null)
                     {
                         gpuIndex = resource.GpuIndex;
-                        if (resource.EncoderIndex != -1)
+                        var setting = server.AppData_.setting.AffinitySetting;
+                        if (resource.EncoderIndex != -1 &&
+                            setting != (int)ProcessGroupKind.None)
                         {
                             var s = server.affinityCreator.GetMask(
-                                (ProcessGroupKind)server.AppData_.setting.AffinitySetting,
-                                resource.EncoderIndex);
+                                (ProcessGroupKind)setting, resource.EncoderIndex);
                             group = s.Group;
                             mask = s.Mask;
                         }

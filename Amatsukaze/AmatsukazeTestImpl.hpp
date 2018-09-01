@@ -690,4 +690,28 @@ static int PrintfBug(AMTContext& ctx, const ConfigWrapper& setting)
 	return 0;
 }
 
+static int ResourceTest(AMTContext& ctx, const ConfigWrapper& setting)
+{
+	srand((int)time(0));
+	ResourceManger rm(ctx, setting.getInPipe(), setting.getOutPipe());
+	for (int i = 0; i < 10000; ++i) {
+		ctx.infoF("Test Loop: %d", i);
+		rm.wait(HOST_CMD_TSAnalyze);
+		Sleep(rand() % 300);
+		rm.wait(HOST_CMD_CMAnalyze);
+		Sleep(rand() % 300);
+		rm.wait(HOST_CMD_Filter);
+		Sleep(rand() % 100);
+		auto encodeRes = rm.request(HOST_CMD_Encode);
+		if (encodeRes.IsFailed()) {
+			// リソースが確保できていなかったら確保できるまで待つ
+			encodeRes = rm.wait(HOST_CMD_Encode);
+		}
+		Sleep(rand() % 1000);
+		rm.wait(HOST_CMD_Mux);
+		Sleep(rand() % 300);
+	}
+	return 0;
+}
+
 } // namespace test

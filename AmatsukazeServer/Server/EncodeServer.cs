@@ -2297,7 +2297,7 @@ namespace Amatsukaze.Server
             });
         }
 
-        #region QueueManager
+#region QueueManager
         // アイテム状態の更新をクライアントに通知
         internal Task NotifyQueueItemUpdate(QueueItem item)
         {
@@ -2327,9 +2327,9 @@ namespace Amatsukaze.Server
         {
             return queueManager.ChangeItem(data);
         }
-        #endregion
+#endregion
 
-        #region Request
+#region Request
         private async Task RequestSetting()
         {
             await Client.OnCommonData(new CommonData() {
@@ -2516,7 +2516,7 @@ namespace Amatsukaze.Server
                 await RequestServiceSetting();
             }
         }
-        #endregion
+#endregion
 
         public Task RequestLogFile(LogFileRequest req)
         {
