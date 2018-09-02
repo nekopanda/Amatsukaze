@@ -64,66 +64,29 @@ namespace Amatsukaze.ViewModels
 
         public ClientModel Model { get; set; }
 
-        private string[] panelNames;
-        private ViewModel[] panels;
+        public ViewModel[] Panels { get; private set; }
 
         public void Initialize()
         {
-            panelNames = new string[]
+            Panels = new ViewModel[]
             {
-                "エンコードログ", "その他のログ"
+                new EncodeLogViewModel() { Name = "エンコードログ", Model = Model },
+                new CheckLogViewModel() { Name = "その他のログ", Model = Model }
             };
-            panels = new ViewModel[]
-            {
-                new EncodeLogViewModel() { Model = Model },
-                new CheckLogViewModel() { Model = Model }
-            };
+            SelectedPanel = Panels[0];
         }
 
-        #region PanelIndex変更通知プロパティ
-        private int _PanelIndex = 0;
+        #region SelectedPanel変更通知プロパティ
+        private ViewModel _SelectedPanel;
 
-        public int PanelIndex {
-            get { return _PanelIndex; }
+        public ViewModel SelectedPanel {
+            get { return _SelectedPanel; }
             set { 
-                if (_PanelIndex == value)
+                // 未選択にはしない
+                if (_SelectedPanel == value || value == null)
                     return;
-                _PanelIndex = value;
+                _SelectedPanel = value;
                 RaisePropertyChanged();
-                RaisePropertyChanged("Panel");
-                RaisePropertyChanged("PanelName");
-            }
-        }
-        public ViewModel Panel {
-            get { return panels[_PanelIndex]; }
-        }
-        public string PanelName {
-            get { return panelNames[_PanelIndex]; }
-        }
-        #endregion
-
-        #region TogglePanelCommand
-        private ViewModelCommand _TogglePanelCommand;
-
-        public ViewModelCommand TogglePanelCommand {
-            get {
-                if (_TogglePanelCommand == null)
-                {
-                    _TogglePanelCommand = new ViewModelCommand(TogglePanel);
-                }
-                return _TogglePanelCommand;
-            }
-        }
-
-        public void TogglePanel()
-        {
-            if(_PanelIndex + 1 >= panels.Length)
-            {
-                PanelIndex = 0;
-            }
-            else
-            {
-                PanelIndex = _PanelIndex + 1;
             }
         }
         #endregion

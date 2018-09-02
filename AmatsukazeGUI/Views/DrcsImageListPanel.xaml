@@ -27,18 +27,14 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Button Command="{Binding ToggleNoMapOnlyCommand, Mode=OneWay}">
-            <Button.Style>
-                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                    <Setter Property="Content" Value="マッピングのない文字"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsNoMapOnly}" Value="False">
-                            <Setter Property="Content" Value="すべての文字" />
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Button.Style>
-        </Button>
+        <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}"
+             ItemsSource="{Binding Panels}" SelectedIndex="{Binding PanelSelectedIndex, Mode=TwoWay}" >
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" HorizontalAlignment="Stretch" TextAlignment="Center" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
 
         <ListBox ItemsSource="{Binding ImageList}" Grid.Row="1" KeyboardNavigation.TabNavigation="Local"
              SelectedItem="{Binding DrcsImageSelectedItem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">

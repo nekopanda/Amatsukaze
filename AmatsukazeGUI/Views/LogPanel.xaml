@@ -9,6 +9,9 @@
              mc:Ignorable="d" 
              d:DesignHeight="500" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:LogViewModel}}">
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
     <DockPanel>
         <DockPanel.Resources>
             <DataTemplate DataType="{x:Type vm:EncodeLogViewModel}">
@@ -18,7 +21,14 @@
                 <v:CheckLogPanel />
             </DataTemplate>
         </DockPanel.Resources>
-        <Button DockPanel.Dock="Top" Content="{Binding PanelName}" Command="{Binding TogglePanelCommand}"/>
-        <ContentControl Content="{Binding Panel}"/>
+        <ListBox DockPanel.Dock="Top" Style="{StaticResource HeaderMenuStyle}"
+             ItemsSource="{Binding Panels}" SelectedItem="{Binding SelectedPanel, Mode=TwoWay}" >
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Stretch" TextAlignment="Center" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <ContentControl Content="{Binding SelectedPanel}"/>
     </DockPanel>
 </UserControl>

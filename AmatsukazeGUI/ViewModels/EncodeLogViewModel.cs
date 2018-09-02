@@ -18,7 +18,7 @@ using System.Windows;
 
 namespace Amatsukaze.ViewModels
 {
-    public class EncodeLogViewModel : ViewModel
+    public class EncodeLogViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 

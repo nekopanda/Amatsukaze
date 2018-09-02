@@ -91,37 +91,28 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region IsNoMapOnly変更通知プロパティ
-        private bool _IsNoMapOnly = true;
-
-        public bool IsNoMapOnly {
-            get { return _IsNoMapOnly; }
-            set { 
-                if (_IsNoMapOnly == value)
-                    return;
-                _IsNoMapOnly = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region ToggleNoMapOnlyCommand
-        private ViewModelCommand _ToggleNoMapOnlyCommand;
-
-        public ViewModelCommand ToggleNoMapOnlyCommand {
-            get {
-                if (_ToggleNoMapOnlyCommand == null)
-                {
-                    _ToggleNoMapOnlyCommand = new ViewModelCommand(ToggleNoMapOnly);
-                }
-                return _ToggleNoMapOnlyCommand;
-            }
-        }
-
-        public void ToggleNoMapOnly()
+        public string[] Panels { get; } = new string[]
         {
-            IsNoMapOnly = !IsNoMapOnly;
-            imagesView.Refresh();
+            "マッピングのない文字", "すべての文字"
+        };
+
+        #region PanelSelectedIndex変更通知プロパティ
+        private int _PanelSelectedIndex = 0;
+
+        public int PanelSelectedIndex {
+            get { return _PanelSelectedIndex; }
+            set { 
+                // 未選択にはしない
+                if (_PanelSelectedIndex == value || value == -1)
+                    return;
+                _PanelSelectedIndex = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("IsNoMapOnly");
+                imagesView.Refresh();
+            }
+        }
+        public bool IsNoMapOnly {
+            get { return _PanelSelectedIndex == 0; }
         }
         #endregion
 

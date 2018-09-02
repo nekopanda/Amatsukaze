@@ -18,7 +18,7 @@ using Amatsukaze.Server;
 
 namespace Amatsukaze.ViewModels
 {
-    public class CheckLogViewModel : ViewModel
+    public class CheckLogViewModel : NamedViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
          * 

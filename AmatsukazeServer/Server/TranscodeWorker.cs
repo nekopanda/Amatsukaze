@@ -495,11 +495,13 @@ namespace Amatsukaze.Server
                     // リソース確保
                     if (ignoreResource)
                     {
+                        // リソース上限無視なのでNoWaitは関係ない
                         //Util.AddLog("フェーズ移行リクエスト（上限無視）: " + cmd + "@" + id);
                         resource = server.ResourceManager.ForceGetResource(ress[(int)cmd], reqEncoderIndex);
                     }
                     else if (nowait)
                     {
+                        // NoWait指定の場合は待たない
                         //Util.AddLog("フェーズ移行NoWaitリクエスト: " + cmd + "@" + id);
                         resource = server.ResourceManager.TryGetResource(ress[(int)cmd], reqEncoderIndex);
                     }
