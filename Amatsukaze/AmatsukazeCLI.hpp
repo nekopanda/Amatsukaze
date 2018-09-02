@@ -507,7 +507,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (conf.mode == "ts" || conf.mode == "cm" || conf.mode == "g") {
+	if (conf.mode == "ts" || conf.mode == "g") {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
@@ -516,7 +516,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (conf.mode == "drcs" || starts_with(conf.mode, "probe_")) {
+	if (conf.mode == "drcs" || conf.mode == "cm" || starts_with(conf.mode, "probe_")) {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
