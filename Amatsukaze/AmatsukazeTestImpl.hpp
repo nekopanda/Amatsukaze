@@ -109,8 +109,8 @@ static int VerifyMpeg2Ps(AMTContext& ctx, const ConfigWrapper& setting) {
 		BUF_SIZE = 1400 * 1024 * 1024, // 1GB
 	};
 	auto buf = std::unique_ptr<uint8_t>(new uint8_t[BUF_SIZE]);
-	FILE* fp = nullptr;
-	if (fopen_s(&fp, setting.getSrcFilePath().c_str(), "rb")) {
+	FILE* fp = fsopenT(setting.getSrcFilePath().c_str(), _T("rb"), _SH_DENYNO);
+	if (fp == nullptr) {
 		return 1;
 	}
 	try {
@@ -150,11 +150,11 @@ static int ReadTS(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	std::string srcfile = setting.getSrcFilePath() + ".aac";
-	std::string testfile = setting.getSrcFilePath() + ".wav";
+	tstring srcfile = setting.getSrcFilePath() + _T(".aac");
+  tstring testfile = setting.getSrcFilePath() + _T(".wav");
 
-	FILE* fp = nullptr;
-	if (fopen_s(&fp, srcfile.c_str(), "rb")) {
+  FILE* fp = fsopenT(srcfile.c_str(), _T("rb"), _SH_DENYNO);
+  if (fp == nullptr) {
 		return 1;
 	}
 
@@ -190,8 +190,8 @@ static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	// ³‰ðƒf[ƒ^‚Æ”äŠr
-	FILE* testfp = nullptr;
-	if (fopen_s(&testfp, testfile.c_str(), "rb")) {
+  FILE* testfp = fsopenT(testfile.c_str(), _T("rb"), _SH_DENYNO);
+  if (testfp == nullptr) {
 		return 1;
 	}
 	
@@ -232,10 +232,10 @@ static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int WaveWriteHeader(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	std::string dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
+	tstring dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
 
-	FILE* fp = nullptr;
-	if(fopen_s(&fp, dstfile.c_str(), "wb")) {
+  FILE* fp = fsopenT(dstfile.c_str(), _T("wb"), _SH_DENYNO);
+  if (fp == nullptr) {
 		fprintf(stderr, "failed to open file...\n");
 		return 1;
 	}
@@ -268,7 +268,7 @@ static int ProcessTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	class ProcTest : public EventBaseSubProcess {
 	public:
-		ProcTest() : EventBaseSubProcess("x264.exe --help") { }
+		ProcTest() : EventBaseSubProcess(_T("x264.exe --help")) { }
 	protected:
 		virtual void onOut(bool isErr, MemoryChunk mc) {
 			fwrite(mc.data, mc.length, 1, stdout);
@@ -305,7 +305,7 @@ static int LosslessTest(AMTContext& ctx, const ConfigWrapper& setting)
 	auto codecDec = make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze"));
 
 	{
-		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
+		PClip clip = env->Invoke("Import", to_string(setting.getFilterScriptPath()).c_str()).AsClip();
 
 		VideoInfo vi = clip->GetVideoInfo();
 
@@ -363,8 +363,8 @@ static int LosslessFileTest(AMTContext& ctx, const ConfigWrapper& setting)
 
 	{
 		int numframes = 100;
-		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), "wb");
-		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
+		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), _T("wb"));
+		PClip clip = env->Invoke("Import", to_string(setting.getFilterScriptPath()).c_str()).AsClip();
 
 		VideoInfo vi = clip->GetVideoInfo();
 
@@ -396,7 +396,7 @@ static int LosslessFileTest(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	{
-		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), "rb");
+		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), _T("rb"));
 		file.readHeader();
 
 		int width = file.getWidth();
@@ -430,14 +430,14 @@ static int LogoFrameTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	{
 		auto env = make_unique_ptr(CreateScriptEnvironment2());
-		PClip clip = env->Invoke("Import", setting.getFilterScriptPath().c_str()).AsClip();
+		PClip clip = env->Invoke("Import", to_string(setting.getFilterScriptPath()).c_str()).AsClip();
 
 		logo::LogoFrame logof(ctx, setting.getLogoPath(), 0.1f);
 		logof.scanFrames(clip, env.get());
 		logof.writeResult(setting.getTmpLogoFramePath(0));
 
-		printf("BestLogo: %s\n", setting.getLogoPath()[logof.getBestLogo()].c_str());
-		printf("LogoRatio: %f\n", logof.getLogoRatio());
+		ctx.infoF("BestLogo: %s\n", setting.getLogoPath()[logof.getBestLogo()].c_str());
+    ctx.infoF("LogoRatio: %f\n", logof.getLogoRatio());
 	}
 
 	return 0;
@@ -448,10 +448,10 @@ class TestSplitDualMono : public DualMonoSplitter
 	std::unique_ptr<File> file0;
 	std::unique_ptr<File> file1;
 public:
-	TestSplitDualMono(AMTContext& ctx, const std::vector<std::string>& outpaths)
+	TestSplitDualMono(AMTContext& ctx, const std::vector<tstring>& outpaths)
 		: DualMonoSplitter(ctx)
-		, file0(new File(outpaths[0], "wb"))
-		, file1(new File(outpaths[1], "wb"))
+		, file0(new File(outpaths[0], _T("wb")))
+		, file1(new File(outpaths[1], _T("wb")))
 	{ }
 
 	virtual void OnOutFrame(int index, MemoryChunk mc)
@@ -462,12 +462,12 @@ public:
 
 static int SplitDualMonoAAC(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	std::vector<std::string> outpaths;
+	std::vector<tstring> outpaths;
 	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 0, CMTYPE_BOTH));
 	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 1, CMTYPE_BOTH));
 	TestSplitDualMono splitter(ctx, outpaths);
 
-	File src(setting.getSrcFilePath(), "rb");
+	File src(setting.getSrcFilePath(), _T("rb"));
 	int sz = (int)src.size();
 	std::unique_ptr<uint8_t[]> buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
 	src.read(MemoryChunk(buf.get(), sz));
@@ -489,7 +489,7 @@ static int SplitDualMonoAAC(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int AACDecodeTest(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	File src(setting.getSrcFilePath(), "rb");
+	File src(setting.getSrcFilePath(), _T("rb"));
 	int sz = (int)src.size();
 	std::unique_ptr<uint8_t[]> buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
 	src.read(MemoryChunk(buf.get(), sz));
@@ -665,7 +665,7 @@ static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	File dump(setting.getSrcFilePath(), "rb");
+	File dump(setting.getSrcFilePath(), _T("rb"));
 	auto durations = dump.readArray<int>();
 	auto cmzones = dump.readArray<EncoderZone>();
 	auto bitrateCM = dump.readValue<double>();
@@ -681,7 +681,7 @@ static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int PrintfBug(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	File txtf(setting.getSrcFilePath(), "rb");
+	File txtf(setting.getSrcFilePath(), _T("rb"));
 	std::vector<char> strv(txtf.size());
 	txtf.read(MemoryChunk((uint8_t*)strv.data(), strv.size()));
 	printf("txt len: %d\n", (int)strv.size());

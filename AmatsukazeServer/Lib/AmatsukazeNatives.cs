@@ -262,7 +262,7 @@ namespace Amatsukaze.Lib
         public IntPtr Ptr { private set; get; }
 
         #region Natives
-        [DllImport("Amatsukaze.dll")]
+        [DllImport("Amatsukaze.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr MediaFile_Create(IntPtr ctx, string filepath, int serviceid);
 
         [DllImport("Amatsukaze.dll")]
@@ -346,7 +346,7 @@ namespace Amatsukaze.Lib
         public IntPtr Ptr { private set; get; }
 
         #region Natives
-        [DllImport("Amatsukaze.dll")]
+        [DllImport("Amatsukaze.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr LogoFile_Create(IntPtr ctx, string filepath);
 
         [DllImport("Amatsukaze.dll")]
@@ -385,10 +385,10 @@ namespace Amatsukaze.Lib
         [DllImport("Amatsukaze.dll")]
         private static unsafe extern void LogoFile_GetImage(IntPtr ptr, byte* buf, int stride, byte bg);
 
-        [DllImport("Amatsukaze.dll")]
+        [DllImport("Amatsukaze.dll", CharSet = CharSet.Unicode)]
         private static extern int LogoFile_Save(IntPtr ptr, string filename);
 
-        [DllImport("Amatsukaze.dll")]
+        [DllImport("Amatsukaze.dll", CharSet = CharSet.Unicode)]
         private static extern int ScanLogo(IntPtr ctx, string srcpath, int serviceid, string workfile, string dstpath,
             int imgx, int imgy, int w, int h, int thy, int numMaxFrames, LogoAnalyzeCallback cb);
         #endregion

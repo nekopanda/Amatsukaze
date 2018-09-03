@@ -13,39 +13,7 @@
 #include "AmatsukazeTestImpl.hpp"
 
 // MSVCのマルチバイトはUnicodeでないので文字列操作に適さないのでwchar_tで文字列操作をする
-#ifdef _MSC_VER
-namespace std { typedef wstring tstring; }
-typedef wchar_t tchar;
-#define stscanf swscanf_s
-#define tcslen wcslen
-#define stricmp _wcsicmp
-#define PRITSTR "ls"
-#define _T(s) L ## s
-#else
-namespace std { typedef string tstring; }
-typedef char tchar;
-#define stscanf sscanf
-#define tcslen strlen
-#define stricmp _stricmp
-#define PRITSTR "s"
-#define _T(s) s
-#endif
 
-static std::string to_string(std::wstring str) {
-	if (str.size() == 0) {
-		return std::string();
-	}
-	int dstlen = WideCharToMultiByte(
-		CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0, NULL, NULL);
-	std::vector<char> ret(dstlen);
-	WideCharToMultiByte(CP_ACP, 0,
-		str.c_str(), (int)str.size(), ret.data(), (int)ret.size(), NULL, NULL);
-	return std::string(ret.begin(), ret.end());
-}
-
-static std::string to_string(std::string str) {
-	return str;
-}
 
 static void printCopyright() {
 	PRINTF(
@@ -137,7 +105,7 @@ static void printHelp(const tchar* bin) {
 		bin);
 }
 
-static std::tstring getParam(int argc, const tchar* argv[], int ikey) {
+static tstring getParam(int argc, const tchar* argv[], int ikey) {
 	if (ikey + 1 >= argc) {
 		THROWF(FormatException,
 			"%" PRITSTR "オプションはパラメータが必要です", argv[ikey]);
@@ -145,7 +113,7 @@ static std::tstring getParam(int argc, const tchar* argv[], int ikey) {
 	return argv[ikey + 1];
 }
 
-static std::tstring pathNormalize(std::tstring path) {
+static tstring pathNormalize(tstring path) {
 	if (path.size() != 0) {
 		// バックスラッシュはスラッシュに変換
 		std::replace(path.begin(), path.end(), _T('\\'), _T('/'));
@@ -170,19 +138,19 @@ static size_t pathGetExtensionSplitPos(const STR& path) {
 	return len;
 }
 
-static std::tstring pathGetDirectory(const std::tstring& path) {
+static tstring pathGetDirectory(const tstring& path) {
 	size_t lastsplit = path.rfind(_T('/'));
-	size_t namebegin = (lastsplit == std::tstring::npos)
+	size_t namebegin = (lastsplit == tstring::npos)
 		? 0
 		: lastsplit;
 	return path.substr(0, namebegin);
 }
 
-static std::tstring pathRemoveExtension(const std::tstring& path) {
+static tstring pathRemoveExtension(const tstring& path) {
 	const tchar* exts[] = { _T(".mp4"), _T(".mkv"), _T(".m2ts"), _T(".ts"), nullptr };
 	const tchar* c_path = path.c_str();
 	for (int i = 0; exts[i]; ++i) {
-		size_t extlen = tcslen(exts[i]);
+		size_t extlen = strlenT(exts[i]);
 		if (path.size() > extlen) {
 			if (_wcsicmp(c_path + (path.size() - extlen), exts[i]) == 0) {
 				return path.substr(0, path.size() - extlen);
@@ -192,7 +160,7 @@ static std::tstring pathRemoveExtension(const std::tstring& path) {
 	return path;
 }
 
-static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
+static ENUM_ENCODER encoderFtomString(const tstring& str) {
 	if (str == _T("x264")) {
 		return ENCODER_X264;
 	}
@@ -208,7 +176,7 @@ static ENUM_ENCODER encoderFtomString(const std::tstring& str) {
 	return (ENUM_ENCODER)-1;
 }
 
-static DECODER_TYPE decoderFromString(const std::tstring& str) {
+static DECODER_TYPE decoderFromString(const tstring& str) {
 	if (str == _T("default")) {
 		return DECODER_DEFAULT;
 	}
@@ -223,22 +191,22 @@ static DECODER_TYPE decoderFromString(const std::tstring& str) {
 
 static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const tchar* argv[])
 {
-	std::string moduleDir = GetModuleDirectory();
+	tstring moduleDir = GetModuleDirectory();
 	Config conf = Config();
-	conf.workDir = "./";
-	conf.encoderPath = "x264.exe";
-	conf.encoderOptions = "";
-	conf.timelineditorPath = "timelineeditor.exe";
-	conf.mp4boxPath = "mp4box.exe";
-	conf.chapterExePath = "chapter_exe.exe";
-	conf.joinLogoScpPath = "join_logo_scp.exe";
-	conf.nicoConvAssPath = "NicoConvASS.exe";
-	conf.nicoConvChSidPath = "ch_sid.txt";
-	conf.drcsOutPath = moduleDir + "\\..\\drcs";
-	conf.drcsMapPath = conf.drcsOutPath + "\\drcs_map.txt";
-	conf.joinLogoScpCmdPath = moduleDir + "\\..\\JL\\JL_標準.txt";
-	conf.mode = "ts";
-	conf.modeArgs = "";
+	conf.workDir = _T("./");
+	conf.encoderPath = _T("x264.exe");
+	conf.encoderOptions = _T("");
+	conf.timelineditorPath = _T("timelineeditor.exe");
+	conf.mp4boxPath = _T("mp4box.exe");
+	conf.chapterExePath = _T("chapter_exe.exe");
+	conf.joinLogoScpPath = _T("join_logo_scp.exe");
+	conf.nicoConvAssPath = _T("NicoConvASS.exe");
+	conf.nicoConvChSidPath = _T("ch_sid.txt");
+	conf.drcsOutPath = moduleDir + _T("\\..\\drcs");
+	conf.drcsMapPath = conf.drcsOutPath + _T("\\drcs_map.txt");
+	conf.joinLogoScpCmdPath = moduleDir + _T("\\..\\JL\\JL_標準.txt");
+	conf.mode = _T("ts");
+	conf.modeArgs = _T("");
 	conf.bitrateCM = 1.0;
 	conf.x265TimeFactor = 0.25;
 	conf.serviceId = -1;
@@ -250,42 +218,42 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	bool nicojk = false;
 
 	for (int i = 1; i < argc; ++i) {
-		std::tstring key = argv[i];
+		tstring key = argv[i];
 		if (key == _T("-i") || key == _T("--input")) {
-			conf.srcFilePath = to_string(pathNormalize(getParam(argc, argv, i++)));
+			conf.srcFilePath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-o") || key == _T("--output")) {
 			conf.outVideoPath =
-				to_string(pathRemoveExtension(pathNormalize(getParam(argc, argv, i++))));
+				pathRemoveExtension(pathNormalize(getParam(argc, argv, i++)));
 		}
 		else if (key == _T("--mode")) {
-			conf.mode = to_string(getParam(argc, argv, i++));
+			conf.mode = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-a") || key == _T("--args")) {
-			conf.modeArgs = to_string(getParam(argc, argv, i++));
+			conf.modeArgs = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-w") || key == _T("--work")) {
-			conf.workDir = to_string(pathNormalize(getParam(argc, argv, i++)));
+			conf.workDir = pathNormalize(getParam(argc, argv, i++));
 			if (conf.workDir.size() == 0) {
-				conf.workDir = "./";
+				conf.workDir = _T("./");
 			}
 		}
 		else if (key == _T("-et") || key == _T("--encoder-type")) {
-			std::tstring arg = getParam(argc, argv, i++);
+			tstring arg = getParam(argc, argv, i++);
 			conf.encoder = encoderFtomString(arg);
 			if (conf.encoder == (ENUM_ENCODER)-1) {
 				PRINTF("--encoder-typeの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
 		else if (key == _T("-e") || key == _T("--encoder")) {
-			conf.encoderPath = to_string(getParam(argc, argv, i++));
+			conf.encoderPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
-			conf.encoderOptions = to_string(getParam(argc, argv, i++));
+			conf.encoderOptions = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-b") || key == _T("--bitrate")) {
 			const auto arg = getParam(argc, argv, i++);
-			int ret = stscanf(arg.c_str(), _T("%lf:%lf:%lf:%lf"),
+			int ret = sscanfT(arg.c_str(), _T("%lf:%lf:%lf:%lf"),
 				&conf.bitrate.a, &conf.bitrate.b, &conf.bitrate.h264, &conf.bitrate.h265);
 			if (ret < 3) {
 				THROWF(ArgumentException, "--bitrateの指定が間違っています");
@@ -297,7 +265,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("-bcm") || key == _T("--bitrate-cm")) {
 			const auto arg = getParam(argc, argv, i++);
-			int ret = stscanf(arg.c_str(), _T("%lf"), &conf.bitrateCM);
+			int ret = sscanfT(arg.c_str(), _T("%lf"), &conf.bitrateCM);
 			if (ret == 0) {
 				THROWF(ArgumentException, "--bitrate-cmの指定が間違っています");
 			}
@@ -336,25 +304,25 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			nicojk = true;
 		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
-			conf.muxerPath = to_string(getParam(argc, argv, i++));
+			conf.muxerPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-t") || key == _T("--timelineeditor")) {
-			conf.timelineditorPath = to_string(getParam(argc, argv, i++));
+			conf.timelineditorPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--mp4box")) {
-			conf.mp4boxPath = to_string(getParam(argc, argv, i++));
+			conf.mp4boxPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-j") || key == _T("--json")) {
-			conf.outInfoJsonPath = to_string(getParam(argc, argv, i++));
+			conf.outInfoJsonPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-f") || key == _T("--filter")) {
-			conf.filterScriptPath = to_string(getParam(argc, argv, i++));
+			conf.filterScriptPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-pf") || key == _T("--postfilter")) {
-			conf.postFilterScriptPath = to_string(getParam(argc, argv, i++));
+			conf.postFilterScriptPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("-s") || key == _T("--serivceid")) {
-			std::tstring sidstr = getParam(argc, argv, i++);
+			tstring sidstr = getParam(argc, argv, i++);
 			if (sidstr.size() > 2 && sidstr.substr(0, 2) == _T("0x")) {
 				// 16進
 				conf.serviceId = std::stoi(sidstr.substr(2), NULL, 16);;
@@ -365,14 +333,14 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			}
 		}
 		else if (key == _T("--mpeg2decoder")) {
-			std::tstring arg = getParam(argc, argv, i++);
+			tstring arg = getParam(argc, argv, i++);
 			conf.decoderSetting.mpeg2 = decoderFromString(arg);
 			if (conf.decoderSetting.mpeg2 == (DECODER_TYPE)-1) {
 				PRINTF("--mpeg2decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
 			}
 		}
 		else if (key == _T("--h264decoder")) {
-			std::tstring arg = getParam(argc, argv, i++);
+			tstring arg = getParam(argc, argv, i++);
 			conf.decoderSetting.h264 = decoderFromString(arg);
 			if (conf.decoderSetting.h264 == (DECODER_TYPE)-1) {
 				PRINTF("--h264decoderの指定が間違っています: %" PRITSTR "\n", arg.c_str());
@@ -398,36 +366,36 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--x265-timefactor")) {
 			const auto arg = getParam(argc, argv, i++);
-			int ret = stscanf(arg.c_str(), _T("%lf"), &conf.x265TimeFactor);
+			int ret = sscanfT(arg.c_str(), _T("%lf"), &conf.x265TimeFactor);
 			if (ret == 0) {
 				THROWF(ArgumentException, "--x265-timefactorの指定が間違っています");
 			}
 		}
 		else if (key == _T("--logo")) {
-			conf.logoPath.push_back(to_string(getParam(argc, argv, i++)));
+			conf.logoPath.push_back(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--drcs")) {
 			auto path = getParam(argc, argv, i++);
-			conf.drcsMapPath = to_string(path);
-			conf.drcsOutPath = to_string(pathGetDirectory(pathNormalize(path)));
+			conf.drcsMapPath = path;
+			conf.drcsOutPath = pathGetDirectory(pathNormalize(path));
 			if (conf.drcsOutPath.size() == 0) {
-				conf.drcsOutPath = ".";
+				conf.drcsOutPath = _T(".");
 			}
 		}
 		else if (key == _T("--chapter-exe")) {
-			conf.chapterExePath = to_string(getParam(argc, argv, i++));
+			conf.chapterExePath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--jls")) {
-			conf.joinLogoScpPath = to_string(getParam(argc, argv, i++));
+			conf.joinLogoScpPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--jls-cmd")) {
-			conf.joinLogoScpCmdPath = to_string(getParam(argc, argv, i++));
+			conf.joinLogoScpCmdPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--jls-option")) {
-			conf.joinLogoScpOptions = to_string(getParam(argc, argv, i++));
+			conf.joinLogoScpOptions = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--nicoass")) {
-			conf.nicoConvAssPath = to_string(getParam(argc, argv, i++));
+			conf.nicoConvAssPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--nicojk18")) {
 			conf.nicojk18 = true;
@@ -456,7 +424,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--resource-manager")) {
 			const auto arg = getParam(argc, argv, i++);
 			size_t inPipe, outPipe;
-			int ret = stscanf(arg.c_str(), _T("%zu:%zu"), &inPipe, &outPipe);
+			int ret = sscanfT(arg.c_str(), _T("%zu:%zu"), &inPipe, &outPipe);
 			if (ret < 2) {
 				THROWF(ArgumentException, "--resource-managerの指定が間違っています");
 			}
@@ -465,7 +433,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--affinity")) {
 			const auto arg = getParam(argc, argv, i++);
-			int ret = stscanf(arg.c_str(), _T("%d:%lld"), &conf.affinityGroup, &conf.affinityMask);
+			int ret = sscanfT(arg.c_str(), _T("%d:%lld"), &conf.affinityGroup, &conf.affinityMask);
 			if (ret < 2) {
 				THROWF(ArgumentException, "--affinityの指定が間違っています");
 			}
@@ -475,7 +443,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--pmt-cut")) {
 			const auto arg = getParam(argc, argv, i++);
-			int ret = stscanf(arg.c_str(), _T("%lf:%lf"),
+			int ret = sscanfT(arg.c_str(), _T("%lf:%lf"),
 				&conf.pmtCutSideRate[0], &conf.pmtCutSideRate[1]);
 			if (ret < 2) {
 				THROWF(ArgumentException, "--pmt-cutの指定が間違っています");
@@ -497,17 +465,17 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	// muxerのデフォルト値
 	if (conf.muxerPath.size() == 0) {
 		if (conf.format == FORMAT_MP4) {
-			conf.muxerPath = "muxer.exe";
+			conf.muxerPath = _T("muxer.exe");
 		}
 		else if (conf.format == FORMAT_MKV) {
-			conf.muxerPath = "mkvmerge.exe";
+			conf.muxerPath = _T("mkvmerge.exe");
 		}
 		else {
-			conf.muxerPath = "tsmuxer.exe";
+			conf.muxerPath = _T("tsmuxer.exe");
 		}
 	}
 
-	if (conf.mode == "ts" || conf.mode == "g") {
+	if (conf.mode == _T("ts") || conf.mode == _T("g")) {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
@@ -516,7 +484,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (conf.mode == "drcs" || conf.mode == "cm" || starts_with(conf.mode, "probe_")) {
+	if (conf.mode == _T("drcs") || conf.mode == _T("cm") || starts_with(conf.mode, _T("probe_"))) {
 		if (conf.srcFilePath.size() == 0) {
 			THROWF(ArgumentException, "入力ファイルを指定してください");
 		}
@@ -538,18 +506,18 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 	}
 
-	if (conf.mode == "enctask") {
+	if (conf.mode == _T("enctask")) {
 		// 必要ない
-		conf.workDir = "";
+		conf.workDir = _T("");
 	}
 
 	// exeを探す
-	if (conf.mode != "drcs" && !starts_with(conf.mode, "probe_")) {
+	if (conf.mode != _T("drcs") && !starts_with(conf.mode, _T("probe_"))) {
 		conf.chapterExePath = SearchExe(conf.chapterExePath);
 		conf.encoderPath = SearchExe(conf.encoderPath);
 		conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
 		conf.nicoConvAssPath = SearchExe(conf.nicoConvAssPath);
-		conf.nicoConvChSidPath = GetDirectoryPath(conf.nicoConvAssPath) + "\\ch_sid.txt";
+		conf.nicoConvChSidPath = GetDirectoryPath(conf.nicoConvAssPath) + _T("\\ch_sid.txt");
 		conf.mp4boxPath = SearchExe(conf.mp4boxPath);
 		conf.muxerPath = SearchExe(conf.muxerPath);
 		conf.timelineditorPath = SearchExe(conf.timelineditorPath);
@@ -609,65 +577,65 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			ctx.loadDRCSMapping(setting.getDRCSMapPath());
 		}
 
-		std::string mode = setting.getMode();
-		if (mode == "ts" || mode == "cm")
+		tstring mode = setting.getMode();
+		if (mode == _T("ts") || mode == _T("cm"))
 			transcodeMain(ctx, setting);
-		else if (mode == "g")
+		else if (mode == _T("g"))
 			transcodeSimpleMain(ctx, setting);
-		else if (mode == "drcs")
+		else if (mode == _T("drcs"))
 			searchDrcsMain(ctx, setting);
-		else if (mode == "probe_subtitles")
+		else if (mode == _T("probe_subtitles"))
 			detectSubtitleMain(ctx, setting);
-		else if (mode == "probe_audio")
+		else if (mode == _T("probe_audio"))
 			detectAudioMain(ctx, setting);
 
-		else if (mode == "test_print_crc")
+		else if (mode == _T("test_print_crc"))
 			test::PrintCRCTable(ctx, setting);
-		else if (mode == "test_crc")
+		else if (mode == _T("test_crc"))
 			test::CheckCRC(ctx, setting);
-		else if (mode == "test_read_bits")
+		else if (mode == _T("test_read_bits"))
 			test::ReadBits(ctx, setting);
-		else if (mode == "test_auto_buffer")
+		else if (mode == _T("test_auto_buffer"))
 			test::CheckAutoBuffer(ctx, setting);
-		else if (mode == "test_verifympeg2ps")
+		else if (mode == _T("test_verifympeg2ps"))
 			test::VerifyMpeg2Ps(ctx, setting);
-		else if (mode == "test_readts")
+		else if (mode == _T("test_readts"))
 			test::ReadTS(ctx, setting);
-		else if (mode == "test_aacdec")
+		else if (mode == _T("test_aacdec"))
 			test::AacDecode(ctx, setting);
-		else if (mode == "test_wavewrite")
+		else if (mode == _T("test_wavewrite"))
 			test::WaveWriteHeader(ctx, setting);
-		else if (mode == "test_process")
+		else if (mode == _T("test_process"))
 			test::ProcessTest(ctx, setting);
-		else if (mode == "test_streamreform")
+		else if (mode == _T("test_streamreform"))
 			test::FileStreamInfo(ctx, setting);
-		else if (mode == "test_parseargs")
+		else if (mode == _T("test_parseargs"))
 			test::ParseArgs(ctx, setting);
-		else if (mode == "test_lossless")
+		else if (mode == _T("test_lossless"))
 			test::LosslessFileTest(ctx, setting);
-		else if (mode == "test_logoframe")
+		else if (mode == _T("test_logoframe"))
 			test::LogoFrameTest(ctx, setting);
-		else if (mode == "test_dualmono")
+		else if (mode == _T("test_dualmono"))
 			test::SplitDualMonoAAC(ctx, setting);
-		else if (mode == "test_aacdecode")
+		else if (mode == _T("test_aacdecode"))
 			test::AACDecodeTest(ctx, setting);
-		else if (mode == "test_ass")
+		else if (mode == _T("test_ass"))
 			test::CaptionASS(ctx, setting);
-		else if (mode == "test_eo")
+		else if (mode == _T("test_eo"))
 			test::EncoderOptionParse(ctx, setting);
-		else if (mode == "test_perf")
+		else if (mode == _T("test_perf"))
 			test::DecodePerformance(ctx, setting);
-		else if (mode == "test_zone")
+		else if (mode == _T("test_zone"))
 			test::BitrateZones(ctx, setting);
-		else if (mode == "test_zone2")
+		else if (mode == _T("test_zone2"))
 			test::BitrateZonesBug(ctx, setting);
-		else if (mode == "test_printf")
+		else if (mode == _T("test_printf"))
 			test::PrintfBug(ctx, setting);
-		else if (mode == "test_resource")
+		else if (mode == _T("test_resource"))
 			test::ResourceTest(ctx, setting);
 
 		else
-			PRINTF("--modeの指定が間違っています: %s\n", mode.c_str());
+      ctx.errorF("--modeの指定が間違っています: %s\n", mode.c_str());
 
 		return 0;
 	}

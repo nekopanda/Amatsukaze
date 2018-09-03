@@ -100,7 +100,7 @@ class Y4MEncodeWriter : AMTObject, NonCopyable
 		return "Unknown";
 	}
 public:
-	Y4MEncodeWriter(AMTContext& ctx, const std::string& encoder_args, VideoInfo vi, VideoFormat fmt)
+	Y4MEncodeWriter(AMTContext& ctx, const tstring& encoder_args, VideoInfo vi, VideoFormat fmt)
 		: AMTObject(ctx)
 		, y4mWriter_(new MyVideoWriter(this, vi, fmt))
 		, process_(new StdRedirectedSubProcess(encoder_args, 5))
@@ -173,7 +173,7 @@ public:
 
   void encode(
     PClip source, VideoFormat outfmt, const std::vector<int> frameDurations,
-    const std::vector<std::string>& encoderOptions,
+    const std::vector<tstring>& encoderOptions,
     IScriptEnvironment* env)
   {
     vi_ = source->GetVideoInfo();
@@ -192,10 +192,10 @@ public:
       ctx.infoF("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, 
         (frameDurations.size() > 0) ? frameDurations.size() : vi_.num_frames);
 
-      const std::string& args = encoderOptions[i];
+      const tstring& args = encoderOptions[i];
 
 			ctx.info("[エンコーダ起動]");
-			ctx.info(args.c_str());
+			ctx.infoF("%s", args);
 
 			// 初期化
       encoder_ = std::unique_ptr<Y4MEncodeWriter>(new Y4MEncodeWriter(ctx, args, vi_, outfmt_));
@@ -342,9 +342,9 @@ private:
 
   class AudioFileWriter : public av::AudioWriter {
   public:
-    AudioFileWriter(AVStream* stream, const std::string& filename, int bufsize)
+    AudioFileWriter(AVStream* stream, const tstring& filename, int bufsize)
       : AudioWriter(stream, bufsize)
-      , file_(filename, "wb")
+      , file_(filename, _T("wb"))
     { }
   protected:
     virtual void onWrite(MemoryChunk mc) {
@@ -419,7 +419,7 @@ private:
     videoFormat_ = fmt;
 
     // ビットレート計算
-    File file(setting_.getSrcFilePath(), "rb");
+    File file(setting_.getSrcFilePath(), _T("rb"));
     srcFileSize_ = file.size();
     double srcBitrate = ((double)srcFileSize_ * 8 / 1000) / (stream->duration * av_q2d(stream->time_base));
     ctx.infoF("入力映像ビットレート: %d kbps", (int)srcBitrate);
@@ -430,16 +430,16 @@ private:
     }
 
     // 初期化
-    std::string args = makeEncoderArgs(
+    tstring args = makeEncoderArgs(
       setting_.getEncoder(),
       setting_.getEncoderPath(),
       setting_.getOptions(
         0, fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
-      fmt, std::string(), false,
+      fmt, tstring(), false,
       setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
 
     ctx.info("[エンコーダ開始]");
-    ctx.info(args.c_str());
+    ctx.infoF("%s", args);
 
     // x265でインタレースの場合はフィールドモード
     bool dstFieldMode =

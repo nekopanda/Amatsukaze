@@ -16,12 +16,12 @@ class PacketCache : public AMTObject {
 public:
 	PacketCache(
 		AMTContext& ctx, 
-		const std::string& filepath, 
+		const tstring& filepath,
 		const std::vector<int64_t> offsets, // データ数+1要素
 		int nLinebit, // キャッシュラインデータ数のビット数
 		int nEntry)	 // 最大キャッシュ保持ライン数
 		: AMTObject(ctx)
-		, file_(filepath, "rb")
+		, file_(filepath, _T("rb"))
 		, offsets_(offsets)
 		, nLinebit_(nLinebit)
 		, nEntry_(nEntry)

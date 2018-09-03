@@ -16,9 +16,9 @@
 #include "ProcessThread.hpp"
 
 struct EncodeFileInfo {
-	std::string outPath;
-	std::string tcPath; // タイムコードファイルパス
-	std::vector<std::string> outSubs; // 外部ファイルで出力された字幕
+  tstring outPath;
+  tstring tcPath; // タイムコードファイルパス
+	std::vector<tstring> outSubs; // 外部ファイルで出力された字幕
 	int64_t fileSize;
 	double srcBitrate;
 	double targetBitrate;
@@ -73,7 +73,7 @@ public:
 		}
 
 		// 音声ファイルを作成
-		std::vector<std::string> audioFiles;
+		std::vector<tstring> audioFiles;
 		const FileAudioFrameList& fileFrameList =
 			reformInfo_.getFileAudioFrameList(encoderIndex, videoFileIndex, cmtype);
 		for (int asrc = 0, adst = 0; asrc < (int)fileFrameList.size(); ++asrc) {
@@ -83,8 +83,8 @@ public:
 					// デュアルモノは2つのAACに分離
 					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", encoderIndex, asrc);
 					SpDualMonoSplitter splitter(ctx);
-					std::string filepath0 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
-					std::string filepath1 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+          tstring filepath0 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+          tstring filepath1 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
 					splitter.open(0, filepath0);
 					splitter.open(1, filepath1);
 					for (int frameIndex : frameList) {
@@ -94,8 +94,8 @@ public:
 					audioFiles.push_back(filepath1);
 				}
 				else {
-					std::string filepath = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
-					File file(filepath, "wb");
+          tstring filepath = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+					File file(filepath, _T("wb"));
 					for (int frameIndex : frameList) {
 						file.write(audioCache_[frameIndex]);
 					}
@@ -105,11 +105,11 @@ public:
 		}
 
 		// 映像ファイル
-		std::string encVideoFile;
+		tstring encVideoFile;
 		encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype);
 
 		// チャプターファイル
-		std::string chapterFile;
+    tstring chapterFile;
 		if (setting_.isChapterEnabled()) {
 			auto path = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
 			if (File::exists(path)) {
@@ -118,14 +118,14 @@ public:
 		}
 
 		// 字幕ファイル
-		std::vector<std::string> subsFiles;
-		std::vector<std::string> subsTitles;
+		std::vector<tstring> subsFiles;
+		std::vector<tstring> subsTitles;
 		if (nicoOK) {
 			for (NicoJKType jktype : setting_.getNicoJKTypes()) {
 				auto srcsub = setting_.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype);
 				if (setting_.getFormat() == FORMAT_MKV) {
 					subsFiles.push_back(srcsub);
-					subsTitles.push_back(StringFormat("NicoJK%s", GetNicoJKSuffix(jktype)));
+					subsTitles.push_back(StringFormat(_T("NicoJK%s"), GetNicoJKSuffix(jktype)));
 				}
 				else { // MP4の場合は別ファイルとしてコピー
 					auto dstsub = pathgen.getOutASSPath(-1, jktype);
@@ -140,7 +140,7 @@ public:
 				videoFileIndex, encoderIndex, lang, cmtype);
 			if (setting_.getFormat() == FORMAT_MKV) {
 				subsFiles.push_back(srcsub);
-				subsTitles.push_back("ASS");
+				subsTitles.push_back(_T("ASS"));
 			}
 			else { // MP4,M2TSの場合は別ファイルとしてコピー
 				auto dstsub = pathgen.getOutASSPath(lang, (NicoJKType)0);
@@ -149,17 +149,17 @@ public:
 			}
 			subsFiles.push_back(setting_.getTmpSRTFilePath(
 				videoFileIndex, encoderIndex, lang, cmtype));
-			subsTitles.push_back("SRT");
+			subsTitles.push_back(_T("SRT"));
 		}
 
 		// タイムコード用
 		bool is120fps = (eoInfo.afsTimecode || setting_.isVFR120fps());
 		std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * (is120fps ? 4 : 2), vfmt.frameRateDenom);
 
-		std::string tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
+    tstring tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
 		outFilePath.outPath = pathgen.getOutFilePath();
 
-		std::string metaFile;
+    tstring metaFile;
 		if (setting_.getFormat() == FORMAT_M2TS || setting_.getFormat() == FORMAT_TS) {
 			// M2TS/TSの場合はmetaファイル作成
 			StringBuilder sb;
@@ -186,7 +186,7 @@ public:
 			}
 
 			metaFile = setting_.getM2tsMetaFilePath(videoFileIndex, encoderIndex, cmtype);
-			File file(metaFile, "w");
+			File file(metaFile, _T("w"));
 			file.write(sb.getMC());
 		}
 
@@ -198,7 +198,7 @@ public:
 			outFilePath.tcPath, timebase, subsFiles, subsTitles, metaFile);
 
 		for (int i = 0; i < (int)args.size(); ++i) {
-			ctx.info(args[i].first.c_str());
+			ctx.infoF("%s", args[i].first);
 			 StdRedirectedSubProcess muxer(args[i].first, 0, args[i].second);
 			int ret = muxer.join();
 			if (ret != 0) {
@@ -208,7 +208,7 @@ public:
 			ctx.setDefaultCP();
 		}
 
-		File outfile(outFilePath.outPath, "rb");
+		File outfile(outFilePath.outPath, _T("rb"));
 		outFilePath.fileSize = outfile.size();
 	}
 
@@ -218,8 +218,8 @@ private:
 		std::unique_ptr<File> file[2];
 	public:
 		SpDualMonoSplitter(AMTContext& ctx) : DualMonoSplitter(ctx) { }
-		void open(int index, const std::string& filename) {
-			file[index] = std::unique_ptr<File>(new File(filename, "wb"));
+		void open(int index, const tstring& filename) {
+			file[index] = std::unique_ptr<File>(new File(filename, _T("wb")));
 		}
 		virtual void OnOutFrame(int index, MemoryChunk mc) {
 			file[index]->write(mc);
@@ -244,20 +244,20 @@ public:
 
 	void mux(VideoFormat videoFormat, int audioCount) {
 		// Mux
-		std::vector<std::string> audioFiles;
+		std::vector<tstring> audioFiles;
 		for (int i = 0; i < audioCount; ++i) {
 			audioFiles.push_back(setting_.getIntAudioFilePath(0, 0, i, CMTYPE_BOTH));
 		}
-		std::string encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
-		std::string outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
+		tstring encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
+    tstring outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
 		auto args = makeMuxerArgs(
 			FORMAT_MP4,
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, videoFormat, audioFiles, outFilePath,
-			std::string(), std::string(), std::string(), std::pair<int, int>(),
-			std::vector<std::string>(), std::vector<std::string>(), std::string());
+      tstring(), tstring(), tstring(), std::pair<int, int>(),
+			std::vector<tstring>(), std::vector<tstring>(), tstring());
 		ctx.info("[Mux開始]");
-		ctx.info(args[0].first.c_str());
+		ctx.infoF("%s", args[0].first);
 
 		{
 			MySubProcess muxer(args[0].first);
@@ -268,7 +268,7 @@ public:
 		}
 
 		{ // 出力サイズ取得
-			File outfile(setting_.getOutFilePath(0, CMTYPE_BOTH), "rb");
+			File outfile(setting_.getOutFilePath(0, CMTYPE_BOTH), _T("rb"));
 			totalOutSize_ += outfile.size();
 		}
 	}
@@ -280,7 +280,7 @@ public:
 private:
 	class MySubProcess : public EventBaseSubProcess {
 	public:
-		MySubProcess(const std::string& args) : EventBaseSubProcess(args) { }
+		MySubProcess(const tstring& args) : EventBaseSubProcess(args) { }
 	protected:
 		virtual void onOut(bool isErr, MemoryChunk mc) {
 			// これはマルチスレッドで呼ばれるの注意

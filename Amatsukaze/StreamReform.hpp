@@ -408,11 +408,11 @@ public:
 		return std::make_pair(srcTotalDuration_, outTotalDuration_);
 	}
 
-	void printOutputMapping(std::function<std::string(int)> getFileName) const
+	void printOutputMapping(std::function<tstring(int)> getFileName) const
 	{
 		ctx.info("[出力ファイル]");
 		for (int i = 0; i < (int)fileFormatId_.size(); ++i) {
-			ctx.infoF("%d: %s", i, getFileName(i).c_str());
+			ctx.infoF("%d: %s", i, getFileName(i));
 		}
 
 		ctx.info("[入力->出力マッピング]");
@@ -440,8 +440,8 @@ public:
 
 	// 以下デバッグ用 //
 
-	void serialize(const std::string& path) {
-		serialize(File(path, "wb"));
+	void serialize(const tstring& path) {
+		serialize(File(path, _T("wb")));
 	}
 
 	void serialize(const File& file) {
@@ -453,8 +453,8 @@ public:
 		file.writeArray(timeList_);
 	}
 
-	static StreamReformInfo deserialize(AMTContext& ctx, const std::string& path) {
-		return deserialize(ctx, File(path, "rb"));
+	static StreamReformInfo deserialize(AMTContext& ctx, const tstring& path) {
+		return deserialize(ctx, File(path, _T("rb")));
 	}
 
 	static StreamReformInfo deserialize(AMTContext& ctx, const File& file) {

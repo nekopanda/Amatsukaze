@@ -58,7 +58,7 @@ private:
 	class MySubProcess : public EventBaseSubProcess
 	{
 	public:
-		MySubProcess(const std::string& args)
+		MySubProcess(const tstring& args)
 			: EventBaseSubProcess(args)
 			, outConv(false)
 			, errConv(true)
@@ -111,7 +111,7 @@ private:
 
 	void getJKNum(int serviceId)
 	{
-		File file(setting_.getNicoConvChSidPath(), "r");
+		File file(setting_.getNicoConvChSidPath(), _T("r"));
 		std::regex re("([^\\t]+)\\t([^\\t]+)\\t([^\\t]+)\\t([^\\t]+)\\t([^\\t]+)");
 		std::string str;
 		while (file.getline(str)) {
@@ -129,10 +129,10 @@ private:
 		jknum_ = -1;
 	}
 
-	std::string MakeNicoJK18Args(int jknum, size_t startTime, size_t endTime)
+	tstring MakeNicoJK18Args(int jknum, size_t startTime, size_t endTime)
 	{
-		return StringFormat("\"%s\" jk%d %zu %zu -x -f \"%s\"",
-			GetModuleDirectory() + "\\NicoJK18Client.exe",
+		return StringFormat(_T("\"%s\" jk%d %zu %zu -x -f \"%s\""),
+			GetModuleDirectory() + _T("\\NicoJK18Client.exe"),
 			jknum, startTime, endTime,
 			setting_.getTmpNicoJKXMLPath());
 	}
@@ -140,7 +140,7 @@ private:
 	bool getNicoJKXml(time_t startTime, int duration)
 	{
 		auto args = MakeNicoJK18Args(jknum_, (size_t)startTime, (size_t)startTime + duration);
-		ctx.info(args.c_str());
+		ctx.infoF("%s", args);
 		StdRedirectedSubProcess process(args);
 		int exitCode = process.join();
 		if (exitCode == 0 && File::exists(setting_.getTmpNicoJKXMLPath())) {
@@ -165,8 +165,8 @@ private:
 
 	void makeT(NicoJKType srcType, NicoJKType dstType)
 	{
-		File file(setting_.getTmpNicoJKASSPath(srcType), "r");
-		File dst(setting_.getTmpNicoJKASSPath(dstType), "w");
+		File file(setting_.getTmpNicoJKASSPath(srcType), _T("r"));
+		File dst(setting_.getTmpNicoJKASSPath(dstType), _T("w"));
 		std::string str;
 		while (file.getline(str)) {
 			dst.writeline(str);
@@ -209,22 +209,22 @@ private:
 		while (file.getline(str)) dst.writeline(str);
 	}
 
-	std::string MakeNicoConvASSArgs(ConvMode mode, size_t startTime, NicoJKType type)
+	tstring MakeNicoConvASSArgs(ConvMode mode, size_t startTime, NicoJKType type)
 	{
 		int width[] = { 1280, 1280, 1920, 1920 };
 		int height[] = { 720, 720, 1080, 1080 };
-		StringBuilder sb;
-		sb.append("\"%s\" -width %d -height %d -wfilename \"%s\" -chapter 0",
+		StringBuilderT sb;
+		sb.append(_T("\"%s\" -width %d -height %d -wfilename \"%s\" -chapter 0"),
 			setting_.getNicoConvAssPath(),
 			width[(int)type], height[(int)type],
 			setting_.getTmpNicoJKASSPath(type));
 		if (mode == CONV_ASS_LOG) {
-			sb.append(" -nicojk 1", startTime);
+			sb.append(_T(" -nicojk 1"), startTime);
 		}
 		if (mode != CONV_ASS_XML) {
-			sb.append(" -tx_starttime %zu", startTime);
+			sb.append(_T(" -tx_starttime %zu"), startTime);
 		}
-		sb.append(" \"%s\"", (mode != CONV_ASS_XML) ? setting_.getSrcFilePath() : setting_.getTmpNicoJKXMLPath());
+		sb.append(_T(" \"%s\""), (mode != CONV_ASS_XML) ? setting_.getSrcFilePath() : setting_.getTmpNicoJKXMLPath());
 		return sb.str();
 	}
 
@@ -239,7 +239,7 @@ private:
 		for (int i = 0; i < 2; ++i) {
 			if (mask_i[i] & typemask) {
 				auto args = MakeNicoConvASSArgs(mode, startTime, type_s[i]);
-				ctx.info(args.c_str());
+				ctx.infoF("%s", args);
 				MySubProcess process(args);
 				int exitCode = process.join();
 				if (exitCode == 0 && File::exists(setting_.getTmpNicoJKASSPath(type_s[i]))) {
@@ -265,7 +265,7 @@ private:
 		int typemask = setting_.getNicoJKMask();
 		for (int i = 0; i < NICOJK_MAX; ++i) {
 			if ((1 << i) & typemask) {
-				File file(setting_.getTmpNicoJKASSPath((NicoJKType)i), "r");
+				File file(setting_.getTmpNicoJKASSPath((NicoJKType)i), _T("r"));
 				std::string str;
 				while (file.getline(str)) {
 					headerlines_[i].push_back(str);

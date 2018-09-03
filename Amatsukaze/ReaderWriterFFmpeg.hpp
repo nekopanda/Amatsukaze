@@ -126,10 +126,10 @@ private:
 
 class InputContext : NonCopyable {
 public:
-	InputContext(const std::string& src)
+	InputContext(const tstring& src)
 		: ctx_()
 	{
-		if (avformat_open_input(&ctx_, src.c_str(), NULL, NULL) != 0) {
+		if (avformat_open_input(&ctx_, to_string(src).c_str(), NULL, NULL) != 0) {
 			THROW(IOException, "failed avformat_open_input");
 		}
 	}
@@ -202,7 +202,7 @@ public:
 		, fieldMode_()
 	{ }
 
-	void readAll(const std::string& src, const DecoderSetting& decoderSetting)
+	void readAll(const tstring& src, const DecoderSetting& decoderSetting)
 	{
 		InputContext inputCtx(src);
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
@@ -761,7 +761,7 @@ public:
 		delete process_;
 	}
 
-	void start(const std::string& encoder_args, VideoFormat fmt, bool fieldMode, int bufsize) {
+	void start(const tstring& encoder_args, VideoFormat fmt, bool fieldMode, int bufsize) {
 		if (videoWriter_ != NULL) {
 			THROW(InvalidOperationException, "start method called multiple times");
 		}

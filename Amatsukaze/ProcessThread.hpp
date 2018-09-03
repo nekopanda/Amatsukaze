@@ -182,9 +182,9 @@ private:
 class SubProcess
 {
 public:
-	SubProcess(const std::string& args)
+	SubProcess(const tstring& args)
 	{
-		STARTUPINFO si = STARTUPINFO();
+		STARTUPINFOW si = STARTUPINFOW();
 
 		si.cb = sizeof(si);
 		si.hStdError = stdErrPipe_.writeHandle;
@@ -208,7 +208,7 @@ public:
 		// Priority Classは子プロセスに継承される対象ではないが、
 		// NORMAL_PRIORITY_CLASS以下では実質継承されることに注意
 
-		if (CreateProcess(NULL, const_cast<char*>(args.c_str()), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi_) == 0) {
+		if (CreateProcessW(NULL, const_cast<tchar*>(args.c_str()), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi_) == 0) {
 			THROW(RuntimeException, "プロセス起動に失敗。exeのパスを確認してください。");
 		}
 
@@ -318,7 +318,7 @@ private:
 class EventBaseSubProcess : public SubProcess
 {
 public:
-	EventBaseSubProcess(const std::string& args)
+	EventBaseSubProcess(const tstring& args)
 		: SubProcess(args)
 		, drainOut(this, false)
 		, drainErr(this, true)
@@ -392,7 +392,7 @@ private:
 class StdRedirectedSubProcess : public EventBaseSubProcess
 {
 public:
-	StdRedirectedSubProcess(const std::string& args, int bufferLines = 0, bool isUtf8 = false)
+	StdRedirectedSubProcess(const tstring& args, int bufferLines = 0, bool isUtf8 = false)
 		: EventBaseSubProcess(args)
     , bufferLines(bufferLines)
 		, isUtf8(isUtf8)

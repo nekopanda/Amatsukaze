@@ -225,7 +225,7 @@ EXIT:
 	return bRet;
 }
 
-static void SaveDRCSImage(const std::string& filename, const DRCS_PATTERN_DLL* pData)
+static void SaveDRCSImage(const tstring& filename, const DRCS_PATTERN_DLL* pData)
 {
 	//ƒtƒ@ƒCƒ‹‚ª‚È‚¯‚ê‚Î‘‚«‚±‚Þ
 	if (File::exists(filename) == false) {
@@ -236,7 +236,7 @@ static void SaveDRCSImage(const std::string& filename, const DRCS_PATTERN_DLL* p
 		bmfHeader.bfOffBits = sizeof(bmfHeader) + sizeof(pData->bmiHeader) + sizeof(colors);
 		bmfHeader.bfSize = bmfHeader.bfOffBits + pData->bmiHeader.biSizeImage;
 
-		File file(filename, "wb");
+		File file(filename, _T("wb"));
 		file.writeValue(bmfHeader);
 		file.writeValue(pData->bmiHeader);
 		file.write(MemoryChunk((uint8_t*)colors, sizeof(colors)));
@@ -254,7 +254,7 @@ static int StrlenWoLoSurrogate(LPCWSTR str)
 }
 
 struct DRCSOutInfo {
-	std::string filename;
+	tstring filename;
 	double elapsed;
 };
 

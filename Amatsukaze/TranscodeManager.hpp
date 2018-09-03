@@ -31,8 +31,8 @@ public:
 		, setting_(setting)
 		, psWriter(ctx)
 		, writeHandler(*this)
-		, audioFile_(setting.getAudioFilePath(), "wb")
-		, waveFile_(setting.getWaveFilePath(), "wb")
+		, audioFile_(setting.getAudioFilePath(), _T("wb"))
+		, waveFile_(setting.getWaveFilePath(), _T("wb"))
 		, videoFileCount_(0)
 		, videoStreamType_(-1)
 		, audioStreamType_(-1)
@@ -76,9 +76,9 @@ protected:
 				totalIntVideoSize_ += mc.length;
 			}
 		}
-		void open(const std::string& path) {
+		void open(const tstring& path) {
 			totalIntVideoSize_ = 0;
-			file_ = std::unique_ptr<File>(new File(path, "wb"));
+			file_ = std::unique_ptr<File>(new File(path, _T("wb")));
 		}
 		void close() {
 			file_ = nullptr;
@@ -112,7 +112,7 @@ protected:
 		enum { BUFSIZE = 4 * 1024 * 1024 };
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-		File srcfile(setting_.getSrcFilePath(), "rb");
+		File srcfile(setting_.getSrcFilePath(), _T("rb"));
 		srcFileSize_ = srcfile.size();
 		size_t readBytes;
 		do {
@@ -344,12 +344,12 @@ public:
 		, reformInfo_(reformInfo)
 	{ }
 
-	std::string GenEncoderOptions(
+	tstring GenEncoderOptions(
 		int numFrames,
 		VideoFormat outfmt,
 		std::vector<BitrateZone> zones,
 		double vfrBitrateScale,
-		std::string timecodepath,
+		tstring timecodepath,
 		bool is120fps,
 		int videoFileIndex, int encoderIndex, CMType cmtype, int pass)
 	{
@@ -456,15 +456,15 @@ void DoBadThing() {
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
+#if 0
+  MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
+  //DoBadThing();
+#endif
+
 	const_cast<ConfigWrapper&>(setting).CreateTempDir();
 	setting.dump();
 
-#if 0
-	MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
-	//DoBadThing();
-#endif
-
-	bool isNoEncode = (setting.getMode() == "cm");
+	bool isNoEncode = (setting.getMode() == _T("cm"));
 
 	auto eoInfo = ParseEncoderOption(setting.getEncoder(), setting.getEncoderOptions());
 	PrintEncoderInfo(ctx, eoInfo);
@@ -635,7 +635,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 					const auto& headerLines = nicoJK.getHeaderLines();
 					const auto& dialogues = reformInfo.getOutNicoJKList(encoderIndex, videoFileIndex, cmtype);
 					for (NicoJKType jktype : setting.getNicoJKTypes()) {
-						File file(setting.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype), "w");
+						File file(setting.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype), _T("w"));
 						auto text = formatterNicoJK.generate(headerLines[(int)jktype], dialogues[(int)jktype]);
 						file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
 					}
@@ -722,7 +722,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						auto vfrBitrateScale = AdjustVFRBitrate(frameDurations);
 						// VFRフレームタイミングが120fpsか
 						bool is120fps = (eoInfo.afsTimecode || setting.isVFR120fps());
-						std::vector<std::string> encoderArgs;
+						std::vector<tstring> encoderArgs;
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
@@ -832,14 +832,14 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 		std::string str = sb.str();
 		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
-		File file(setting.getOutInfoJsonPath(), "w");
+		File file(setting.getOutInfoJsonPath(), _T("w"));
 		file.write(mc);
 	}
 }
 
 static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	if (ends_with(setting.getSrcFilePath(), ".ts")) {
+	if (ends_with(setting.getSrcFilePath(), _T(".ts"))) {
 		ctx.warn("一般ファイルモードでのTSファイルの処理は非推奨です");
 	}
 
@@ -867,7 +867,7 @@ static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 		std::string str = sb.str();
 		MemoryChunk mc(reinterpret_cast<uint8_t*>(const_cast<char*>(str.data())), str.size());
-		File file(setting.getOutInfoJsonPath(), "w");
+		File file(setting.getOutInfoJsonPath(), _T("w"));
 		file.write(mc);
 	}
 }
@@ -885,7 +885,7 @@ public:
 		enum { BUFSIZE = 4 * 1024 * 1024 };
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-		File srcfile(setting_.getSrcFilePath(), "rb");
+		File srcfile(setting_.getSrcFilePath(), _T("rb"));
 		size_t readBytes;
 		do {
 			readBytes = srcfile.read(buffer);
@@ -950,7 +950,7 @@ public:
 		enum { BUFSIZE = 4 * 1024 * 1024 };
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-		File srcfile(setting_.getSrcFilePath(), "rb");
+		File srcfile(setting_.getSrcFilePath(), _T("rb"));
 		auto fileSize = srcfile.size();
 		// ファイル先頭から10%のところから読む
 		srcfile.seek(fileSize / 10, SEEK_SET);
@@ -1027,7 +1027,7 @@ public:
 		enum { BUFSIZE = 4 * 1024 * 1024 };
 		auto buffer_ptr = std::unique_ptr<uint8_t[]>(new uint8_t[BUFSIZE]);
 		MemoryChunk buffer(buffer_ptr.get(), BUFSIZE);
-		File srcfile(setting_.getSrcFilePath(), "rb");
+		File srcfile(setting_.getSrcFilePath(), _T("rb"));
 		auto fileSize = srcfile.size();
 		// ファイル先頭から10%のところから読む
 		srcfile.seek(fileSize / 10, SEEK_SET);

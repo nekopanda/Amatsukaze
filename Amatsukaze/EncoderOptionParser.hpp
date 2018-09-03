@@ -28,10 +28,9 @@ struct EncoderOptionInfo {
 	bool afsTimecode;
 };
 
-static std::vector<std::wstring> SplitOptions(const std::string& str)
+static std::vector<std::wstring> SplitOptions(const tstring& str)
 {
-	auto vec = string_internal::to_wstring(str);
-	std::wstring wstr(vec.begin(), vec.end() - 1); // -1: nullèIí[ÇéÊÇËèúÇ≠
+	std::wstring wstr = to_wstring(str);
 	std::wregex re(L"(([^\" ]+)|\"([^\"]+)\") *");
 	std::wsregex_iterator it(wstr.begin(), wstr.end(), re);
 	std::wsregex_iterator end;
@@ -47,7 +46,7 @@ static std::vector<std::wstring> SplitOptions(const std::string& str)
 	return argv;
 }
 
-EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const std::string& str)
+EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const tstring& str)
 {
 	EncoderOptionInfo info = EncoderOptionInfo();
 

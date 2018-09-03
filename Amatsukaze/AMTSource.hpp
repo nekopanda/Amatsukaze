@@ -444,8 +444,8 @@ class AMTSource : public IClip, AMTObject
 
 public:
 	AMTSource(AMTContext& ctx,
-		const std::string& srcpath,
-		const std::string& audiopath,
+		const tstring& srcpath,
+		const tstring& audiopath,
 		const VideoFormat& vfmt, const AudioFormat& afmt,
 		const std::vector<FilterSourceFrame>& frames,
 		const std::vector<FilterAudioFrame>& audioFrames,
@@ -457,7 +457,7 @@ public:
 		, audioFrames(audioFrames)
 		, inputCtx(srcpath)
 		, vi()
-		, waveFile(audiopath, "rb")
+		, waveFile(audiopath, _T("rb"))
 		, seekDistance(10)
 		, initialized(false)
 		, lastDecodeFrame(-1)
@@ -606,17 +606,17 @@ public:
 AMTContext* g_ctx_for_plugin_filter = nullptr;
 
 void SaveAMTSource(
-	const std::string& savepath,
-	const std::string& srcpath,
-	const std::string& audiopath,
+	const tstring& savepath,
+	const tstring& srcpath,
+	const tstring& audiopath,
 	const VideoFormat& vfmt, const AudioFormat& afmt,
 	const std::vector<FilterSourceFrame>& frames,
 	const std::vector<FilterAudioFrame>& audioFrames,
 	const DecoderSetting& decoderSetting)
 {
-	File file(savepath, "wb");
-	file.writeArray(std::vector<char>(srcpath.begin(), srcpath.end()));
-	file.writeArray(std::vector<char>(audiopath.begin(), audiopath.end()));
+	File file(savepath, _T("wb"));
+	file.writeArray(std::vector<tchar>(srcpath.begin(), srcpath.end()));
+	file.writeArray(std::vector<tchar>(audiopath.begin(), audiopath.end()));
 	file.writeValue(vfmt);
 	file.writeValue(afmt);
 	file.writeArray(frames);
@@ -624,13 +624,13 @@ void SaveAMTSource(
 	file.writeValue(decoderSetting);
 }
 
-PClip LoadAMTSource(const std::string& loadpath, IScriptEnvironment* env)
+PClip LoadAMTSource(const tstring& loadpath, IScriptEnvironment* env)
 {
-	File file(loadpath, "rb");
-	auto& srcpathv = file.readArray<char>();
-	std::string srcpath(srcpathv.begin(), srcpathv.end());
-	auto& audiopathv = file.readArray<char>();
-	std::string audiopath(audiopathv.begin(), audiopathv.end());
+	File file(loadpath, _T("rb"));
+	auto& srcpathv = file.readArray<tchar>();
+  tstring srcpath(srcpathv.begin(), srcpathv.end());
+	auto& audiopathv = file.readArray<tchar>();
+  tstring audiopath(audiopathv.begin(), audiopathv.end());
 	VideoFormat vfmt = file.readValue<VideoFormat>();
 	AudioFormat afmt = file.readValue<AudioFormat>();
 	auto data = std::unique_ptr<AMTSourceData>(new AMTSourceData());
@@ -648,7 +648,7 @@ AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env
 	if (g_ctx_for_plugin_filter == nullptr) {
 		g_ctx_for_plugin_filter = new AMTContext();
 	}
-	std::string filename = args[0].AsString();
+  tstring filename = to_tstring(args[0].AsString());
 	return LoadAMTSource(filename, env);
 }
 
@@ -660,8 +660,8 @@ class AVSLosslessSource : public IClip
 	std::unique_ptr<uint8_t[]> codedFrame;
 	std::unique_ptr<uint8_t[]> rawFrame;
 public:
-	AVSLosslessSource(AMTContext& ctx, const std::string& filepath, const VideoFormat& format, IScriptEnvironment* env)
-		: file(ctx, filepath, "rb")
+	AVSLosslessSource(AMTContext& ctx, const tstring& filepath, const VideoFormat& format, IScriptEnvironment* env)
+		: file(ctx, filepath, _T("rb"))
 		, codec(make_unique_ptr(CCodec::CreateInstance(UTVF_ULH0, "Amatsukaze")))
 		, vi()
 	{

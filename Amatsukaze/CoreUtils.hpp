@@ -42,10 +42,10 @@ DEFINE_EXCEPTION(TestException)
 #undef DEFINE_EXCEPTION
 
 #define THROW(exception, message) \
-	throw_exception_(exception(StringBuilder("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__).str()))
+	throw_exception_(exception(StringFormat("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__)))
 
 #define THROWF(exception, fmt, ...) \
-	throw_exception_(exception(StringBuilder("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__).str()))
+	throw_exception_(exception(StringFormat("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__)))
 
 static void throw_exception_(const Exception& exc)
 {
@@ -242,19 +242,10 @@ std::basic_string<Char> GetFullPath(const std::basic_string<Char>& path)
 	return buf;
 }
 
-FILE* fsopenT(const wchar_t* FileName, const wchar_t* Mode, int ShFlag) {
-  return _wfsopen(FileName, Mode, ShFlag);
-}
-
-FILE* fsopenT(const char* FileName, const char* Mode, int ShFlag) {
-  return _fsopen(FileName, Mode, ShFlag);
-}
-
 class File : NonCopyable
 {
 public:
-  template <typename Char>
-  File(const std::basic_string<Char>& path, const Char* mode) {
+  File(const tstring& path, const tchar* mode) {
     fp_ = fsopenT(path.c_str(), mode, _SH_DENYNO);
     if (fp_ == NULL) {
       THROWF(IOException, "failed to open file %s", GetFullPath(path));
@@ -375,16 +366,16 @@ public:
 		fputs(line.c_str(), fp_);
 		fputs("\n", fp_);
 	}
-	static bool exists(const std::string& path) {
-		FILE* fp_ = _fsopen(path.c_str(), "rb", _SH_DENYNO);
+	static bool exists(const tstring& path) {
+		FILE* fp_ = fsopenT(path.c_str(), _T("rb"), _SH_DENYNO);
 		if (fp_) {
 			fclose(fp_);
 			return true;
 		}
 		return false;
 	}
-	static void copy(const std::string& srcpath, const std::string& dstpath) {
-		CopyFileA(srcpath.c_str(), dstpath.c_str(), FALSE);
+	static void copy(const tstring& srcpath, const tstring& dstpath) {
+		CopyFileW(srcpath.c_str(), dstpath.c_str(), FALSE);
 	}
 private:
 	FILE* fp_;

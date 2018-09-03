@@ -99,7 +99,7 @@ class GUIMediaFile : public AMTObject
 	}
 
 public:
-	GUIMediaFile(AMTContext& ctx, const char* filepath, int serviceid)
+	GUIMediaFile(AMTContext& ctx, const tchar* filepath, int serviceid)
 		: AMTObject(ctx)
 		, inputCtx(filepath)
 		, width(-1)
@@ -107,7 +107,7 @@ public:
 		, swsctx(nullptr)
 	{
 		{
-			File file(std::string(filepath), "rb");
+			File file(tstring(filepath), _T("rb"));
 			fileSize = file.size();
 		}
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
@@ -157,7 +157,7 @@ public:
 
 } // namespace av
 
-extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const char* filepath, int serviceid) {
+extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const tchar* filepath, int serviceid) {
 	try {
 		return new av::GUIMediaFile(*ctx, filepath, serviceid);
 	}
@@ -179,7 +179,7 @@ class GUILogoFile : public AMTObject
 	LogoHeader header;
 	LogoDataParam logo;
 public:
-	GUILogoFile(AMTContext& ctx, const char* filename)
+	GUILogoFile(AMTContext& ctx, const tchar* filename)
 		: AMTObject(ctx)
 		, logo(LogoData::Load(filename, &header), &header)
 	{ }
@@ -233,7 +233,7 @@ public:
 		}
 	}
 
-	bool save(const char* filename) {
+	bool save(const tchar* filename) {
 		try {
 			logo.Save(filename, &header);
 			return true;
@@ -247,7 +247,7 @@ public:
 
 } // namespace logo
 
-extern "C" __declspec(dllexport) void* LogoFile_Create(AMTContext* ctx, const char* filepath) {
+extern "C" __declspec(dllexport) void* LogoFile_Create(AMTContext* ctx, const tchar* filepath) {
 	try {
 		return new logo::GUILogoFile(*ctx, filepath);
 	}
@@ -268,4 +268,4 @@ extern "C" __declspec(dllexport) void LogoFile_SetServiceId(logo::GUILogoFile* p
 extern "C" __declspec(dllexport) const char* LogoFile_GetName(logo::GUILogoFile* ptr) { return ptr->getName(); }
 extern "C" __declspec(dllexport) void LogoFile_SetName(logo::GUILogoFile* ptr, const char* name) { ptr->setName(name); }
 extern "C" __declspec(dllexport) void LogoFile_GetImage(logo::GUILogoFile* ptr, uint8_t* rgb, int stride, uint8_t bg) { ptr->getImage(rgb, stride, bg); }
-extern "C" __declspec(dllexport) int LogoFile_Save(logo::GUILogoFile* ptr, const char* filename) { return ptr->save(filename); }
+extern "C" __declspec(dllexport) int LogoFile_Save(logo::GUILogoFile* ptr, const tchar* filename) { return ptr->save(filename); }

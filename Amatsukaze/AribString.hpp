@@ -10,8 +10,6 @@ namespace aribstring {
 
 // 他の部分は全部設定なし（Ansi）だが、とりあえずこのファイルだけUnicodeを使うようにする
 
-#define _T(str) L ## str
-
 #ifndef _UNICODE
 #define __HACK_UNICODE__
 #define _UNICODE
@@ -1051,8 +1049,6 @@ private:
 		return true;
 	}
 };
-
-#undef _T
 
 #ifdef __HACK_UNICODE__
 #undef __HACK_UNICODE__

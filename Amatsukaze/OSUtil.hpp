@@ -12,39 +12,41 @@
 
 #include <string>
 
+#include "CoreUtils.hpp"
+
 extern HMODULE g_DllHandle;
 
-std::string GetModulePath() {
-	char buf[MAX_PATH] = { 0 };
-	GetModuleFileName(g_DllHandle, buf, MAX_PATH);
+std::wstring GetModulePath() {
+  wchar_t buf[MAX_PATH] = { 0 };
+	GetModuleFileNameW(g_DllHandle, buf, MAX_PATH);
 	return buf;
 }
 
-std::string GetModuleDirectory() {
-	char buf[MAX_PATH] = { 0 };
-	GetModuleFileName(g_DllHandle, buf, MAX_PATH);
-	PathRemoveFileSpecA(buf);
+std::wstring GetModuleDirectory() {
+  wchar_t buf[MAX_PATH] = { 0 };
+	GetModuleFileNameW(g_DllHandle, buf, MAX_PATH);
+	PathRemoveFileSpecW(buf);
 	return buf;
 }
 
-std::string SearchExe(const std::string& name) {
-	char buf[MAX_PATH] = { 0 };
-	if (!SearchPath(0, name.c_str(), 0, MAX_PATH, buf, 0)) {
+std::wstring SearchExe(const std::wstring& name) {
+  wchar_t buf[MAX_PATH] = { 0 };
+	if (!SearchPathW(0, name.c_str(), 0, MAX_PATH, buf, 0)) {
 		return name;
 	}
 	return buf;
 }
 
-std::string GetDirectoryPath(const std::string& name) {
-	char buf[MAX_PATH] = { 0 };
+std::wstring GetDirectoryPath(const std::wstring& name) {
+  wchar_t buf[MAX_PATH] = { 0 };
 	std::copy(name.begin(), name.end(), buf);
-	PathRemoveFileSpecA(buf);
+	PathRemoveFileSpecW(buf);
 	return buf;
 }
 
-bool DirectoryExists(const std::string& dirName_in)
+bool DirectoryExists(const std::wstring& dirName_in)
 {
-  DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
+  DWORD ftyp = GetFileAttributesW(dirName_in.c_str());
   if (ftyp == INVALID_FILE_ATTRIBUTES)
     return false;
   if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
@@ -55,12 +57,12 @@ bool DirectoryExists(const std::string& dirName_in)
 // dirpathは 終端\\なし
 // patternは "*.*" とか
 // ディレクトリ名を含まないファイル名リストが返る
-std::vector<std::string> GetDirectoryFiles(const std::string& dirpath, const std::string& pattern)
+std::vector<std::wstring> GetDirectoryFiles(const std::wstring& dirpath, const std::wstring& pattern)
 {
-	std::string search = dirpath + "\\" + pattern;
-	std::vector<std::string> result;
-	WIN32_FIND_DATA findData;
-	HANDLE hFind = FindFirstFile(search.c_str(), &findData);
+	std::wstring search = dirpath + _T("\\") + pattern;
+	std::vector<std::wstring> result;
+	WIN32_FIND_DATAW findData;
+	HANDLE hFind = FindFirstFileW(search.c_str(), &findData);
 	if (hFind == INVALID_HANDLE_VALUE) {
 		THROWF(IOException, "ファイル列挙に失敗: %s", search);
 	}
@@ -72,7 +74,7 @@ std::vector<std::string> GetDirectoryFiles(const std::string& dirpath, const std
 			// ファイル
 			result.push_back(findData.cFileName);
 		}
-	} while (FindNextFile(hFind, &findData));
+	} while (FindNextFileW(hFind, &findData));
 	FindClose(hFind);
 	return result;
 }

@@ -8,7 +8,6 @@
 #pragma once
 
 #include <string>
-#include <direct.h>
 
 #include "StreamUtils.hpp"
 
@@ -126,18 +125,18 @@ static const char* encoderToString(ENUM_ENCODER encoder) {
 	return "Unknown";
 }
 
-static std::string makeEncoderArgs(
+static tstring makeEncoderArgs(
 	ENUM_ENCODER encoder,
-	const std::string& binpath,
-	const std::string& options,
+	const tstring& binpath,
+	const tstring& options,
 	const VideoFormat& fmt,
-	const std::string& timecodepath,
+	const tstring& timecodepath,
 	bool is120fps,
-	const std::string& outpath)
+	const tstring& outpath)
 {
-	StringBuilder sb;
+  StringBuilderT sb;
 
-	sb.append("\"%s\"", binpath);
+	sb.append(_T("\"%s\""), binpath);
 
 	// y4mヘッダにあるので必要ない
 	//ss << " --fps " << fmt.frameRateNum << "/" << fmt.frameRateDenom;
@@ -145,13 +144,13 @@ static std::string makeEncoderArgs(
 	//ss << " --sar " << fmt.sarWidth << ":" << fmt.sarHeight;
 
 	if (fmt.colorPrimaries != AVCOL_PRI_UNSPECIFIED) {
-		sb.append(" --colorprim %s", av::getColorPrimStr(fmt.colorPrimaries));
+		sb.append(_T(" --colorprim %s"), av::getColorPrimStr(fmt.colorPrimaries));
 	}
 	if (fmt.transferCharacteristics != AVCOL_TRC_UNSPECIFIED) {
-		sb.append(" --transfer %s", av::getTransferCharacteristicsStr(fmt.transferCharacteristics));
+		sb.append(_T(" --transfer %s"), av::getTransferCharacteristicsStr(fmt.transferCharacteristics));
 	}
 	if (fmt.colorSpace != AVCOL_TRC_UNSPECIFIED) {
-		sb.append(" --colormatrix %s", av::getColorSpaceStr(fmt.colorSpace));
+		sb.append(_T(" --colormatrix %s"), av::getColorSpaceStr(fmt.colorSpace));
 	}
 
 	// インターレース
@@ -159,7 +158,7 @@ static std::string makeEncoderArgs(
 	case ENCODER_X264:
 	case ENCODER_QSVENC:
 	case ENCODER_NVENC:
-		sb.append(fmt.progressive ? "" : " --tff");
+		sb.append(fmt.progressive ? _T("") : _T(" --tff"));
 		break;
 	case ENCODER_X265:
 		//sb.append(fmt.progressive ? " --no-interlace" : " --interlace tff");
@@ -169,53 +168,53 @@ static std::string makeEncoderArgs(
 		break;
 	}
 
-	sb.append(" %s -o \"%s\"", options, outpath);
+	sb.append(_T(" %s -o \"%s\""), options, outpath);
 
 	// 入力形式
 	switch (encoder) {
 	case ENCODER_X264:
-		sb.append(" --stitchable")
-			.append(" --demuxer y4m -");
+		sb.append(_T(" --stitchable"))
+			.append(_T(" --demuxer y4m -"));
 		break;
 	case ENCODER_X265:
-		sb.append(" --no-opt-qp-pps --no-opt-ref-list-length-pps")
-			.append(" --y4m --input -");
+		sb.append(_T(" --no-opt-qp-pps --no-opt-ref-list-length-pps"))
+			.append(_T(" --y4m --input -"));
 		break;
 	case ENCODER_QSVENC:
 	case ENCODER_NVENC:
-		sb.append(" --format raw --y4m -i -");
+		sb.append(_T(" --format raw --y4m -i -"));
 		break;
 	}
 
 	if (timecodepath.size() > 0 && encoder == ENCODER_X264) {
 		std::pair<int, int> timebase = std::make_pair(fmt.frameRateNum * (is120fps ? 4 : 2), fmt.frameRateDenom);
-		sb.append(" --tcfile-in \"%s\" --timebase %d/%d", timecodepath, timebase.second, timebase.first);
+		sb.append(_T(" --tcfile-in \"%s\" --timebase %d/%d"), timecodepath, timebase.second, timebase.first);
 	}
 
 	return sb.str();
 }
 
-static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
+static std::vector<std::pair<tstring, bool>> makeMuxerArgs(
 	ENUM_FORMAT format,
-	const std::string& binpath,
-	const std::string& timelineeditorpath,
-	const std::string& mp4boxpath,
-	const std::string& inVideo,
+	const tstring& binpath,
+	const tstring& timelineeditorpath,
+	const tstring& mp4boxpath,
+	const tstring& inVideo,
 	const VideoFormat& videoFormat,
-	const std::vector<std::string>& inAudios,
-	const std::string& outpath,
-	const std::string& tmpoutpath,
-	const std::string& chapterpath,
-	const std::string& timecodepath,
+	const std::vector<tstring>& inAudios,
+	const tstring& outpath,
+	const tstring& tmpoutpath,
+	const tstring& chapterpath,
+	const tstring& timecodepath,
 	std::pair<int, int> timebase,
-	const std::vector<std::string>& inSubs,
-	const std::vector<std::string>& subsTitles,
-	const std::string metapath)
+	const std::vector<tstring>& inSubs,
+	const std::vector<tstring>& subsTitles,
+	const tstring& metapath)
 {
-	std::vector<std::pair<std::string, bool>> ret;
+	std::vector<std::pair<tstring, bool>> ret;
 
-	StringBuilder sb;
-	sb.append("\"%s\"", binpath);
+	StringBuilderT sb;
+	sb.append(_T("\"%s\""), binpath);
 
 	if (format == FORMAT_MP4) {
 		bool needChapter = (chapterpath.size() > 0);
@@ -224,37 +223,37 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 
 		// まずはmuxerで映像、音声、チャプターをmux
 		if (videoFormat.fixedFrameRate) {
-			sb.append(" -i \"%s?fps=%d/%d\"", inVideo,
+			sb.append(_T(" -i \"%s?fps=%d/%d\""), inVideo,
 				videoFormat.frameRateNum, videoFormat.frameRateDenom);
 		}
 		else {
-			sb.append(" -i \"%s\"", inVideo);
+			sb.append(_T(" -i \"%s\""), inVideo);
 		}
 		for (const auto& inAudio : inAudios) {
-			sb.append(" -i \"%s\"", inAudio);
+			sb.append(_T(" -i \"%s\""), inAudio);
 		}
 		// timelineeditorがチャプターを消すのでtimecodeがある時はmp4boxで入れる
 		if (needChapter && !needTimecode) {
-			sb.append(" --chapter \"%s\"", chapterpath);
+			sb.append(_T(" --chapter \"%s\""), chapterpath);
 			needChapter = false;
 		}
-		sb.append(" --optimize-pd");
+		sb.append(_T(" --optimize-pd"));
 
-		std::string dst = needTimecode ? tmpoutpath : outpath;
-		sb.append(" -o \"%s\"", dst);
+		tstring dst = needTimecode ? tmpoutpath : outpath;
+		sb.append(_T(" -o \"%s\""), dst);
 
 		ret.push_back(std::make_pair(sb.str(), false));
 		sb.clear();
 
 		if (needTimecode) {
 			// 必要ならtimelineeditorでtimecodeを埋め込む
-			sb.append("\"%s\"", timelineeditorpath)
-				.append(" --track 1")
-				.append(" --timecode \"%s\"", timecodepath)
-				.append(" --media-timescale %d", timebase.first)
-				.append(" --media-timebase %d", timebase.second)
-				.append(" \"%s\"", dst)
-				.append(" \"%s\"", outpath);
+			sb.append(_T("\"%s\""), timelineeditorpath)
+				.append(_T(" --track 1"))
+				.append(_T(" --timecode \"%s\""), timecodepath)
+				.append(_T(" --media-timescale %d"), timebase.first)
+				.append(_T(" --media-timebase %d"), timebase.second)
+				.append(_T(" \"%s\""), dst)
+				.append(_T(" \"%s\""), outpath);
 			ret.push_back(std::make_pair(sb.str(), false));
 			sb.clear();
 			needTimecode = false;
@@ -262,19 +261,19 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 
 		if (needChapter || needSubs) {
 			// 字幕とチャプターを埋め込む
-			sb.append("\"%s\"", mp4boxpath);
+			sb.append(_T("\"%s\""), mp4boxpath);
 			for (int i = 0; i < (int)inSubs.size(); ++i) {
-				if (subsTitles[i] == "SRT") { // mp4はSRTのみ
-					sb.append(" -add \"%s#:name=%s\"", inSubs[i], subsTitles[i]);
+				if (subsTitles[i] == _T("SRT")) { // mp4はSRTのみ
+					sb.append(_T(" -add \"%s#:name=%s\""), inSubs[i], subsTitles[i]);
 				}
 			}
 			needSubs = false;
 			// timecodeがある場合はこっちでチャプターを入れる
 			if (needChapter) {
-				sb.append(" -chap \"%s\"", chapterpath);
+				sb.append(_T(" -chap \"%s\""), chapterpath);
 				needChapter = false;
 			}
-			sb.append(" \"%s\"", outpath);
+			sb.append(_T(" \"%s\""), outpath);
 			ret.push_back(std::make_pair(sb.str(), true));
 			sb.clear();
 		}
@@ -282,28 +281,28 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 	else if (format == FORMAT_MKV) {
 
 		if (chapterpath.size() > 0) {
-			sb.append(" --chapters \"%s\"", chapterpath);
+			sb.append(_T(" --chapters \"%s\""), chapterpath);
 		}
 
-		sb.append(" -o \"%s\"", outpath);
+		sb.append(_T(" -o \"%s\""), outpath);
 
 		if (timecodepath.size()) {
-			sb.append(" --timestamps \"0:%s\"", timecodepath);
+			sb.append(_T(" --timestamps \"0:%s\""), timecodepath);
 		}
-		sb.append(" \"%s\"", inVideo);
+		sb.append(_T(" \"%s\""), inVideo);
 
 		for (const auto& inAudio : inAudios) {
-			sb.append(" \"%s\"", inAudio);
+			sb.append(_T(" \"%s\""), inAudio);
 		}
 		for (int i = 0; i < (int)inSubs.size(); ++i) {
-			sb.append(" --track-name \"0:%s\" \"%s\"", subsTitles[i], inSubs[i]);
+			sb.append(_T(" --track-name \"0:%s\" \"%s\""), subsTitles[i], inSubs[i]);
 		}
 
 		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
 	}
 	else { // M2TS or TS
-		sb.append(" \"%s\" \"%s\"", metapath, outpath);
+		sb.append(_T(" \"%s\" \"%s\""), metapath, outpath);
 		ret.push_back(std::make_pair(sb.str(), true));
 		sb.clear();
 	}
@@ -311,18 +310,18 @@ static std::vector<std::pair<std::string, bool>> makeMuxerArgs(
 	return ret;
 }
 
-static std::string makeTimelineEditorArgs(
-	const std::string& binpath,
-	const std::string& inpath,
-	const std::string& outpath,
-	const std::string& timecodepath)
+static tstring makeTimelineEditorArgs(
+	const tstring& binpath,
+	const tstring& inpath,
+	const tstring& outpath,
+	const tstring& timecodepath)
 {
-	StringBuilder sb;
-	sb.append("\"%s\"", binpath)
-		.append(" --track 1")
-		.append(" --timecode \"%s\"", timecodepath)
-		.append(" \"%s\"", inpath)
-		.append(" \"%s\"", outpath);
+	StringBuilderT sb;
+	sb.append(_T("\"%s\""), binpath)
+		.append(_T(" --track 1"))
+		.append(_T(" --timecode \"%s\""), timecodepath)
+		.append(_T(" \"%s\""), inpath)
+		.append(_T(" \"%s\""), outpath);
 	return sb.str();
 }
 
@@ -340,12 +339,6 @@ static const char* cmOutMaskToString(int outmask) {
 	return "不明";
 }
 
-inline bool ends_with(std::string const & value, std::string const & ending)
-{
-	if (ending.size() > value.size()) return false;
-	return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
 enum AMT_CLI_MODE {
 	AMT_CLI_TS,
 	AMT_CLI_GENERIC,
@@ -354,7 +347,7 @@ enum AMT_CLI_MODE {
 class TempDirectory : AMTObject, NonCopyable
 {
 public:
-	TempDirectory(AMTContext& ctx, const std::string& tmpdir, bool noRemoveTmp)
+	TempDirectory(AMTContext& ctx, const tstring& tmpdir, bool noRemoveTmp)
 		: AMTObject(ctx)
 		, path_(tmpdir)
 		, initialized_(false)
@@ -367,8 +360,8 @@ public:
 		// 一時ファイルを削除
 		ctx.clearTmpFiles();
 		// ディレクトリ削除
-		if (_rmdir(path_.c_str()) != 0) {
-			ctx.warnF("一時ディレクトリ削除に失敗: ", path_.c_str());
+		if (rmdirT(path_.c_str()) != 0) {
+			ctx.warnF("一時ディレクトリ削除に失敗: ", path_);
 		}
 	}
 
@@ -377,7 +370,7 @@ public:
 
 		for (int code = (int)time(NULL) & 0xFFFFFF; code > 0; ++code) {
 			auto path = genPath(path_, code);
-			if (_mkdir(path.c_str()) == 0) {
+			if (mkdirT(path.c_str()) == 0) {
 				path_ = path;
 				break;
 			}
@@ -389,16 +382,16 @@ public:
 			THROW(IOException, "一時ディレクトリ作成失敗");
 		}
 
-		std::string abolutePath;
-		int sz = GetFullPathNameA(path_.c_str(), 0, 0, 0);
+    tstring abolutePath;
+		int sz = GetFullPathNameW(path_.c_str(), 0, 0, 0);
 		abolutePath.resize(sz);
-		GetFullPathNameA(path_.c_str(), sz, &abolutePath[0], 0);
+		GetFullPathNameW(path_.c_str(), sz, &abolutePath[0], 0);
 		abolutePath.resize(sz - 1);
 		path_ = abolutePath;
 		initialized_ = true;
 	}
 
-	std::string path() const {
+  tstring path() const {
 		if (!initialized_) {
 			THROW(InvalidOperationException, "一時ディレクトリを作成していません");
 		}
@@ -406,13 +399,13 @@ public:
 	}
 
 private:
-	std::string path_;
+  tstring path_;
 	bool initialized_;
 	bool noRemoveTmp_;
 
-	std::string genPath(const std::string& base, int code)
+  tstring genPath(const tstring& base, int code)
 	{
-		return StringFormat("%s/amt%d", base, code);
+		return StringFormat(_T("%s/amt%d"), base, code);
 	}
 };
 
@@ -437,30 +430,30 @@ static const char* GetNicoJKSuffix(NicoJKType type) {
 
 struct Config {
 	// 一時フォルダ
-	std::string workDir;
-	std::string mode;
-	std::string modeArgs; // テスト用
+	tstring workDir;
+  tstring mode;
+  tstring modeArgs; // テスト用
 	// 入力ファイルパス（拡張子を含む）
-	std::string srcFilePath;
+  tstring srcFilePath;
 	// 出力ファイルパス（拡張子を除く）
-	std::string outVideoPath;
+  tstring outVideoPath;
 	// 結果情報JSON出力パス
-	std::string outInfoJsonPath;
+  tstring outInfoJsonPath;
 	// DRCSマッピングファイルパス
-	std::string drcsMapPath;
-	std::string drcsOutPath;
+  tstring drcsMapPath;
+  tstring drcsOutPath;
 	// フィルタパス
-	std::string filterScriptPath;
-	std::string postFilterScriptPath;
+  tstring filterScriptPath;
+  tstring postFilterScriptPath;
 	// エンコーダ設定
 	ENUM_ENCODER encoder;
-	std::string encoderPath;
-	std::string encoderOptions;
-	std::string muxerPath;
-	std::string timelineditorPath;
-	std::string mp4boxPath;
-	std::string nicoConvAssPath;
-	std::string nicoConvChSidPath;
+  tstring encoderPath;
+  tstring encoderOptions;
+  tstring muxerPath;
+  tstring timelineditorPath;
+  tstring mp4boxPath;
+  tstring nicoConvAssPath;
+  tstring nicoConvChSidPath;
 	ENUM_FORMAT format;
 	bool splitSub;
 	bool twoPass;
@@ -476,7 +469,7 @@ struct Config {
 	int serviceId;
 	DecoderSetting decoderSetting;
 	// CM解析用設定
-	std::vector<std::string> logoPath;
+	std::vector<tstring> logoPath;
 	bool ignoreNoLogo;
 	bool ignoreNoDrcsMap;
 	bool ignoreNicoJKError;
@@ -484,10 +477,10 @@ struct Config {
 	bool looseLogoDetection;
 	bool noDelogo;
 	bool vfr120fps;
-	std::string chapterExePath;
-	std::string joinLogoScpPath;
-	std::string joinLogoScpCmdPath;
-	std::string joinLogoScpOptions;
+  tstring chapterExePath;
+  tstring joinLogoScpPath;
+  tstring joinLogoScpCmdPath;
+  tstring joinLogoScpOptions;
 	int cmoutmask;
 	// 検出モード用
 	int maxframes;
@@ -525,27 +518,27 @@ public:
 		}
 	}
 
-	std::string getMode() const {
+  tstring getMode() const {
 		return conf.mode;
 	}
 
-	std::string getModeArgs() const {
+  tstring getModeArgs() const {
 		return conf.modeArgs;
 	}
 
-	std::string getSrcFilePath() const {
+  tstring getSrcFilePath() const {
 		return conf.srcFilePath;
 	}
 
-	std::string getOutInfoJsonPath() const {
+  tstring getOutInfoJsonPath() const {
 		return conf.outInfoJsonPath;
 	}
 
-	std::string getFilterScriptPath() const {
+  tstring getFilterScriptPath() const {
 		return conf.filterScriptPath;
 	}
 
-	std::string getPostFilterScriptPath() const {
+  tstring getPostFilterScriptPath() const {
 		return conf.postFilterScriptPath;
 	}
 
@@ -553,11 +546,11 @@ public:
 		return conf.encoder;
 	}
 
-	std::string getEncoderPath() const {
+  tstring getEncoderPath() const {
 		return conf.encoderPath;
 	}
 
-	std::string getEncoderOptions() const {
+  tstring getEncoderOptions() const {
 		return conf.encoderOptions;
 	}
 
@@ -569,23 +562,23 @@ public:
 		return conf.format != FORMAT_M2TS && conf.format != FORMAT_TS;
 	}
 
-	std::string getMuxerPath() const {
+  tstring getMuxerPath() const {
 		return conf.muxerPath;
 	}
 
-	std::string getTimelineEditorPath() const {
+  tstring getTimelineEditorPath() const {
 		return conf.timelineditorPath;
 	}
 
-	std::string getMp4BoxPath() const {
+  tstring getMp4BoxPath() const {
 		return conf.mp4boxPath;
 	}
 
-	std::string getNicoConvAssPath() const {
+  tstring getNicoConvAssPath() const {
 		return conf.nicoConvAssPath;
 	}
 
-	std::string getNicoConvChSidPath() const {
+  tstring getNicoConvChSidPath() const {
 		return conf.nicoConvChSidPath;
 	}
 
@@ -645,7 +638,7 @@ public:
 		return conf.decoderSetting;
 	}
 
-	const std::vector<std::string>& getLogoPath() const {
+	const std::vector<tstring>& getLogoPath() const {
 		return conf.logoPath;
 	}
 
@@ -681,19 +674,19 @@ public:
 		return conf.vfr120fps;
 	}
 
-	std::string getChapterExePath() const {
+  tstring getChapterExePath() const {
 		return conf.chapterExePath;
 	}
 
-	std::string getJoinLogoScpPath() const {
+  tstring getJoinLogoScpPath() const {
 		return conf.joinLogoScpPath;
 	}
 
-	std::string getJoinLogoScpCmdPath() const {
+  tstring getJoinLogoScpCmdPath() const {
 		return conf.joinLogoScpCmdPath;
 	}
 
-	std::string getJoinLogoScpOptions() const {
+  tstring getJoinLogoScpOptions() const {
 		return conf.joinLogoScpOptions;
 	}
 
@@ -733,123 +726,123 @@ public:
 		return conf.systemAvsPlugin;
 	}
 
-	std::string getAudioFilePath() const {
-		return regtmp(StringFormat("%s/audio.dat", tmpDir.path()));
+  tstring getAudioFilePath() const {
+		return regtmp(StringFormat(_T("%s/audio.dat"), tmpDir.path()));
 	}
 
-	std::string getWaveFilePath() const {
-		return regtmp(StringFormat("%s/audio.wav", tmpDir.path()));
+  tstring getWaveFilePath() const {
+		return regtmp(StringFormat(_T("%s/audio.wav"), tmpDir.path()));
 	}
 
-	std::string getIntVideoFilePath(int index) const {
-		return regtmp(StringFormat("%s/i%d.mpg", tmpDir.path(), index));
+  tstring getIntVideoFilePath(int index) const {
+		return regtmp(StringFormat(_T("%s/i%d.mpg"), tmpDir.path(), index));
 	}
 
-	std::string getStreamInfoPath() const {
-		return conf.outVideoPath + "-streaminfo.dat";
+  tstring getStreamInfoPath() const {
+		return conf.outVideoPath + _T("-streaminfo.dat");
 	}
 
-	std::string getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/v%d-%d%s.raw", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+  tstring getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/v%d-%d%s.raw"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTimecodeFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/v%d-%d%s.timecode.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+  tstring getTimecodeFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/v%d-%d%s.timecode.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-	std::string getAvsTmpPath(int vindex, int index, CMType cmtype) const {
-		auto str = StringFormat("%s/v%d-%d%s.avstmp", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+  tstring getAvsTmpPath(int vindex, int index, CMType cmtype) const {
+		auto str = StringFormat(_T("%s/v%d-%d%s.avstmp"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);
 		// KFMCycleAnalyzeのデバッグダンプファイルも追加
-		ctx.registerTmpFile(str + ".debug");
+		ctx.registerTmpFile(str + _T(".debug"));
 		return str;
 	}
 
-	std::string getFilterAvsPath(int vindex, int index, CMType cmtype) const {
-		auto str = StringFormat("%s/vfilter%d-%d%s.avs", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+  tstring getFilterAvsPath(int vindex, int index, CMType cmtype) const {
+		auto str = StringFormat(_T("%s/vfilter%d-%d%s.avs"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);
 		return str;
 	}
 
-	std::string getEncStatsFilePath(int vindex, int index, CMType cmtype) const
+  tstring getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
-		auto str = StringFormat("%s/s%d-%d%s.log", tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+		auto str = StringFormat(_T("%s/s%d-%d%s.log"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);
 		// x264は.mbtreeも生成するので
-		ctx.registerTmpFile(str + ".mbtree");
+		ctx.registerTmpFile(str + _T(".mbtree"));
 		// x265は.cutreeも生成するので
-		ctx.registerTmpFile(str + ".cutree");
+		ctx.registerTmpFile(str + _T(".cutree"));
 		return str;
 	}
 
-	std::string getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const {
-		return regtmp(StringFormat("%s/a%d-%d-%d%s.aac",
+  tstring getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/a%d-%d-%d%s.aac"),
 			tmpDir.path(), vindex, index, aindex, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
-		return regtmp(StringFormat("%s/c%d-%d-%d%s.ass",
+  tstring getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/c%d-%d-%d%s.ass"),
 			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTmpSRTFilePath(int vindex, int index, int langindex, CMType cmtype) const {
-		return regtmp(StringFormat("%s/c%d-%d-%d%s.srt",
+  tstring getTmpSRTFilePath(int vindex, int index, int langindex, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/c%d-%d-%d%s.srt"),
 			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTmpAMTSourcePath(int vindex) const {
-		return regtmp(StringFormat("%s/amts%d.dat", tmpDir.path(), vindex));
+  tstring getTmpAMTSourcePath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/amts%d.dat"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpSourceAVSPath(int vindex) const {
-		return regtmp(StringFormat("%s/amts%d.avs", tmpDir.path(), vindex));
+  tstring getTmpSourceAVSPath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/amts%d.avs"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpLogoFramePath(int vindex) const {
-		return regtmp(StringFormat("%s/logof%d.txt", tmpDir.path(), vindex));
+  tstring getTmpLogoFramePath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/logof%d.txt"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpChapterExePath(int vindex) const {
-		return regtmp(StringFormat("%s/chapter_exe%d.txt", tmpDir.path(), vindex));
+  tstring getTmpChapterExePath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/chapter_exe%d.txt"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpChapterExeOutPath(int vindex) const {
-		return regtmp(StringFormat("%s/chapter_exe_o%d.txt", tmpDir.path(), vindex));
+  tstring getTmpChapterExeOutPath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/chapter_exe_o%d.txt"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpTrimAVSPath(int vindex) const {
-		return regtmp(StringFormat("%s/trim%d.avs", tmpDir.path(), vindex));
+  tstring getTmpTrimAVSPath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/trim%d.avs"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpJlsPath(int vindex) const {
-		return regtmp(StringFormat("%s/jls%d.txt", tmpDir.path(), vindex));
+  tstring getTmpJlsPath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/jls%d.txt"), tmpDir.path(), vindex));
 	}
 
-	std::string getTmpChapterPath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/chapter%d-%d%s.txt",
+  tstring getTmpChapterPath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/chapter%d-%d%s.txt"),
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-	std::string getTmpNicoJKXMLPath() const {
-		return regtmp(StringFormat("%s/nicojk.xml", tmpDir.path()));
+  tstring getTmpNicoJKXMLPath() const {
+		return regtmp(StringFormat(_T("%s/nicojk.xml"), tmpDir.path()));
 	}
 
-	std::string getTmpNicoJKASSPath(NicoJKType type) const {
-		return regtmp(StringFormat("%s/nicojk%s.ass", tmpDir.path(), GetNicoJKSuffix(type)));
+  tstring getTmpNicoJKASSPath(NicoJKType type) const {
+		return regtmp(StringFormat(_T("%s/nicojk%s.ass"), tmpDir.path(), GetNicoJKSuffix(type)));
 	}
 
-	std::string getTmpNicoJKASSPath(int vindex, int index, CMType cmtype, NicoJKType type) const {
-		return regtmp(StringFormat("%s/nicojk%d-%d%s%s.ass",
+  tstring getTmpNicoJKASSPath(int vindex, int index, CMType cmtype, NicoJKType type) const {
+		return regtmp(StringFormat(_T("%s/nicojk%d-%d%s%s.ass"),
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), GetNicoJKSuffix(type)));
 	}
 
-	std::string getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/t%d-%d%s.%s",
+  tstring getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/t%d-%d%s.%s"),
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), getOutputExtention()));
 	}
 
-	std::string getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/t%d-%d%s.meta", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+  tstring getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/t%d-%d%s.meta"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
 	const char* getOutputExtention() const {
@@ -862,51 +855,51 @@ public:
 		return "amatsukze";
 	}
 
-	std::string getOutFilePath(int index, CMType cmtype) const {
-		StringBuilder sb;
-		sb.append("%s", conf.outVideoPath);
+  tstring getOutFilePath(int index, CMType cmtype) const {
+    StringBuilderT sb;
+		sb.append(_T("%s"), conf.outVideoPath);
 		if (index != 0) {
-			sb.append("-%d", index);
+			sb.append(_T("-%d"), index);
 		}
-		sb.append("%s.%s", GetCMSuffix(cmtype), getOutputExtention());
+		sb.append(_T("%s.%s"), GetCMSuffix(cmtype), getOutputExtention());
 		return sb.str();
 	}
 
-	std::string getOutASSPath(int index, int langidx, CMType cmtype, NicoJKType jktype) const {
-		StringBuilder sb;
-		sb.append("%s", conf.outVideoPath);
+  tstring getOutASSPath(int index, int langidx, CMType cmtype, NicoJKType jktype) const {
+		StringBuilderT sb;
+		sb.append(_T("%s"), conf.outVideoPath);
 		if (index != 0) {
-			sb.append("-%d", index);
+			sb.append(_T("-%d"), index);
 		}
-		sb.append("%s", GetCMSuffix(cmtype));
+		sb.append(_T("%s"), GetCMSuffix(cmtype));
 		if (langidx < 0) {
-			sb.append("-nicojk%s", GetNicoJKSuffix(jktype));
+			sb.append(_T("-nicojk%s"), GetNicoJKSuffix(jktype));
 		}
 		else if (langidx > 0) {
-			sb.append("-%d", langidx);
+			sb.append(_T("-%d"), langidx);
 		}
-		sb.append(".ass");
+		sb.append(_T(".ass"));
 		return sb.str();
 	}
 
-	std::string getOutSummaryPath() const {
-		return StringFormat("%s.txt", conf.outVideoPath);
+  tstring getOutSummaryPath() const {
+		return StringFormat(_T("%s.txt"), conf.outVideoPath);
 	}
 
-	std::string getDRCSMapPath() const {
+  tstring getDRCSMapPath() const {
 		return conf.drcsMapPath;
 	}
 
-	std::string getDRCSOutPath(const std::string& md5) const {
-		return StringFormat("%s\\%s.bmp", conf.drcsOutPath, md5);
+  tstring getDRCSOutPath(const std::string& md5) const {
+		return StringFormat(_T("%s\\%s.bmp"), conf.drcsOutPath, md5);
 	}
 
 	bool isDumpFilter() const {
 		return conf.dumpFilter;
 	}
 
-	std::string getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat("%s/graph%d-%d%s.txt", tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+  tstring getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
+		return regtmp(StringFormat(_T("%s/graph%d-%d%s.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
 	bool isZoneAvailable() const {
@@ -925,14 +918,14 @@ public:
 		return true;
 	}
 
-	std::string getOptions(
+  tstring getOptions(
 		int numFrames,
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale,
 		int vindex, int index, CMType cmtype) const
 	{
-		StringBuilder sb;
-		sb.append("%s", conf.encoderOptions);
+		StringBuilderT sb;
+		sb.append(_T("%s"), conf.encoderOptions);
 		if (conf.autoBitrate) {
 			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
 			if (isEncoderSupportVFR() == false && isAdjustBitrateVFR()) {
@@ -944,34 +937,34 @@ public:
 				targetBitrate *= conf.bitrateCM;
 			}
 			if (conf.encoder == ENCODER_QSVENC) {
-				sb.append(" --la %d --maxbitrate %d", (int)targetBitrate, (int)maxBitrate);
+				sb.append(_T(" --la %d --maxbitrate %d"), (int)targetBitrate, (int)maxBitrate);
 			}
 			else if (conf.encoder == ENCODER_NVENC) {
-				sb.append(" --vbrhq %d --maxbitrate %d", (int)targetBitrate, (int)maxBitrate);
+				sb.append(_T(" --vbrhq %d --maxbitrate %d"), (int)targetBitrate, (int)maxBitrate);
 			}
 			else {
-				sb.append(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d",
+				sb.append(_T(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d"),
 					(int)targetBitrate, (int)maxBitrate, (int)maxBitrate);
 			}
 		}
 		if (pass >= 0) {
-			sb.append(" --pass %d --stats \"%s\"",
+			sb.append(_T(" --pass %d --stats \"%s\""),
 				pass, getEncStatsFilePath(vindex, index, cmtype));
 		}
 		if (zones.size() &&
 			isZoneAvailable() &&
 			((isEncoderSupportVFR() == false && isAdjustBitrateVFR()) || isBitrateCMEnabled()))
 		{
-			sb.append(" --zones ");
+			sb.append(_T(" --zones "));
 			for (int i = 0; i < (int)zones.size(); ++i) {
 				auto zone = zones[i];
-				sb.append("%s%d,%d,b=%.3g", (i > 0) ? "/" : "",
+				sb.append(_T("%s%d,%d,b=%.3g"), (i > 0) ? "/" : "",
 					zone.startFrame, zone.endFrame - 1, zone.bitrate);
 			}
 		}
 		if (conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265) {
 			if (numFrames > 0) {
-				sb.append(" --frames %d", numFrames);
+				sb.append(_T(" --frames %d"), numFrames);
 			}
 		}
 		return sb.str();
@@ -979,15 +972,15 @@ public:
 
 	void dump() const {
 		ctx.info("[設定]");
-		if (conf.mode != "ts") {
-			ctx.infoF("Mode: %s", conf.mode.c_str());
+		if (conf.mode != _T("ts")) {
+			ctx.infoF("Mode: %s", conf.mode);
 		}
-		ctx.infoF("入力: %s", conf.srcFilePath.c_str());
-		ctx.infoF("出力: %s", conf.outVideoPath.c_str());
-		ctx.infoF("一時フォルダ: %s", tmpDir.path().c_str());
+		ctx.infoF("入力: %s", conf.srcFilePath);
+		ctx.infoF("出力: %s", conf.outVideoPath);
+		ctx.infoF("一時フォルダ: %s", tmpDir.path());
 		ctx.infoF("出力フォーマット: %s", formatToString(conf.format));
-		ctx.infoF("エンコーダ: %s (%s)", conf.encoderPath.c_str(), encoderToString(conf.encoder));
-		ctx.infoF("エンコーダオプション: %s", conf.encoderOptions.c_str());
+		ctx.infoF("エンコーダ: %s (%s)", conf.encoderPath, encoderToString(conf.encoder));
+		ctx.infoF("エンコーダオプション: %s", conf.encoderOptions);
 		if (conf.autoBitrate) {
 			ctx.infoF("自動ビットレート: 有効 (%g:%g:%g)",
 				conf.bitrate.a, conf.bitrate.b, conf.bitrate.h264);
@@ -1003,13 +996,13 @@ public:
 			(conf.chapter && conf.ignoreNoLogo) ? "" : "（ロゴ必須）");
 		if (conf.chapter) {
 			for (int i = 0; i < (int)conf.logoPath.size(); ++i) {
-				ctx.infoF("logo%d: %s", (i + 1), conf.logoPath[i].c_str());
+				ctx.infoF("logo%d: %s", (i + 1), conf.logoPath[i]);
 			}
 			ctx.infoF("ロゴ消し: %s", conf.noDelogo ? "しない" : "する");
 		}
 		ctx.infoF("字幕: %s", conf.subtitles ? "有効" : "無効");
 		if (conf.subtitles) {
-			ctx.infoF("DRCSマッピング: %s", conf.drcsMapPath.c_str());
+			ctx.infoF("DRCSマッピング: %s", conf.drcsMapPath);
 		}
 		if (conf.serviceId > 0) {
 			ctx.infoF("サービスID: %d", conf.serviceId);
@@ -1050,7 +1043,7 @@ private:
 		return "unknown";
 	}
 
-	std::string regtmp(std::string str) const {
+  tstring regtmp(tstring str) const {
 		ctx.registerTmpFile(str);
 		return str;
 	}
@@ -1063,10 +1056,10 @@ public:
 		, index_(index)
 		, cmtype_(cmtype)
 	{ }
-	std::string getOutFilePath() const {
+	tstring getOutFilePath() const {
 		return setting_.getOutFilePath(index_, cmtype_);
 	}
-	std::string getOutASSPath(int langidx, NicoJKType jktype) const {
+  tstring getOutASSPath(int langidx, NicoJKType jktype) const {
 		return setting_.getOutASSPath(index_, langidx, cmtype_, jktype);
 	}
 private:

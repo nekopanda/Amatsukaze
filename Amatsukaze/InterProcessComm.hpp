@@ -14,30 +14,24 @@
 
 #include "StreamUtils.hpp"
 
-static std::vector<char> toUTF8String(const std::string str) {
+static std::vector<char> toUTF8String(const std::wstring& str) {
 	if (str.size() == 0) {
 		return std::vector<char>();
 	}
-	int intlen = (int)str.size() * 2;
-	auto wc = std::unique_ptr<wchar_t[]>(new wchar_t[intlen]);
-	intlen = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), wc.get(), intlen);
-	if (intlen == 0) {
-		THROW(RuntimeException, "MultiByteToWideChar failed");
-	}
-	int dstlen = WideCharToMultiByte(CP_UTF8, 0, wc.get(), intlen, NULL, 0, NULL, NULL);
+	int dstlen = WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size(), NULL, 0, NULL, NULL);
 	if (dstlen == 0) {
 		THROW(RuntimeException, "MultiByteToWideChar failed");
 	}
 	std::vector<char> ret(dstlen);
-	WideCharToMultiByte(CP_UTF8, 0, wc.get(), intlen, ret.data(), (int)ret.size(), NULL, NULL);
+	WideCharToMultiByte(CP_UTF8, 0, str.c_str(), (int)str.size(), ret.data(), (int)ret.size(), NULL, NULL);
 	return ret;
 }
 
-static std::string toJsonString(const std::string str) {
+static std::string toJsonString(const tstring& str) {
 	if (str.size() == 0) {
-		return str;
+		return std::string();
 	}
-	std::vector<char> utf8 = toUTF8String(str);
+	std::vector<char> utf8 = toUTF8String(to_wstring(str));
 	std::vector<char> ret;
 	for (char c : utf8) {
 		switch (c) {

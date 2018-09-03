@@ -668,7 +668,7 @@ public:
 
 	int64_t currentPos;
 
-	void readAll(const std::string& src, int serviceid)
+	void readAll(const tstring& src, int serviceid)
 	{
 		using namespace av;
 
@@ -793,11 +793,11 @@ typedef bool(*LOGO_ANALYZE_CB)(float progress, int nread, int total, int ngather
 
 class LogoAnalyzer : AMTObject
 {
-	std::string srcpath;
+  tstring srcpath;
 	int serviceid;
 
-	std::string workfile;
-	std::string dstpath;
+  tstring workfile;
+  tstring dstpath;
 	LOGO_ANALYZE_CB cb;
 
 	int scanx, scany;
@@ -834,9 +834,9 @@ class LogoAnalyzer : AMTObject
 			, memScanData(new uint8_t[scanDataSize])
 			, memCoded(new uint8_t[codedSize])
 		{ }
-		void readAll(const std::string& src, int serviceid)
+		void readAll(const tstring& src, int serviceid)
 		{
-			{ File file(src, "rb"); filesize = file.size(); }
+			{ File file(src, _T("rb")); filesize = file.size(); }
 
 			SimpleVideoReader::readAll(src, serviceid);
 
@@ -869,7 +869,7 @@ class LogoAnalyzer : AMTObject
 			pThis->imgh = frame->height;
 
 			file = std::unique_ptr<LosslessVideoFile>(
-				new LosslessVideoFile(pThis->ctx, pThis->workfile, "wb"));
+				new LosslessVideoFile(pThis->ctx, pThis->workfile, _T("wb")));
 			logoscan = std::unique_ptr<LogoScan>(
 				new LogoScan(pThis->scanw, pThis->scanh, pThis->logUVx, pThis->logUVy, pThis->thy));
 
@@ -943,7 +943,7 @@ class LogoAnalyzer : AMTObject
 		const int numFade = 20;
 		auto minFades = std::unique_ptr<int[]>(new int[numFrames]);
 		{
-			LosslessVideoFile file(ctx, workfile, "rb");
+			LosslessVideoFile file(ctx, workfile, _T("rb"));
 			file.readHeader();
 			auto extra = file.getExtra();
 
@@ -995,7 +995,7 @@ class LogoAnalyzer : AMTObject
 
 		LogoScan logoscan(scanw, scanh, logUVx, logUVy, thy);
 		{
-			LosslessVideoFile file(ctx, workfile, "rb");
+			LosslessVideoFile file(ctx, workfile, _T("rb"));
 			file.readHeader();
 			auto extra = file.getExtra();
 
@@ -1036,7 +1036,7 @@ class LogoAnalyzer : AMTObject
 	}
 
 public:
-	LogoAnalyzer(AMTContext& ctx, const char* srcpath, int serviceid, const char* workfile, const char* dstpath,
+	LogoAnalyzer(AMTContext& ctx, const tchar* srcpath, int serviceid, const tchar* workfile, const tchar* dstpath,
 			int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 			LOGO_ANALYZE_CB cb)
 		: AMTObject(ctx)
@@ -1081,7 +1081,7 @@ public:
 
 // C API for P/Invoke
 extern "C" __declspec(dllexport) int ScanLogo(AMTContext* ctx,
-	const char* srcpath, int serviceid, const char* workfile, const char* dstpath,
+	const tchar* srcpath, int serviceid, const tchar* workfile, const tchar* dstpath,
 	int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
 	LOGO_ANALYZE_CB cb)
 {
@@ -1161,7 +1161,7 @@ class AMTAnalyzeLogo : public GenericVideoFilter
 	}
 
 public:
-	AMTAnalyzeLogo(PClip clip, const std::string& logoPath, float maskratio, IScriptEnvironment* env)
+	AMTAnalyzeLogo(PClip clip, const tstring& logoPath, float maskratio, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
 		, srcvi(vi)
 		, maskratio(maskratio)
@@ -1228,7 +1228,7 @@ public:
 	{
 		return new AMTAnalyzeLogo(
 			args[0].AsClip(),       // source
-			args[1].AsString(),			// logopath
+			to_tstring(args[1].AsString()),			// logopath
 			(float)args[2].AsFloat(35) / 100.0f, // maskratio
 			env
 		);
@@ -1419,7 +1419,7 @@ class AMTEraseLogo : public GenericVideoFilter
 		return frame;
 	}
 
-	void ReadLogoFrameFile(const std::string& logofPath, IScriptEnvironment* env)
+	void ReadLogoFrameFile(const tstring& logofPath, IScriptEnvironment* env)
 	{
 		struct LogoFrameElement {
 			bool isStart;
@@ -1427,7 +1427,7 @@ class AMTEraseLogo : public GenericVideoFilter
 		};
 		std::vector<LogoFrameElement> elements;
 		try {
-			File file(logofPath, "r");
+			File file(logofPath, _T("r"));
 			std::regex re("^\\s*(\\d+)\\s+(\\S)\\s+(\\d+)\\s+(\\S+)\\s+(\\d+)\\s+(\\d+)");
 			std::string str;
 			while (file.getline(str)) {
@@ -1462,7 +1462,7 @@ class AMTEraseLogo : public GenericVideoFilter
 	}
 
 public:
-	AMTEraseLogo(PClip clip, PClip analyzeclip, const std::string& logoPath, const std::string& logofPath, int mode, IScriptEnvironment* env)
+	AMTEraseLogo(PClip clip, PClip analyzeclip, const tstring& logoPath, const tstring& logofPath, int mode, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
 		, analyzeclip(analyzeclip)
 		, mode(mode)
@@ -1509,8 +1509,8 @@ public:
 		return new AMTEraseLogo(
 			args[0].AsClip(),       // source
 			args[1].AsClip(),       // analyzeclip
-			args[2].AsString(),			// logopath
-			args[3].AsString(""),		// logofpath
+			to_tstring(args[2].AsString()),			// logopath
+			to_tstring(args[3].AsString("")),		// logofpath
 			args[4].AsInt(0),       // mode
 			env
 		);
@@ -1585,7 +1585,7 @@ class LogoFrame : AMTObject
 	}
 
 public:
-	LogoFrame(AMTContext& ctx, const std::vector<std::string>& logofiles, float maskratio)
+	LogoFrame(AMTContext& ctx, const std::vector<tstring>& logofiles, float maskratio)
 		: AMTObject(ctx)
 	{
 		numLogos = (int)logofiles.size();
@@ -1624,7 +1624,7 @@ public:
 		}
 	}
 
-	void dumpResult(const std::string& basepath)
+	void dumpResult(const tstring& basepath)
 	{
 		for (int i = 0; i < numLogos; ++i) {
 			StringBuilder sb;
@@ -1632,12 +1632,12 @@ public:
 				auto& r = evalResults[n * numLogos + i];
 				sb.append("%f,%f\n", r.corr0, r.corr1);
 			}
-			File file(basepath + std::to_string(i), "w");
+			File file(StringFormat(_T("%s%d"), basepath, i), _T("w"));
 			file.write(sb.getMC());
 		}
 	}
 
-	void writeResult(const std::string& outpath)
+	void writeResult(const tstring& outpath)
 	{
 		// 絶対値<0.2fは不明とみなす
 		const float thresh = 0.2f;
@@ -1803,7 +1803,7 @@ public:
 			it = eEnd_;
 		}
 
-		File file(outpath, "w");
+		File file(outpath, _T("w"));
 		file.write(sb.getMC());
 	}
 

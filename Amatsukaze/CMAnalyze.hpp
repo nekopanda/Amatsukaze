@@ -19,9 +19,9 @@
 #include "ProcessThread.hpp"
 #include "PerformanceUtil.hpp"
 
-static void PrintFileAll(const std::string& path)
+static void PrintFileAll(const tstring& path)
 {
-	File file(path, "rb");
+	File file(path, _T("rb"));
 	int sz = (int)file.size();
 	if (sz == 0) return;
 	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
@@ -39,7 +39,7 @@ public:
 		, setting_(setting)
 	{
 		Stopwatch sw;
-		std::string avspath = makeAVSFile(videoFileIndex);
+    tstring avspath = makeAVSFile(videoFileIndex);
 
 		// ロゴ解析
 		if (setting_.getLogoPath().size() > 0) {
@@ -90,7 +90,7 @@ public:
 		, setting_(setting)
 	{ }
 
-	const std::string& getLogoPath() const {
+	const tstring& getLogoPath() const {
 		return logopath;
 	}
 
@@ -195,7 +195,7 @@ public:
 private:
 	class MySubProcess : public EventBaseSubProcess {
 	public:
-		MySubProcess(const std::string& args, File* out = nullptr, File* err = nullptr)
+		MySubProcess(const tstring& args, File* out = nullptr, File* err = nullptr)
 			: EventBaseSubProcess(args)
 			, out(out)
 			, err(err)
@@ -218,19 +218,19 @@ private:
 
 	const ConfigWrapper& setting_;
 
-	std::string logopath;
+  tstring logopath;
 	std::vector<int> trims;
 	std::vector<EncoderZone> cmzones;
 	std::vector<int> sceneChanges;
 
-	std::string makeAVSFile(int videoFileIndex)
+  tstring makeAVSFile(int videoFileIndex)
 	{
 		StringBuilder sb;
 		sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
 		sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(videoFileIndex));
 		sb.append("Prefetch(1)\n");
-		std::string avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
-		File file(avspath, "w");
+    tstring avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
+		File file(avspath, _T("w"));
 		file.write(sb.getMC());
 		return avspath;
 	}
@@ -246,15 +246,15 @@ private:
     return sb.str();
   }
 
-	void logoFrame(int videoFileIndex, const std::string& avspath)
+	void logoFrame(int videoFileIndex, const tstring& avspath)
 	{
 		ScriptEnvironmentPointer env = make_unique_ptr(CreateScriptEnvironment2());
 
 		try {
 			AVSValue result;
 			env->Invoke("Eval", AVSValue(makePreamble().c_str()));
-			env->LoadPlugin(GetModulePath().c_str(), true, &result);
-			PClip clip = env->Invoke("AMTSource", setting_.getTmpAMTSourcePath(videoFileIndex).c_str()).AsClip();
+			env->LoadPlugin(to_string(GetModulePath()).c_str(), true, &result);
+			PClip clip = env->Invoke("AMTSource", to_string(setting_.getTmpAMTSourcePath(videoFileIndex)).c_str()).AsClip();
 
 			auto vi = clip->GetVideoInfo();
 			int duration = vi.num_frames * vi.fps_denominator / vi.fps_numerator;
@@ -279,18 +279,18 @@ private:
 		}
 	}
 
-	std::string MakeChapterExeArgs(int videoFileIndex, const std::string& avspath)
+  tstring MakeChapterExeArgs(int videoFileIndex, const tstring& avspath)
 	{
-		return StringFormat("\"%s\" -v \"%s\" -o \"%s\"",
+		return StringFormat(_T("\"%s\" -v \"%s\" -o \"%s\""),
 			setting_.getChapterExePath(), avspath,
 			setting_.getTmpChapterExePath(videoFileIndex));
 	}
 
-	void chapterExe(int videoFileIndex, const std::string& avspath)
+	void chapterExe(int videoFileIndex, const tstring& avspath)
 	{
-		File stdoutf(setting_.getTmpChapterExeOutPath(videoFileIndex), "wb");
+		File stdoutf(setting_.getTmpChapterExeOutPath(videoFileIndex), _T("wb"));
 		auto args = MakeChapterExeArgs(videoFileIndex, avspath);
-		ctx.info(args.c_str());
+		ctx.infoF("%s", args);
 		MySubProcess process(args, &stdoutf);
 		int exitCode = process.join();
 		if (exitCode != 0) {
@@ -298,14 +298,14 @@ private:
 		}
 	}
 
-	std::string MakeJoinLogoScpArgs(int videoFileIndex)
+	tstring MakeJoinLogoScpArgs(int videoFileIndex)
 	{
-		StringBuilder sb;
-		sb.append("\"%s\"", setting_.getJoinLogoScpPath());
+		StringBuilderT sb;
+		sb.append(_T("\"%s\""), setting_.getJoinLogoScpPath());
 		if (logopath.size() > 0) {
-			sb.append(" -inlogo \"%s\"", setting_.getTmpLogoFramePath(videoFileIndex));
+			sb.append(_T(" -inlogo \"%s\""), setting_.getTmpLogoFramePath(videoFileIndex));
 		}
-		sb.append(" -inscp \"%s\" -incmd \"%s\" -o \"%s\" -oscp \"%s\" %s",
+		sb.append(_T(" -inscp \"%s\" -incmd \"%s\" -o \"%s\" -oscp \"%s\" %s"),
 			setting_.getTmpChapterExePath(videoFileIndex),
 			setting_.getJoinLogoScpCmdPath(),
 			setting_.getTmpTrimAVSPath(videoFileIndex),
@@ -317,7 +317,7 @@ private:
 	void joinLogoScp(int videoFileIndex)
 	{
 		auto args = MakeJoinLogoScpArgs(videoFileIndex);
-		ctx.info(args.c_str());
+		ctx.infoF("%s", args);
 		MySubProcess process(args);
 		int exitCode = process.join();
 		if (exitCode != 0) {
@@ -327,7 +327,7 @@ private:
 
 	void readTrimAVS(int videoFileIndex, int numFrames)
 	{
-		File file(setting_.getTmpTrimAVSPath(videoFileIndex), "r");
+		File file(setting_.getTmpTrimAVSPath(videoFileIndex), _T("r"));
 		std::string str;
 		if (!file.getline(str)) {
 			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
@@ -345,7 +345,7 @@ private:
 
 	void readSceneChanges(int videoFileIndex)
 	{
-		File file(setting_.getTmpChapterExeOutPath(videoFileIndex), "r");
+		File file(setting_.getTmpChapterExeOutPath(videoFileIndex), _T("r"));
 		std::string str;
 
 		// ヘッダ部分をスキップ
@@ -433,9 +433,9 @@ private:
 
 	std::vector<JlsElement> chapters;
 
-	std::vector<JlsElement> readJls(const std::string& jlspath)
+	std::vector<JlsElement> readJls(const tstring& jlspath)
 	{
-		File file(jlspath, "r");
+		File file(jlspath, _T("r"));
 		std::regex re("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+).*:(\\S+)");
 		std::regex reOld("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+)");
 		std::string str;
@@ -618,7 +618,7 @@ private:
 			sumframes += c.frameEnd - c.frameStart;
 		}
 
-		File file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype), "w");
+		File file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype), _T("w"));
 		file.write(sb.getMC());
 	}
 };

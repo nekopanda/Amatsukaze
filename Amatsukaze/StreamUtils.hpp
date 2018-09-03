@@ -356,52 +356,47 @@ public:
 		if (!debugEnabled) return;
 		print(str, AMT_LOG_DEBUG);
 	}
-	void debugF(const char *fmt, ...) const {
+  template <typename ... Args>
+	void debugF(const char *fmt, const Args& ... args) const {
 		if (!debugEnabled) return;
-		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, AMT_LOG_DEBUG);
-		va_end(arg);
+		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_DEBUG);
 	}
 	void info(const char *str) const {
 		print(str, AMT_LOG_INFO);
 	}
-	void infoF(const char *fmt, ...) const {
-		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, AMT_LOG_INFO);
-		va_end(arg);
+  template <typename ... Args>
+	void infoF(const char *fmt, const Args& ... args) const {
+		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_INFO);
 	}
 	void warn(const char *str) const {
 		print(str, AMT_LOG_WARN);
 	}
-	void warnF(const char *fmt, ...) const {
-		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, AMT_LOG_WARN);
-		va_end(arg);
+  template <typename ... Args>
+	void warnF(const char *fmt, const Args& ... args) const {
+		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_WARN);
 	}
 	void error(const char *str) const {
 		print(str, AMT_LOG_ERROR);
 	}
-	void errorF(const char *fmt, ...) const {
-		va_list arg; va_start(arg, fmt);
-		print(fmt, arg, AMT_LOG_ERROR);
-		va_end(arg);
+  template <typename ... Args>
+	void errorF(const char *fmt, const Args& ... args) const {
+		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_ERROR);
 	}
 	void progress(const char *str) const {
 		printProgress(str);
 	}
-	void progressF(const char *fmt, ...) const {
-		va_list arg; va_start(arg, fmt);
-		printProgress(fmt, arg);
-		va_end(arg);
+  template <typename ... Args>
+	void progressF(const char *fmt, const Args& ... args) const {
+		printProgress(StringFormat(fmt, args ...).c_str());
 	}
 
-	void registerTmpFile(const std::string& path) {
+	void registerTmpFile(const tstring& path) {
 		tmpFiles.insert(path);
 	}
 
 	void clearTmpFiles() {
 		for (auto& path : tmpFiles) {
-			remove(path.c_str());
+      removeT(path.c_str());
 		}
 		tmpFiles.clear();
 	}
@@ -426,7 +421,7 @@ public:
 		return drcsMap;
 	}
 
-	void loadDRCSMapping(const std::string& mapPath)
+	void loadDRCSMapping(const tstring& mapPath)
 	{
 		if (File::exists(mapPath) == false) {
 			THROWF(ArgumentException, "DRCSマッピングファイルが見つかりません: %s",
@@ -464,43 +459,19 @@ private:
 	CRC32 crc;
 	int acp;
 
-	std::set<std::string> tmpFiles;
+	std::set<tstring> tmpFiles;
    std::array<int, AMT_ERR_MAX> errCounter;
 	std::string errMessage;
 
 	std::map<std::string, std::wstring> drcsMap;
-
-  static std::string format(const char* fmt, va_list arg)
-  {
-    std::string str;
-    size_t size = _vscprintf(fmt, arg);
-    if (size > 0)
-    {
-      str.reserve(size + 1); // null終端を足す
-      str.resize(size);
-      vsnprintf_s(&str[0], size + 1, size + 1, fmt, arg);
-    }
-    return str;
-  }
 
 	void print(const char* str, AMT_LOG_LEVEL level) const {
 		static const char* log_levels[] = { "debug", "info", "warn", "error" };
 		PRINTF("AMT [%s] %s\n", log_levels[level], str);
 	}
 
-	void print(const char* fmt, va_list arg, AMT_LOG_LEVEL level) const {
-		static const char* log_levels[] = { "debug", "info", "warn", "error" };
-    std::string str = format(fmt, arg);
-		PRINTF("AMT [%s] %s\n", log_levels[level], str.c_str());
-	}
-
 	void printProgress(const char* str) const {
 		PRINTF("AMT %s\r", str);
-	}
-
-	void printProgress(const char* fmt, va_list arg) const {
-    std::string str = format(fmt, arg);
-		PRINTF("AMT %s\r", str.c_str());
 	}
 };
 
@@ -836,7 +807,7 @@ class LosslessVideoFile : AMTObject
 	int current;
 
 public:
-	LosslessVideoFile(AMTContext& ctx, const std::string& filepath, const char* mode)
+	LosslessVideoFile(AMTContext& ctx, const tstring& filepath, const tchar* mode)
 		: AMTObject(ctx)
 		, file(filepath, mode)
 		, current()
@@ -978,13 +949,13 @@ static void CopyYV12(uint8_t* dst,
 	}
 }
 
-void ConcatFiles(const std::vector<std::string>& srcpaths, const std::string& dstpath)
+void ConcatFiles(const std::vector<tstring>& srcpaths, const tstring& dstpath)
 {
 	enum { BUF_SIZE = 16 * 1024 * 1024 };
 	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[BUF_SIZE]);
-	File dstfile(dstpath, "wb");
+	File dstfile(dstpath, _T("wb"));
 	for (int i = 0; i < (int)srcpaths.size(); ++i) {
-		File srcfile(srcpaths[i], "rb");
+		File srcfile(srcpaths[i], _T("rb"));
 		while (true) {
 			size_t readBytes = srcfile.read(MemoryChunk(buf.get(), BUF_SIZE));
 			dstfile.write(MemoryChunk(buf.get(), readBytes));
@@ -994,15 +965,15 @@ void ConcatFiles(const std::vector<std::string>& srcpaths, const std::string& ds
 }
 
 // BOMありUTF8で書き込む
-void WriteUTF8File(const std::string& filename, const std::string& utf8text)
+void WriteUTF8File(const tstring& filename, const std::string& utf8text)
 {
-	File file(filename, "w");
+	File file(filename, _T("w"));
 	uint8_t bom[] = { 0xEF, 0xBB, 0xBF };
 	file.write(MemoryChunk(bom, sizeof(bom)));
 	file.write(MemoryChunk((uint8_t*)utf8text.data(), utf8text.size()));
 }
 
-void WriteUTF8File(const std::string& filename, const std::wstring& text)
+void WriteUTF8File(const tstring& filename, const std::wstring& text)
 {
 	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 	WriteUTF8File(filename, converter.to_bytes(text));

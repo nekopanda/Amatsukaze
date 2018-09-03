@@ -170,7 +170,7 @@ public:
     const ConfigWrapper& setting,
     const StreamReformInfo& reformInfo,
     const std::vector<EncoderZone>& zones,
-    const std::string& logopath,
+    const tstring& logopath,
     int fileId, int encoderId, CMType cmtype,
     const ResourceManger& rm)
     : AMTObject(ctx)
@@ -225,7 +225,7 @@ public:
 			}
 
       auto& sb = script_.Get();
-      std::string postpath = setting.getPostFilterScriptPath();
+      tstring postpath = setting.getPostFilterScriptPath();
       if (postpath.size()) {
         sb.append("AMT_SOURCE = last\n");
         sb.append("Import(\"%s\")\n", postpath);
@@ -298,23 +298,19 @@ private:
 
   void writeScriptFile(int fileId, int encoderId, CMType cmtype) {
     auto& str = script_.Str();
-    File avsfile(setting_.getFilterAvsPath(fileId, encoderId, cmtype), "w");
+    File avsfile(setting_.getFilterAvsPath(fileId, encoderId, cmtype), _T("w"));
     avsfile.write(MemoryChunk((uint8_t*)str.c_str(), str.size()));
   }
 
-	std::vector<std::string> GetSuitablePlugins(const std::string& basepath) {
+	std::vector<tstring> GetSuitablePlugins(const tstring& basepath) {
 		struct Plugin {
-			std::string FileName;
-			std::string BaseName;
+      tstring FileName;
+      tstring BaseName;
 		};
-		auto ends_with = [](const std::string& s, const std::string& suffix) {
-			if (s.size() < suffix.size()) return false;
-			return std::equal(std::rbegin(suffix), std::rend(suffix), std::rbegin(s));
-		};
-    if (DirectoryExists(basepath) == false) return std::vector<std::string>();
-		std::vector<std::string> categories = { "_avx2.dll", "_avx.dll", ".dll" };
+    if (DirectoryExists(basepath) == false) return std::vector<tstring>();
+		std::vector<tstring> categories = { _T("_avx2.dll"), _T("_avx.dll"), _T(".dll") };
 		std::vector<std::vector<Plugin>> categoryList(categories.size());
-		for (std::string filename : GetDirectoryFiles(basepath, "*.dll")) {
+		for (tstring filename : GetDirectoryFiles(basepath, _T("*.dll"))) {
 			std::transform(filename.begin(), filename.end(), filename.begin(), ::tolower);
 			for (int i = 0; i < (int)categories.size(); ++i) {
 				const auto& category = categories[i];
@@ -334,15 +330,15 @@ private:
 			support = 1;
 		}
 		// BaseName -> FileName
-		std::map<std::string, std::string> pluginMap;
+		std::map<tstring, tstring> pluginMap;
 		for (int i = (int)categories.size() - 1; i >= support; --i) {
 			for (auto& plugin : categoryList[i]) {
 				pluginMap[plugin.BaseName] = plugin.FileName;
 			}
 		}
-		std::vector<std::string> result(pluginMap.size());
+		std::vector<tstring> result(pluginMap.size());
 		std::transform(pluginMap.begin(), pluginMap.end(), result.begin(), 
-			[&](const std::pair<std::string, std::string>& entry) { return basepath + "\\" + entry.second; });
+			[&](const std::pair<tstring, tstring>& entry) { return basepath + _T("\\") + entry.second; });
 		return result;
 	}
 
@@ -363,7 +359,7 @@ private:
 		// Amatsukaze用オートロードフォルダを追加
     sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", moduleDir);
 		// AutoSelectプラグインをロード
-		for (auto& path : GetSuitablePlugins(moduleDir + "\\plugins64\\AutoSelected")) {
+		for (auto& path : GetSuitablePlugins(moduleDir + _T("\\plugins64\\AutoSelected"))) {
 			sb.append("LoadPlugin(\"%s\")\n", path);
 		}
     // メモリ節約オプションを有効にする
@@ -412,7 +408,7 @@ private:
     int fileId, int encoderId, CMType cmtype,
     std::vector<int>& outFrames,
     const StreamReformInfo& reformInfo,
-    const std::string& logopath)
+    const tstring& logopath)
   {
     auto& sb = script_.Get();
     sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(fileId));
@@ -421,7 +417,7 @@ private:
     if (setting_.isNoDelogo() == false && logopath.size() > 0) {
       sb.append("logo = \"%s\"\n", logopath);
       sb.append("AMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\")\n", 
-				true ? setting_.getTmpLogoFramePath(fileId) : "");
+				true ? setting_.getTmpLogoFramePath(fileId) : _T(""));
       sb.append("Prefetch(1, 4)\n");
     }
 
@@ -477,7 +473,7 @@ private:
     int fileId, int encoderId, CMType cmtype,
     std::vector<int>& outFrames,
     const StreamReformInfo& reformInfo,
-    const std::string& logopath)
+    const tstring& logopath)
   {
     outFrames.clear();
 
@@ -492,7 +488,7 @@ private:
     sb.append("AMT_DEV = %d\n", gpuIndex);
     sb.append("AMT_SOURCE\n");
 
-    std::string mainpath = setting_.getFilterScriptPath();
+    tstring mainpath = setting_.getFilterScriptPath();
     if (mainpath.size()) {
       sb.append("Import(\"%s\")\n", mainpath);
     }
@@ -679,7 +675,7 @@ public:
     }
   }
 
-  void makeTimecode(const std::string& filepath) const {
+  void makeTimecode(const tstring& filepath) const {
     StringBuilder sb;
     sb.append("# timecode format v2\n");
     ctx.infoF("[VFR] %d fpsタイミングでタイムコードを生成します", is120fps ? 120 : 60);
@@ -704,7 +700,7 @@ public:
         sb.append("%d\n", (int)std::round(frameMap_[i] * (double)fpsDenom / fpsNum * 1000));
       }
     }
-    File file(filepath, "w");
+    File file(filepath, _T("w"));
     file.write(sb.getMC());
   }
 };

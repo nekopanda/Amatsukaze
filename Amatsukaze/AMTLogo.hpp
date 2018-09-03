@@ -236,7 +236,7 @@ public:
 		return nullptr;
 	}
 
-	void Save(const std::string& filepath, const LogoHeader* header)
+	void Save(const tstring& filepath, const LogoHeader* header)
 	{
 		// ベース部分作成
 		int wUV = w >> logUVx;
@@ -249,14 +249,14 @@ public:
 			}
 		}
 
-		File file(filepath, "wb");
+		File file(filepath, _T("wb"));
 		WriteBaseLogo(file, header, basedata.data());
 		WriteExtendedLogo(file, header);
 	}
 
-	static LogoData Load(const std::string& filepath, LogoHeader* header)
+	static LogoData Load(const tstring& filepath, LogoHeader* header)
 	{
-		File file(filepath, "rb");
+		File file(filepath, _T("rb"));
 
 		// ベース部分をスキップ
 		file.readValue<LOGO_FILE_HEADER>();
