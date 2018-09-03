@@ -323,7 +323,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 				conf.format = FORMAT_TS;
 			}
 			else {
-				THROWF(ArgumentException, "--formatの指定が間違っています: %" PRITSTR "", arg.c_str());
+				THROWF(ArgumentException, "--formatの指定が間違っています: %" PRITSTR "", arg);
 			}
 		}
 		else if (key == _T("--chapter")) {
@@ -486,7 +486,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else {
 			// なぜか%lsで長い文字列食わすと落ちるので%sで表示
-			THROWF(FormatException, "不明なオプション: %s", to_string(argv[i]).c_str());
+			THROWF(FormatException, "不明なオプション: %s", to_string(argv[i]));
 		}
 	}
 

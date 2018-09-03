@@ -469,8 +469,8 @@ public:
 		, parser(ctx)
 	{ }
 
-	void ReadFile(const char* filepath) {
-			File srcfile(filepath, "rb");
+	void ReadFile(const wchar_t* filepath) {
+			File srcfile(std::wstring(filepath), L"rb");
 			// ファイルの真ん中を読む
 			srcfile.seek(srcfile.size() / 2, SEEK_SET);
       int ret = ReadTS(srcfile);
@@ -492,7 +492,7 @@ public:
       }
 	}
 
-	bool ReadFileFromC(const char* filepath) {
+	bool ReadFileFromC(const wchar_t* filepath) {
 		try {
 			ReadFile(filepath);
 			return true;
@@ -614,7 +614,7 @@ private:
 // C API for P/Invoke
 extern "C" __declspec(dllexport) void* TsInfo_Create(AMTContext* ctx) { return new TsInfo(*ctx); }
 extern "C" __declspec(dllexport) void TsInfo_Delete(TsInfo* ptr) { delete ptr; }
-extern "C" __declspec(dllexport) int TsInfo_ReadFile(TsInfo* ptr, const char* filepath) { return ptr->ReadFileFromC(filepath); }
+extern "C" __declspec(dllexport) int TsInfo_ReadFile(TsInfo* ptr, const wchar_t* filepath) { return ptr->ReadFileFromC(filepath); }
 extern "C" __declspec(dllexport) int TsInfo_HasServiceInfo(TsInfo* ptr) { return ptr->HasServiceInfo(); }
 extern "C" __declspec(dllexport) void TsInfo_GetDay(TsInfo* ptr, int* y, int* m, int* d) { ptr->GetDay(y, m, d); }
 extern "C" __declspec(dllexport) void TsInfo_GetTime(TsInfo* ptr, int* h, int* m, int* s) { return ptr->GetTime(h, m, s); }
@@ -642,11 +642,11 @@ public:
 		, videoPid(videoPid)
 	{ }
 
-	bool exec(const char* srcpath, const char* dstpath, TS_SLIM_CALLBACK cb)
+	bool exec(const wchar_t* srcpath, const wchar_t* dstpath, TS_SLIM_CALLBACK cb)
 	{
 		try {
-			File srcfile(srcpath, "rb");
-			File dstfile(dstpath, "wb");
+			File srcfile(std::wstring(srcpath), L"rb");
+			File dstfile(std::wstring(dstpath), L"wb");
 			pfile = &dstfile;
 			videoOk = false;
 			enum {
@@ -695,4 +695,4 @@ private:
 
 extern "C" __declspec(dllexport) void* TsSlimFilter_Create(AMTContext* ctx, int videoPid) { return new TsSlimFilter(*ctx, videoPid); }
 extern "C" __declspec(dllexport) void TsSlimFilter_Delete(TsSlimFilter* ptr) { delete ptr; }
-extern "C" __declspec(dllexport) bool TsSlimFilter_Exec(TsSlimFilter* ptr, const char* srcpath, const char* dstpath, TS_SLIM_CALLBACK cb) { return ptr->exec(srcpath, dstpath, cb); }
+extern "C" __declspec(dllexport) bool TsSlimFilter_Exec(TsSlimFilter* ptr, const wchar_t* srcpath, const wchar_t* dstpath, TS_SLIM_CALLBACK cb) { return ptr->exec(srcpath, dstpath, cb); }

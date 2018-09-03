@@ -11,7 +11,7 @@
 #include <cassert>
 #include <vector>
 
-#include "CoreUtils.hpp"
+//#include "CoreUtils.hpp"
 
 namespace string_internal {
 	template <typename T> T MakeArg(T value) { return value; }
@@ -101,6 +101,14 @@ std::wstring StringFormat(const wchar_t* fmt, const Args& ... args)
 class StringBuilder : public string_internal::StringBuilderBase
 {
 public:
+  StringBuilder() { }
+
+  template <typename ... Args>
+  StringBuilder(const char* const fmt, Args const & ... args)
+  {
+    append(fmt, args ...);
+  }
+
 	template <typename ... Args>
 	StringBuilder& append(const char* const fmt, Args const & ... args)
 	{
@@ -126,6 +134,14 @@ public:
 class StringBuilderW : public string_internal::StringBuilderBase
 {
 public:
+  StringBuilderW() { }
+
+  template <typename ... Args>
+  StringBuilderW(const char* const fmt, Args const & ... args)
+  {
+    append(fmt, args ...);
+  }
+
 	template <typename ... Args>
 	StringBuilderW& append(const wchar_t* const fmt, Args const & ... args)
 	{

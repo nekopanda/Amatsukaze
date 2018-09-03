@@ -450,8 +450,8 @@ class TestSplitDualMono : public DualMonoSplitter
 public:
 	TestSplitDualMono(AMTContext& ctx, const std::vector<std::string>& outpaths)
 		: DualMonoSplitter(ctx)
-		, file0(new File(outpaths[0].c_str(), "wb"))
-		, file1(new File(outpaths[1].c_str(), "wb"))
+		, file0(new File(outpaths[0], "wb"))
+		, file1(new File(outpaths[1], "wb"))
 	{ }
 
 	virtual void OnOutFrame(int index, MemoryChunk mc)

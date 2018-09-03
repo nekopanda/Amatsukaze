@@ -107,7 +107,7 @@ public:
 		, swsctx(nullptr)
 	{
 		{
-			File file(filepath, "rb");
+			File file(std::string(filepath), "rb");
 			fileSize = file.size();
 		}
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {

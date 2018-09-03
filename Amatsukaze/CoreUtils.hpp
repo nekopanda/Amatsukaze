@@ -21,14 +21,7 @@ struct Exception {
 
 #define DEFINE_EXCEPTION(name) \
 	struct name : public Exception { \
-		name(const char* fmt, ...) { \
-			va_list arg; va_start(arg, fmt); \
-			size_t length = _vscprintf(fmt, arg); \
-			char* buf = new char[length + 1]; \
-			vsnprintf_s(buf, length + 1, _TRUNCATE, fmt, arg); \
-			mes = buf; delete[] buf; \
-			va_end(arg); \
-		} \
+		name(const std::string& mes) : mes(mes) { } \
 		virtual const char* message() const { return mes.c_str(); } \
 		virtual void raise() const { throw *this;	} \
 	private: \
@@ -49,10 +42,10 @@ DEFINE_EXCEPTION(TestException)
 #undef DEFINE_EXCEPTION
 
 #define THROW(exception, message) \
-	throw_exception_(exception("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__))
+	throw_exception_(exception(StringBuilder("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__).str()))
 
 #define THROWF(exception, fmt, ...) \
-	throw_exception_(exception("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__))
+	throw_exception_(exception(StringBuilder("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__).str()))
 
 static void throw_exception_(const Exception& exc)
 {
@@ -225,28 +218,48 @@ private:
 	}
 };
 
-std::string GetFullPath(const std::string& path)
+#include "StringUtils.hpp"
+
+DWORD GetFullPathNameT(LPCWSTR lpFileName, DWORD nBufferLength, LPWSTR lpBuffer, LPWSTR* lpFilePart) {
+  return GetFullPathNameW(lpFileName, nBufferLength, lpBuffer, lpFilePart);
+}
+
+DWORD GetFullPathNameT(LPCSTR lpFileName, DWORD nBufferLength, LPSTR lpBuffer, LPSTR* lpFilePart) {
+  return GetFullPathNameA(lpFileName, nBufferLength, lpBuffer, lpFilePart);
+}
+
+template <typename Char>
+std::basic_string<Char> GetFullPath(const std::basic_string<Char>& path)
 {
-	char buf[MAX_PATH];
-	int sz = GetFullPathName(path.c_str(), sizeof(buf), buf, nullptr);
+  Char buf[MAX_PATH];
+	int sz = GetFullPathNameT(path.c_str(), sizeof(buf), buf, nullptr);
 	if (sz >= sizeof(buf)) {
-		THROWF(IOException, "ƒpƒX‚ª’·‚·‚¬‚Ü‚·: %s", path.c_str());
+		THROWF(IOException, "ƒpƒX‚ª’·‚·‚¬‚Ü‚·: %s", path);
 	}
 	if (sz == 0) {
-		THROWF(IOException, "GetFullPathName()‚ÉŽ¸”s: %s", path.c_str());
+		THROWF(IOException, "GetFullPathName()‚ÉŽ¸”s: %s", path);
 	}
 	return buf;
+}
+
+FILE* fsopenT(const wchar_t* FileName, const wchar_t* Mode, int ShFlag) {
+  return _wfsopen(FileName, Mode, ShFlag);
+}
+
+FILE* fsopenT(const char* FileName, const char* Mode, int ShFlag) {
+  return _fsopen(FileName, Mode, ShFlag);
 }
 
 class File : NonCopyable
 {
 public:
-	File(const std::string& path, const char* mode) {
-		fp_ = _fsopen(path.c_str(), mode, _SH_DENYNO);
-		if (fp_ == NULL) {
-			THROWF(IOException, "failed to open file %s", GetFullPath(path).c_str());
-		}
-	}
+  template <typename Char>
+  File(const std::basic_string<Char>& path, const Char* mode) {
+    fp_ = fsopenT(path.c_str(), mode, _SH_DENYNO);
+    if (fp_ == NULL) {
+      THROWF(IOException, "failed to open file %s", GetFullPath(path));
+    }
+  }
 	~File() {
 		fclose(fp_);
 	}

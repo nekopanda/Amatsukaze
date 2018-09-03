@@ -62,7 +62,7 @@ std::vector<std::string> GetDirectoryFiles(const std::string& dirpath, const std
 	WIN32_FIND_DATA findData;
 	HANDLE hFind = FindFirstFile(search.c_str(), &findData);
 	if (hFind == INVALID_HANDLE_VALUE) {
-		THROWF(IOException, "ファイル列挙に失敗: %s", search.c_str());
+		THROWF(IOException, "ファイル列挙に失敗: %s", search);
 	}
 	do {
 		if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {

@@ -118,7 +118,7 @@ namespace Amatsukaze.Lib
         [DllImport("Amatsukaze.dll")]
         private static extern void TsInfo_Delete(IntPtr ptr);
 
-        [DllImport("Amatsukaze.dll")]
+        [DllImport("Amatsukaze.dll", CharSet = CharSet.Unicode)]
         private static extern int TsInfo_ReadFile(IntPtr ptr, string filepath);
 
         [DllImport("Amatsukaze.dll")]
@@ -508,7 +508,7 @@ namespace Amatsukaze.Lib
         [DllImport("Amatsukaze.dll")]
         private static extern void TsSlimFilter_Delete(IntPtr ptr);
 
-        [DllImport("Amatsukaze.dll")]
+        [DllImport("Amatsukaze.dll", CharSet = CharSet.Unicode)]
         private static extern bool TsSlimFilter_Exec(IntPtr ptr, string srcpath, string dstpath, TsSlimCallback cb);
         #endregion
 
