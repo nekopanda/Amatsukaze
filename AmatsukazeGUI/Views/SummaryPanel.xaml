@@ -51,5 +51,10 @@
                 </DockPanel>
             </DataTemplate>
         </ListBox.ItemTemplate>
+        <ListBox.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="項目ダブルクリックでコンソール表示" IsEnabled="False"/>
+            </ContextMenu>
+        </ListBox.ContextMenu>
     </ListBox>
 </UserControl>
