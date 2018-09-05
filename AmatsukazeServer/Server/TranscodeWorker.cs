@@ -1107,6 +1107,50 @@ namespace Amatsukaze.Server
             }
         }
 
+        private async Task MoveWithRetry(ServerSupport.MoveFileItem item)
+        {
+            Func<string, Task> Print = s => WriteTextBytes(Encoding.Default.GetBytes(s));
+
+            int MAX_RETRY = 10 * 60;
+            int retry = 0;
+
+            while (true)
+            {
+                try
+                {
+                    if (File.Exists(item.SrcPath))
+                    {
+                        ServerSupport.MoveFile(item.SrcPath, item.DstPath);
+                    }
+                    if(retry > 0)
+                    {
+                        await Print(string.Format("ファイル「{0}」の移動に成功しました\n", item.SrcPath));
+                    }
+                    return;
+                }
+                catch (Exception e)
+                {
+                    if(retry++ < MAX_RETRY)
+                    {
+                        await Print(string.Format(
+                            "ファイル「{0}」の移動に失敗しました。1秒後にリトライします({1}/{2})\r", 
+                            item.SrcPath, retry, MAX_RETRY));
+                        await Task.Delay(1000);
+                        continue;
+                    }
+                    throw e;
+                }
+            }
+        }
+
+        private async Task MoveTSFileWithRetry(string file, string dstDir, bool withEDCB)
+        {
+            foreach (var item in ServerSupport.GetMoveList(file, dstDir, withEDCB))
+            {
+                await MoveWithRetry(item);
+            }
+        }
+
         public async Task<bool> RunItem(QueueItem workerItem, bool forceStart)
         {
             try
@@ -1206,23 +1250,32 @@ namespace Amatsukaze.Server
                                 // 成功が1つでもあれば関連ファイルをコピー
                                 if (item.Profile.MoveEDCBFiles)
                                 {
-                                    // ソースパスは拡張子を含むがdstは含まない
-                                    var srcBody = Path.GetDirectoryName(item.SrcPath) + "\\" + Path.GetFileNameWithoutExtension(item.SrcPath);
-                                    var dstBody = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
-                                    foreach (var ext in ServerSupport
-                                        .GetFileExtentions(null, item.Profile.MoveEDCBFiles))
+                                    try
                                     {
-                                        var srcPath = srcBody + ext;
-                                        var dstPath = dstBody + ext;
-                                        if (File.Exists(srcPath) && !File.Exists(dstPath))
+                                        // ソースパスは拡張子を含むがdstは含まない
+                                        var srcBody = Path.GetDirectoryName(item.SrcPath) + "\\" + Path.GetFileNameWithoutExtension(item.SrcPath);
+                                        var dstBody = Path.GetDirectoryName(dstpath) + "\\" + Path.GetFileName(dstpath);
+                                        foreach (var ext in ServerSupport
+                                            .GetFileExtentions(null, item.Profile.MoveEDCBFiles))
                                         {
-                                            File.Copy(srcPath, dstPath);
-
-                                            if(scriptExecuter != null)
+                                            var srcPath = srcBody + ext;
+                                            var dstPath = dstBody + ext;
+                                            if (File.Exists(srcPath) && !File.Exists(dstPath))
                                             {
-                                                scriptExecuter.RelatedFiles.Add(dstPath);
+                                                File.Copy(srcPath, dstPath);
+
+                                                if (scriptExecuter != null)
+                                                {
+                                                    scriptExecuter.RelatedFiles.Add(dstPath);
+                                                }
                                             }
                                         }
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Util.AddLog(Id, "関連ファイルコピーでエラー", e);
+
+                                        // エンコードには成功しているので、ここでエラーが出てもこのまま進む
                                     }
                                 }
                             }
@@ -1231,26 +1284,35 @@ namespace Amatsukaze.Server
                             // 自分がキャンセルされている場合は、移動しない
                             if (item.State != QueueState.Canceled && sameItems.All(s => s.State != QueueState.Canceled))
                             {
-                                // キャンセルが1つもない場合のみ
-                                if (sameItems.Any(s => s.State == QueueState.Failed))
+                                try
                                 {
-                                    // 失敗がある
-                                    ServerSupport.MoveTSFile(item.SrcPath, failedDir, item.Profile.MoveEDCBFiles);
-
-                                    if (scriptExecuter != null)
+                                    // キャンセルが1つもない場合のみ
+                                    if (sameItems.Any(s => s.State == QueueState.Failed))
                                     {
-                                        scriptExecuter.MovedSrcPath = failedDir + "\\" + Path.GetFileName(item.SrcPath);
+                                        // 失敗がある
+                                        await MoveTSFileWithRetry(item.SrcPath, failedDir, item.Profile.MoveEDCBFiles);
+
+                                        if (scriptExecuter != null)
+                                        {
+                                            scriptExecuter.MovedSrcPath = failedDir + "\\" + Path.GetFileName(item.SrcPath);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // 全て成功
+                                        await MoveTSFileWithRetry(item.SrcPath, succeededDir, item.Profile.MoveEDCBFiles);
+
+                                        if (scriptExecuter != null)
+                                        {
+                                            scriptExecuter.MovedSrcPath = succeededDir + "\\" + Path.GetFileName(item.SrcPath);
+                                        }
                                     }
                                 }
-                                else
+                                catch (Exception e)
                                 {
-                                    // 全て成功
-                                    ServerSupport.MoveTSFile(item.SrcPath, succeededDir, item.Profile.MoveEDCBFiles);
+                                    Util.AddLog(Id, "TSファイル移動でエラー", e);
 
-                                    if (scriptExecuter != null)
-                                    {
-                                        scriptExecuter.MovedSrcPath = succeededDir + "\\" + Path.GetFileName(item.SrcPath);
-                                    }
+                                    // エンコードには成功しているので、ここでエラーが出てもこのまま進む
                                 }
                             }
                         }

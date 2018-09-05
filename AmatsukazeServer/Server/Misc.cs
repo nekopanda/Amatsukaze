@@ -965,24 +965,41 @@ namespace Amatsukaze.Server
             throw new ArgumentException();
         }
 
-        public static void MoveTSFile(string file, string dstDir, bool withEDCB)
+        public static void MoveFile(string srcPath, string dstPath)
+        {
+            if (File.Exists(dstPath))
+            {
+                // 既に存在している同名ファイルは削除
+                File.Delete(dstPath);
+            }
+            File.Move(srcPath, dstPath);
+        }
+
+        public struct MoveFileItem
+        {
+            public string SrcPath;
+            public string DstPath;
+        }
+
+        public static List<MoveFileItem> GetMoveList(string file, string dstDir, bool withEDCB)
         {
             string body = Path.GetFileNameWithoutExtension(file);
             string tsext = Path.GetExtension(file);
             string srcDir = Path.GetDirectoryName(file);
-            foreach (var ext in ServerSupport.GetFileExtentions(tsext, withEDCB))
-            {
-                string srcPath = srcDir + "\\" + body + ext;
-                string dstPath = dstDir + "\\" + body + ext;
-                if (File.Exists(srcPath))
+            return ServerSupport.GetFileExtentions(tsext, withEDCB).Select(ext => new MoveFileItem()
                 {
-                    if (File.Exists(dstPath))
-                    {
-                        // 既に存在している同名ファイルは削除
-                        File.Delete(dstPath);
-                    }
-                    File.Move(srcPath, dstPath);
-                }
+                    SrcPath = srcDir + "\\" + body + ext,
+                    DstPath = dstDir + "\\" + body + ext
+                })
+                .Where(pair => File.Exists(pair.SrcPath))
+                .ToList();
+        }
+
+        public static void MoveTSFile(string file, string dstDir, bool withEDCB)
+        {
+            foreach(var item in GetMoveList(file, dstDir, withEDCB))
+            {
+                MoveFile(item.SrcPath, item.DstPath);
             }
         }
 
