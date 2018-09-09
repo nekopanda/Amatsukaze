@@ -17,12 +17,12 @@
     <UserControl.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
     </UserControl.Resources>
-    
+
     <i:Interaction.Triggers>
         <l:InteractionMessageTrigger Messenger="{Binding Messenger}" MessageKey="FromMain">
             <l:TransitionInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
-        
+
         <l:InteractionMessageTrigger MessageKey="Confirm" Messenger="{Binding Messenger}">
             <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
@@ -181,7 +181,7 @@
             </DockPanel>
         </Expander>
 
-        <Button DockPanel.Dock="Bottom" Command="{Binding TogglePauseCommand, Mode=OneWay}" Name="FreezeButton"
+        <!--<Button DockPanel.Dock="Bottom" Command="{Binding TogglePauseCommand, Mode=OneWay}" Name="FreezeButton"
                 ToolTip="凍結状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを凍結してください。">
             <Button.Style>
                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -213,7 +213,72 @@
                     </Style.Triggers>
                 </Style>
             </Button.Style>
-        </Button>
+        </Button>-->
+
+        <Grid DockPanel.Dock="Bottom"
+            ToolTip="キュー停止状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
+            <DockPanel HorizontalAlignment="Stretch">
+                <TextBlock DockPanel.Dock="Left" Text="キュー停止" VerticalAlignment="Center" Margin="6,0"/>
+                <TextBlock DockPanel.Dock="Right" Text="キュー稼働" VerticalAlignment="Center" Margin="6,0"/>
+                <ToggleButton DockPanel.Dock="Left" Height="20" IsChecked="{Binding Model.IsPaused, Mode=TwoWay}">
+                    <ToggleButton.Style>
+                        <Style TargetType="ToggleButton">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate>
+                                        <Grid>
+                                            <Border CornerRadius="10" Background="DodgerBlue" BorderThickness="2"/>
+                                            <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="キュー稼働中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="White"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate>
+                                                <Grid>
+                                                    <Border CornerRadius="10" Background="LightGray" BorderThickness="2"/>
+                                                    <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Left"/>
+                                                    <TextBlock Text="キュー停止中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="Black"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
+                                                                        <DataTrigger.EnterActions>
+                                                                            <BeginStoryboard Name="Blinking">
+                                                                                <Storyboard>
+                                                                                    <ColorAnimationUsingKeyFrames
+                                                                                        Storyboard.TargetProperty="(Foreground).(SolidColorBrush.Color)"
+                                                                                        Duration="0:0:1.2" RepeatBehavior="Forever">
+                                                                                        <DiscreteColorKeyFrame Value="Black" KeyTime="0:0:0" />
+                                                                                        <DiscreteColorKeyFrame Value="LightGray" KeyTime="0:0:0.8" />
+                                                                                    </ColorAnimationUsingKeyFrames>
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </DataTrigger.EnterActions>
+                                                                        <DataTrigger.ExitActions>
+                                                                            <RemoveStoryboard BeginStoryboardName="Blinking"/>
+                                                                        </DataTrigger.ExitActions>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ToggleButton.Style>
+                </ToggleButton>
+            </DockPanel>
+        </Grid>
 
         <Grid>
             <Grid.Resources>
@@ -347,14 +412,14 @@
                         </DockPanel.InputBindings>
                         <DockPanel Width="120" ToolTip="{Binding ServiceString, Mode=OneWay}" Margin="0,0,5,0">
                             <TextBlock DockPanel.Dock="Top">
-                                    <TextBlock.ToolTip>
-                                        <TextBlock>
+                                <TextBlock.ToolTip>
+                                    <TextBlock>
                                             タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
                                             <LineBreak/>放送日時: <Run Text="{Binding TsTimeString, Mode=OneWay}"/>
                                             <LineBreak/>チャンネル: <Run Text="{Binding ServiceString, Mode=OneWay}"/>
                                             <LineBreak/>プロファイル: <Run Text="{Binding Model.Profile.Name}"/><Run Text="{Binding ProfileLastUpdate, Mode=OneWay}"/>
-                                        </TextBlock>
-                                    </TextBlock.ToolTip>
+                                    </TextBlock>
+                                </TextBlock.ToolTip>
                                     タスク: <Run Text="{Binding ModeString, Mode=OneWay}"/>
                                     <LineBreak/><Run Text="{Binding Model.Profile.Name}"/>
                                 </TextBlock>
