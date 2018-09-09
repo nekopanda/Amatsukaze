@@ -78,6 +78,7 @@
 
                     <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" TextAlignment="Right">JoinLogoScp<LineBreak/>コマンドファイル</TextBlock>
                     <TextBlock HorizontalAlignment="Right" Text="オプション" VerticalAlignment="Top" Margin="0"/>
+                    <TextBlock HorizontalAlignment="Right" Text="chapter_exeオプション" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
@@ -120,6 +121,8 @@
                                  Text="{Binding Model.SelectedProfile.JLSOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  IsEnabled="{Binding Model.SelectedProfile.EnableJLSOption, Mode=OneWay}"/>
                     </DockPanel>
+                    <TextBox Margin="0,3" ToolTip="chapter_exeのオプション"
+                             Text="{Binding Model.SelectedProfile.ChapterExeOptions, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                 </StackPanel>
 

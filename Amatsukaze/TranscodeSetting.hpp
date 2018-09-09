@@ -478,6 +478,7 @@ struct Config {
 	bool noDelogo;
 	bool vfr120fps;
   tstring chapterExePath;
+  tstring chapterExeOptions;
   tstring joinLogoScpPath;
   tstring joinLogoScpCmdPath;
   tstring joinLogoScpOptions;
@@ -677,6 +678,10 @@ public:
   tstring getChapterExePath() const {
 		return conf.chapterExePath;
 	}
+
+  tstring getChapterExeOptions() const {
+	  return conf.chapterExeOptions;
+  }
 
   tstring getJoinLogoScpPath() const {
 		return conf.joinLogoScpPath;

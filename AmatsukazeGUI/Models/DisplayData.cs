@@ -1149,6 +1149,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ChapterExeOptions変更通知プロパティ
+        public string ChapterExeOptions
+        {
+            get { return Data.ChapterExeOption; }
+            set
+            {
+                if (Data.ChapterExeOption == value)
+                    return;
+                Data.ChapterExeOption = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region EnableJLSOption変更通知プロパティ
         public bool EnableJLSOption {
             get { return Data.EnableJLSOption; }
@@ -1859,6 +1873,7 @@ namespace Amatsukaze.Models
             text.KeyValue("エンコーダオプション", EncoderOption);
             text.KeyValue("JoinLogoScpコマンドファイル", Data.JLSCommandFile ?? "チャンネル設定に従う");
             text.KeyValue("JoinLogoScpオプション", Data.JLSOption ?? "チャンネル設定に従う");
+            text.KeyValue("chapter_exeオプション", Data.ChapterExeOption);
             text.KeyValue("メインフィルタ", Data.FilterPath);
             text.KeyValue("ポストフィルタ", Data.PostFilterPath);
             text.KeyValue("MPEG2デコーダ", Mpeg2DecoderList[(int)Data.Mpeg2Decoder]);

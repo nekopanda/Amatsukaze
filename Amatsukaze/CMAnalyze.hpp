@@ -281,9 +281,10 @@ private:
 
   tstring MakeChapterExeArgs(int videoFileIndex, const tstring& avspath)
 	{
-		return StringFormat(_T("\"%s\" -v \"%s\" -o \"%s\""),
+		return StringFormat(_T("\"%s\" -v \"%s\" -o \"%s\" %s"),
 			setting_.getChapterExePath(), avspath,
-			setting_.getTmpChapterExePath(videoFileIndex));
+			setting_.getTmpChapterExePath(videoFileIndex),
+			setting_.getChapterExeOptions());
 	}
 
 	void chapterExe(int videoFileIndex, const tstring& avspath)

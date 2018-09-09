@@ -210,6 +210,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string JLSOption { get; set; }
         [DataMember]
+        public string ChapterExeOption { get; set; }
+        [DataMember]
         public bool EnableJLSOption { get; set; }
         [DataMember]
         public bool DisableChapter { get; set; }

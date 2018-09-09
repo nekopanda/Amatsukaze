@@ -853,13 +853,14 @@ namespace Amatsukaze.Server
                 string jlsopt = (serviceSetting?.DisableCMCheck ?? true) ? null
                     : profile.EnableJLSOption ? profile.JLSOption
                     : serviceSetting.JLSOption;
+                string ceopt = (serviceSetting?.DisableCMCheck ?? true) ? null : profile.ChapterExeOption;
 
                 string args = server.MakeAmatsukazeArgs(
                     item.Mode, profile,
                     server.AppData_.setting,
                     isMp4,
                     srcpath, localdst + ext, json,
-                    item.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt,
+                    item.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt, ceopt,
                     pipes?.InHandle, pipes?.OutHandle, Id);
                 string exename = server.AppData_.setting.AmatsukazePath;
 
