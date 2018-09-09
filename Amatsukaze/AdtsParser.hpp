@@ -193,56 +193,58 @@ public:
 							frameInfo.num_back_channels + frameInfo.num_side_channels + frameInfo.num_lfe_channels;
 
 						if (numChannels != 2) {
-							THROW(FormatException, "デコードされた音声が2chではありません");
-						}
-
-						AudioFrameData frameData;
-						frameData.numSamples = frameInfo.original_samples / numChannels;
-						frameData.numDecodedSamples = frameInfo.samples / numChannels;
-						frameData.format.channels = getAudioChannels(header, frameInfo);
-						frameData.format.sampleRate = frameInfo.samplerate;
-						frameData.codedDataSize = frameInfo.bytesconsumed;
-						// codedBuffer内データへのポインタを入れているので
-						// codedBufferには触らないように注意！
-						frameData.codedData = ptr;
-						frameData.decodedDataSize = frameInfo.samples * 2;
-						// AutoBufferはメモリ再確保があるのでデコードデータへのポインタは後で入れる
-
-						// PTSを計算
-						int64_t duration = 90000 * frameData.numSamples / frameData.format.sampleRate;
-						if (ibytes < prevDataSize) {
-							// フレームの開始が現在のパケット先頭より前だった場合
-							// （つまり、PESパケットの境界とフレームの境界が一致しなかった場合）
-							// 現在のパケットのPTSは適用できないので前のパケットからの値を入れる
-							frameData.PTS = lastPTS_;
-							lastPTS_ += duration;
-							// 現在のパケットが来なければフレームを出力できなかったので、出力したフレームは現在のパケットの一部を含むはず
-								ASSERT(ibytes + header.frame_length > prevDataSize);
-							// つまり、PTSは（もしあれば）直後のフレームのPTSである
-							if (PTS >= 0) {
-								lastPTS_ = PTS;
-								PTS = -1;
-							}
+							ctx.incrementCounter(AMT_ERR_DECODE_AUDIO);
+							ctx.warnF("デコードされた音声が2chではありません(ch=%d)", numChannels);
 						}
 						else {
-							// PESパケットの境界とフレームの境界が一致した場合
-							// もしくはPESパケットの2番目以降のフレーム
-							if (PTS >= 0) {
-								lastPTS_ = PTS;
-								PTS = -1;
+							AudioFrameData frameData;
+							frameData.numSamples = frameInfo.original_samples / numChannels;
+							frameData.numDecodedSamples = frameInfo.samples / numChannels;
+							frameData.format.channels = getAudioChannels(header, frameInfo);
+							frameData.format.sampleRate = frameInfo.samplerate;
+							frameData.codedDataSize = frameInfo.bytesconsumed;
+							// codedBuffer内データへのポインタを入れているので
+							// codedBufferには触らないように注意！
+							frameData.codedData = ptr;
+							frameData.decodedDataSize = frameInfo.samples * 2;
+							// AutoBufferはメモリ再確保があるのでデコードデータへのポインタは後で入れる
+
+							// PTSを計算
+							int64_t duration = 90000 * frameData.numSamples / frameData.format.sampleRate;
+							if (ibytes < prevDataSize) {
+								// フレームの開始が現在のパケット先頭より前だった場合
+								// （つまり、PESパケットの境界とフレームの境界が一致しなかった場合）
+								// 現在のパケットのPTSは適用できないので前のパケットからの値を入れる
+								frameData.PTS = lastPTS_;
+								lastPTS_ += duration;
+								// 現在のパケットが来なければフレームを出力できなかったので、出力したフレームは現在のパケットの一部を含むはず
+								ASSERT(ibytes + header.frame_length > prevDataSize);
+								// つまり、PTSは（もしあれば）直後のフレームのPTSである
+								if (PTS >= 0) {
+									lastPTS_ = PTS;
+									PTS = -1;
+								}
 							}
-							frameData.PTS = lastPTS_;
-							lastPTS_ += duration;
+							else {
+								// PESパケットの境界とフレームの境界が一致した場合
+								// もしくはPESパケットの2番目以降のフレーム
+								if (PTS >= 0) {
+									lastPTS_ = PTS;
+									PTS = -1;
+								}
+								frameData.PTS = lastPTS_;
+								lastPTS_ += duration;
+							}
+
+							info.push_back(frameData);
+
+							// データを進める
+							ASSERT(frameInfo.bytesconsumed == header.frame_length);
+							ibytes += header.frame_length - 1;
+							bytesConsumed_ = ibytes + 1;
+
+							syncOK = true;
 						}
-
-						info.push_back(frameData);
-
-						// データを進める
-						ASSERT(frameInfo.bytesconsumed == header.frame_length);
-						ibytes += header.frame_length - 1;
-						bytesConsumed_ = ibytes + 1;
-
-						syncOK = true;
 					}
 				}
 				else {

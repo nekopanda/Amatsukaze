@@ -324,6 +324,8 @@ enum AMT_ERROR_COUNTER {
    AMT_ERR_NON_CONTINUOUS_PTS,
    // DRCSマッピングがない
    AMT_ERR_NO_DRCS_MAP,
+	 // 音声でコードエラー
+	 AMT_ERR_DECODE_AUDIO,
    // エラーの個数
    AMT_ERR_MAX,
 };
@@ -334,7 +336,8 @@ const char* AMT_ERROR_NAMES[] = {
    "h264-pts-mismatch",
    "h264-unexpected-field",
    "non-continuous-pts",
-   "no-drcs-map",
+	 "no-drcs-map",
+	 "decode-audio-failed",
 };
 
 class AMTContext {
