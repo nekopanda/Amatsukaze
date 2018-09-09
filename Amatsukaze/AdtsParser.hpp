@@ -186,8 +186,6 @@ public:
 						samples = NeAACDecDecode(hAacDec, &frameInfo, ptr, len);
 					}
 					if (frameInfo.error == 0) {
-						decodedBuffer.add(MemoryChunk((uint8_t*)samples, frameInfo.samples * 2));
-
 						// ダウンミックスしているので2chになるはず
 						int numChannels = frameInfo.num_front_channels +
 							frameInfo.num_back_channels + frameInfo.num_side_channels + frameInfo.num_lfe_channels;
@@ -197,6 +195,8 @@ public:
 							ctx.warnF("デコードされた音声が2chではありません(ch=%d)", numChannels);
 						}
 						else {
+							decodedBuffer.add(MemoryChunk((uint8_t*)samples, frameInfo.samples * 2));
+
 							AudioFrameData frameData;
 							frameData.numSamples = frameInfo.original_samples / numChannels;
 							frameData.numDecodedSamples = frameInfo.samples / numChannels;
