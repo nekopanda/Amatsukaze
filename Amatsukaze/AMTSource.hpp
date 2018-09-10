@@ -44,11 +44,16 @@ class AMTSource : public IClip, AMTObject
 	const std::vector<FilterSourceFrame>& frames;
 	const std::vector<FilterAudioFrame>& audioFrames;
 	DecoderSetting decoderSetting;
+	std::string filterdesc;
 	int audioSamplesPerFrame;
 	bool interlaced;
 
 	InputContext inputCtx;
 	CodecContext codecCtx;
+
+	FilterGraph filterGraph;
+	AVFilterContext* bufferSrcCtx;
+	AVFilterContext* bufferSinkCtx;
 
 	AVStream *videoStream;
 
@@ -71,8 +76,6 @@ class AMTSource : public IClip, AMTObject
 	std::mutex mutex;
 
 	File waveFile;
-
-	bool initialized;
 
 	int seekDistance;
 
@@ -115,7 +118,7 @@ class AMTSource : public IClip, AMTObject
 		return avcodec_find_decoder(vcodecId);
 	}
 
-	void MakeCodecContext() {
+	void MakeCodecContext(IScriptEnvironment* env) {
 		AVCodecID vcodecId = videoStream->codecpar->codec_id;
 		AVCodec *pCodec = getHWAccelCodec(vcodecId);
 		if (pCodec == NULL) {
@@ -123,15 +126,88 @@ class AMTSource : public IClip, AMTObject
 			pCodec = avcodec_find_decoder(vcodecId);
 		}
 		if (pCodec == NULL) {
-			THROW(FormatException, "Could not find decoder ...");
+			env->ThrowError("Could not find decoder ...");
 		}
 		codecCtx.Set(pCodec);
 		if (avcodec_parameters_to_context(codecCtx(), videoStream->codecpar) != 0) {
-			THROW(FormatException, "avcodec_parameters_to_context failed");
+			env->ThrowError("avcodec_parameters_to_context failed");
 		}
 		codecCtx()->thread_count = GetFFmpegThreads(GetProcessorCount());
 		if (avcodec_open2(codecCtx(), pCodec, NULL) != 0) {
-			THROW(FormatException, "avcodec_open2 failed");
+			env->ThrowError("avcodec_open2 failed");
+		}
+	}
+
+	void MakeFilterGraph(IScriptEnvironment* env) {
+		char args[512];
+		const AVFilter *buffersrc = avfilter_get_by_name("buffer");
+		const AVFilter *buffersink = avfilter_get_by_name("buffersink");
+		FilterInOut outputs;
+		FilterInOut inputs;
+		AVRational time_base = videoStream->time_base;
+
+		filterGraph.Create();
+		bufferSrcCtx = nullptr;
+		bufferSinkCtx = nullptr;
+
+		/* buffer video source: the decoded frames from the decoder will be inserted here. */
+		snprintf(args, sizeof(args),
+			"video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+			codecCtx()->width, codecCtx()->height, codecCtx()->pix_fmt,
+			time_base.num, time_base.den,
+			codecCtx()->sample_aspect_ratio.num, codecCtx()->sample_aspect_ratio.den);
+
+		if (avfilter_graph_create_filter(&bufferSrcCtx, buffersrc, "in",
+			args, NULL, filterGraph()) < 0) {
+			env->ThrowError("avfilter_graph_create_filter failed (Cannot create buffer source)");
+		}
+
+		/* buffer video sink: to terminate the filter chain. */
+		if (avfilter_graph_create_filter(&bufferSinkCtx, buffersink, "out",
+			NULL, NULL, filterGraph()) < 0) {
+			env->ThrowError("avfilter_graph_create_filter failed (Cannot create buffer sink)");
+		}
+
+		if (av_opt_set_bin(bufferSinkCtx, "pix_fmts",
+			(uint8_t*)&codecCtx()->pix_fmt, sizeof(codecCtx()->pix_fmt),
+			AV_OPT_SEARCH_CHILDREN) < 0) {
+			env->ThrowError("av_opt_set_bin failed (cannot set output pixel format)");
+		}
+
+		/*
+		* Set the endpoints for the filter graph. The filter_graph will
+		* be linked to the graph described by filters_descr.
+		*/
+
+		/*
+		* The buffer source output must be connected to the input pad of
+		* the first filter described by filters_descr; since the first
+		* filter input label is not specified, it is set to "in" by
+		* default.
+		*/
+		outputs()->name = av_strdup("in");
+		outputs()->filter_ctx = bufferSrcCtx;
+		outputs()->pad_idx = 0;
+		outputs()->next = NULL;
+
+		/*
+		* The buffer sink input must be connected to the output pad of
+		* the last filter described by filters_descr; since the last
+		* filter output label is not specified, it is set to "out" by
+		* default.
+		*/
+		inputs()->name = av_strdup("out");
+		inputs()->filter_ctx = bufferSinkCtx;
+		inputs()->pad_idx = 0;
+		inputs()->next = NULL;
+
+		if (avfilter_graph_parse_ptr(filterGraph(), filterdesc.c_str(),
+			&inputs(), &outputs(), NULL) < 0) {
+			env->ThrowError("avfilter_graph_parse_ptr failed");
+		}
+
+		if (avfilter_graph_config(filterGraph(), NULL) < 0) {
+			env->ThrowError("avfilter_graph_config failed");
 		}
 	}
 
@@ -142,9 +218,6 @@ class AMTSource : public IClip, AMTObject
 		vi.num_frames = int(frames.size());
 
 		interlaced = !vfmt.progressive;
-
-		// ビット深度は取得してないのでフレームをデコードして取得する
-		//vi.pixel_type = VideoInfo::CS_YV12;
 
 		if (audioFrames.size() > 0) {
 			audioSamplesPerFrame = 1024;
@@ -168,13 +241,13 @@ class AMTSource : public IClip, AMTObject
 		}
 	}
 
-	void ResetDecoder() {
+	void ResetDecoder(IScriptEnvironment* env) {
 		lastDecodeFrame = -1;
 		prevFrame = nullptr;
-		//if (codecCtx() == nullptr) {
-		MakeCodecContext();
-		//}
-		//avcodec_flush_buffers(codecCtx());
+		MakeCodecContext(env);
+		if (filterdesc.size()) {
+			MakeFilterGraph(env);
+		}
 	}
 
 	template <typename T>
@@ -275,29 +348,63 @@ class AMTSource : public IClip, AMTObject
 		}
 	}
 
-	void OnInitializeFrame(Frame& frame, IScriptEnvironment* env)
+	int toAVSFormat(AVPixelFormat format, IScriptEnvironment* env)
 	{
 		// ビット深度取得
-		const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame()->format));
+		const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(format);
 		switch (desc->comp[0].depth) {
 		case 8:
-			vi.pixel_type = VideoInfo::CS_YV12;
+			return VideoInfo::CS_YV12;
 			break;
 		case 10:
-			vi.pixel_type = VideoInfo::CS_YUV420P10;
+			return VideoInfo::CS_YUV420P10;
 			break;
 		case 12:
-			vi.pixel_type = VideoInfo::CS_YUV420P12;
-			break;
-		default:
-			env->ThrowError("対応していないビット深度です");
+			return VideoInfo::CS_YUV420P12;
 			break;
 		}
+		env->ThrowError("対応していないビット深度です");
+		return 0;
+	}
 
-		initialized = true;
+	void InputFrameFilter(Frame* frame, bool enableOut, IScriptEnvironment* env)
+	{
+		/* push the decoded frame into the filtergraph */
+		if (av_buffersrc_add_frame_flags(bufferSrcCtx, frame ? (*frame)() : nullptr, 0) < 0) {
+			env->ThrowError("av_buffersrc_add_frame_flags failed (Error while feeding the filtergraph)");
+		}
+
+		/* pull filtered frames from the filtergraph */
+		while (1) {
+			Frame filtered;
+			int ret = av_buffersink_get_frame(bufferSinkCtx, filtered());
+			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+				// もっと入力が必要 or もうフレームがない
+				break;
+			}
+			if (ret < 0) {
+				env->ThrowError("av_buffersink_get_frame failed");
+			}
+			if (enableOut) {
+				OnFrameOutput(filtered, env);
+			}
+		}
 	}
 
 	void OnFrameDecoded(Frame& frame, IScriptEnvironment* env)
+	{
+		if (bufferSrcCtx) {
+			// フィルタ処理
+			//frame()->pts = frame()->best_effort_timestamp;
+
+			InputFrameFilter(&frame, true, env);
+		}
+		else {
+			OnFrameOutput(frame, env);
+		}
+	}
+
+	void OnFrameOutput(Frame& frame, IScriptEnvironment* env)
 	{
 		// ffmpegのpts wrapの仕方が謎なので下位33bitのみを見る
 		//（26時間以上ある動画だと重複する可能性はあるが無視）
@@ -412,21 +519,18 @@ class AMTSource : public IClip, AMTObject
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
 					// 最初はIフレームまでスキップ
 					if (lastDecodeFrame != -1 || frame()->key_frame) {
-						if (initialized == false) {
-							OnInitializeFrame(frame, env);
-							av_packet_unref(&packet);
-							return;
-						}
-						else {
-							OnFrameDecoded(frame, env);
-						}
+						OnFrameDecoded(frame, env);
 					}
 				}
 			}
 			av_packet_unref(&packet);
 			if (lastDecodeFrame >= goal) {
-				break;
+				return;
 			}
+		}
+		if (bufferSrcCtx) {
+			// ストリームは全て読み取ったのでフィルタをflush
+			InputFrameFilter(nullptr, true, env);
 		}
 	}
 
@@ -450,31 +554,36 @@ public:
 		const std::vector<FilterSourceFrame>& frames,
 		const std::vector<FilterAudioFrame>& audioFrames,
 		const DecoderSetting& decoderSetting,
+		const char* filterdesc,
 		IScriptEnvironment* env)
 		: AMTObject(ctx)
 		, frames(frames)
 		, decoderSetting(decoderSetting)
 		, audioFrames(audioFrames)
+		, filterdesc(filterdesc)
 		, inputCtx(srcpath)
 		, vi()
 		, waveFile(audiopath, _T("rb"))
+		, bufferSrcCtx()
+		, bufferSinkCtx()
 		, seekDistance(10)
-		, initialized(false)
 		, lastDecodeFrame(-1)
 	{
 		MakeVideoInfo(vfmt, afmt);
 
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {
-			THROW(FormatException, "avformat_find_stream_info failed");
+			env->ThrowError("avformat_find_stream_info failed");
 		}
 		videoStream = GetVideoStream(inputCtx());
 		if (videoStream == NULL) {
-			THROW(FormatException, "Could not find video stream ...");
+			env->ThrowError("Could not find video stream ...");
 		}
 
 		// 初期化
-		ResetDecoder();
-		DecodeLoop(0, env);
+		ResetDecoder(env);
+
+		// ビット深度は取得してないのでffmpegから取得する
+		vi.pixel_type = toAVSFormat(codecCtx()->pix_fmt, env);
 	}
 
 	~AMTSource() {
@@ -520,7 +629,7 @@ public:
 				if (av_seek_frame(inputCtx(), -1, fileOffset, AVSEEK_FLAG_BYTE) < 0) {
 					THROW(FormatException, "av_seek_frame failed");
 				}
-				ResetDecoder();
+				ResetDecoder(env);
 				DecodeLoop(n, env);
 				if (frameCache.find(n) != frameCache.end()) {
 					// デコード成功
@@ -624,7 +733,7 @@ void SaveAMTSource(
 	file.writeValue(decoderSetting);
 }
 
-PClip LoadAMTSource(const tstring& loadpath, IScriptEnvironment* env)
+PClip LoadAMTSource(const tstring& loadpath, const char* filterdesc, IScriptEnvironment* env)
 {
 	File file(loadpath, _T("rb"));
 	auto& srcpathv = file.readArray<tchar>();
@@ -638,7 +747,7 @@ PClip LoadAMTSource(const tstring& loadpath, IScriptEnvironment* env)
 	data->audioFrames = file.readArray<FilterAudioFrame>();
 	DecoderSetting decoderSetting = file.readValue<DecoderSetting>();
 	AMTSource* src = new AMTSource(*g_ctx_for_plugin_filter,
-		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, decoderSetting, env);
+		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, decoderSetting, filterdesc, env);
 	src->TransferStreamInfo(std::move(data));
 	return src;
 }
@@ -649,7 +758,8 @@ AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env
 		g_ctx_for_plugin_filter = new AMTContext();
 	}
 	tstring filename = to_tstring(args[0].AsString());
-	return LoadAMTSource(filename, env);
+	const char* filterdesc = args[1].AsString("");
+	return LoadAMTSource(filename, filterdesc, env);
 }
 
 class AVSLosslessSource : public IClip

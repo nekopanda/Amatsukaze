@@ -21,10 +21,14 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
+#include <libavutil/opt.h>
 }
 #pragma comment(lib, "avutil.lib")
 #pragma comment(lib, "avcodec.lib")
 #pragma comment(lib, "avformat.lib")
+#pragma comment(lib, "avfilter.lib")
 #pragma comment(lib, "swscale.lib")
 
 namespace av {
@@ -141,6 +145,53 @@ public:
 	}
 private:
 	AVFormatContext* ctx_;
+};
+
+class FilterGraph : NonCopyable {
+public:
+	FilterGraph()
+		: ctx_()
+	{ }
+	~FilterGraph() {
+		Free();
+	}
+	void Create() {
+		Free();
+		ctx_ = avfilter_graph_alloc();
+		if (ctx_ == NULL) {
+			THROW(IOException, "failed avfilter_graph_alloc");
+		}
+	}
+	void Free() {
+		if (ctx_) {
+			avfilter_graph_free(&ctx_);
+			ctx_ = NULL;
+		}
+	}
+	AVFilterGraph* operator()() {
+		return ctx_;
+	}
+private:
+	AVFilterGraph* ctx_;
+};
+
+class FilterInOut : NonCopyable {
+public:
+	FilterInOut()
+		: ctx_(avfilter_inout_alloc())
+	{
+		if (ctx_ == nullptr) {
+			THROW(IOException, "failed avfilter_inout_alloc");
+		}
+	}
+	~FilterInOut() {
+		avfilter_inout_free(&ctx_);
+	}
+	AVFilterInOut*& operator()() {
+		return ctx_;
+	}
+private:
+	AVFilterInOut* ctx_;
 };
 
 class WriteIOContext : NonCopyable {

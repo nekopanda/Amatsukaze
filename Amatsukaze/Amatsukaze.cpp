@@ -46,7 +46,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 		g_av_initialized = true;
 	}
 
-	env->AddFunction("AMTSource", "s", av::CreateAMTSource, 0);
+	env->AddFunction("AMTSource", "s[filter]s", av::CreateAMTSource, 0);
 
 	env->AddFunction("AMTAnalyzeLogo", "cs[maskratio]i", logo::AMTAnalyzeLogo::Create, 0);
 	env->AddFunction("AMTEraseLogo", "ccs[logof]s[mode]i", logo::AMTEraseLogo::Create, 0);
