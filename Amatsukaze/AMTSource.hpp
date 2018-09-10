@@ -133,6 +133,11 @@ class AMTSource : public IClip, AMTObject
 			env->ThrowError("avcodec_parameters_to_context failed");
 		}
 		codecCtx()->thread_count = GetFFmpegThreads(GetProcessorCount());
+
+		// export_mvs for codecview
+		//AVDictionary *opts = NULL;
+		//av_dict_set(&opts, "flags2", "+export_mvs", 0);
+		
 		if (avcodec_open2(codecCtx(), pCodec, NULL) != 0) {
 			env->ThrowError("avcodec_open2 failed");
 		}
@@ -149,6 +154,8 @@ class AMTSource : public IClip, AMTObject
 		filterGraph.Create();
 		bufferSrcCtx = nullptr;
 		bufferSinkCtx = nullptr;
+
+		filterGraph()->nb_threads = 4;
 
 		/* buffer video source: the decoded frames from the decoder will be inserted here. */
 		snprintf(args, sizeof(args),
@@ -238,6 +245,23 @@ class AMTSource : public IClip, AMTObject
 			vi.audio_samples_per_second = 0;
 			vi.num_audio_samples = 0;
 			vi.nchannels = 0;
+		}
+	}
+
+	void UpdateVideoInfo(IScriptEnvironment* env)
+	{
+		// ビット深度は取得してないのでffmpegから取得する
+		vi.pixel_type = toAVSFormat(codecCtx()->pix_fmt, env);
+
+		if (bufferSinkCtx) {
+			// フィルタがあればフィルタの出力に更新
+			const AVFilterLink* outlink = bufferSinkCtx->inputs[0];
+			vi.pixel_type = toAVSFormat((AVPixelFormat)outlink->format, env);
+
+			if (outlink->w != vi.width ||
+				outlink->h != vi.height) {
+				env->ThrowError("ffmpeg filter output is resized, which is not supported on current AMTSource.");
+			}
 		}
 	}
 
@@ -396,7 +420,6 @@ class AMTSource : public IClip, AMTObject
 		if (bufferSrcCtx) {
 			// フィルタ処理
 			//frame()->pts = frame()->best_effort_timestamp;
-
 			InputFrameFilter(&frame, true, env);
 		}
 		else {
@@ -581,9 +604,7 @@ public:
 
 		// 初期化
 		ResetDecoder(env);
-
-		// ビット深度は取得してないのでffmpegから取得する
-		vi.pixel_type = toAVSFormat(codecCtx()->pix_fmt, env);
+		UpdateVideoInfo(env);
 	}
 
 	~AMTSource() {

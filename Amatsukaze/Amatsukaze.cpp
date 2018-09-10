@@ -26,6 +26,7 @@ extern "C" __declspec(dllexport) void InitAmatsukazeDLL()
 {
 	// FFMPEGライブラリ初期化
 	av_register_all();
+	avfilter_register_all();
 }
 
 static void init_console()
@@ -43,6 +44,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	if (g_av_initialized == false) {
 		// FFMPEGライブラリ初期化
 		av_register_all();
+		avfilter_register_all();
 		g_av_initialized = true;
 	}
 
