@@ -145,7 +145,7 @@ class AMTSource : public IClip, AMTObject
 
 		// ビット深度は取得してないのでフレームをデコードして取得する
 		//vi.pixel_type = VideoInfo::CS_YV12;
-		
+
 		if (audioFrames.size() > 0) {
 			audioSamplesPerFrame = 1024;
 			// waveLengthはゼロのこともあるので注意
@@ -172,7 +172,7 @@ class AMTSource : public IClip, AMTObject
 		lastDecodeFrame = -1;
 		prevFrame = nullptr;
 		//if (codecCtx() == nullptr) {
-			MakeCodecContext();
+		MakeCodecContext();
 		//}
 		//avcodec_flush_buffers(codecCtx());
 	}
@@ -246,7 +246,7 @@ class AMTSource : public IClip, AMTObject
 	PVideoFrame MakeFrame(AVFrame* top, AVFrame* bottom, IScriptEnvironment* env) {
 		PVideoFrame ret = env->NewVideoFrame(vi);
 		const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(top->format));
-		
+
 		if (desc->comp[0].depth > 8) {
 			MergeField<uint16_t>(ret, top, bottom);
 		}
@@ -275,30 +275,30 @@ class AMTSource : public IClip, AMTObject
 		}
 	}
 
-    void OnInitializeFrame(Frame& frame, IScriptEnvironment* env)
-    {
-        // ビット深度取得
-        const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame()->format));
-        switch (desc->comp[0].depth) {
-        case 8:
-            vi.pixel_type = VideoInfo::CS_YV12;
-            break;
-        case 10:
-            vi.pixel_type = VideoInfo::CS_YUV420P10;
-            break;
-        case 12:
-            vi.pixel_type = VideoInfo::CS_YUV420P12;
-            break;
-        default:
-            env->ThrowError("対応していないビット深度です");
-            break;
-        }
+	void OnInitializeFrame(Frame& frame, IScriptEnvironment* env)
+	{
+		// ビット深度取得
+		const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame()->format));
+		switch (desc->comp[0].depth) {
+		case 8:
+			vi.pixel_type = VideoInfo::CS_YV12;
+			break;
+		case 10:
+			vi.pixel_type = VideoInfo::CS_YUV420P10;
+			break;
+		case 12:
+			vi.pixel_type = VideoInfo::CS_YUV420P12;
+			break;
+		default:
+			env->ThrowError("対応していないビット深度です");
+			break;
+		}
 
-        initialized = true;
-    }
+		initialized = true;
+	}
 
 	void OnFrameDecoded(Frame& frame, IScriptEnvironment* env)
-    {
+	{
 		// ffmpegのpts wrapの仕方が謎なので下位33bitのみを見る
 		//（26時間以上ある動画だと重複する可能性はあるが無視）
 		int64_t pts = frame()->pts & ((int64_t(1) << 33) - 1);
@@ -344,15 +344,15 @@ class AMTSource : public IClip, AMTObject
 			if (cacheit != frameCache.end()) {
 				// すでにキャッシュにある
 				UpdateAccessed(cacheit->value);
-        lastDecodeFrame = frameIndex;
+				lastDecodeFrame = frameIndex;
 			}
 			else if (prevFrame != nullptr) {
 				PutFrame(frameIndex, MakeFrame((*prevFrame)(), frame(), env));
-        lastDecodeFrame = frameIndex;
+				lastDecodeFrame = frameIndex;
 			}
-      else {
-        // 直前のフレームがないのでフレームを作れない
-      }
+			else {
+				// 直前のフレームがないのでフレームを作れない
+			}
 
 			// 次のフレームも同じフレームを参照してたらそれも出力
 			auto next = it + 1;
@@ -377,7 +377,7 @@ class AMTSource : public IClip, AMTObject
 			else {
 				PutFrame(frameIndex, MakeFrame(frame(), frame(), env));
 			}
-      lastDecodeFrame = frameIndex;
+			lastDecodeFrame = frameIndex;
 		}
 
 		prevFrame = std::unique_ptr<Frame>(new Frame(frame));
@@ -412,14 +412,14 @@ class AMTSource : public IClip, AMTObject
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
 					// 最初はIフレームまでスキップ
 					if (lastDecodeFrame != -1 || frame()->key_frame) {
-                        if (initialized == false) {
-                            OnInitializeFrame(frame, env);
-                            av_packet_unref(&packet);
-                            return;
-                        }
-                        else {
-                            OnFrameDecoded(frame, env);
-                        }
+						if (initialized == false) {
+							OnInitializeFrame(frame, env);
+							av_packet_unref(&packet);
+							return;
+						}
+						else {
+							OnFrameDecoded(frame, env);
+						}
 					}
 				}
 			}
@@ -433,7 +433,7 @@ class AMTSource : public IClip, AMTObject
 	void registerFailedFrames(int begin, int end, int replace, IScriptEnvironment* env)
 	{
 		for (int f = begin; f < end; ++f) {
-      failedMap[f] = replace;
+			failedMap[f] = replace;
 		}
 		// デコード不可フレーム数が１割を超える場合はエラーとする
 		if (failedMap.size() * 10 > frames.size()) {
@@ -472,7 +472,7 @@ public:
 			THROW(FormatException, "Could not find video stream ...");
 		}
 
-        // 初期化
+		// 初期化
 		ResetDecoder();
 		DecodeLoop(0, env);
 	}
@@ -504,7 +504,7 @@ public:
 
 		// デコードできないフレームは置換フレームに置き換える
 		if (failedMap.find(n) != failedMap.end()) {
-      n = failedMap[n];
+			n = failedMap[n];
 		}
 
 		// キャッシュにないのでデコードする
@@ -561,7 +561,7 @@ public:
 		const int sampleBytes = 4; // 16bitステレオ前提
 		int frameWaveLength = audioSamplesPerFrame * sampleBytes;
 		uint8_t* ptr = (uint8_t*)buf;
-		for(__int64 frameIndex = start / audioSamplesPerFrame, frameOffset = start % audioSamplesPerFrame;
+		for (__int64 frameIndex = start / audioSamplesPerFrame, frameOffset = start % audioSamplesPerFrame;
 			count > 0 && frameIndex < (__int64)audioFrames.size();
 			++frameIndex, frameOffset = 0)
 		{
@@ -594,7 +594,7 @@ public:
 	bool __stdcall GetParity(int n) {
 		return interlaced;
 	}
-	
+
 	int __stdcall SetCacheHints(int cachehints, int frame_range)
 	{
 		// 直接インスタンス化される場合、MTGuardが入らないのでMT_NICE_FILTER以外ダメ
@@ -628,9 +628,9 @@ PClip LoadAMTSource(const tstring& loadpath, IScriptEnvironment* env)
 {
 	File file(loadpath, _T("rb"));
 	auto& srcpathv = file.readArray<tchar>();
-  tstring srcpath(srcpathv.begin(), srcpathv.end());
+	tstring srcpath(srcpathv.begin(), srcpathv.end());
 	auto& audiopathv = file.readArray<tchar>();
-  tstring audiopath(audiopathv.begin(), audiopathv.end());
+	tstring audiopath(audiopathv.begin(), audiopathv.end());
 	VideoFormat vfmt = file.readValue<VideoFormat>();
 	AudioFormat afmt = file.readValue<AudioFormat>();
 	auto data = std::unique_ptr<AMTSourceData>(new AMTSourceData());
@@ -648,7 +648,7 @@ AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env
 	if (g_ctx_for_plugin_filter == nullptr) {
 		g_ctx_for_plugin_filter = new AMTContext();
 	}
-  tstring filename = to_tstring(args[0].AsString());
+	tstring filename = to_tstring(args[0].AsString());
 	return LoadAMTSource(filename, env);
 }
 
@@ -701,7 +701,7 @@ public:
 	void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) { return; }
 	const VideoInfo& __stdcall GetVideoInfo() { return vi; }
 	bool __stdcall GetParity(int n) { return false; }
-	
+
 	int __stdcall SetCacheHints(int cachehints, int frame_range)
 	{
 		if (cachehints == CACHE_GET_MTMODE) return MT_SERIALIZED;
