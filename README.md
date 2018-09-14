@@ -6,7 +6,7 @@ Automated MPEG2-TS Transcoder
 
 ## これは何？
 
-TSファイルをエンコしてmp4やmkvにするソフトです。
+TSファイルをエンコードしてmp4やmkvにするソフトです。
 
 ### 対応入力フォーマット
 
