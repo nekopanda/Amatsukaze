@@ -48,6 +48,8 @@ class AMTSource : public IClip, AMTObject
 	int audioSamplesPerFrame;
 	bool interlaced;
 
+	bool outputQP; // QPテーブルを出力するか
+
 	InputContext inputCtx;
 	CodecContext codecCtx;
 
@@ -86,6 +88,9 @@ class AMTSource : public IClip, AMTObject
 	// codecCtxが直前にデコードしたフレーム番号
 	// まだデコードしてない場合はnullptr
 	std::unique_ptr<Frame> prevFrame;
+
+	// 直前のnon B QPテーブル
+	PVideoFrame nonBQPTable;
 
 	AVCodec* getHWAccelCodec(AVCodecID vcodecId)
 	{
@@ -351,6 +356,36 @@ class AMTSource : public IClip, AMTObject
 			MergeField<uint8_t>(ret, top, bottom);
 		}
 
+		// フレームタイプ
+		ret->SetProperty("FrameType", top->pict_type);
+
+		// QPテーブル
+		if (outputQP) {
+			int qp_stride, qp_scale_type;
+			const int8_t* qp_table = av_frame_get_qp_table(top, &qp_stride, &qp_scale_type);
+			if (qp_table) {
+				VideoInfo qpvi = vi;
+				if (!qp_stride) {
+					qpvi.width = (vi.width + 15) >> 4;
+					qpvi.height = 1;
+				}
+				else {
+					qpvi.width = qp_stride;
+					qpvi.height = (vi.height + 15) >> 4;
+				}
+				qpvi.pixel_type = VideoInfo::CS_Y8;
+				PVideoFrame qpframe = env->NewVideoFrame(qpvi);
+				env->BitBlt(qpframe->GetWritePtr(), qpframe->GetPitch(), (const BYTE*)qp_table, qpvi.width, qpvi.width, qpvi.height);
+				if (top->pict_type != AV_PICTURE_TYPE_B) {
+					nonBQPTable = qpframe;
+				}
+				ret->SetProperty("QP_Table", qpframe);
+				ret->SetProperty("QP_Table_Non_B", nonBQPTable);
+				ret->SetProperty("QP_Stride", qp_stride ? qpframe->GetPitch() : 0);
+				ret->SetProperty("QP_ScaleType", qp_scale_type);
+			}
+		}
+
 		return ret;
 	}
 
@@ -578,12 +613,14 @@ public:
 		const std::vector<FilterAudioFrame>& audioFrames,
 		const DecoderSetting& decoderSetting,
 		const char* filterdesc,
+		bool outputQP,
 		IScriptEnvironment* env)
 		: AMTObject(ctx)
 		, frames(frames)
 		, decoderSetting(decoderSetting)
 		, audioFrames(audioFrames)
 		, filterdesc(filterdesc)
+		, outputQP(outputQP)
 		, inputCtx(srcpath)
 		, vi()
 		, waveFile(audiopath, _T("rb"))
@@ -754,7 +791,7 @@ void SaveAMTSource(
 	file.writeValue(decoderSetting);
 }
 
-PClip LoadAMTSource(const tstring& loadpath, const char* filterdesc, IScriptEnvironment* env)
+PClip LoadAMTSource(const tstring& loadpath, const char* filterdesc, bool outputQP, IScriptEnvironment* env)
 {
 	File file(loadpath, _T("rb"));
 	auto& srcpathv = file.readArray<tchar>();
@@ -768,7 +805,7 @@ PClip LoadAMTSource(const tstring& loadpath, const char* filterdesc, IScriptEnvi
 	data->audioFrames = file.readArray<FilterAudioFrame>();
 	DecoderSetting decoderSetting = file.readValue<DecoderSetting>();
 	AMTSource* src = new AMTSource(*g_ctx_for_plugin_filter,
-		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, decoderSetting, filterdesc, env);
+		srcpath, audiopath, vfmt, afmt, data->frames, data->audioFrames, decoderSetting, filterdesc, outputQP, env);
 	src->TransferStreamInfo(std::move(data));
 	return src;
 }
@@ -780,7 +817,8 @@ AVSValue CreateAMTSource(AVSValue args, void* user_data, IScriptEnvironment* env
 	}
 	tstring filename = to_tstring(args[0].AsString());
 	const char* filterdesc = args[1].AsString("");
-	return LoadAMTSource(filename, filterdesc, env);
+	bool outputQP = args[2].AsBool(true);
+	return LoadAMTSource(filename, filterdesc, outputQP, env);
 }
 
 class AVSLosslessSource : public IClip
