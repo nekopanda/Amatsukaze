@@ -680,7 +680,19 @@ private:
 		OutVideoFormat curFormat = OutVideoFormat();
 		double startPts = -1;
 		double curFromPTS = -1;
+		double curVideoFromPTS = -1;
 		curFormat.videoFileId = -1;
+		auto addSection = [&]() {
+			registerOrGetFormat(curFormat);
+			sectionFormatList.push_back(curFormat.formatId);
+			startPtsList.push_back(curFromPTS);
+			if (startPts == -1) {
+				startPts = curFromPTS;
+			}
+			ctx.infoF("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
+			curFromPTS = -1;
+			curVideoFromPTS = -1;
+		};
 		for (int i = 0; i < (int)streamEventList_.size(); ++i) {
 			auto& ev = streamEventList_[i];
 			double pts = streamEventPTS_[i];
@@ -693,14 +705,7 @@ private:
 				curFromPTS + CHANGE_TORELANCE < pts) // CHANGE_TORELANCEより離れている
 			{
 				// 区間を追加
-				registerOrGetFormat(curFormat);
-				sectionFormatList.push_back(curFormat.formatId);
-				startPtsList.push_back(curFromPTS);
-				if (startPts == -1) {
-					startPts = curFromPTS;
-				}
-				ctx.infoF("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
-				curFromPTS = -1;
+				addSection();
 			}
 			// 変更を反映
 			switch (ev.type) {
@@ -722,12 +727,18 @@ private:
 				// ファイル変更
 				if (!curFormat.videoFormat.isBasicEquals(videoFrameList_[ev.frameIdx].format)) {
 					// アスペクト比以外も変更されていたらファイルを分ける
+					//（AMTSplitterと条件を合わせなければならないことに注意）
 					++curFormat.videoFileId;
 					videoFormatStartIndex_.push_back((int)outFormat_.size());
 				}
 				curFormat.videoFormat = videoFrameList_[ev.frameIdx].format;
+				if (curVideoFromPTS != -1) {
+					// 映像フォーマットの変更を区間として取りこぼすと
+					// AMTSplitterとの整合性が取れなくなるので強制的に追加
+					addSection();
+				}
 				// 映像フォーマットの変更時刻を優先させる
-				curFromPTS = dataPTS_[ev.frameIdx];
+				curFromPTS = curVideoFromPTS = dataPTS_[ev.frameIdx];
 				break;
 			case AUDIO_FORMAT_CHANGED:
 				if (ev.audioIdx >= (int)curFormat.audioFormat.size()) {
@@ -743,13 +754,7 @@ private:
 		}
 		// 最後の区間を追加
 		if (curFromPTS != -1) {
-			registerOrGetFormat(curFormat);
-			sectionFormatList.push_back(curFormat.formatId);
-			startPtsList.push_back(curFromPTS);
-			if (startPts == -1) {
-				startPts = curFromPTS;
-			}
-			ctx.infoF("%.2f -> %d", (curFromPTS - startPts) / 90000.0, curFormat.formatId);
+			addSection();
 		}
 		startPtsList.push_back(endPTS);
 		videoFormatStartIndex_.push_back((int)outFormat_.size());

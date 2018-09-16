@@ -33,6 +33,7 @@ public:
 		, writeHandler(*this)
 		, audioFile_(setting.getAudioFilePath(), _T("wb"))
 		, waveFile_(setting.getWaveFilePath(), _T("wb"))
+		, curVideoFormat_()
 		, videoFileCount_(0)
 		, videoStreamType_(-1)
 		, audioStreamType_(-1)
@@ -93,6 +94,7 @@ protected:
 	StreamFileWriteHandler writeHandler;
 	File audioFile_;
 	File waveFile_;
+	VideoFormat curVideoFormat_;
 
 	int videoFileCount_;
 	int videoStreamType_;
@@ -247,9 +249,14 @@ protected:
 		}
 		ctx.info(sb.str().c_str());
 
-		// 出力ファイルを変更
-		writeHandler.open(setting_.getIntVideoFilePath(videoFileCount_++));
-		psWriter.outHeader(videoStreamType_, audioStreamType_);
+		// ファイル変更
+		if (!curVideoFormat_.isBasicEquals(fmt)) {
+			// アスペクト比以外も変更されていたらファイルを分ける
+			//（StreamReformと条件を合わせなければならないことに注意）
+			writeHandler.open(setting_.getIntVideoFilePath(videoFileCount_++));
+			psWriter.outHeader(videoStreamType_, audioStreamType_);
+		}
+		curVideoFormat_ = fmt;
 
 		StreamEvent ev = StreamEvent();
 		ev.type = VIDEO_FORMAT_CHANGED;
