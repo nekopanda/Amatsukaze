@@ -89,6 +89,79 @@ namespace Amatsukaze.Server
         public int EncoderIndex;
     }
 
+    public enum DeblockStrength
+    {
+        Strong, Medium, Weak
+    }
+
+    public enum DeinterlaceAlgorithm
+    {
+        KFM, D3DVP, QTGMC, Yadif
+    }
+
+    public enum D3DVPGPU
+    {
+        Auto, Intel, NVIDIA, Radeon
+    }
+
+    public enum FilterFPS
+    {
+        VFR, CFR24, CFR30, CFR60, SVP
+    }
+
+    public enum FilterOption
+    {
+        None, Setting, Custom
+    }
+
+    public enum QTGMCPreset
+    {
+        Auto, Faster, Fast, Medium, Slow, Slower
+    }
+
+    [DataContract]
+    public class FilterSetting : IExtensibleDataObject
+    {
+        [DataMember]
+        public bool EnableCUDA;
+        [DataMember]
+        public bool EnableDeblock;
+        [DataMember]
+        public bool SkipDeblockOnAnalyzing;
+        [DataMember]
+        public DeblockStrength DeblockStrength;
+        [DataMember]
+        public bool EnableDeinterlace;
+        [DataMember]
+        public DeinterlaceAlgorithm DeinterlaceAlgorithm;
+        [DataMember]
+        public D3DVPGPU D3dvpGpu;
+        [DataMember]
+        public QTGMCPreset QtgmcPreset;
+        [DataMember]
+        public bool KfmEnableNr;
+        [DataMember]
+        public bool KfmEnableUcf;
+        [DataMember]
+        public FilterFPS KfmFps;
+        [DataMember]
+        public FilterFPS YadifFps;
+        [DataMember]
+        public bool EnableResize;
+        [DataMember]
+        public int ResizeWidth;
+        [DataMember]
+        public int ResizeHeight;
+        [DataMember]
+        public bool EnableTemporalNR;
+        [DataMember]
+        public bool EnableDeband;
+        [DataMember]
+        public bool EnableEdgeLevel;
+
+        public ExtensionDataObject ExtensionData { get; set; }
+    }
+
     // プロファイル設定データ
     public class ProfileSetting : IExtensibleDataObject
     {
@@ -196,6 +269,11 @@ namespace Amatsukaze.Server
         public string PreBatchFile { get; set; }
         [DataMember]
         public string PostBatchFile { get; set; }
+
+        [DataMember]
+        public FilterOption FilterOption { get; set; }
+        [DataMember]
+        public FilterSetting FilterSetting { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

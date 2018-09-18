@@ -691,19 +691,51 @@ namespace Amatsukaze.Server
             return false;
         }
 
-        public static ProfileSetting GetDefaultProfile()
+        private static FilterSetting DefaultFilterSetting()
         {
-            return new ProfileSetting()
+            return new FilterSetting()
             {
-                EncoderType = EncoderType.x264,
-                Bitrate = new BitrateSetting(),
-                BitrateCM = 0.5,
-                OutputMask = 1,
-                DisableChapter = true, // デフォルトはチャプター解析無効
-                DisableSubs = true, // デフォルトは字幕無効
-                NicoJKFormats = new bool[4] { true, false, false, false },
-                ReqResources = new ReqResource[8]
+                KfmFps = FilterFPS.VFR,
+                YadifFps = FilterFPS.CFR60,
+                ResizeWidth = 1280,
+                ResizeHeight = 720
             };
+        }
+
+        public static ProfileSetting NormalizeProfile(ProfileSetting profile)
+        {
+            if(profile == null)
+            {
+                profile = new ProfileSetting()
+                {
+                    EncoderType = EncoderType.x264,
+                    BitrateCM = 0.5,
+                    OutputMask = 1,
+                    DisableChapter = true, // デフォルトはチャプター解析無効
+                    DisableSubs = true, // デフォルトは字幕無効
+                    FilterSetting = DefaultFilterSetting()
+                };
+            }
+            if (profile.Bitrate == null)
+            {
+                profile.Bitrate = new BitrateSetting();
+            }
+            if (profile.NicoJKFormats == null)
+            {
+                profile.NicoJKFormats = new bool[4] { true, false, false, false };
+            }
+            if (profile.ReqResources == null)
+            {
+                // 5個でいいけど予備を3つ置いておく
+                profile.ReqResources = new ReqResource[8];
+            }
+            if (profile.FilterSetting == null)
+            {
+                // 互換性維持
+                profile.FilterOption = FilterOption.Custom;
+                profile.FilterSetting = DefaultFilterSetting();
+            }
+            return profile;
         }
 
         public static T DeepCopy<T>(T src)
@@ -1137,6 +1169,275 @@ namespace Amatsukaze.Server
             // GC.SuppressFinalize(this);
         }
         #endregion
+    }
+
+    public class AvsScriptCreator
+    {
+        private static string GetGPUString(D3DVPGPU gpu)
+        {
+            switch (gpu)
+            {
+                case D3DVPGPU.Auto:
+                    return null;
+                case D3DVPGPU.Intel:
+                    return "Intel";
+                case D3DVPGPU.NVIDIA:
+                    return "NVIDIA";
+                case D3DVPGPU.Radeon:
+                    return "Radeon";
+                default:
+                    return null;
+            }
+        }
+
+        private static string GetDeblockOption(DeblockStrength strength)
+        {
+            switch (strength)
+            {
+                case DeblockStrength.Strong:
+                    return "bias=-5";
+                case DeblockStrength.Medium:
+                    return "str=-0.5,bias=-10";
+                case DeblockStrength.Weak:
+                default:
+                    return "str=-1.5,bias=-15";
+            }
+        }
+
+        // 映像を出力するパス番号を返す
+        private static int GetVideoOutPass(FilterSetting setting)
+        {
+            if (setting.EnableDeinterlace &&
+                (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM))
+            {
+                return (setting.KfmFps == FilterFPS.VFR) ? 2 : 1;
+            }
+            return 0;
+        }
+
+        private static string GetQTGMCPreseet(QTGMCPreset preset)
+        {
+            switch(preset)
+            {
+                case QTGMCPreset.Faster:
+                    return "Faster";
+                case QTGMCPreset.Fast:
+                    return "Fast";
+                case QTGMCPreset.Medium:
+                    return "Medium";
+                case QTGMCPreset.Slow:
+                    return "Slow";
+                case QTGMCPreset.Slower:
+                    return "Slower";
+            }
+            return null;
+        }
+
+        public static string FilterToString(FilterSetting setting)
+        {
+            StringBuilder sb = new StringBuilder();
+            bool isCUDA = false;
+
+            Action<bool> finishFilter = (bool nextCUDA) =>
+            {
+                if (isCUDA != nextCUDA)
+                {
+                    sb.AppendLine(nextCUDA ? ".OnCPU(2)" : ".OnCUDA(2)");
+                    isCUDA = nextCUDA;
+                }
+                else
+                {
+                    sb.AppendLine();
+                }
+            };
+
+            var videoOutPass = GetVideoOutPass(setting);
+
+            if (setting.EnableCUDA)
+            {
+                sb.AppendLine("SetDeviceOpt(DEV_CUDA_PINNED_HOST) # CUDAデータ転送最適化");
+            }
+
+            sb.Append("AMT_SOURCE");
+
+            if (setting.EnableDeblock)
+            {
+                finishFilter(setting.EnableCUDA);
+                var deblock = "KDeblock(quality=3," + GetDeblockOption(setting.DeblockStrength) + ")";
+                if (setting.SkipDeblockOnAnalyzing)
+                {
+                    if (videoOutPass > 0)
+                    {
+                        deblock = "if(AMT_PASS == " + videoOutPass + ") { " + deblock + " }";
+                    }
+                }
+                sb.Append(deblock);
+            }
+
+            if (setting.EnableDeinterlace)
+            {
+                if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.D3DVP)
+                {
+                    finishFilter(false);
+                    var device = GetGPUString(setting.D3dvpGpu);
+                    sb.Append("D3DVP(" + ((device != null) ? "device=\"" + device + "\"" : "") + ")");
+                }
+                else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.QTGMC)
+                {
+                    finishFilter(setting.EnableCUDA);
+                    var preset = GetQTGMCPreseet(setting.QtgmcPreset);
+                    if(preset != null)
+                    {
+                        preset = ", preset=\"" + preset + "\"";
+                    }
+                    sb.Append("KFMDeint(mode=1" + preset + ", ucf=false, nr=false" + 
+                        ", cuda=" + (setting.EnableCUDA ? "true" : "false") + ")");
+                }
+                else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM)
+                {
+                    finishFilter(setting.EnableCUDA);
+                    if (setting.KfmFps == 0)
+                    {
+                        // VFR
+                        sb.AppendLine("pass = Select(AMT_PASS, 1, 2, 3)");
+                        sb.AppendLine("AMT_PHASE = Select(AMT_PASS, 0, 1, 2)");
+                    }
+                    else
+                    {
+                        sb.AppendLine("pass = Select(AMT_PASS, 1, 3)");
+                        sb.AppendLine("AMT_PHASE = Select(AMT_PASS, 0, 2)");
+                    }
+                    sb.Append("KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 0) +
+                        ", pass=pass" +
+                        ", ucf=" + (setting.KfmEnableUcf ? "true" : "false") +
+                        ", nr=" + (setting.KfmEnableNr ? "true" : "false") +
+                        ", svp=" + ((setting.KfmFps == FilterFPS.SVP) ? "true" : "false") +
+                        ", cuda=" + (setting.EnableCUDA ? "true" : "false") +
+                        ", filepath=AMT_TMP)");
+                }
+                else
+                {
+                    finishFilter(false);
+                    if (setting.YadifFps == FilterFPS.CFR24)
+                    {
+                        sb.Append("Yadifmod2(mode=0).TDecimate(mode=1)");
+                    }
+                    else if (setting.YadifFps == FilterFPS.CFR30)
+                    {
+                        sb.Append("Yadifmod2(mode=0)");
+                    }
+                    else // 60fps
+                    {
+                        sb.Append("Yadifmod2(mode=1)");
+                    }
+                }
+            }
+
+            finishFilter(false);
+
+            if (setting.EnableDeinterlace)
+            {
+                sb.AppendLine("AssumeBFF()");
+            }
+
+            if (videoOutPass != 0)
+            {
+                // 解析フェーズはポストプロセスをスキップ
+                sb.AppendLine("if(AMT_PASS != " + videoOutPass + ") { return last }");
+            }
+
+            // ポストプロセス
+            if (setting.EnableResize || setting.EnableTemporalNR || 
+                setting.EnableDeband || setting.EnableEdgeLevel)
+            {
+                sb.AppendLine("ConvertBits(14)");
+                if (setting.EnableResize)
+                {
+                    sb.AppendLine("BlackmanResize(" + setting.ResizeWidth + "," + setting.ResizeHeight + ")");
+                }
+                if (setting.EnableTemporalNR)
+                {
+                    sb.AppendLine("KTemporalNR(3, 1)");
+                }
+                if (setting.EnableDeband)
+                {
+                    sb.AppendLine("KDeband(25, 1, 2, true)");
+                }
+                if (setting.EnableEdgeLevel)
+                {
+                    sb.AppendLine("KEdgeLevel(16, 10, 2, uv=false)");
+                }
+                sb.AppendLine("ConvertBits(10, dither=0)");
+                sb.AppendLine("if(IsProcess(\"AvsPmod.exe\")) { ConvertBits(8, dither=0) }");
+                sb.AppendLine(setting.EnableCUDA ? "OnCUDA(2)" : "Prefetch(4)");
+            }
+
+            return sb.ToString();
+        }
+
+    }
+
+    public class CachedAvsScript
+    {
+        private static MD5CryptoServiceProvider HashProvider = new MD5CryptoServiceProvider();
+
+        private static uint GetHashCode(byte[] bytes)
+        {
+            byte[] hash = HashProvider.ComputeHash(bytes);
+            return BitConverter.ToUInt32(hash, 0) ^
+                BitConverter.ToUInt32(hash, 4) ^
+                BitConverter.ToUInt32(hash, 8) ^
+                BitConverter.ToUInt32(hash, 12);
+        }
+
+        private static string CodeToName(uint code, string cacheRoot)
+        {
+            return cacheRoot + "\\" + code.ToString("X8") + ".avs";
+        }
+
+        // settingのスクリプトファイルへのパスを返す
+        //（同じスクリプトがあればそのパス、なければ作る）
+        public static string GetAvsFilePath(FilterSetting setting, string cacheRoot)
+        {
+            var textBytes = Encoding.Default.GetBytes(AvsScriptCreator.FilterToString(setting));
+            var code = GetHashCode(textBytes);
+
+            if(Directory.Exists(cacheRoot) == false)
+            {
+                Directory.CreateDirectory(cacheRoot);
+            }
+
+            // 同じファイルを探す
+            for (uint newCode = code; ; ++newCode)
+            {
+                var fileName = CodeToName(newCode, cacheRoot);
+                if (File.Exists(fileName))
+                {
+                    // ファイルがある
+                    if(File.ReadAllBytes(fileName).SequenceEqual(textBytes))
+                    {
+                        // 同じファイルだった
+                        return fileName;
+                    }
+                    // 中身が違った
+                    continue;
+                }
+                break;
+            }
+
+            // ない場合は作って返す
+            for (uint newCode = code; ; ++newCode)
+            {
+                var fileName = CodeToName(newCode, cacheRoot);
+                if (File.Exists(fileName))
+                {
+                    // 同名ファイルがある
+                    continue;
+                }
+                File.WriteAllBytes(fileName, textBytes);
+                return fileName;
+            }
+        }
     }
 
     public static class Extentions

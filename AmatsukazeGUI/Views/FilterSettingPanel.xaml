@@ -1,0 +1,139 @@
+﻿<UserControl x:Class="Amatsukaze.Views.FilterSettingPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:v="clr-namespace:Amatsukaze.Views" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type m:DisplayFilterSetting}}">
+    
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <DockPanel>
+            <CheckBox Margin="8,2" VerticalAlignment="Bottom"
+                      Content="CUDAで処理" IsChecked="{Binding EnableCUDA, Mode=TwoWay}">
+                <CheckBox.ToolTip>
+                    <TextBlock>
+                    フィルタ全体をCUDAで処理します。（対応していないフィルタはCPUで動作します）
+                    </TextBlock>
+                </CheckBox.ToolTip>
+            </CheckBox>
+            <Button Margin="8,2" HorizontalAlignment="Right" Width="120" Height="20"
+                    Content="フィルタをテキストでコピー" Command="{Binding CopyFilterTextCommand}"/>
+        </DockPanel>
+        <GroupBox>
+            <GroupBox.Header>
+                <CheckBox Margin="0,2" Content="デブロッキング" IsChecked="{Binding EnableDeblock, Mode=TwoWay}">
+                    <CheckBox.ToolTip>
+                        <TextBlock>
+                            MPEG2ソースのQP値に従ってノイズリダクションフィルタを適用します。
+                            <LineBreak/>映像ソースがMPEG2、かつ、デコーダがデフォルトの場合のみ有効になります。
+                            <LineBreak/>デコーダをCUVIDやQSVにするとQP値を取得できないためフィルタを適用することができません。
+                        </TextBlock>
+                    </CheckBox.ToolTip>
+                </CheckBox>
+            </GroupBox.Header>
+            <DockPanel>
+                <TextBlock VerticalAlignment="Center" Text="強度"/>
+                <ComboBox Margin="4,0" Width="80" 
+                          ItemsSource="{Binding DeblockStrengthList}"
+                          SelectedIndex="{Binding DeblockStrength, Mode=TwoWay}"
+                          IsEnabled="{Binding EnableDeblock}">
+                    <ComboBox.ToolTip>
+                        <TextBlock>
+                            アニメは「強」、実写は「弱」あたりにすると良いと思います。
+                        </TextBlock>
+                    </ComboBox.ToolTip>
+                </ComboBox>
+                <CheckBox VerticalAlignment="Center" Content="フレーム解析時は無効"
+                          IsChecked="{Binding SkipDeblockOnAnalyzing, Mode=TwoWay}"
+                          IsEnabled="{Binding EnableDeblock}">
+                    <CheckBox.ToolTip>
+                        <TextBlock>
+                            デブロッキングフィルタはKFMより前で処理されるため、デフォルトではKFMのフレーム解析時も動作します。
+                            <LineBreak/>フレーム解析時にデブロッキングフィルタをスキップするとフレーム解析が速くなる可能性があります。
+                        </TextBlock>
+                    </CheckBox.ToolTip>
+                </CheckBox>
+            </DockPanel>
+        </GroupBox>
+        <GroupBox>
+            <GroupBox.Header>
+                <CheckBox Margin="0,2" Content="インタレース解除" IsChecked="{Binding EnableDeinterlace, Mode=TwoWay}"/>
+            </GroupBox.Header>
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top">
+                    <TextBlock VerticalAlignment="Center" Text="解除方法"/>
+                    <ComboBox Margin="4,0"
+                              ItemsSource="{Binding DeinterlaceList}"
+                              SelectedIndex="{Binding DeinterlaceAlgorithm, Mode=TwoWay}"
+                              IsEnabled="{Binding EnableDeinterlace}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type m:DeinterlaceAlgorithmViewModel}">
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </DockPanel>
+                <ContentControl Content="{Binding SelectedDeinterlace}" IsEnabled="{Binding EnableDeinterlace}">
+                    <ContentControl.Resources>
+                        <DataTemplate DataType="{x:Type m:FilterD3DVPViewModel}">
+                            <v:FilterD3DVPPanel />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type m:FilterKFMViewModel}">
+                            <v:FilterKFMPanel />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type m:FilterQTGMCViewModel}">
+                            <v:FilterQTGMCPanel />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type m:FilterYadifViewModel}">
+                            <v:FilterYadifPanel />
+                        </DataTemplate>
+                    </ContentControl.Resources>
+                </ContentControl>
+            </DockPanel>
+        </GroupBox>
+        <GroupBox>
+            <GroupBox.Header>
+                <CheckBox Margin="0,2" Content="リサイズ" 
+                          IsChecked="{Binding EnableResize, Mode=TwoWay}"/>
+            </GroupBox.Header>
+            <DockPanel HorizontalAlignment="Left">
+                <DockPanel Margin="4,0">
+                    <TextBlock Margin="0,2" VerticalAlignment="Center" Text="横"/>
+                    <TextBox Margin="0,2" Width="50"
+                         Text="{Binding ResizeWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{Binding EnableResize}"/>
+                    <TextBlock Margin="0,2" VerticalAlignment="Center" Text="x縦"/>
+                    <TextBox Margin="0,2" Width="50"
+                         Text="{Binding ResizeHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{Binding EnableResize}"/>
+                </DockPanel>
+                <Border Width="9"/>
+                <Button Content="1280x720" Margin="4,0" CommandParameter="1280x720"
+                        Command="{Binding SetWidthHeightCommand}"
+                        IsEnabled="{Binding EnableResize}"/>
+                <Button Content="1920x1080" Margin="4,0" CommandParameter="1920x1080"
+                        Command="{Binding SetWidthHeightCommand}"
+                        IsEnabled="{Binding EnableResize}"/>
+            </DockPanel>
+        </GroupBox>
+        <CheckBox Margin="8,2" Content="時間軸安定化" IsChecked="{Binding EnableTemporalNR, Mode=TwoWay}">
+            <CheckBox.ToolTip>
+                <TextBlock>
+                    時間軸のディザ成分を安定化させます。
+                   <LineBreak/>バンディング低減と一緒に使うときれいにエンコードできるようになります。
+                </TextBlock>
+            </CheckBox.ToolTip>
+        </CheckBox>
+        <CheckBox Margin="8,2" Content="バンディング低減" IsChecked="{Binding EnableDeband, Mode=TwoWay}"/>
+        <CheckBox Margin="8,2" Content="エッジ強調（アニメ用）" IsChecked="{Binding EnableEdgeLevel, Mode=TwoWay}"/>
+    </StackPanel>
+</UserControl>

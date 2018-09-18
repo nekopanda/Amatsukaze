@@ -1,0 +1,44 @@
+﻿<UserControl x:Class="Amatsukaze.Views.FilterYadifPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type m:FilterYadifViewModel}}">
+    <StackPanel>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            Yadifはソフトウェアインターレース解除としては最も広く使われているフィルタです。
+            高速に処理できるので、CPUでも問題なく処理できます。
+        </TextBlock>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            このフィルタはCUDAに対応していないのでCPUで処理されます。
+        </TextBlock>
+        <DockPanel>
+            <TextBlock Margin="4" Text="出力fps" VerticalAlignment="Center"/>
+            <ComboBox Margin="4" ItemsSource="{Binding FPSList}" SelectedIndex="{Binding SelectedFPS, Mode=TwoWay}"/>
+        </DockPanel>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            Yadifに必要なプラグインはAmatsukazeに同梱されていません。以下の必要なdllを配置してください。
+        </TextBlock>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            <Hyperlink NavigateUri="https://github.com/pinterf/TIVTC/releases"
+                        RequestNavigate="Hyperlink_RequestNavigate">TIVTC</Hyperlink>
+            からTIVTCを入手して、x64\TIVTC.dllを
+            <Hyperlink NavigateUri="exe_files\plugins64"
+                        RequestNavigate="Hyperlink_PluginFolder">exe_files\plugins64</Hyperlink>
+            にコピー
+        </TextBlock>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            <Hyperlink NavigateUri="https://github.com/chikuzen/yadifmod2/releases"
+                        RequestNavigate="Hyperlink_RequestNavigate">YadifMod2</Hyperlink>
+            からyadifmod2を入手してx64フォルダのyadifmod2.dllかyadifmod2_avx2.dllを
+            <Hyperlink NavigateUri="exe_files\plugins64"
+                        RequestNavigate="Hyperlink_PluginFolder">exe_files\plugins64</Hyperlink>
+            にコピー
+        </TextBlock>
+    </StackPanel>
+</UserControl>

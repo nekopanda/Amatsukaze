@@ -515,6 +515,11 @@ namespace Amatsukaze.Server
             return Path.GetFullPath("avs");
         }
 
+        internal string GetAvsCacheDirectoryPath()
+        {
+            return Path.GetFullPath("avscache");
+        }
+
         internal string GetBatDirectoryPath()
         {
             return Path.GetFullPath("bat");
@@ -854,20 +859,7 @@ namespace Amatsukaze.Server
             {
                 var s = new DataContractSerializer(typeof(ProfileSetting));
                 var profile = (ProfileSetting)s.ReadObject(fs);
-                if (profile.Bitrate == null)
-                {
-                    profile.Bitrate = new BitrateSetting();
-                }
-                if (profile.NicoJKFormats == null)
-                {
-                    profile.NicoJKFormats = new bool[4] { true, false, false, false };
-                }
-                if(profile.ReqResources == null)
-                {
-                    // 5個でいいけど予備を3つ置いておく
-                    profile.ReqResources = new ReqResource[8];
-                }
-                return profile;
+                return ServerSupport.NormalizeProfile(profile);
             }
         }
 
@@ -1162,18 +1154,28 @@ namespace Amatsukaze.Server
                             .Append("\"");
                     }
 
-                    if (string.IsNullOrEmpty(profile.FilterPath) == false)
+                    if(profile.FilterOption == FilterOption.Setting)
                     {
                         sb.Append(" -f \"")
-                            .Append(GetAvsDirectoryPath() + "\\" + profile.FilterPath)
+                            .Append(CachedAvsScript.GetAvsFilePath(
+                                profile.FilterSetting, GetAvsCacheDirectoryPath()))
                             .Append("\"");
                     }
-
-                    if (string.IsNullOrEmpty(profile.PostFilterPath) == false)
+                    else if(profile.FilterOption == FilterOption.Custom)
                     {
-                        sb.Append(" -pf \"")
-                            .Append(GetAvsDirectoryPath() + "\\" + profile.PostFilterPath)
-                            .Append("\"");
+                        if (string.IsNullOrEmpty(profile.FilterPath) == false)
+                        {
+                            sb.Append(" -f \"")
+                                .Append(GetAvsDirectoryPath() + "\\" + profile.FilterPath)
+                                .Append("\"");
+                        }
+
+                        if (string.IsNullOrEmpty(profile.PostFilterPath) == false)
+                        {
+                            sb.Append(" -pf \"")
+                                .Append(GetAvsDirectoryPath() + "\\" + profile.PostFilterPath)
+                                .Append("\"");
+                        }
                     }
 
                     if (profile.AutoBuffer)
@@ -1832,7 +1834,7 @@ namespace Amatsukaze.Server
                             if (profiles.ContainsKey(ServerSupport.GetDefaultProfileName()) == false)
                             {
                                 // デフォルトがない場合は追加しておく
-                                var profile = ServerSupport.GetDefaultProfile();
+                                var profile = ServerSupport.NormalizeProfile(null);
                                 profile.Name = ServerSupport.GetDefaultProfileName();
                                 var filepath = GetProfilePath(profilepath, profile.Name);
                                 SaveProfile(filepath, profile);

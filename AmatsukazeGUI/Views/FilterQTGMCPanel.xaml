@@ -1,0 +1,34 @@
+﻿<UserControl x:Class="Amatsukaze.Views.FilterQTGMCPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type m:FilterQTGMCViewModel}}">
+    
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            QTGMCは動き補償型インターレース解除です。
+            Bobなので60fpsソース用ですが、それ以外のソースにも使えます。
+        </TextBlock>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            計算量が多いのでCUDA処理推奨です。
+        </TextBlock>
+        <DockPanel>
+            <TextBlock Text="プリセット" Margin="4" VerticalAlignment="Center"/>
+            <ComboBox Margin="4" ItemsSource="{Binding PresetList}"
+                      SelectedIndex="{Binding Preset, Mode=TwoWay}"/>
+        </DockPanel>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            出力は60fps固定です。
+        </TextBlock>
+    </StackPanel>
+</UserControl>

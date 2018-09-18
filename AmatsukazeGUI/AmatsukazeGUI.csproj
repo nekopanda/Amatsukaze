@@ -144,6 +144,21 @@
     <Compile Include="Views\EncodeLogPanel.xaml.cs">
       <DependentUpon>EncodeLogPanel.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\FilterD3DVPPanel.xaml.cs">
+      <DependentUpon>FilterD3DVPPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FilterKFMPanel.xaml.cs">
+      <DependentUpon>FilterKFMPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FilterQTGMCPanel.xaml.cs">
+      <DependentUpon>FilterQTGMCPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FilterSettingPanel.xaml.cs">
+      <DependentUpon>FilterSettingPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\FilterYadifPanel.xaml.cs">
+      <DependentUpon>FilterYadifPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\LogoAnalyzeWindow.xaml.cs">
       <DependentUpon>LogoAnalyzeWindow.xaml</DependentUpon>
     </Compile>
@@ -234,6 +249,26 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\EncodeLogPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FilterD3DVPPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FilterKFMPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FilterQTGMCPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FilterSettingPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FilterYadifPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

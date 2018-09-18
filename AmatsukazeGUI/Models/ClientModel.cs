@@ -1308,8 +1308,8 @@ namespace Amatsukaze.Models
                     data.Profile.X264Option, data.Profile.X265Option,
                     data.Profile.QSVEncOption, data.Profile.NVEncOption);
                 profile.EncoderTypeInt = (int)data.Profile.EncoderType;
-                profile.FilterPath = data.Profile.FilterPath;
-                profile.PostFilterPath = data.Profile.PostFilterPath;
+                profile.CustomFilter.FilterPath = data.Profile.FilterPath;
+                profile.CustomFilter.PostFilterPath = data.Profile.PostFilterPath;
                 profile.AutoBuffer = data.Profile.AutoBuffer;
                 profile.BitrateA = data.Profile.Bitrate.A;
                 profile.BitrateB = data.Profile.Bitrate.B;
@@ -1350,6 +1350,25 @@ namespace Amatsukaze.Models
                 {
                     profile.Resources[i].Resource = data.Profile.ReqResources[i];
                 }
+
+                // filter
+                profile.FilterOption = (int)data.Profile.FilterOption;
+                profile.Filter.EnableCUDA = data.Profile.FilterSetting.EnableCUDA;
+                profile.Filter.EnableDeblock = data.Profile.FilterSetting.EnableDeblock;
+                profile.Filter.SkipDeblockOnAnalyzing = data.Profile.FilterSetting.SkipDeblockOnAnalyzing;
+                profile.Filter.DeblockStrength = (int)data.Profile.FilterSetting.DeblockStrength;
+                profile.Filter.DeinterlaceAlgorithm = (int)data.Profile.FilterSetting.DeinterlaceAlgorithm;
+                profile.Filter.D3DVP.GPU = (int)data.Profile.FilterSetting.D3dvpGpu;
+                profile.Filter.QTGMC.Preset = (int)data.Profile.FilterSetting.QtgmcPreset;
+                profile.Filter.KFM.EnableNR = data.Profile.FilterSetting.KfmEnableNr;
+                profile.Filter.KFM.EnableUCF = data.Profile.FilterSetting.KfmEnableUcf;
+                profile.Filter.KFM.SelectedFPS = Array.IndexOf(FilterKFMViewModel.FPSListData, data.Profile.FilterSetting.KfmFps);
+                profile.Filter.Yadif.SelectedFPS = Array.IndexOf(FilterYadifViewModel.FPSListData, data.Profile.FilterSetting.YadifFps);
+                profile.Filter.ResizeWidth = data.Profile.FilterSetting.ResizeWidth;
+                profile.Filter.ResizeHeight = data.Profile.FilterSetting.ResizeHeight;
+                profile.Filter.EnableTemporalNR = data.Profile.FilterSetting.EnableTemporalNR;
+                profile.Filter.EnableDeband = data.Profile.FilterSetting.EnableDeband;
+                profile.Filter.EnableEdgeLevel = data.Profile.FilterSetting.EnableEdgeLevel;
 
                 profile.IsModified = false;
 

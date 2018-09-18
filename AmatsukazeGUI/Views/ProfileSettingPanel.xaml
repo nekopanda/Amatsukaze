@@ -6,6 +6,7 @@
              xmlns:l="http://schemas.livet-mvvm.net/2011/wpf"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:v="clr-namespace:Amatsukaze.Views" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
@@ -77,8 +78,6 @@
 
                     <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" TextAlignment="Right">JoinLogoScp<LineBreak/>コマンドファイル</TextBlock>
                     <TextBlock HorizontalAlignment="Right" Text="オプション" VerticalAlignment="Top" Margin="0"/>
-                    <TextBlock HorizontalAlignment="Right" Text="メインフィルタ" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock HorizontalAlignment="Right" Text="ポストフィルタ" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
@@ -121,56 +120,51 @@
                                  Text="{Binding Model.SelectedProfile.JLSOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  IsEnabled="{Binding Model.SelectedProfile.EnableJLSOption, Mode=OneWay}"/>
                     </DockPanel>
-                    <ComboBox Margin="0,3" Height="23"
-                      ItemsSource="{Binding Model.MainScriptFiles}"
-                      Text="{Binding Model.SelectedProfile.FilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
-                          ToolTip="メインとなるフィルタを設定します。" />
-                    <ComboBox Margin="0,3" Height="23"
-                      ItemsSource="{Binding Model.PostScriptFiles}"
-                      Text="{Binding Model.SelectedProfile.PostFilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
-                          ToolTip="メインフィルタの後に掛けるフィルタを設定します。" />
 
                 </StackPanel>
 
-                <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="54,6,0,0"/>
-                <TextBlock Grid.Row="1" HorizontalAlignment="Left" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="65,34,0,0"/>
-
-                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,4,0,0" VerticalAlignment="Top" Width="120" 
+                <StackPanel Grid.Row="1">
+                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力フォーマット" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力選択" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="VFRフレームタイミング" VerticalAlignment="Top" Margin="0,6"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0">
+                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120" 
                        ItemsSource="{Binding Model.SelectedProfile.Mpeg2DecoderList}"
                           SelectedIndex="{Binding Model.SelectedProfile.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="デフォルト(CPU)が一番速いと思います。&#xA;CUVIDにするとCPU負荷が減るのでトータルでは速くなるかもしれません。&#xA;QSVは現バージョンのFFmpegが壊れてて使えません。"/>
-                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="10,31,0,0" VerticalAlignment="Top" Width="120"
+
+                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120"
                       ItemsSource="{Binding Model.SelectedProfile.H264DecoderList}"
                           SelectedIndex="{Binding Model.SelectedProfile.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="CUVIDの方が速いです。&#xA;QSVは現バージョンのFFmpegが壊れてて使えません。"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力フォーマット" VerticalAlignment="Top" Margin="0,8,1,0"/>
-                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,5.667,0,0" VerticalAlignment="Top" Width="78"
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="78"
                        ItemsSource="{Binding Model.SelectedProfile.FormatList}" 
                        SelectedIndex="{Binding Model.SelectedProfile.OutputFormatInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="MP4の場合、ASS字幕は別ファイルとして出力されます"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力選択" VerticalAlignment="Top" Margin="0,35,1,0"/>
-                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,33,0,0" VerticalAlignment="Top" Width="130"
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="130"
                        ItemsSource="{Binding Model.SelectedProfile.OutputOptionList}" 
                        SelectedItem="{Binding Model.SelectedProfile.OutputMask, Mode=TwoWay}"
                        ToolTip="CMカットの精度は100%ではありません"/>
 
-                <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="VFRフレームタイミング" VerticalAlignment="Top" Margin="0,62,1,0"/>
-                <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="10,60,0,0" VerticalAlignment="Top" Width="80"
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="80"
                        ItemsSource="{Binding Model.SelectedProfile.VFRFpsList}" 
                        SelectedIndex="{Binding Model.SelectedProfile.VFRFps, Mode=TwoWay}"
                        ToolTip="24fpsフレームのフレーム時刻に影響します"/>
+                </StackPanel>
                 
-                <StackPanel Grid.Row="3" Grid.Column="0">
+                <StackPanel Grid.Row="2" Grid.Column="0">
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,3" Text="リネーム"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,15" Text="SCRename書式"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
                     <TextBlock HorizontalAlignment="Right" Text="実行前バッチ" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="実行後バッチ" Margin="0,6"/>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコード設定" VerticalAlignment="Top" Margin="0,6"/>
                 </StackPanel>
-                <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,0">
+                <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,0">
                     <CheckBox Height="16" Margin="0,3"  Content="SCRenameによるリネームを行う" 
                               IsChecked="{Binding Model.SelectedProfile.EnableRename, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="SCRenameで適切なファイル名を取得してエンコード後、そのファイル名を設定します" />
@@ -190,69 +184,117 @@
                     <ComboBox Height="23" Margin="0,3" ToolTip="エンコード実行後に実行するバッチファイル"
                               ItemsSource="{Binding Model.PostBatFiles}"
                               SelectedItem="{Binding Model.SelectedProfile.PostBatchFile, Mode=TwoWay}" />
-
-                    <CheckBox Margin="0,3" Content="2パス"
-                          IsChecked="{Binding Model.SelectedProfile.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
                 </StackPanel>
-                
-                <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="CMビットレート倍率" Margin="5,5,0,0" />
-                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Margin="100,5,0,0" VerticalAlignment="Top" Width="50" Height="23" Grid.RowSpan="2"
-                     Text="{Binding Model.SelectedProfile.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"
-                     ToolTip="CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。&#xA;QSVEnc,NVEncで通常出力の場合は対応していません。"/>
 
-                <CheckBox x:Name="autoBitrateCheck" Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Content="自動ビットレート指定" Margin="9.667,33,0,0"
+                <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="フィルタ設定" VerticalAlignment="Center"/>
+                <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,4">
+                    <ComboBox Margin="0,3"
+                              ItemsSource="{Binding Model.SelectedProfile.FilterOptions}"
+                              SelectedIndex="{Binding Model.SelectedProfile.FilterOption, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <ContentPresenter Content="{Binding Model.SelectedProfile.SelectedFilterOption}">
+                        <ContentPresenter.Resources>
+                            <DataTemplate DataType="{x:Type m:DisplayFilterSetting}">
+                                <v:FilterSettingPanel />
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type m:DisplayCustomFilter}">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock Text="メインフィルタ" Margin="0,6"/>
+                                        <ComboBox Margin="0,3" Height="23"
+                                        ItemsSource="{Binding Model.MainScriptFiles}"
+                                        Text="{Binding FilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
+                                            ToolTip="メインとなるフィルタを設定します。" />
+                                    </DockPanel>
+                                    <DockPanel>
+                                    <TextBlock Text="ポストフィルタ" Margin="0,6"/>
+                                    <ComboBox Margin="0,3" Height="23"
+                                        ItemsSource="{Binding Model.PostScriptFiles}"
+                                        Text="{Binding PostFilterPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top"
+                                            ToolTip="メインフィルタの後に掛けるフィルタを設定します。" />
+                                    </DockPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                            <DataTemplate DataType="{x:Type m:DisplayNoFilter}">
+                                <DockPanel />
+                            </DataTemplate>
+                        </ContentPresenter.Resources>
+                    </ContentPresenter>
+                </StackPanel>
+
+                <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
+                <StackPanel Grid.Row="4" Grid.Column="1" Margin="10,4">
+                    <CheckBox Margin="0,4" Content="2パスエンコード"
+                          IsChecked="{Binding Model.SelectedProfile.TwoPass, Mode=TwoWay}" VerticalAlignment="Top"/>
+                    <DockPanel Margin="0,4">
+                        <TextBlock Text="CMビットレート倍率" VerticalAlignment="Center"/>
+                        <Border Width="10"/>
+                        <TextBox HorizontalAlignment="Left" Width="50" Height="23"
+                             Text="{Binding Model.SelectedProfile.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。&#xA;QSVEnc,NVEncで通常出力の場合は対応していません。"/>
+                    </DockPanel>
+                    <DockPanel>
+                        <CheckBox x:Name="autoBitrateCheck" DockPanel.Dock="Top" Content="自動ビットレート指定"
                           IsChecked="{Binding Model.SelectedProfile.AutoBuffer, Mode=TwoWay}" Height="19" VerticalAlignment="Top">
-                    <CheckBox.ToolTip>
-                        <TextBlock>入力ファイルの映像ビットレートからビットレートを計算します。
+                            <CheckBox.ToolTip>
+                                <TextBlock>入力ファイルの映像ビットレートからビットレートを計算します。
                             <LineBreak/>映像ビットレートkbps = h264*(a*s+b)
                             <LineBreak/>sは入力映像ビットレート、a,b,h264は設定された値、ただしh264はソースがMPEG2の場合は1
                             <LineBreak/>同時に最大ビットレートが、計算されたビットレートの2倍に設定されます。
-                        </TextBlock>
-                    </CheckBox.ToolTip>
-                </CheckBox>
+                                </TextBlock>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
+                        <TextBlock Text="a" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBox Width="50" Height="22" Margin="4,0"
+                                 IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}"
+                                 Text="{Binding Model.SelectedProfile.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                        <TextBlock Text="b" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBox Width="50" Height="22" Margin="4,0"
+                                 IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}"
+                                 Text="{Binding Model.SelectedProfile.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                        <TextBlock Text="h264" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBox Width="50" Height="22" Margin="4,0"
+                                 IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}"
+                                 Text="{Binding Model.SelectedProfile.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                        <Border/>
+                    </DockPanel>
+                    <Grid Width="240" HorizontalAlignment="Left" Margin="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="ビットレートサンプル" HorizontalAlignment="Center" />
 
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="a" Margin="4.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
-                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="14.667,53,0,0"
-                         IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.SelectedProfile.BitrateA, Mode=TwoWay, StringFormat=\{0:F\}}" />
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="b" Margin="69.667,57,0,0" HorizontalAlignment="Left" Width="10" Height="19" VerticalAlignment="Top" />
-                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="79.667,53,0,0"
-                         IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.SelectedProfile.BitrateB, Mode=TwoWay, StringFormat=\{0:F\}}" />
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="h264" Margin="134.667,57,0,0" HorizontalAlignment="Left" Width="30" Height="19" VerticalAlignment="Top" />
-                <TextBox Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Width="50" Height="22" Margin="164.667,53,0,0" 
-                         IsEnabled="{Binding IsChecked, ElementName=autoBitrateCheck}" Text="{Binding Model.SelectedProfile.BitrateH264, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="入力映像" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="MPEG2の場合" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="H264の場合" HorizontalAlignment="Center" />
 
-                <Grid Grid.Row="4" Grid.Column="1" Margin="0,85,0,10" Width="240" HorizontalAlignment="Left">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="ビットレートサンプル" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="18Mbps" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="12Mbps" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="7Mbps" HorizontalAlignment="Center" />
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="入力映像" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="MPEG2の場合" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="1" Grid.Column="2" Text="H264の場合" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Model.SelectedProfile.Bitrate18MPEG2}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Model.SelectedProfile.Bitrate12MPEG2}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Model.SelectedProfile.Bitrate7MPEG2}" HorizontalAlignment="Center" />
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="18Mbps" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="12Mbps" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="7Mbps" HorizontalAlignment="Center" />
-
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Model.SelectedProfile.Bitrate18MPEG2}" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Model.SelectedProfile.Bitrate12MPEG2}" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Model.SelectedProfile.Bitrate7MPEG2}" HorizontalAlignment="Center" />
-
-                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate18H264}" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate12H264}" HorizontalAlignment="Center" />
-                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate7H264}" HorizontalAlignment="Center" />
-                </Grid>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate18H264}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate12H264}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate7H264}" HorizontalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
                 
                 <TextBlock Grid.Row="5" HorizontalAlignment="Left" Text="ニコニコ実況コメント" VerticalAlignment="Top" Margin="0,45.667,0,0"/>
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">

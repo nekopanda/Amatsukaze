@@ -3,6 +3,7 @@ using Amatsukaze.Server;
 using Livet;
 using Livet.Commands;
 using Livet.EventListeners;
+using Microsoft.Win32;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -328,6 +329,171 @@ namespace Amatsukaze.Models
         }
     }
 
+    public class DeinterlaceAlgorithmViewModel : ViewModel
+    {
+        public FilterSetting Data { get; set; }
+    }
+
+    public class FilterD3DVPViewModel : DeinterlaceAlgorithmViewModel
+    {
+        public string Name { get { return "D3DVP"; } }
+
+        public string[] GPUList { get; } = new string[]
+        {
+            "自動", "Intel", "NVIDIA", "Radeon"
+        };
+
+        #region GPU変更通知プロパティ
+        public int GPU
+        {
+            get { return (int)Data.D3dvpGpu; }
+            set {
+                int idx = (value == -1) ? 0 : value;
+                if (Data.D3dvpGpu == (D3DVPGPU)idx)
+                    return;
+                Data.D3dvpGpu = (D3DVPGPU)idx;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class FilterQTGMCViewModel : DeinterlaceAlgorithmViewModel
+    {
+        public string Name { get { return "QTGMC"; } }
+
+        public string[] PresetList { get; } = new string[]
+        {
+            "自動", "Faster", "Fast", "Medium", "Slow", "Slower"
+        };
+
+        #region Preset変更通知プロパティ
+        public int Preset
+        {
+            get { return (int)Data.QtgmcPreset; }
+            set
+            {
+                int idx = (value == -1) ? 0 : value;
+                if (Data.QtgmcPreset == (QTGMCPreset)idx)
+                    return;
+                Data.QtgmcPreset = (QTGMCPreset)idx;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class FilterKFMViewModel : DeinterlaceAlgorithmViewModel
+    {
+        public string Name { get { return "KFM"; } }
+
+        #region EnableNR変更通知プロパティ
+        public bool EnableNR
+        {
+            get { return Data.KfmEnableNr; }
+            set
+            {
+                if (Data.KfmEnableNr == value)
+                    return;
+                Data.KfmEnableNr = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableUCF変更通知プロパティ
+        public bool EnableUCF
+        {
+            get { return Data.KfmEnableUcf; }
+            set
+            {
+                if (Data.KfmEnableUcf == value)
+                    return;
+                Data.KfmEnableUcf = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+        public string[] FPSList { get; } = new string[]
+        {
+            "VFR", "24fps", "60fps", "SVPによる60fps化"
+        };
+
+        #region SelectedFPS変更通知プロパティ
+        public static FilterFPS[] FPSListData = new FilterFPS[]
+        {
+            FilterFPS.VFR, FilterFPS.CFR24, FilterFPS.CFR60, FilterFPS.SVP
+        };
+        public int SelectedFPS
+        {
+            get
+            {
+                switch (Data.KfmFps)
+                {
+                    case FilterFPS.VFR:
+                        return 0;
+                    case FilterFPS.CFR24:
+                        return 1;
+                    case FilterFPS.CFR60:
+                        return 2;
+                    case FilterFPS.SVP:
+                        return 3;
+                }
+                return 0;
+            }
+            set
+            {
+                int idx = (value == -1) ? 0 : value;
+                if (Data.KfmFps == FPSListData[idx])
+                    return;
+                Data.KfmFps = FPSListData[idx];
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class FilterYadifViewModel : DeinterlaceAlgorithmViewModel
+    {
+        public string Name { get { return "Yadif"; } }
+
+        public string[] FPSList { get; } = new string[]
+        {
+            "24fps", "30fps", "60fps"
+        };
+
+        #region SelectedFPS変更通知プロパティ
+        public static FilterFPS[] FPSListData = new FilterFPS[]
+        {
+            FilterFPS.CFR24, FilterFPS.CFR30, FilterFPS.CFR60
+        };
+        public int SelectedFPS
+        {
+            get
+            {
+                switch (Data.YadifFps)
+                {
+                    case FilterFPS.CFR24:
+                        return 0;
+                    case FilterFPS.CFR30:
+                        return 1;
+                    case FilterFPS.CFR60:
+                        return 2;
+                }
+                return 0;
+            }
+            set
+            {
+                int idx = (value == -1) ? 0 : value;
+                if (Data.YadifFps == FPSListData[idx])
+                    return;
+                Data.YadifFps = FPSListData[idx];
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
     public class DisplayResource : NotificationObject
     {
         private static readonly string[] PhaseNames = new string[]
@@ -416,19 +582,340 @@ namespace Amatsukaze.Models
         }
     }
 
+    public class DisplayFilterSetting : ViewModel
+    {
+        public string Name { get { return "フィルタ設定"; } }
+
+        public FilterSetting Data { get; private set; }
+
+        public FilterKFMViewModel KFM { get; private set; }
+
+        public FilterQTGMCViewModel QTGMC { get; private set; }
+
+        public FilterD3DVPViewModel D3DVP { get; private set; }
+
+        public FilterYadifViewModel Yadif { get; private set; }
+
+        public DeinterlaceAlgorithmViewModel[] DeinterlaceList { get; private set; }
+
+        public ClientModel Model { get; private set; }
+
+        public DisplayFilterSetting(FilterSetting data, ClientModel model)
+        {
+            Data = data;
+            Model = model;
+
+            KFM = new FilterKFMViewModel() { Data = data };
+            D3DVP = new FilterD3DVPViewModel() { Data = data };
+            QTGMC = new FilterQTGMCViewModel() { Data = data };
+            Yadif = new FilterYadifViewModel() { Data = data };
+
+            DeinterlaceList = new DeinterlaceAlgorithmViewModel[]
+            {
+                KFM, D3DVP, QTGMC, Yadif
+            };
+        }
+
+        #region EnableCUDA変更通知プロパティ
+        public bool EnableCUDA
+        {
+            get { return Data.EnableCUDA; }
+            set
+            {
+                if (Data.EnableCUDA == value)
+                    return;
+                Data.EnableCUDA = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableDeblock変更通知プロパティ
+        public bool EnableDeblock
+        {
+            get { return Data.EnableDeblock; }
+            set
+            {
+                if (Data.EnableDeblock == value)
+                    return;
+                Data.EnableDeblock = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SkipDeblockOnAnalyzing変更通知プロパティ
+        public bool SkipDeblockOnAnalyzing
+        {
+            get { return Data.SkipDeblockOnAnalyzing; }
+            set
+            {
+                if (Data.SkipDeblockOnAnalyzing == value)
+                    return;
+                Data.SkipDeblockOnAnalyzing = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DeblockStrength変更通知プロパティ
+        public string[] DeblockStrengthList { get; } = new string[]
+        {
+            "強", "中", "弱"
+        };
+
+        public int DeblockStrength
+        {
+            get { return (int)Data.DeblockStrength; }
+            set
+            {
+                if (Data.DeblockStrength == (DeblockStrength)value)
+                    return;
+                Data.DeblockStrength = (DeblockStrength)value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableDeinterlace変更通知プロパティ
+        public bool EnableDeinterlace
+        {
+            get { return Data.EnableDeinterlace; }
+            set
+            {
+                if (Data.EnableDeinterlace == value)
+                    return;
+                Data.EnableDeinterlace = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region DeinterlaceAlgorithm変更通知プロパティ
+        public int DeinterlaceAlgorithm
+        {
+            get { return (int)Data.DeinterlaceAlgorithm; }
+            set
+            {
+                if (Data.DeinterlaceAlgorithm == (DeinterlaceAlgorithm)value)
+                    return;
+                Data.DeinterlaceAlgorithm = (DeinterlaceAlgorithm)value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("SelectedDeinterlace");
+            }
+        }
+        public DeinterlaceAlgorithmViewModel SelectedDeinterlace
+        {
+            get
+            {
+                return DeinterlaceList[(int)Data.DeinterlaceAlgorithm];
+            }
+        }
+        #endregion
+
+        #region EnableResize変更通知プロパティ
+        public bool EnableResize
+        {
+            get { return Data.EnableResize; }
+            set
+            {
+                if (Data.EnableResize == value)
+                    return;
+                Data.EnableResize = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ResizeWidth変更通知プロパティ
+        public int ResizeWidth
+        {
+            get { return Data.ResizeWidth; }
+            set
+            {
+                if (Data.ResizeWidth == value)
+                    return;
+                Data.ResizeWidth = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region ResizeHeight変更通知プロパティ
+        public int ResizeHeight
+        {
+            get { return Data.ResizeHeight; }
+            set
+            {
+                if (Data.ResizeHeight == value)
+                    return;
+                Data.ResizeHeight = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableTemporalNR変更通知プロパティ
+        public bool EnableTemporalNR
+        {
+            get { return Data.EnableTemporalNR; }
+            set
+            {
+                if (Data.EnableTemporalNR == value)
+                    return;
+                Data.EnableTemporalNR = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableDeband変更通知プロパティ
+        public bool EnableDeband
+        {
+            get { return Data.EnableDeband; }
+            set
+            {
+                if (Data.EnableDeband == value)
+                    return;
+                Data.EnableDeband = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableEdgeLevel変更通知プロパティ
+        public bool EnableEdgeLevel
+        {
+            get { return Data.EnableEdgeLevel; }
+            set
+            {
+                if (Data.EnableEdgeLevel == value)
+                    return;
+                Data.EnableEdgeLevel = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+        
+        #region CopyFilterTextCommand
+        private ViewModelCommand _CopyFilterTextCommand;
+
+        public ViewModelCommand CopyFilterTextCommand {
+            get {
+                if (_CopyFilterTextCommand == null)
+                {
+                    _CopyFilterTextCommand = new ViewModelCommand(CopyFilterText);
+                }
+                return _CopyFilterTextCommand;
+            }
+        }
+
+        public void CopyFilterText()
+        {
+            try
+            {
+                Clipboard.SetText(AvsScriptCreator.FilterToString(Data));
+            }
+            catch { }
+        }
+        #endregion
+
+        #region SetWidthHeightCommand
+        private ListenerCommand<string> _SetWidthHeightCommand;
+
+        public ListenerCommand<string> SetWidthHeightCommand {
+            get {
+                if (_SetWidthHeightCommand == null)
+                {
+                    _SetWidthHeightCommand = new ListenerCommand<string>(SetWidthHeight);
+                }
+                return _SetWidthHeightCommand;
+            }
+        }
+
+        public void SetWidthHeight(string parameter)
+        {
+            var prms = parameter.Split('x');
+            ResizeWidth = int.Parse(prms[0]);
+            ResizeHeight = int.Parse(prms[1]);
+        }
+        #endregion
+
+    }
+
+    public class DisplayCustomFilter : ViewModel
+    {
+        public string Name { get { return "カスタムフィルタ"; } }
+
+        public ClientModel Model { get; set; }
+
+        public ProfileSetting Data { get; set; }
+
+        #region FilterPath変更通知プロパティ
+        public string FilterPath
+        {
+            get { return string.IsNullOrEmpty(Data.FilterPath) ? "フィルタなし" : Data.FilterPath; }
+            set
+            {
+                string val = (value == "フィルタなし") ? "" : value;
+                if (Data.FilterPath == val)
+                    return;
+                Data.FilterPath = val;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region PostFilterPath変更通知プロパティ
+        public string PostFilterPath
+        {
+            get { return string.IsNullOrEmpty(Data.PostFilterPath) ? "フィルタなし" : Data.PostFilterPath; }
+            set
+            {
+                string val = (value == "フィルタなし") ? "" : value;
+                if (Data.PostFilterPath == val)
+                    return;
+                Data.PostFilterPath = val;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+    }
+
+    public class DisplayNoFilter : ViewModel
+    {
+        public string Name { get { return "フィルタなし"; } }
+    }
+
     public class DisplayProfile : ViewModel
     {
         public ProfileSetting Data { get; private set; }
+
+        public DisplayFilterSetting Filter { get; private set; }
+
+        public DisplayCustomFilter CustomFilter { get; private set; }
 
         public ClientModel Model { get; private set; }
 
         public DisplayResource[] Resources { get; private set; }
 
+        public ViewModel[] FilterOptions { get; private set; }
+
         public DisplayProfile(ProfileSetting data, ClientModel model, DisplayResource[] resources)
         {
             Data = data;
+            Filter = new DisplayFilterSetting(data.FilterSetting, model);
+            CustomFilter = new DisplayCustomFilter() { Model = model, Data = data };
             Model = model;
             Resources = resources;
+
+            FilterOptions = new ViewModel[]
+            {
+                new DisplayNoFilter(),
+                Filter,
+                CustomFilter
+            };
 
             CompositeDisposable.Add(new PropertyChangedEventListener(
                 Model, ModelPropertyChanged));
@@ -448,6 +935,29 @@ namespace Amatsukaze.Models
         {
             UpdateWarningText();
         }
+
+        #region FilterOption変更通知プロパティ
+        public int FilterOption
+        {
+            get { return (int)Data.FilterOption; }
+            set
+            {
+                if (Data.FilterOption == (FilterOption)value)
+                    return;
+                Data.FilterOption = (FilterOption)value;
+                UpdateBitrate();
+                RaisePropertyChanged();
+                RaisePropertyChanged("SelectedFilterOption");
+            }
+        }
+        public ViewModel SelectedFilterOption
+        {
+            get
+            {
+                return FilterOptions[(int)Data.FilterOption];
+            }
+        }
+        #endregion
 
         #region EncoderTypeInt変更通知プロパティ
         public int EncoderTypeInt {
@@ -502,32 +1012,6 @@ namespace Amatsukaze.Models
                         return;
                 }
                 UpdateWarningText();
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region FilterPath変更通知プロパティ
-        public string FilterPath {
-            get { return string.IsNullOrEmpty(Data.FilterPath) ? "フィルタなし" : Data.FilterPath; }
-            set {
-                string val = (value == "フィルタなし") ? "" : value;
-                if (Data.FilterPath == val)
-                    return;
-                Data.FilterPath = val;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
-        #region PostFilterPath変更通知プロパティ
-        public string PostFilterPath {
-            get { return string.IsNullOrEmpty(Data.PostFilterPath) ? "フィルタなし" : Data.PostFilterPath; }
-            set {
-                string val = (value == "フィルタなし") ? "" : value;
-                if (Data.PostFilterPath == val)
-                    return;
-                Data.PostFilterPath = val;
                 RaisePropertyChanged();
             }
         }
