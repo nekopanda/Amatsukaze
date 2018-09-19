@@ -220,9 +220,9 @@
             <DockPanel HorizontalAlignment="Stretch">
                 <TextBlock DockPanel.Dock="Left" Text="キュー停止" VerticalAlignment="Center" Margin="6,0"/>
                 <TextBlock DockPanel.Dock="Right" Text="キュー稼働" VerticalAlignment="Center" Margin="6,0"/>
-                <ToggleButton DockPanel.Dock="Left" Height="20" IsChecked="{Binding Model.IsPaused, Mode=TwoWay}">
-                    <ToggleButton.Style>
-                        <Style TargetType="ToggleButton">
+                <Button DockPanel.Dock="Left" Height="20" Command="{Binding TogglePauseCommand, Mode=OneWay}">
+                    <Button.Style>
+                        <Style TargetType="Button">
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate>
@@ -235,7 +235,7 @@
                                 </Setter.Value>
                             </Setter>
                             <Style.Triggers>
-                                <Trigger Property="IsChecked" Value="True">
+                                <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate>
@@ -272,11 +272,11 @@
                                             </ControlTemplate>
                                         </Setter.Value>
                                     </Setter>
-                                </Trigger>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </ToggleButton.Style>
-                </ToggleButton>
+                    </Button.Style>
+                </Button>
             </DockPanel>
         </Grid>
 
