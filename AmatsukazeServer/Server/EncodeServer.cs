@@ -980,7 +980,7 @@ namespace Amatsukaze.Server
             bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles,
-            bool ignoreNoLogo, string jlscommand, string jlsopt,
+            bool ignoreNoLogo, string jlscommand, string jlsopt, string ceopt,
             string inHandle, string outHandle, int pid)
         {
             StringBuilder sb = new StringBuilder();
@@ -1209,6 +1209,12 @@ namespace Amatsukaze.Server
                 {
                     sb.Append(" --jls-option \"")
                         .Append(jlsopt)
+                        .Append("\"");
+                }
+                if (string.IsNullOrEmpty(ceopt) == false)
+                {
+                    sb.Append(" --chapter-exe-options \"")
+                        .Append(ceopt)
                         .Append("\"");
                 }
 

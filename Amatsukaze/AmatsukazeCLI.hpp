@@ -385,6 +385,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--chapter-exe")) {
 			conf.chapterExePath = getParam(argc, argv, i++);
 		}
+		else if (key == _T("--chapter-exe-options")) {
+		conf.chapterExeOptions = getParam(argc, argv, i++);
+		}
 		else if (key == _T("--jls")) {
 			conf.joinLogoScpPath = getParam(argc, argv, i++);
 		}

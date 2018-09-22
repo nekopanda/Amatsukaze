@@ -1321,6 +1321,7 @@ namespace Amatsukaze.Models
                 profile.JLSCommandFile = data.Profile.JLSCommandFile;
                 profile.JLSOption = data.Profile.JLSOption;
                 profile.EnableJLSOption = data.Profile.EnableJLSOption;
+                profile.ChapterExeOptions = data.Profile.ChapterExeOption;
                 profile.DisableChapter = data.Profile.DisableChapter;
                 profile.DisableSubs = data.Profile.DisableSubs;
                 profile.IgnoreNoDrcsMap = data.Profile.IgnoreNoDrcsMap;
