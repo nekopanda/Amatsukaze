@@ -7,6 +7,7 @@
              xmlns:clr="clr-namespace:System;assembly=mscorlib"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
              d:DesignHeight="900" d:DesignWidth="500"
@@ -25,13 +26,13 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.Resources>
-                    <Style TargetType="FrameworkElement">
+                    <Style x:Key="ExtendDuration" TargetType="FrameworkElement">
                         <Setter Property="ToolTipService.ShowDuration" Value="30000" />
                     </Style>
-                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
-                    <Style TargetType="Slider" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
-                    <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
-                    <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type FrameworkElement}}" />
+                    <Style TargetType="TextBox" BasedOn="{c:MultiStyle . ExtendDuration}" />
+                    <Style TargetType="Slider" BasedOn="{c:MultiStyle . ExtendDuration}" />
+                    <Style TargetType="ComboBox" BasedOn="{c:MultiStyle . ExtendDuration}" />
+                    <Style TargetType="CheckBox" BasedOn="{c:MultiStyle . ExtendDuration}" />
                 </Grid.Resources>
 
                 <Grid.ColumnDefinitions>

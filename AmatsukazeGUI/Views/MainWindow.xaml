@@ -7,7 +7,7 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:c="clr-namespace:Amatsukaze.Components"
-        Title="{Binding WindowCaption, Mode=OneWay}" Height="450" Width="650" SourceInitialized="Window_SourceInitialized" Closing="Window_Closing">
+        Title="{Binding WindowCaption, Mode=OneWay}" Height="550" Width="850" SourceInitialized="Window_SourceInitialized" Closing="Window_Closing">
     
     <i:Interaction.Behaviors>
         <c:TaskbarInfoBehavior ProgressState="{Binding Model.ProgressState}" ProgressValue="{Binding Model.ProgressValue}"/>

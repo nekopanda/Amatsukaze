@@ -53,9 +53,11 @@ class AMTSource : public IClip, AMTObject
 	InputContext inputCtx;
 	CodecContext codecCtx;
 
+#if ENABLE_FFMPEG_FILTER
 	FilterGraph filterGraph;
 	AVFilterContext* bufferSrcCtx;
 	AVFilterContext* bufferSinkCtx;
+#endif
 
 	AVStream *videoStream;
 
@@ -148,6 +150,7 @@ class AMTSource : public IClip, AMTObject
 		}
 	}
 
+#if ENABLE_FFMPEG_FILTER
 	void MakeFilterGraph(IScriptEnvironment* env) {
 		char args[512];
 		const AVFilter *buffersrc = avfilter_get_by_name("buffer");
@@ -222,6 +225,7 @@ class AMTSource : public IClip, AMTObject
 			env->ThrowError("avfilter_graph_config failed");
 		}
 	}
+#endif
 
 	void MakeVideoInfo(const VideoFormat& vfmt, const AudioFormat& afmt) {
 		vi.width = vfmt.width;
@@ -258,6 +262,7 @@ class AMTSource : public IClip, AMTObject
 		// ビット深度は取得してないのでffmpegから取得する
 		vi.pixel_type = toAVSFormat(codecCtx()->pix_fmt, env);
 
+#if ENABLE_FFMPEG_FILTER
 		if (bufferSinkCtx) {
 			// フィルタがあればフィルタの出力に更新
 			const AVFilterLink* outlink = bufferSinkCtx->inputs[0];
@@ -268,15 +273,18 @@ class AMTSource : public IClip, AMTObject
 				env->ThrowError("ffmpeg filter output is resized, which is not supported on current AMTSource.");
 			}
 		}
+#endif
 	}
 
 	void ResetDecoder(IScriptEnvironment* env) {
 		lastDecodeFrame = -1;
 		prevFrame = nullptr;
 		MakeCodecContext(env);
+#if ENABLE_FFMPEG_FILTER
 		if (filterdesc.size()) {
 			MakeFilterGraph(env);
 		}
+#endif
 	}
 
 	template <typename T>
@@ -423,6 +431,7 @@ class AMTSource : public IClip, AMTObject
 		return 0;
 	}
 
+#if ENABLE_FFMPEG_FILTER
 	void InputFrameFilter(Frame* frame, bool enableOut, IScriptEnvironment* env)
 	{
 		/* push the decoded frame into the filtergraph */
@@ -458,6 +467,7 @@ class AMTSource : public IClip, AMTObject
 			OnFrameOutput(frame, env);
 		}
 	}
+#endif
 
 	void OnFrameOutput(Frame& frame, IScriptEnvironment* env)
 	{
@@ -574,7 +584,11 @@ class AMTSource : public IClip, AMTObject
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
 					// 最初はIフレームまでスキップ
 					if (lastDecodeFrame != -1 || frame()->key_frame) {
+#if ENABLE_FFMPEG_FILTER
 						OnFrameDecoded(frame, env);
+#else
+						OnFrameOutput(frame, env);
+#endif
 					}
 				}
 			}
@@ -583,10 +597,12 @@ class AMTSource : public IClip, AMTObject
 				return;
 			}
 		}
+#if ENABLE_FFMPEG_FILTER
 		if (bufferSrcCtx) {
 			// ストリームは全て読み取ったのでフィルタをflush
 			InputFrameFilter(nullptr, true, env);
 		}
+#endif
 	}
 
 	void registerFailedFrames(int begin, int end, int replace, IScriptEnvironment* env)
@@ -621,11 +637,18 @@ public:
 		, inputCtx(srcpath)
 		, vi()
 		, waveFile(audiopath, _T("rb"))
+#if ENABLE_FFMPEG_FILTER
 		, bufferSrcCtx()
 		, bufferSinkCtx()
+#endif
 		, seekDistance(10)
 		, lastDecodeFrame(-1)
 	{
+#if !ENABLE_FFMPEG_FILTER
+		if (this->filterdesc.size()) {
+			env->ThrowError("This AMTSouce build does not support FFmpeg filter option ...");
+		}
+#endif
 		MakeVideoInfo(vfmt, afmt);
 
 		if (avformat_find_stream_info(inputCtx(), NULL) < 0) {

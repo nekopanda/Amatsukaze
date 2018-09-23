@@ -24,7 +24,7 @@
         </StackPanel.Resources>
         <TextBlock Margin="4" TextWrapping="Wrap">
             KFMは映像のフレームレートを検出して、各フレームレートに別処理を施すフィルタです。
-            一般的にインターレース解除はソースのフレームレートに合った処理方法を選択するのが最も画質が良いとされていますが、
+            一般的にインターレース解除はソースのフレームレートに合った処理方法を選択するのが最も画質が良いとされていて、
             このフィルタはそれを自動処理で行います。
         </TextBlock>
         <TextBlock Margin="4" TextWrapping="Wrap">

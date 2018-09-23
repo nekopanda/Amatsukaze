@@ -15,21 +15,28 @@
 #include "StreamUtils.hpp"
 #include "ProcessThread.hpp"
 
+// AMTSourceのフィルターオプションを有効にするか
+#define ENABLE_FFMPEG_FILTER 0
+
 // libffmpeg
 extern "C" {
 #include <libavutil/imgutils.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#if ENABLE_FFMPEG_FILTER
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavutil/opt.h>
+#endif
 }
 #pragma comment(lib, "avutil.lib")
 #pragma comment(lib, "avcodec.lib")
 #pragma comment(lib, "avformat.lib")
-#pragma comment(lib, "avfilter.lib")
 #pragma comment(lib, "swscale.lib")
+#if ENABLE_FFMPEG_FILTER
+#pragma comment(lib, "avfilter.lib")
+#endif
 
 namespace av {
 
@@ -147,6 +154,7 @@ private:
 	AVFormatContext* ctx_;
 };
 
+#if ENABLE_FFMPEG_FILTER
 class FilterGraph : NonCopyable {
 public:
 	FilterGraph()
@@ -193,6 +201,7 @@ public:
 private:
 	AVFilterInOut* ctx_;
 };
+#endif
 
 class WriteIOContext : NonCopyable {
 public:
