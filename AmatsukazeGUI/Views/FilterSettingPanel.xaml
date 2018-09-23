@@ -6,6 +6,7 @@
              xmlns:v="clr-namespace:Amatsukaze.Views" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:local="clr-namespace:Amatsukaze.Views"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
@@ -16,6 +17,13 @@
     </UserControl.Resources>
 
     <StackPanel>
+        <StackPanel.Resources>
+            <Style x:Key="ExtendDuration" TargetType="FrameworkElement">
+                <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+            </Style>
+            <Style TargetType="ComboBox" BasedOn="{c:MultiStyle . ExtendDuration}" />
+            <Style TargetType="CheckBox" BasedOn="{c:MultiStyle . ExtendDuration}" />
+        </StackPanel.Resources>
         <DockPanel>
             <CheckBox Margin="8,2" VerticalAlignment="Bottom"
                       Content="CUDAで処理" IsChecked="{Binding EnableCUDA, Mode=TwoWay}">
@@ -30,43 +38,7 @@
         </DockPanel>
         <GroupBox>
             <GroupBox.Header>
-                <CheckBox Margin="0,2" Content="デブロッキング" IsChecked="{Binding EnableDeblock, Mode=TwoWay}">
-                    <CheckBox.ToolTip>
-                        <TextBlock>
-                            MPEG2ソースのQP値に従ってノイズリダクションフィルタを適用します。
-                            <LineBreak/>映像ソースがMPEG2、かつ、デコーダがデフォルトの場合のみ有効になります。
-                            <LineBreak/>デコーダをCUVIDやQSVにするとQP値を取得できないためフィルタを適用することができません。
-                        </TextBlock>
-                    </CheckBox.ToolTip>
-                </CheckBox>
-            </GroupBox.Header>
-            <DockPanel>
-                <TextBlock VerticalAlignment="Center" Text="強度"/>
-                <ComboBox Margin="4,0" Width="80" 
-                          ItemsSource="{Binding DeblockStrengthList}"
-                          SelectedIndex="{Binding DeblockStrength, Mode=TwoWay}"
-                          IsEnabled="{Binding EnableDeblock}">
-                    <ComboBox.ToolTip>
-                        <TextBlock>
-                            アニメは「強」、実写は「弱」あたりにすると良いと思います。
-                        </TextBlock>
-                    </ComboBox.ToolTip>
-                </ComboBox>
-                <CheckBox VerticalAlignment="Center" Content="フレーム解析時は無効"
-                          IsChecked="{Binding SkipDeblockOnAnalyzing, Mode=TwoWay}"
-                          IsEnabled="{Binding EnableDeblock}">
-                    <CheckBox.ToolTip>
-                        <TextBlock>
-                            デブロッキングフィルタはKFMより前で処理されるため、デフォルトではKFMのフレーム解析時も動作します。
-                            <LineBreak/>フレーム解析時にデブロッキングフィルタをスキップするとフレーム解析が速くなる可能性があります。
-                        </TextBlock>
-                    </CheckBox.ToolTip>
-                </CheckBox>
-            </DockPanel>
-        </GroupBox>
-        <GroupBox>
-            <GroupBox.Header>
-                <CheckBox Margin="0,2" Content="インタレース解除" IsChecked="{Binding EnableDeinterlace, Mode=TwoWay}"/>
+                <CheckBox Margin="0,2" Content="インターレース解除" IsChecked="{Binding EnableDeinterlace, Mode=TwoWay}"/>
             </GroupBox.Header>
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top">
@@ -102,6 +74,49 @@
         </GroupBox>
         <GroupBox>
             <GroupBox.Header>
+                <CheckBox Margin="0,2" Content="デブロッキング" IsChecked="{Binding EnableDeblock, Mode=TwoWay}">
+                    <CheckBox.ToolTip>
+                        <TextBlock>
+                            MPEG2ソースのQP値に従ってノイズリダクションフィルタを適用します。
+                            <LineBreak/>映像ソースがMPEG2、かつ、デコーダがデフォルトの場合のみ有効になります。
+                            <LineBreak/>デコーダをCUVIDやQSVにするとQP値を取得できないためフィルタを適用することができません。
+                        </TextBlock>
+                    </CheckBox.ToolTip>
+                </CheckBox>
+            </GroupBox.Header>
+            <DockPanel>
+                <TextBlock VerticalAlignment="Center" Text="強度"/>
+                <ComboBox Margin="4,0" Width="120" 
+                          ItemsSource="{Binding DeblockStrengthList}"
+                          SelectedIndex="{Binding DeblockStrength, Mode=TwoWay}"
+                          IsEnabled="{Binding EnableDeblock}">
+                    <ComboBox.ToolTip>
+                        <TextBlock>
+                            強くすると低圧縮のところにも働いて、全体的なノイズリダクションとして効くようになりますが、
+                            <LineBreak/>ボケてディテールが失われる頻度も高くなります。
+                            <LineBreak/>弱くするとしきい値が上がり、高圧縮部分にしか適用されなくなります。
+                            <LineBreak/>強さは「強」>「中」>「弱」>「低ビットレート用弱」です。
+                            <LineBreak/>アニメは「中」、実写は「弱」あたりがおすすめ
+                        </TextBlock>
+                    </ComboBox.ToolTip>
+                </ComboBox>
+                <TextBlock VerticalAlignment="Center" Text="品質"/>
+                <ComboBox Margin="4,0" Width="60" 
+                          ItemsSource="{Binding DeblockQualityList}"
+                          SelectedIndex="{Binding DeblockQuality, Mode=TwoWay}"
+                          IsEnabled="{Binding EnableDeblock}">
+                    <ComboBox.ToolTip>
+                        <TextBlock>
+                            1段階上げると計算量が2倍になります。
+                            <LineBreak/>「中」で十分な品質が得られると思います。
+                        </TextBlock>
+                    </ComboBox.ToolTip>
+                </ComboBox>
+                <Border/>
+            </DockPanel>
+        </GroupBox>
+        <GroupBox>
+            <GroupBox.Header>
                 <CheckBox Margin="0,2" Content="リサイズ" 
                           IsChecked="{Binding EnableResize, Mode=TwoWay}"/>
             </GroupBox.Header>
@@ -133,7 +148,22 @@
                 </TextBlock>
             </CheckBox.ToolTip>
         </CheckBox>
-        <CheckBox Margin="8,2" Content="バンディング低減" IsChecked="{Binding EnableDeband, Mode=TwoWay}"/>
-        <CheckBox Margin="8,2" Content="エッジ強調（アニメ用）" IsChecked="{Binding EnableEdgeLevel, Mode=TwoWay}"/>
+        <CheckBox Margin="8,2" Content="バンディング低減" IsChecked="{Binding EnableDeband, Mode=TwoWay}">
+            <CheckBox.ToolTip>
+                <TextBlock>
+                    時間軸安定化もONにして10bitでエンコードすれば、
+                    <LineBreak/>バンディングやそれに伴うノイズは、ほぼ消えます。
+                    <LineBreak/>8bitでエンコードすると逆にバンディングが目立つようになるかもしれません。
+                </TextBlock>
+            </CheckBox.ToolTip>
+        </CheckBox>
+        <CheckBox Margin="8,2" Content="エッジ強調（アニメ用）" IsChecked="{Binding EnableEdgeLevel, Mode=TwoWay}">
+            <CheckBox.ToolTip>
+                <TextBlock>
+                    アニメならエッジがきれいになり、アップコンされた絵のようになります。
+                    <LineBreak/>実写だと顔がお面のようになったりするので、あまりおすすめしません。
+                </TextBlock>
+            </CheckBox.ToolTip>
+        </CheckBox>
     </StackPanel>
 </UserControl>

@@ -5,11 +5,23 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:local="clr-namespace:Amatsukaze.Views"
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type m:FilterKFMViewModel}}">
+
+    <UserControl.Resources>
+        <ResourceDictionary Source="CommonResources.xaml"/>
+    </UserControl.Resources>
+    
     <StackPanel>
+        <StackPanel.Resources>
+            <Style x:Key="ExtendDuration" TargetType="FrameworkElement">
+                <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+            </Style>
+            <Style TargetType="CheckBox" BasedOn="{c:MultiStyle . ExtendDuration}" />
+        </StackPanel.Resources>
         <TextBlock Margin="4" TextWrapping="Wrap">
             KFMは映像のフレームレートを検出して、各フレームレートに別処理を施すフィルタです。
             一般的にインターレース解除はソースのフレームレートに合った処理方法を選択するのが最も画質が良いとされていますが、
@@ -22,17 +34,20 @@
             <CheckBox.ToolTip>
                 <TextBlock>
                     時間軸方向の動きを検出して、似ている部分を平均化します。
+                    <LineBreak/>全体的にノイズは減りますが、副作用としてグレインノイズや
+                    <LineBreak/>雨などのエフェクトが消えることがあります。
                 </TextBlock>
             </CheckBox.ToolTip>
         </CheckBox>
-        <CheckBox Margin="4" Content="DecomeUCF" IsChecked="{Binding EnableUCF, Mode=TwoWay}">
+        <CheckBox Margin="4" Content="DecombUCF" IsChecked="{Binding EnableUCF, Mode=TwoWay}">
             <CheckBox.ToolTip>
                 <TextBlock>
-                    シーンチェンジの汚いフレームを検出して、きれいなフレームだけ残します。
+                    汚いフレーム/フィールドを見つけて、きれいなフレーム/フィールドを残します。
+                    <LineBreak/>副作用はほとんどありません。
                 </TextBlock>
             </CheckBox.ToolTip>
         </CheckBox>
-        <DockPanel>
+        <DockPanel Style="{StaticResource ExtendDuration}">
             <DockPanel.ToolTip>
                 <TextBlock>
                     特に問題がなければVFR推奨です。

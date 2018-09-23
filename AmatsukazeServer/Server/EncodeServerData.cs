@@ -91,7 +91,7 @@ namespace Amatsukaze.Server
 
     public enum DeblockStrength
     {
-        Strong, Medium, Weak
+        Strong, Medium, Weak, Weaker
     }
 
     public enum DeinterlaceAlgorithm
@@ -127,7 +127,7 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool EnableDeblock;
         [DataMember]
-        public bool SkipDeblockOnAnalyzing;
+        public int DeblockQuality;
         [DataMember]
         public DeblockStrength DeblockStrength;
         [DataMember]

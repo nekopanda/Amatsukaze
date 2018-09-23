@@ -136,8 +136,16 @@
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0">
                     <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120" 
                        ItemsSource="{Binding Model.SelectedProfile.Mpeg2DecoderList}"
-                          SelectedIndex="{Binding Model.SelectedProfile.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       ToolTip="デフォルト(CPU)が一番速いと思います。&#xA;CUVIDにするとCPU負荷が減るのでトータルでは速くなるかもしれません。&#xA;QSVは現バージョンのFFmpegが壊れてて使えません。"/>
+                          SelectedIndex="{Binding Model.SelectedProfile.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <ComboBox.ToolTip>
+                            <TextBlock>
+                                デフォルト(CPU)が一番速いと思います。
+                                <LineBreak/>CUVIDにするとCPU負荷が減るのでトータルでは速くなるかもしれません。
+                                <LineBreak/>QSVは現バージョンのFFmpegが壊れてて使えません。
+                                <LineBreak/>デフォルト以外にするとQP値が取得できないためデブロッキングフィルタが無効になります。
+                            </TextBlock>
+                        </ComboBox.ToolTip>
+                    </ComboBox>
 
                     <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120"
                       ItemsSource="{Binding Model.SelectedProfile.H264DecoderList}"

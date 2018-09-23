@@ -1356,7 +1356,7 @@ namespace Amatsukaze.Models
                 profile.FilterOption = (int)data.Profile.FilterOption;
                 profile.Filter.EnableCUDA = data.Profile.FilterSetting.EnableCUDA;
                 profile.Filter.EnableDeblock = data.Profile.FilterSetting.EnableDeblock;
-                profile.Filter.SkipDeblockOnAnalyzing = data.Profile.FilterSetting.SkipDeblockOnAnalyzing;
+                profile.Filter.DeblockQuality = Array.IndexOf(DisplayFilterSetting.DeblockQualityListData, data.Profile.FilterSetting.DeblockQuality);
                 profile.Filter.DeblockStrength = (int)data.Profile.FilterSetting.DeblockStrength;
                 profile.Filter.DeinterlaceAlgorithm = (int)data.Profile.FilterSetting.DeinterlaceAlgorithm;
                 profile.Filter.D3DVP.GPU = (int)data.Profile.FilterSetting.D3dvpGpu;

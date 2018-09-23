@@ -414,13 +414,10 @@ class AMTSource : public IClip, AMTObject
 		switch (desc->comp[0].depth) {
 		case 8:
 			return VideoInfo::CS_YV12;
-			break;
 		case 10:
 			return VideoInfo::CS_YUV420P10;
-			break;
 		case 12:
 			return VideoInfo::CS_YUV420P12;
-			break;
 		}
 		env->ThrowError("対応していないビット深度です");
 		return 0;

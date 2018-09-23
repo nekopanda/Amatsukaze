@@ -697,6 +697,8 @@ namespace Amatsukaze.Server
             {
                 KfmFps = FilterFPS.VFR,
                 YadifFps = FilterFPS.CFR60,
+                DeblockQuality = 3,
+                DeblockStrength = DeblockStrength.Medium,
                 ResizeWidth = 1280,
                 ResizeHeight = 720
             };
@@ -1195,24 +1197,15 @@ namespace Amatsukaze.Server
             switch (strength)
             {
                 case DeblockStrength.Strong:
-                    return "bias=-5";
+                    return "thr=18";
                 case DeblockStrength.Medium:
-                    return "str=-0.5,bias=-10";
+                    return "thr=28";
                 case DeblockStrength.Weak:
+                    return "str=-1.0,bratio=0,thr=38";
+                case DeblockStrength.Weaker:
                 default:
-                    return "str=-1.5,bias=-15";
+                    return "str=-1.5,bratio=0,thr=50";
             }
-        }
-
-        // 映像を出力するパス番号を返す
-        private static int GetVideoOutPass(FilterSetting setting)
-        {
-            if (setting.EnableDeinterlace &&
-                (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM))
-            {
-                return (setting.KfmFps == FilterFPS.VFR) ? 2 : 1;
-            }
-            return 0;
         }
 
         private static string GetQTGMCPreseet(QTGMCPreset preset)
@@ -1236,78 +1229,55 @@ namespace Amatsukaze.Server
         public static string FilterToString(FilterSetting setting)
         {
             StringBuilder sb = new StringBuilder();
-            bool isCUDA = false;
-
-            Action<bool> finishFilter = (bool nextCUDA) =>
-            {
-                if (isCUDA != nextCUDA)
-                {
-                    sb.AppendLine(nextCUDA ? ".OnCPU(2)" : ".OnCUDA(2)");
-                    isCUDA = nextCUDA;
-                }
-                else
-                {
-                    sb.AppendLine();
-                }
-            };
-
-            var videoOutPass = GetVideoOutPass(setting);
 
             if (setting.EnableCUDA)
             {
                 sb.AppendLine("SetDeviceOpt(DEV_CUDA_PINNED_HOST) # CUDAデータ転送最適化");
+                sb.AppendLine("dsrc = AMT_SOURCE.OnCPU(2)");
             }
-
-            sb.Append("AMT_SOURCE");
-
-            if (setting.EnableDeblock)
+            else
             {
-                finishFilter(setting.EnableCUDA);
-                var deblock = "KDeblock(quality=3," + GetDeblockOption(setting.DeblockStrength) + ")";
-                if (setting.SkipDeblockOnAnalyzing)
-                {
-                    if (videoOutPass > 0)
-                    {
-                        deblock = "if(AMT_PASS == " + videoOutPass + ") { " + deblock + " }";
-                    }
-                }
-                sb.Append(deblock);
+                sb.AppendLine("dsrc = AMT_SOURCE");
             }
 
             if (setting.EnableDeinterlace)
             {
+                int videoOutPass = 0;
                 if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.D3DVP)
                 {
-                    finishFilter(false);
                     var device = GetGPUString(setting.D3dvpGpu);
-                    sb.Append("D3DVP(" + ((device != null) ? "device=\"" + device + "\"" : "") + ")");
+                    sb.AppendLine("AMT_SOURCE.D3DVP(" + ((device != null) ? "device=\"" + device + "\"" : "") + ")");
+                    if (setting.EnableCUDA)
+                    {
+                        sb.AppendLine("OnCPU(2)");
+                    }
                 }
                 else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.QTGMC)
                 {
-                    finishFilter(setting.EnableCUDA);
                     var preset = GetQTGMCPreseet(setting.QtgmcPreset);
                     if(preset != null)
                     {
                         preset = ", preset=\"" + preset + "\"";
                     }
-                    sb.Append("KFMDeint(mode=1" + preset + ", ucf=false, nr=false" + 
+                    sb.AppendLine("dsrc.KFMDeint(mode=1" + preset + ", ucf=false, nr=false" + 
                         ", cuda=" + (setting.EnableCUDA ? "true" : "false") + ")");
                 }
                 else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM)
                 {
-                    finishFilter(setting.EnableCUDA);
                     if (setting.KfmFps == 0)
                     {
                         // VFR
                         sb.AppendLine("pass = Select(AMT_PASS, 1, 2, 3)");
                         sb.AppendLine("AMT_PHASE = Select(AMT_PASS, 0, 1, 2)");
+                        videoOutPass = 2;
                     }
                     else
                     {
                         sb.AppendLine("pass = Select(AMT_PASS, 1, 3)");
                         sb.AppendLine("AMT_PHASE = Select(AMT_PASS, 0, 2)");
+                        videoOutPass = 1;
                     }
-                    sb.Append("KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 0) +
+                    sb.AppendLine("dsrc.KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 0) +
                         ", pass=pass" +
                         ", ucf=" + (setting.KfmEnableUcf ? "true" : "false") +
                         ", nr=" + (setting.KfmEnableNr ? "true" : "false") +
@@ -1317,58 +1287,69 @@ namespace Amatsukaze.Server
                 }
                 else
                 {
-                    finishFilter(false);
                     if (setting.YadifFps == FilterFPS.CFR24)
                     {
-                        sb.Append("Yadifmod2(mode=0).TDecimate(mode=1)");
+                        sb.AppendLine("AMT_SOURCE.Yadifmod2(mode=0).TDecimate(mode=1)");
                     }
                     else if (setting.YadifFps == FilterFPS.CFR30)
                     {
-                        sb.Append("Yadifmod2(mode=0)");
+                        sb.AppendLine("AMT_SOURCE.Yadifmod2(mode=0)");
                     }
                     else // 60fps
                     {
-                        sb.Append("Yadifmod2(mode=1)");
+                        sb.AppendLine("AMT_SOURCE.Yadifmod2(mode=1)");
+                    }
+                    if (setting.EnableCUDA)
+                    {
+                        sb.AppendLine("OnCPU(2)");
                     }
                 }
-            }
-
-            finishFilter(false);
-
-            if (setting.EnableDeinterlace)
-            {
                 sb.AppendLine("AssumeBFF()");
+                if (videoOutPass != 0)
+                {
+                    // 解析フェーズはポストプロセスをスキップ
+                    sb.AppendLine("if(AMT_PASS != " + videoOutPass + ") { return last }");
+                }
             }
-
-            if (videoOutPass != 0)
+            else
             {
-                // 解析フェーズはポストプロセスをスキップ
-                sb.AppendLine("if(AMT_PASS != " + videoOutPass + ") { return last }");
+                sb.AppendLine("dsrc");
             }
 
             // ポストプロセス
             if (setting.EnableResize || setting.EnableTemporalNR || 
-                setting.EnableDeband || setting.EnableEdgeLevel)
+                setting.EnableDeband || setting.EnableEdgeLevel ||
+                setting.EnableDeblock)
             {
-                sb.AppendLine("ConvertBits(14)");
-                if (setting.EnableResize)
+                if (setting.EnableDeblock)
                 {
-                    sb.AppendLine("BlackmanResize(" + setting.ResizeWidth + "," + setting.ResizeHeight + ")");
+                    sb.AppendLine("KDeblock(qpclip=dsrc.QPClip(),quality=" +
+                        setting.DeblockQuality + "," +
+                        GetDeblockOption(setting.DeblockStrength) + ")");
                 }
-                if (setting.EnableTemporalNR)
+                if (setting.EnableResize || setting.EnableTemporalNR ||
+                    setting.EnableDeband || setting.EnableEdgeLevel)
                 {
-                    sb.AppendLine("KTemporalNR(3, 1)");
+                    sb.AppendLine("ConvertBits(14)");
+                    if (setting.EnableResize)
+                    {
+                        sb.AppendLine("BlackmanResize(" + setting.ResizeWidth + "," + setting.ResizeHeight + ")");
+                    }
+                    if (setting.EnableTemporalNR)
+                    {
+                        sb.AppendLine("KTemporalNR(3, 1)");
+                    }
+                    if (setting.EnableDeband)
+                    {
+                        sb.AppendLine("KDeband(25, 1, 2, true)");
+                    }
+                    if (setting.EnableEdgeLevel)
+                    {
+                        sb.AppendLine("KEdgeLevel(16, 10, 2, uv=false)");
+                    }
+                    sb.AppendLine("ConvertBits(10, dither=0)");
+                    sb.AppendLine("if(IsProcess(\"AvsPmod.exe\")) { ConvertBits(8, dither=0) }");
                 }
-                if (setting.EnableDeband)
-                {
-                    sb.AppendLine("KDeband(25, 1, 2, true)");
-                }
-                if (setting.EnableEdgeLevel)
-                {
-                    sb.AppendLine("KEdgeLevel(16, 10, 2, uv=false)");
-                }
-                sb.AppendLine("ConvertBits(10, dither=0)");
-                sb.AppendLine("if(IsProcess(\"AvsPmod.exe\")) { ConvertBits(8, dither=0) }");
                 sb.AppendLine(setting.EnableCUDA ? "OnCUDA(2)" : "Prefetch(4)");
             }
 

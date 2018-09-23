@@ -329,16 +329,18 @@ namespace Amatsukaze.Models
         }
     }
 
-    public class DeinterlaceAlgorithmViewModel : ViewModel
+    public abstract class DeinterlaceAlgorithmViewModel : ViewModel
     {
         public FilterSetting Data { get; set; }
+
+        public abstract string Name { get; }
     }
 
     public class FilterD3DVPViewModel : DeinterlaceAlgorithmViewModel
     {
-        public string Name { get { return "D3DVP"; } }
+        public override string Name { get { return "D3DVP"; } }
 
-        public string[] GPUList { get; } = new string[]
+        public static string[] GPUList { get; } = new string[]
         {
             "自動", "Intel", "NVIDIA", "Radeon"
         };
@@ -360,9 +362,9 @@ namespace Amatsukaze.Models
 
     public class FilterQTGMCViewModel : DeinterlaceAlgorithmViewModel
     {
-        public string Name { get { return "QTGMC"; } }
+        public override string Name { get { return "QTGMC"; } }
 
-        public string[] PresetList { get; } = new string[]
+        public static string[] PresetList { get; } = new string[]
         {
             "自動", "Faster", "Fast", "Medium", "Slow", "Slower"
         };
@@ -385,7 +387,7 @@ namespace Amatsukaze.Models
 
     public class FilterKFMViewModel : DeinterlaceAlgorithmViewModel
     {
-        public string Name { get { return "KFM"; } }
+        public override string Name { get { return "KFM"; } }
 
         #region EnableNR変更通知プロパティ
         public bool EnableNR
@@ -414,7 +416,7 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
-        public string[] FPSList { get; } = new string[]
+        public static string[] FPSList { get; } = new string[]
         {
             "VFR", "24fps", "60fps", "SVPによる60fps化"
         };
@@ -424,23 +426,8 @@ namespace Amatsukaze.Models
         {
             FilterFPS.VFR, FilterFPS.CFR24, FilterFPS.CFR60, FilterFPS.SVP
         };
-        public int SelectedFPS
-        {
-            get
-            {
-                switch (Data.KfmFps)
-                {
-                    case FilterFPS.VFR:
-                        return 0;
-                    case FilterFPS.CFR24:
-                        return 1;
-                    case FilterFPS.CFR60:
-                        return 2;
-                    case FilterFPS.SVP:
-                        return 3;
-                }
-                return 0;
-            }
+        public int SelectedFPS {
+            get { return Array.IndexOf(FPSListData, Data.KfmFps); }
             set
             {
                 int idx = (value == -1) ? 0 : value;
@@ -455,9 +442,9 @@ namespace Amatsukaze.Models
 
     public class FilterYadifViewModel : DeinterlaceAlgorithmViewModel
     {
-        public string Name { get { return "Yadif"; } }
+        public override string Name { get { return "Yadif"; } }
 
-        public string[] FPSList { get; } = new string[]
+        public static string[] FPSList { get; } = new string[]
         {
             "24fps", "30fps", "60fps"
         };
@@ -467,21 +454,8 @@ namespace Amatsukaze.Models
         {
             FilterFPS.CFR24, FilterFPS.CFR30, FilterFPS.CFR60
         };
-        public int SelectedFPS
-        {
-            get
-            {
-                switch (Data.YadifFps)
-                {
-                    case FilterFPS.CFR24:
-                        return 0;
-                    case FilterFPS.CFR30:
-                        return 1;
-                    case FilterFPS.CFR60:
-                        return 2;
-                }
-                return 0;
-            }
+        public int SelectedFPS {
+            get { return Array.IndexOf(FPSListData, Data.YadifFps); }
             set
             {
                 int idx = (value == -1) ? 0 : value;
@@ -584,7 +558,7 @@ namespace Amatsukaze.Models
 
     public class DisplayFilterSetting : ViewModel
     {
-        public string Name { get { return "フィルタ設定"; } }
+        public string Name { get { return "フィルタを設定"; } }
 
         public FilterSetting Data { get; private set; }
 
@@ -644,24 +618,32 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region SkipDeblockOnAnalyzing変更通知プロパティ
-        public bool SkipDeblockOnAnalyzing
+        public static string[] DeblockQualityList { get; } = new string[]
         {
-            get { return Data.SkipDeblockOnAnalyzing; }
-            set
-            {
-                if (Data.SkipDeblockOnAnalyzing == value)
+            "高(4)", "中(3)", "低(2)"
+        };
+
+        #region DeblockQuality変更通知プロパティ
+        public static int[] DeblockQualityListData = new int[]
+        {
+            4, 3, 2
+        };
+        public int DeblockQuality {
+            get { return Array.IndexOf(DeblockQualityListData, Data.DeblockQuality); }
+            set {
+                int idx = (value == -1) ? 0 : value;
+                if (Data.DeblockQuality == DeblockQualityListData[idx])
                     return;
-                Data.SkipDeblockOnAnalyzing = value;
+                Data.DeblockQuality = DeblockQualityListData[idx];
                 RaisePropertyChanged();
             }
         }
         #endregion
 
         #region DeblockStrength変更通知プロパティ
-        public string[] DeblockStrengthList { get; } = new string[]
+        public static string[] DeblockStrengthList { get; } = new string[]
         {
-            "強", "中", "弱"
+            "強", "中", "弱", "低ビットレート用弱"
         };
 
         public int DeblockStrength
@@ -845,7 +827,7 @@ namespace Amatsukaze.Models
 
     public class DisplayCustomFilter : ViewModel
     {
-        public string Name { get { return "カスタムフィルタ"; } }
+        public string Name { get { return "カスタムフィルタを設定"; } }
 
         public ClientModel Model { get; set; }
 
@@ -1874,8 +1856,58 @@ namespace Amatsukaze.Models
             text.KeyValue("JoinLogoScpコマンドファイル", Data.JLSCommandFile ?? "チャンネル設定に従う");
             text.KeyValue("JoinLogoScpオプション", Data.JLSOption ?? "チャンネル設定に従う");
             text.KeyValue("chapter_exeオプション", Data.ChapterExeOption);
-            text.KeyValue("メインフィルタ", Data.FilterPath);
-            text.KeyValue("ポストフィルタ", Data.PostFilterPath);
+
+            if (Data.FilterOption == Server.FilterOption.None)
+            {
+                text.KeyValue("フィルタ", "なし");
+            }
+            else if (Data.FilterOption == Server.FilterOption.Setting)
+            {
+                text.KeyValue("フィルタ-CUDAで処理", Data.FilterSetting.EnableCUDA);
+                text.KeyValue("フィルタ-インターレース解除", Data.FilterSetting.EnableDeinterlace);
+                if (Data.FilterSetting.EnableDeinterlace)
+                {
+                    text.KeyValue("フィルタ-インターレース解除方法", Filter.SelectedDeinterlace.Name);
+                    switch (Data.FilterSetting.DeinterlaceAlgorithm)
+                    {
+                        case DeinterlaceAlgorithm.KFM:
+                            text.KeyValue("フィルタ-SMDegrainによるNR", Data.FilterSetting.KfmEnableNr);
+                            text.KeyValue("フィルタ-DecombUCF", Data.FilterSetting.KfmEnableUcf);
+                            text.KeyValue("フィルタ-出力fps", FilterKFMViewModel.FPSList[Filter.KFM.SelectedFPS]);
+                            break;
+                        case DeinterlaceAlgorithm.D3DVP:
+                            text.KeyValue("フィルタ-使用GPU", FilterD3DVPViewModel.GPUList[(int)Data.FilterSetting.D3dvpGpu]);
+                            break;
+                        case DeinterlaceAlgorithm.QTGMC:
+                            text.KeyValue("フィルタ-QTGMCプリセット", FilterQTGMCViewModel.PresetList[(int)Data.FilterSetting.QtgmcPreset]);
+                            break;
+                        case DeinterlaceAlgorithm.Yadif:
+                            text.KeyValue("フィルタ-出力fps", FilterYadifViewModel.FPSList[Filter.Yadif.SelectedFPS]);
+                            break;
+                    }
+                }
+                text.KeyValue("フィルタ-デブロッキング", Data.FilterSetting.EnableDeblock);
+                if (Data.FilterSetting.EnableDeblock)
+                {
+                    text.KeyValue("フィルタ-デブロッキング強度", DisplayFilterSetting.DeblockStrengthList[(int)Data.FilterSetting.DeblockStrength]);
+                    text.KeyValue("フィルタ-デブロッキング品質", DisplayFilterSetting.DeblockQualityList[Filter.DeblockQuality]);
+                }
+                text.KeyValue("フィルタ-リサイズ", Data.FilterSetting.EnableResize);
+                if (Data.FilterSetting.EnableResize)
+                {
+                    text.KeyValue("フィルタ-リサイズ-縦", Data.FilterSetting.ResizeWidth.ToString());
+                    text.KeyValue("フィルタ-リサイズ-横", Data.FilterSetting.ResizeHeight.ToString());
+                }
+                text.KeyValue("フィルタ-時間軸安定化", Data.FilterSetting.EnableTemporalNR);
+                text.KeyValue("フィルタ-バンディング低減", Data.FilterSetting.EnableDeband);
+                text.KeyValue("フィルタ-エッジ強調", Data.FilterSetting.EnableEdgeLevel);
+            }
+            else
+            {
+                text.KeyValue("メインフィルタ", Data.FilterPath);
+                text.KeyValue("ポストフィルタ", Data.PostFilterPath);
+            }
+
             text.KeyValue("MPEG2デコーダ", Mpeg2DecoderList[(int)Data.Mpeg2Decoder]);
             text.KeyValue("H264デコーダ", H264DecoderList[(int)Data.H264Deocder]);
             text.KeyValue("出力フォーマット", FormatList[(int)Data.OutputFormat]);
@@ -1884,6 +1916,7 @@ namespace Amatsukaze.Models
             text.KeyValue("SCRenameによるリネームを行う", Data.EnableRename);
             text.KeyValue("SCRename書式", Data.RenameFormat);
             text.KeyValue("ジャンルごとにフォルダ分け", Data.EnableGunreFolder);
+
             text.KeyValue("2パス", Data.TwoPass);
             text.KeyValue("CMビットレート倍率", Data.BitrateCM.ToString());
             text.KeyValue("自動ビットレート指定", Data.AutoBuffer);
@@ -1893,7 +1926,7 @@ namespace Amatsukaze.Models
             text.KeyValue("NicoJKログから優先的にコメントを取得する", Data.NicoJKLog);
             text.KeyValue("NicoJK18サーバからコメントを取得する", Data.NicoJK18);
             text.KeyValue("コメント出力フォーマット", Data.NicoJKFormatMask.ToString());
-            text.KeyValue("関連ファイル(*.err,*.program.txtも処理", Data.MoveEDCBFiles);
+            text.KeyValue("関連ファイル(*.err,*.program.txt)も処理", Data.MoveEDCBFiles);
             text.KeyValue("字幕を無効にする", Data.DisableSubs);
             text.KeyValue("マッピングにないDRCS外字は無視する", Data.IgnoreNoDrcsMap);
             text.KeyValue("ロゴ検出判定しきい値を低くする", Data.LooseLogoDetection);
