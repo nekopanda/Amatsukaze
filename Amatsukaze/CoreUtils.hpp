@@ -11,6 +11,8 @@
 
 #include <string>
 
+#define AMT_MAX_PATH 512
+
 struct Exception {
 	virtual ~Exception() { }
 	virtual const char* message() const {
@@ -231,15 +233,15 @@ DWORD GetFullPathNameT(LPCSTR lpFileName, DWORD nBufferLength, LPSTR lpBuffer, L
 template <typename Char>
 std::basic_string<Char> GetFullPath(const std::basic_string<Char>& path)
 {
-  Char buf[MAX_PATH];
-	int sz = GetFullPathNameT(path.c_str(), sizeof(buf), buf, nullptr);
-	if (sz >= sizeof(buf)) {
+  Char buf[AMT_MAX_PATH];
+	int sz = GetFullPathNameT(path.c_str(), AMT_MAX_PATH, buf, nullptr);
+	if (sz >= AMT_MAX_PATH) {
 		THROWF(IOException, "パスが長すぎます: %s", path);
 	}
 	if (sz == 0) {
 		THROWF(IOException, "GetFullPathName()に失敗: %s", path);
 	}
-	return buf;
+	return std::basic_string<Char>(buf);
 }
 
 class File : NonCopyable
@@ -248,7 +250,7 @@ public:
   File(const tstring& path, const tchar* mode) {
     fp_ = fsopenT(path.c_str(), mode, _SH_DENYNO);
     if (fp_ == NULL) {
-      THROWF(IOException, "failed to open file %s", GetFullPath(path));
+      THROWF(IOException, "ファイルを開けません: %s", GetFullPath(path));
     }
   }
 	~File() {

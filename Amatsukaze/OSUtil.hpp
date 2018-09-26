@@ -17,28 +17,28 @@
 extern HMODULE g_DllHandle;
 
 std::wstring GetModulePath() {
-  wchar_t buf[MAX_PATH] = { 0 };
-	GetModuleFileNameW(g_DllHandle, buf, MAX_PATH);
+  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	GetModuleFileNameW(g_DllHandle, buf, AMT_MAX_PATH);
 	return buf;
 }
 
 std::wstring GetModuleDirectory() {
-  wchar_t buf[MAX_PATH] = { 0 };
-	GetModuleFileNameW(g_DllHandle, buf, MAX_PATH);
+  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	GetModuleFileNameW(g_DllHandle, buf, AMT_MAX_PATH);
 	PathRemoveFileSpecW(buf);
 	return buf;
 }
 
 std::wstring SearchExe(const std::wstring& name) {
-  wchar_t buf[MAX_PATH] = { 0 };
-	if (!SearchPathW(0, name.c_str(), 0, MAX_PATH, buf, 0)) {
+  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	if (!SearchPathW(0, name.c_str(), 0, AMT_MAX_PATH, buf, 0)) {
 		return name;
 	}
 	return buf;
 }
 
 std::wstring GetDirectoryPath(const std::wstring& name) {
-  wchar_t buf[MAX_PATH] = { 0 };
+  wchar_t buf[AMT_MAX_PATH] = { 0 };
 	std::copy(name.begin(), name.end(), buf);
 	PathRemoveFileSpecW(buf);
 	return buf;
