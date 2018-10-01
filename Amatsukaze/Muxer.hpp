@@ -16,8 +16,8 @@
 #include "ProcessThread.hpp"
 
 struct EncodeFileInfo {
-  tstring outPath;
-  tstring tcPath; // タイムコードファイルパス
+	tstring outPath;
+	tstring tcPath; // タイムコードファイルパス
 	std::vector<tstring> outSubs; // 外部ファイルで出力された字幕
 	int64_t fileSize;
 	double srcBitrate;
@@ -83,8 +83,8 @@ public:
 					// デュアルモノは2つのAACに分離
 					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", encoderIndex, asrc);
 					SpDualMonoSplitter splitter(ctx);
-          tstring filepath0 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
-          tstring filepath1 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+					tstring filepath0 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+					tstring filepath1 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
 					splitter.open(0, filepath0);
 					splitter.open(1, filepath1);
 					for (int frameIndex : frameList) {
@@ -94,7 +94,7 @@ public:
 					audioFiles.push_back(filepath1);
 				}
 				else {
-          tstring filepath = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+					tstring filepath = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
 					File file(filepath, _T("wb"));
 					for (int frameIndex : frameList) {
 						file.write(audioCache_[frameIndex]);
@@ -109,7 +109,7 @@ public:
 		encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype);
 
 		// チャプターファイル
-    tstring chapterFile;
+		tstring chapterFile;
 		if (setting_.isChapterEnabled()) {
 			auto path = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
 			if (File::exists(path)) {
@@ -156,10 +156,10 @@ public:
 		bool is120fps = (eoInfo.afsTimecode || setting_.isVFR120fps());
 		std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * (is120fps ? 4 : 2), vfmt.frameRateDenom);
 
-    tstring tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
+		tstring tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
 		outFilePath.outPath = pathgen.getOutFilePath();
 
-    tstring metaFile;
+		tstring metaFile;
 		if (setting_.getFormat() == FORMAT_M2TS || setting_.getFormat() == FORMAT_TS) {
 			// M2TS/TSの場合はmetaファイル作成
 			StringBuilder sb;
@@ -199,7 +199,7 @@ public:
 
 		for (int i = 0; i < (int)args.size(); ++i) {
 			ctx.infoF("%s", args[i].first);
-			 StdRedirectedSubProcess muxer(args[i].first, 0, args[i].second);
+			StdRedirectedSubProcess muxer(args[i].first, 0, args[i].second);
 			int ret = muxer.join();
 			if (ret != 0) {
 				THROWF(RuntimeException, "mux failed (exit code: %d)", ret);
@@ -249,12 +249,12 @@ public:
 			audioFiles.push_back(setting_.getIntAudioFilePath(0, 0, i, CMTYPE_BOTH));
 		}
 		tstring encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
-    tstring outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
+		tstring outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
 		auto args = makeMuxerArgs(
 			FORMAT_MP4,
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, videoFormat, audioFiles, outFilePath,
-      tstring(), tstring(), tstring(), std::pair<int, int>(),
+			tstring(), tstring(), tstring(), std::pair<int, int>(),
 			std::vector<tstring>(), std::vector<tstring>(), tstring());
 		ctx.info("[Mux開始]");
 		ctx.infoF("%s", args[0].first);

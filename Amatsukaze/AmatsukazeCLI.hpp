@@ -386,7 +386,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			conf.chapterExePath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--chapter-exe-options")) {
-		conf.chapterExeOptions = getParam(argc, argv, i++);
+			conf.chapterExeOptions = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--jls")) {
 			conf.joinLogoScpPath = getParam(argc, argv, i++);
@@ -638,7 +638,7 @@ static int amatsukazeTranscodeMain(AMTContext& ctx, const ConfigWrapper& setting
 			test::ResourceTest(ctx, setting);
 
 		else
-      ctx.errorF("--mode‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %s\n", mode.c_str());
+			ctx.errorF("--mode‚ÌŽw’è‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·: %s\n", mode.c_str());
 
 		return 0;
 	}

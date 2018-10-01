@@ -39,7 +39,7 @@ public:
 		, setting_(setting)
 	{
 		Stopwatch sw;
-    tstring avspath = makeAVSFile(videoFileIndex);
+		tstring avspath = makeAVSFile(videoFileIndex);
 
 		// ロゴ解析
 		if (setting_.getLogoPath().size() > 0) {
@@ -218,33 +218,33 @@ private:
 
 	const ConfigWrapper& setting_;
 
-  tstring logopath;
+	tstring logopath;
 	std::vector<int> trims;
 	std::vector<EncoderZone> cmzones;
 	std::vector<int> sceneChanges;
 
-  tstring makeAVSFile(int videoFileIndex)
+	tstring makeAVSFile(int videoFileIndex)
 	{
 		StringBuilder sb;
 		sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
 		sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(videoFileIndex));
 		sb.append("Prefetch(1)\n");
-    tstring avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
+		tstring avspath = setting_.getTmpSourceAVSPath(videoFileIndex);
 		File file(avspath, _T("w"));
 		file.write(sb.getMC());
 		return avspath;
 	}
 
-  std::string makePreamble() {
-    StringBuilder sb;
-    // システムのプラグインフォルダを無効化
-    if (setting_.isSystemAvsPlugin() == false) {
-      sb.append("ClearAutoloadDirs()\n");
-    }
-    // Amatsukaze用オートロードフォルダを追加
-    sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
-    return sb.str();
-  }
+	std::string makePreamble() {
+		StringBuilder sb;
+		// システムのプラグインフォルダを無効化
+		if (setting_.isSystemAvsPlugin() == false) {
+			sb.append("ClearAutoloadDirs()\n");
+		}
+		// Amatsukaze用オートロードフォルダを追加
+		sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
+		return sb.str();
+	}
 
 	void logoFrame(int videoFileIndex, const tstring& avspath)
 	{
@@ -279,7 +279,7 @@ private:
 		}
 	}
 
-  tstring MakeChapterExeArgs(int videoFileIndex, const tstring& avspath)
+	tstring MakeChapterExeArgs(int videoFileIndex, const tstring& avspath)
 	{
 		return StringFormat(_T("\"%s\" -v \"%s\" -o \"%s\" %s"),
 			setting_.getChapterExePath(), avspath,
@@ -441,7 +441,7 @@ private:
 		std::regex reOld("^\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+([-\\d]+)\\s+(\\d+)");
 		std::string str;
 		std::vector<JlsElement> elements;
-		while(file.getline(str)) {
+		while (file.getline(str)) {
 			std::smatch m;
 			if (std::regex_search(str, m, re)) {
 				JlsElement elem = {

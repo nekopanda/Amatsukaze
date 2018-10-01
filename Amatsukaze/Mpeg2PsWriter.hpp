@@ -416,7 +416,7 @@ private:
 
 	// outVideoPesPacket, outAudioPesPacketÇÃç≈å„Ç≈ïKÇ∏ÉNÉäÉAÇ≥ÇÍÇÈÇ±Ç∆
 	AutoBuffer buffer;
-	
+
 	void initWhenNeeded(int64_t clock) {
 		if (systemClock.currentClock == -1) {
 #if REDEFINE_PTS

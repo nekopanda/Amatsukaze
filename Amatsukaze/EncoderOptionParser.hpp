@@ -106,7 +106,7 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const tstring& str)
 				}
 			}
 			if (is24 && !drop) {
-				THROW(ArgumentException, 
+				THROW(ArgumentException,
 					"vpp-afsオプションに誤りがあります。24fps化する場合は間引き(drop)もonにする必要があります");
 			}
 			if (drop && !timecode) {

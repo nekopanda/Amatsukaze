@@ -15,7 +15,7 @@
 class PacketCache : public AMTObject {
 public:
 	PacketCache(
-		AMTContext& ctx, 
+		AMTContext& ctx,
 		const tstring& filepath,
 		const std::vector<int64_t> offsets, // データ数+1要素
 		int nLinebit, // キャッシュラインデータ数のビット数
@@ -46,7 +46,7 @@ public:
 		uint8_t* entryPtr = getEntry(getLineNumber(index));
 		return MemoryChunk(entryPtr + localOffset, dataSize);
 	}
-private: 
+private:
 	int nLinebit_;
 	int nEntry_;
 	int nLineSize_;

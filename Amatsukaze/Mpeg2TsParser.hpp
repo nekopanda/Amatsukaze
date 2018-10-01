@@ -255,11 +255,11 @@ private:
 	void writeTimeStamp(uint8_t* ptr, int64_t TS) {
 		int64_t raw = 0;
 		bms(raw, 3, 36, 4); // '0011'
-		bms(raw, TS >> 30, 33,	3);
+		bms(raw, TS >> 30, 33, 3);
 		bms(raw, 1, 32, 1); // marker_bit
 		bms(raw, TS >> 15, 17, 15);
 		bms(raw, 1, 16, 1); // marker_bit
-		bms(raw, TS >>	0,	1, 15);
+		bms(raw, TS >> 0, 1, 15);
 		bms(raw, 1, 0, 1); // marker_bit
 		write40(ptr, raw);
 	}
@@ -437,7 +437,7 @@ struct Descriptor : public MemoryChunk {
 
 	int tag() { return data[0]; }
 	int desc_length() { return data[1]; }
-	MemoryChunk payload(){ return MemoryChunk(data + 2, desc_length()); }
+	MemoryChunk payload() { return MemoryChunk(data + 2, desc_length()); }
 };
 
 std::vector<Descriptor> ParseDescriptors(MemoryChunk mc)
@@ -480,29 +480,29 @@ private:
 
 struct ShortEventDescriptor
 {
-  ShortEventDescriptor(Descriptor desc) : desc(desc) { }
+	ShortEventDescriptor(Descriptor desc) : desc(desc) { }
 
-  int ISO_639_language_code() { return read24(payload_.data); }
+	int ISO_639_language_code() { return read24(payload_.data); }
 
-  MemoryChunk event_name() {
-    return MemoryChunk(event_name_ + 1, *event_name_);
-  }
-  MemoryChunk text() {
-    return MemoryChunk(text_ + 1, *text_);
-  }
+	MemoryChunk event_name() {
+		return MemoryChunk(event_name_ + 1, *event_name_);
+	}
+	MemoryChunk text() {
+		return MemoryChunk(text_ + 1, *text_);
+	}
 
-  bool parse() {
-    payload_ = desc.payload();
-    event_name_ = &payload_.data[3];
-    text_ = event_name_ + 1 + *event_name_;
-    return (5 + *event_name_ + *text_) <= (int)payload_.length;
-  }
+	bool parse() {
+		payload_ = desc.payload();
+		event_name_ = &payload_.data[3];
+		text_ = event_name_ + 1 + *event_name_;
+		return (5 + *event_name_ + *text_) <= (int)payload_.length;
+	}
 
 private:
-  Descriptor desc;
-  MemoryChunk payload_;
-  uint8_t* event_name_;
-  uint8_t* text_;
+	Descriptor desc;
+	MemoryChunk payload_;
+	uint8_t* event_name_;
+	uint8_t* text_;
 };
 
 struct StreamIdentifierDescriptor
@@ -718,7 +718,7 @@ struct SDTElement {
 
 	uint16_t service_id() { return read16(&ptr[0]); }
 	uint16_t descriptor_loop_length() { return bsm(read16(&ptr[3]), 0, 12); }
-	MemoryChunk descriptor(){ return MemoryChunk(ptr + 5, descriptor_loop_length()); }
+	MemoryChunk descriptor() { return MemoryChunk(ptr + 5, descriptor_loop_length()); }
 	int size() { return descriptor_loop_length() + 5; }
 
 private:
@@ -765,7 +765,7 @@ struct JSTTime {
 	uint64_t time;
 
 	JSTTime() { }
-	JSTTime(uint64_t time) : time(time){ }
+	JSTTime(uint64_t time) : time(time) { }
 
 	void getDay(int& y, int& m, int& d) {
 		MJDtoYMD((uint16_t)bsm(time, 24, 16), y, m, d);
@@ -776,9 +776,9 @@ struct JSTTime {
 		int h1 = ((bcd >> 20) & 0xF);
 		int h0 = ((bcd >> 16) & 0xF);
 		int m1 = ((bcd >> 12) & 0xF);
-		int m0 = ((bcd >>  8) & 0xF);
-		int s1 = ((bcd >>  4) & 0xF);
-		int s0 = ((bcd >>  0) & 0xF);
+		int m0 = ((bcd >> 8) & 0xF);
+		int s1 = ((bcd >> 4) & 0xF);
+		int s0 = ((bcd >> 0) & 0xF);
 		h = h1 * 10 + h0;
 		m = m1 * 10 + m0;
 		s = s1 * 10 + s0;
@@ -864,7 +864,7 @@ struct EIT {
 	uint16_t original_network_id() { return read16(&payload_.data[2]); }
 	uint8_t segment_last_section_number() { return payload_.data[4]; }
 	uint8_t last_table_id() { return payload_.data[5]; }
-	
+
 	bool parse() {
 		payload_ = section.payload();
 		int offset = 6;
@@ -1362,21 +1362,21 @@ private:
 		}
 		switch (section.table_id()) {
 		case 0x70: // TDT
-			{
-				TDT tdt(section);
-				if (tdt.parse() && tdt.check()) {
-					selectorHandler->onTime(clock, tdt.JST_time());
-				}
+		{
+			TDT tdt(section);
+			if (tdt.parse() && tdt.check()) {
+				selectorHandler->onTime(clock, tdt.JST_time());
 			}
-			break;
+		}
+		break;
 		case 0x73: // TOT
-			{
-				TOT tot(section);
-				if (tot.parse() && tot.check()) {
-					selectorHandler->onTime(clock, tot.JST_time());
-				}
+		{
+			TOT tot(section);
+			if (tot.parse() && tot.check()) {
+				selectorHandler->onTime(clock, tot.JST_time());
 			}
-			break;
+		}
+		break;
 		}
 	}
 
@@ -1518,7 +1518,7 @@ private:
 				if (tag != NULL) {
 					ctx.infoF("PID: 0x%04x TYPE: %s TAG: %s(0x%02x)", elem.elementary_PID(), content, tag, component_tag);
 				}
-				else if(component_tag != -1) {
+				else if (component_tag != -1) {
 					ctx.infoF("PID: 0x%04x TYPE: %s TAG: •s–¾(0x%02x)", elem.elementary_PID(), content, component_tag);
 				}
 				else {

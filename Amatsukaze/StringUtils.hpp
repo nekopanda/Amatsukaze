@@ -26,166 +26,166 @@ typedef char tchar;
 
 template <typename ... Args>
 int sscanfT(const wchar_t* buffer, const wchar_t* format, const Args& ... args) {
-  return swscanf_s(buffer, format, args ...);
+	return swscanf_s(buffer, format, args ...);
 }
 template <typename ... Args>
 int sscanfT(const char* buffer, const char* format, const Args& ... args) {
-  return sscanf(buffer, format, args ...);
+	return sscanf(buffer, format, args ...);
 }
 
 size_t strlenT(const wchar_t* string) {
-  return wcslen(string);
+	return wcslen(string);
 }
 size_t strlenT(const char* string) {
-  return strlen(string);
+	return strlen(string);
 }
 
 int stricmpT(const wchar_t* string1, const wchar_t* string2) {
-  return _wcsicmp(string1, string2);
+	return _wcsicmp(string1, string2);
 }
 int stricmpT(const char* string1, const char* string2) {
-  return _stricmp(string1, string2);
+	return _stricmp(string1, string2);
 }
 
 int rmdirT(const wchar_t* dirname) {
-  return _wrmdir(dirname);
+	return _wrmdir(dirname);
 }
 int rmdirT(const char* dirname) {
-  return _rmdir(dirname);
+	return _rmdir(dirname);
 }
 
 int mkdirT(const wchar_t* dirname) {
-  return _wmkdir(dirname);
+	return _wmkdir(dirname);
 }
 int mkdirT(const char* dirname) {
-  return _mkdir(dirname);
+	return _mkdir(dirname);
 }
 
 int removeT(const wchar_t* dirname) {
-  return _wremove(dirname);
+	return _wremove(dirname);
 }
 int removeT(const char* dirname) {
-  return remove(dirname);
+	return remove(dirname);
 }
 
 FILE* fsopenT(const wchar_t* FileName, const wchar_t* Mode, int ShFlag) {
-  return _wfsopen(FileName, Mode, ShFlag);
+	return _wfsopen(FileName, Mode, ShFlag);
 }
 
 FILE* fsopenT(const char* FileName, const char* Mode, int ShFlag) {
-  return _fsopen(FileName, Mode, ShFlag);
+	return _fsopen(FileName, Mode, ShFlag);
 }
 
 
 namespace string_internal {
 
-	// null終端があるので
-	static std::vector<char> to_string(std::wstring str) {
-		if (str.size() == 0) {
-			return std::vector<char>(1);
-		}
-		int dstlen = WideCharToMultiByte(
-			CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0, NULL, NULL);
-		std::vector<char> ret(dstlen + 1);
-		WideCharToMultiByte(CP_ACP, 0,
-			str.c_str(), (int)str.size(), ret.data(), (int)ret.size(), NULL, NULL);
-		ret.back() = 0; // null terminate
-		return ret;
+// null終端があるので
+static std::vector<char> to_string(std::wstring str) {
+	if (str.size() == 0) {
+		return std::vector<char>(1);
 	}
-	static std::vector<wchar_t> to_wstring(std::string str) {
-		if (str.size() == 0) {
-			return std::vector<wchar_t>(1);
-		}
-		int dstlen = MultiByteToWideChar(
-			CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0);
-		std::vector<wchar_t> ret(dstlen + 1);
-		MultiByteToWideChar(CP_ACP, 0,
-			str.c_str(), (int)str.size(), ret.data(), (int)ret.size());
-		ret.back() = 0; // null terminate
-		return ret;
+	int dstlen = WideCharToMultiByte(
+		CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0, NULL, NULL);
+	std::vector<char> ret(dstlen + 1);
+	WideCharToMultiByte(CP_ACP, 0,
+		str.c_str(), (int)str.size(), ret.data(), (int)ret.size(), NULL, NULL);
+	ret.back() = 0; // null terminate
+	return ret;
+}
+static std::vector<wchar_t> to_wstring(std::string str) {
+	if (str.size() == 0) {
+		return std::vector<wchar_t>(1);
+	}
+	int dstlen = MultiByteToWideChar(
+		CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0);
+	std::vector<wchar_t> ret(dstlen + 1);
+	MultiByteToWideChar(CP_ACP, 0,
+		str.c_str(), (int)str.size(), ret.data(), (int)ret.size());
+	ret.back() = 0; // null terminate
+	return ret;
+}
+
+class MakeArgContext {
+	std::vector<std::vector<char>> args;
+public:
+	template <typename T> const char* arg(const T& value) {
+		args.push_back(to_string(value));
+		return args.back().data();
+	}
+};
+
+class MakeArgWContext {
+	std::vector<std::vector<wchar_t>> args;
+public:
+	template <typename T> const wchar_t* arg(const T& value) {
+		args.push_back(to_wstring(value));
+		return args.back().data();
+	}
+};
+
+template <typename T> T MakeArg(MakeArgContext& ctx, T value) { return value; }
+template <typename T> T MakeArgW(MakeArgWContext& ctx, T value) { return value; }
+
+const char* MakeArg(MakeArgContext& ctx, const char* value) { return value; }
+const char* MakeArg(MakeArgContext& ctx, const wchar_t* value) { return ctx.arg(value); }
+const char* MakeArg(MakeArgContext& ctx, const std::string& value) { return value.c_str(); }
+const char* MakeArg(MakeArgContext& ctx, const std::wstring& value) { return ctx.arg(value); }
+
+const wchar_t* MakeArgW(MakeArgWContext& ctx, const char* value) { return ctx.arg(value); }
+const wchar_t* MakeArgW(MakeArgWContext& ctx, const wchar_t* value) { return value; }
+const wchar_t* MakeArgW(MakeArgWContext& ctx, const std::string& value) { return ctx.arg(value); }
+const wchar_t* MakeArgW(MakeArgWContext& ctx, const std::wstring& value) { return value.c_str(); }
+
+class StringBuilderBase {
+public:
+	StringBuilderBase() { }
+
+	MemoryChunk getMC() {
+		return buffer.get();
 	}
 
-  class MakeArgContext {
-    std::vector<std::vector<char>> args;
-  public:
-    template <typename T> const char* arg(const T& value) {
-      args.push_back(to_string(value));
-      return args.back().data();
-    }
-  };
+	void clear() {
+		buffer.clear();
+	}
 
-  class MakeArgWContext {
-    std::vector<std::vector<wchar_t>> args;
-  public:
-    template <typename T> const wchar_t* arg(const T& value) {
-      args.push_back(to_wstring(value));
-      return args.back().data();
-    }
-  };
-
-  template <typename T> T MakeArg(MakeArgContext& ctx, T value) { return value; }
-  template <typename T> T MakeArgW(MakeArgWContext& ctx, T value) { return value; }
-
-	const char* MakeArg(MakeArgContext& ctx, const char* value) { return value; }
-	const char* MakeArg(MakeArgContext& ctx, const wchar_t* value) { return ctx.arg(value); }
-	const char* MakeArg(MakeArgContext& ctx, const std::string& value) { return value.c_str(); }
-	const char* MakeArg(MakeArgContext& ctx, const std::wstring& value) { return ctx.arg(value); }
-
-	const wchar_t* MakeArgW(MakeArgWContext& ctx, const char* value) { return ctx.arg(value); }
-	const wchar_t* MakeArgW(MakeArgWContext& ctx, const wchar_t* value) { return value; }
-	const wchar_t* MakeArgW(MakeArgWContext& ctx, const std::string& value) { return ctx.arg(value); }
-	const wchar_t* MakeArgW(MakeArgWContext& ctx, const std::wstring& value) { return value.c_str(); }
-
-	class StringBuilderBase {
-	public:
-		StringBuilderBase() { }
-
-		MemoryChunk getMC() {
-			return buffer.get();
-		}
-
-		void clear() {
-			buffer.clear();
-		}
-
-	protected:
-		AutoBuffer buffer;
-	};
+protected:
+	AutoBuffer buffer;
+};
 }
 
 static std::string to_string(const std::wstring& str) {
-  std::vector<char> ret = string_internal::to_string(str);
-  return std::string(ret.begin(), ret.end());
+	std::vector<char> ret = string_internal::to_string(str);
+	return std::string(ret.begin(), ret.end());
 }
 
 static std::string to_string(const std::string& str) {
-  return str;
+	return str;
 }
 
 static std::wstring to_wstring(const std::wstring& str) {
-  return str;
+	return str;
 }
 
 static std::wstring to_wstring(const std::string& str) {
-  std::vector<wchar_t> ret = string_internal::to_wstring(str);
-  return std::wstring(ret.begin(), ret.end());
+	std::vector<wchar_t> ret = string_internal::to_wstring(str);
+	return std::wstring(ret.begin(), ret.end());
 }
 
 #ifdef _MSC_VER
 static std::wstring to_tstring(const std::wstring& str) {
-  return str;
+	return str;
 }
 
 static std::wstring to_tstring(const std::string& str) {
-  return to_wstring(str);
+	return to_wstring(str);
 }
 #else
 static std::string to_tstring(const std::wstring& str) {
-  return to_string(str);
+	return to_string(str);
 }
 
 static std::string to_tstring(const std::string& str) {
-  return str;
+	return str;
 }
 #endif
 
@@ -193,7 +193,7 @@ template <typename ... Args>
 std::string StringFormat(const char* fmt, const Args& ... args)
 {
 	std::string str;
-  string_internal::MakeArgContext ctx;
+	string_internal::MakeArgContext ctx;
 	size_t size = _scprintf(fmt, string_internal::MakeArg(ctx, args) ...);
 	if (size > 0)
 	{
@@ -208,7 +208,7 @@ template <typename ... Args>
 std::wstring StringFormat(const wchar_t* fmt, const Args& ... args)
 {
 	std::wstring str;
-  string_internal::MakeArgWContext ctx;
+	string_internal::MakeArgWContext ctx;
 	size_t size = _scwprintf(fmt, string_internal::MakeArgW(ctx, args) ...);
 	if (size > 0)
 	{
@@ -225,12 +225,12 @@ public:
 	template <typename ... Args>
 	StringBuilder& append(const char* const fmt, Args const & ... args)
 	{
-    string_internal::MakeArgContext ctx;
+		string_internal::MakeArgContext ctx;
 		size_t size = _scprintf(fmt, string_internal::MakeArg(ctx, args) ...);
 		if (size > 0)
 		{
 			auto mc = buffer.space((int)((size + 1) * sizeof(char))); // null終端を足す
-			snprintf(reinterpret_cast<char*>(mc.data), mc.length / sizeof(char), 
+			snprintf(reinterpret_cast<char*>(mc.data), mc.length / sizeof(char),
 				fmt, string_internal::MakeArg(ctx, args) ...);
 		}
 		buffer.extend((int)(size * sizeof(char)));
@@ -251,7 +251,7 @@ public:
 	template <typename ... Args>
 	StringBuilderW& append(const wchar_t* const fmt, Args const & ... args)
 	{
-    string_internal::MakeArgWContext ctx;
+		string_internal::MakeArgWContext ctx;
 		size_t size = _scwprintf(fmt, string_internal::MakeArgW(ctx, args) ...);
 		if (size > 0)
 		{
@@ -280,58 +280,58 @@ typedef StringBuilder StringBuilderT;
 class StringLiner
 {
 public:
-  StringLiner() : searchIdx(0) { }
+	StringLiner() : searchIdx(0) { }
 
-  void AddBytes(MemoryChunk utf8) {
-    buffer.add(utf8);
-    while (SearchLineBreak());
-  }
+	void AddBytes(MemoryChunk utf8) {
+		buffer.add(utf8);
+		while (SearchLineBreak());
+	}
 
-  void Flush() {
-    if (buffer.size() > 0) {
-      OnTextLine(buffer.ptr(), (int)buffer.size(), 0);
-      buffer.clear();
-    }
-  }
+	void Flush() {
+		if (buffer.size() > 0) {
+			OnTextLine(buffer.ptr(), (int)buffer.size(), 0);
+			buffer.clear();
+		}
+	}
 
 protected:
-  AutoBuffer buffer;
-  int searchIdx;
+	AutoBuffer buffer;
+	int searchIdx;
 
-  virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) = 0;
+	virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) = 0;
 
-  bool SearchLineBreak() {
-    const uint8_t* ptr = buffer.ptr();
-    for (int i = searchIdx; i < buffer.size(); ++i) {
-      if (ptr[i] == '\n') {
-        int len = i;
-        int brlen = 1;
-        if (len > 0 && ptr[len - 1] == '\r') {
-          --len; ++brlen;
-        }
-        OnTextLine(ptr, len, brlen);
-        buffer.trimHead(i + 1);
-        searchIdx = 0;
-        return true;
-      }
-    }
-    searchIdx = (int)buffer.size();
-    return false;
-  }
+	bool SearchLineBreak() {
+		const uint8_t* ptr = buffer.ptr();
+		for (int i = searchIdx; i < buffer.size(); ++i) {
+			if (ptr[i] == '\n') {
+				int len = i;
+				int brlen = 1;
+				if (len > 0 && ptr[len - 1] == '\r') {
+					--len; ++brlen;
+				}
+				OnTextLine(ptr, len, brlen);
+				buffer.trimHead(i + 1);
+				searchIdx = 0;
+				return true;
+			}
+		}
+		searchIdx = (int)buffer.size();
+		return false;
+	}
 };
 
 std::vector<char> utf8ToString(const uint8_t* ptr, int sz) {
-  int dstlen = MultiByteToWideChar(
-    CP_UTF8, 0, (const char*)ptr, sz, nullptr, 0);
-  std::vector<wchar_t> w(dstlen);
-  MultiByteToWideChar(
-    CP_UTF8, 0, (const char*)ptr, sz, w.data(), (int)w.size());
-  dstlen = WideCharToMultiByte(
-    CP_ACP, 0, w.data(), (int)w.size(), nullptr, 0, nullptr, nullptr);
-  std::vector<char> ret(dstlen);
-  WideCharToMultiByte(CP_ACP, 0,
-    w.data(), (int)w.size(), ret.data(), (int)ret.size(), nullptr, nullptr);
-  return ret;
+	int dstlen = MultiByteToWideChar(
+		CP_UTF8, 0, (const char*)ptr, sz, nullptr, 0);
+	std::vector<wchar_t> w(dstlen);
+	MultiByteToWideChar(
+		CP_UTF8, 0, (const char*)ptr, sz, w.data(), (int)w.size());
+	dstlen = WideCharToMultiByte(
+		CP_ACP, 0, w.data(), (int)w.size(), nullptr, 0, nullptr, nullptr);
+	std::vector<char> ret(dstlen);
+	WideCharToMultiByte(CP_ACP, 0,
+		w.data(), (int)w.size(), ret.data(), (int)ret.size(), nullptr, nullptr);
+	return ret;
 }
 
 template <typename tchar>
@@ -342,7 +342,7 @@ std::vector<std::basic_string<tchar>> split(const std::basic_string<tchar>& text
 	text_.push_back(0); // null terminate
 	char* ctx;
 	ret.emplace_back(strtok_s(text_.data(), delimiters, &ctx));
-	while(1) {
+	while (1) {
 		const char* tp = strtok_s(NULL, delimiters, &ctx);
 		if (tp == nullptr) break;
 		ret.emplace_back(tp);
@@ -354,12 +354,12 @@ bool starts_with(const std::wstring& str, const std::wstring& test) {
 	return str.compare(0, test.size(), test) == 0;
 }
 bool starts_with(const std::string& str, const std::string& test) {
-  return str.compare(0, test.size(), test) == 0;
+	return str.compare(0, test.size(), test) == 0;
 }
 
 bool ends_with(const tstring & value, const tstring & ending)
 {
-  if (ending.size() > value.size()) return false;
-  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+	if (ending.size() > value.size()) return false;
+	return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 

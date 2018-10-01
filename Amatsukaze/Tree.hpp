@@ -163,7 +163,7 @@ class Tree
 		TreeNode<K, V>* x = root.left;
 		while (x != &nil) {
 			y = x;
-			if(z->key < x->key) { /* x.key > z.key */
+			if (z->key < x->key) { /* x.key > z.key */
 				x = x->left;
 			}
 			else { /* x,key <= z.key */

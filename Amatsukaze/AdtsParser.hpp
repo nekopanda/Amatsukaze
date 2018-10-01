@@ -158,7 +158,7 @@ public:
 
 		int ibytes = 0;
 		bytesConsumed_ = 0;
-		for ( ; ibytes < (int)frame.length - 1; ++ibytes) {
+		for (; ibytes < (int)frame.length - 1; ++ibytes) {
 			uint16_t syncword = (read16(&frame.data[ibytes]) >> 4);
 			if (syncword != 0xFFF) {
 				syncOK = false;
@@ -388,7 +388,7 @@ private:
 			{
 				AUDIO_333_523_3_2LFE,
 				16,{
-					(uint8_t)ID_SCE, (uint8_t)ID_CPE, (uint8_t)ID_CPE, (uint8_t)ID_CPE, (uint8_t)ID_CPE, 
+					(uint8_t)ID_SCE, (uint8_t)ID_CPE, (uint8_t)ID_CPE, (uint8_t)ID_CPE, (uint8_t)ID_CPE,
 					(uint8_t)ID_SCE, (uint8_t)ID_LFE, (uint8_t)ID_LFE,
 					(uint8_t)ID_SCE, (uint8_t)ID_CPE, (uint8_t)ID_CPE, (uint8_t)ID_SCE, (uint8_t)ID_CPE,
 					(uint8_t)ID_SCE, (uint8_t)ID_SCE, (uint8_t)ID_CPE

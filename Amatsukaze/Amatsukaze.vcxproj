@@ -154,7 +154,6 @@
     <ClInclude Include="AdtsParser.hpp" />
     <ClInclude Include="AmatsukazeCLI.hpp" />
     <ClInclude Include="AmatsukazeTestImpl.hpp" />
-    <ClInclude Include="AMTGenTime.hpp" />
     <ClInclude Include="AMTLogo.hpp" />
     <ClInclude Include="AMTSource.hpp" />
     <ClInclude Include="AribString.hpp" />

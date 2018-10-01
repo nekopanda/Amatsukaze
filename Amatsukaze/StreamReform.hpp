@@ -132,7 +132,7 @@ struct AudioDiffInfo {
 		sb.append(
 			"{ \"totalsrcframes\": %d, \"totaloutframes\": %d, \"totaloutuniqueframes\": %d, "
 			"\"notincludedper\": %g, \"avgdiff\": %g, \"maxdiff\": %g, \"maxdiffpos\": %g }",
-			totalSrcFrames, totalAudioFrames, totalUniquAudioFrames, 
+			totalSrcFrames, totalAudioFrames, totalUniquAudioFrames,
 			(double)notIncluded * 100 / totalSrcFrames, avgDiff, maxDiff, maxDiffPos);
 	}
 
@@ -903,12 +903,12 @@ private:
 		}
 		indexAudioFrameList_.resize(numMaxAudio);
 		for (int i = 0; i < (int)audioFrameList_.size(); ++i) {
-      // 短すぎてセクションとして認識されなかった部分に
-      // numMaxAudioを超える音声データが存在する可能性がある
-      // 音声数を超えている音声フレームは無視する
-      if (audioFrameList_[i].audioIdx < numMaxAudio) {
-        indexAudioFrameList_[audioFrameList_[i].audioIdx].push_back(i);
-      }
+			// 短すぎてセクションとして認識されなかった部分に
+			// numMaxAudioを超える音声データが存在する可能性がある
+			// 音声数を超えている音声フレームは無視する
+			if (audioFrameList_[i].audioIdx < numMaxAudio) {
+				indexAudioFrameList_[audioFrameList_[i].audioIdx].push_back(i);
+			}
 		}
 
 		// audioFileOffsets_を生成

@@ -107,7 +107,7 @@ struct H264SequenceParameterSet {
 			if (pic_order_cnt_type == 0) {
 				reader.readExpGolom(); // log2_max_pic_order_cnt_lsb_minus4
 			}
-			else if(pic_order_cnt_type == 1) {
+			else if (pic_order_cnt_type == 1) {
 				reader.read<1>(); // delta_pic_order_always_zero_flag
 				reader.readExpGolomSigned(); // offset_for_non_ref_pic
 				reader.readExpGolomSigned(); // offset_for_top_to_bottom_field
@@ -757,13 +757,13 @@ public:
 							break;
 						}
 					}
-          if (sei.has_pan_scan_rect) {
-            if (sei.pan_scan_rect_offset.size() > 0) {
-              auto& rect = sei.pan_scan_rect_offset[0];
-              format.displayWidth = (16 * format.width - rect.left + rect.right) >> 4;
-              format.displayHeight = (16 * format.height - rect.top + rect.bottom) >> 4;
-            }
-          }
+					if (sei.has_pan_scan_rect) {
+						if (sei.pan_scan_rect_offset.size() > 0) {
+							auto& rect = sei.pan_scan_rect_offset[0];
+							format.displayWidth = (16 * format.width - rect.left + rect.right) >> 4;
+							format.displayHeight = (16 * format.height - rect.top + rect.bottom) >> 4;
+						}
+					}
 
 					if (receivedField > 2) {
 						ctx.incrementCounter(AMT_ERR_H264_UNEXPECTED_FIELD);
@@ -801,12 +801,12 @@ public:
 					sei.updateSPS(&sps);
 
 					isGopStart = true;
-          format = VideoFormat(); // ‰Šú‰»
+					format = VideoFormat(); // ‰Šú‰»
 					format.format = VS_H264;
 					sps.getPicutureSize(format.width, format.height);
-          // Œã‚Åpan_scan‚ÅC³‚³‚ê‚é‚©‚à‚µ‚ê‚È‚¢‚ª‚Æ‚è‚ ‚¦‚¸“¯‚¶’l‚É‚µ‚Ä‚¨‚­
-          format.displayWidth = format.width;
-          format.displayHeight = format.height;
+					// Œã‚Åpan_scan‚ÅC³‚³‚ê‚é‚©‚à‚µ‚ê‚È‚¢‚ª‚Æ‚è‚ ‚¦‚¸“¯‚¶’l‚É‚µ‚Ä‚¨‚­
+					format.displayWidth = format.width;
+					format.displayHeight = format.height;
 					sps.getSAR(format.sarWidth, format.sarHeight);
 					sps.getFramteRate(format.frameRateNum, format.frameRateDenom, format.fixedFrameRate);
 					sps.getColorDesc(format.colorPrimaries,

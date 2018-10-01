@@ -134,7 +134,7 @@ static tstring makeEncoderArgs(
 	bool is120fps,
 	const tstring& outpath)
 {
-  StringBuilderT sb;
+	StringBuilderT sb;
 
 	sb.append(_T("\"%s\""), binpath);
 
@@ -382,7 +382,7 @@ public:
 			THROW(IOException, "一時ディレクトリ作成失敗");
 		}
 
-    tstring abolutePath;
+		tstring abolutePath;
 		int sz = GetFullPathNameW(path_.c_str(), 0, 0, 0);
 		abolutePath.resize(sz);
 		GetFullPathNameW(path_.c_str(), sz, &abolutePath[0], 0);
@@ -391,7 +391,7 @@ public:
 		initialized_ = true;
 	}
 
-  tstring path() const {
+	tstring path() const {
 		if (!initialized_) {
 			THROW(InvalidOperationException, "一時ディレクトリを作成していません");
 		}
@@ -399,11 +399,11 @@ public:
 	}
 
 private:
-  tstring path_;
+	tstring path_;
 	bool initialized_;
 	bool noRemoveTmp_;
 
-  tstring genPath(const tstring& base, int code)
+	tstring genPath(const tstring& base, int code)
 	{
 		return StringFormat(_T("%s/amt%d"), base, code);
 	}
@@ -431,29 +431,29 @@ static const char* GetNicoJKSuffix(NicoJKType type) {
 struct Config {
 	// 一時フォルダ
 	tstring workDir;
-  tstring mode;
-  tstring modeArgs; // テスト用
-	// 入力ファイルパス（拡張子を含む）
-  tstring srcFilePath;
+	tstring mode;
+	tstring modeArgs; // テスト用
+	   // 入力ファイルパス（拡張子を含む）
+	tstring srcFilePath;
 	// 出力ファイルパス（拡張子を除く）
-  tstring outVideoPath;
+	tstring outVideoPath;
 	// 結果情報JSON出力パス
-  tstring outInfoJsonPath;
+	tstring outInfoJsonPath;
 	// DRCSマッピングファイルパス
-  tstring drcsMapPath;
-  tstring drcsOutPath;
+	tstring drcsMapPath;
+	tstring drcsOutPath;
 	// フィルタパス
-  tstring filterScriptPath;
-  tstring postFilterScriptPath;
+	tstring filterScriptPath;
+	tstring postFilterScriptPath;
 	// エンコーダ設定
 	ENUM_ENCODER encoder;
-  tstring encoderPath;
-  tstring encoderOptions;
-  tstring muxerPath;
-  tstring timelineditorPath;
-  tstring mp4boxPath;
-  tstring nicoConvAssPath;
-  tstring nicoConvChSidPath;
+	tstring encoderPath;
+	tstring encoderOptions;
+	tstring muxerPath;
+	tstring timelineditorPath;
+	tstring mp4boxPath;
+	tstring nicoConvAssPath;
+	tstring nicoConvChSidPath;
 	ENUM_FORMAT format;
 	bool splitSub;
 	bool twoPass;
@@ -477,11 +477,11 @@ struct Config {
 	bool looseLogoDetection;
 	bool noDelogo;
 	bool vfr120fps;
-  tstring chapterExePath;
-  tstring chapterExeOptions;
-  tstring joinLogoScpPath;
-  tstring joinLogoScpCmdPath;
-  tstring joinLogoScpOptions;
+	tstring chapterExePath;
+	tstring chapterExeOptions;
+	tstring joinLogoScpPath;
+	tstring joinLogoScpCmdPath;
+	tstring joinLogoScpOptions;
 	int cmoutmask;
 	// 検出モード用
 	int maxframes;
@@ -519,27 +519,27 @@ public:
 		}
 	}
 
-  tstring getMode() const {
+	tstring getMode() const {
 		return conf.mode;
 	}
 
-  tstring getModeArgs() const {
+	tstring getModeArgs() const {
 		return conf.modeArgs;
 	}
 
-  tstring getSrcFilePath() const {
+	tstring getSrcFilePath() const {
 		return conf.srcFilePath;
 	}
 
-  tstring getOutInfoJsonPath() const {
+	tstring getOutInfoJsonPath() const {
 		return conf.outInfoJsonPath;
 	}
 
-  tstring getFilterScriptPath() const {
+	tstring getFilterScriptPath() const {
 		return conf.filterScriptPath;
 	}
 
-  tstring getPostFilterScriptPath() const {
+	tstring getPostFilterScriptPath() const {
 		return conf.postFilterScriptPath;
 	}
 
@@ -547,11 +547,11 @@ public:
 		return conf.encoder;
 	}
 
-  tstring getEncoderPath() const {
+	tstring getEncoderPath() const {
 		return conf.encoderPath;
 	}
 
-  tstring getEncoderOptions() const {
+	tstring getEncoderOptions() const {
 		return conf.encoderOptions;
 	}
 
@@ -563,23 +563,23 @@ public:
 		return conf.format != FORMAT_M2TS && conf.format != FORMAT_TS;
 	}
 
-  tstring getMuxerPath() const {
+	tstring getMuxerPath() const {
 		return conf.muxerPath;
 	}
 
-  tstring getTimelineEditorPath() const {
+	tstring getTimelineEditorPath() const {
 		return conf.timelineditorPath;
 	}
 
-  tstring getMp4BoxPath() const {
+	tstring getMp4BoxPath() const {
 		return conf.mp4boxPath;
 	}
 
-  tstring getNicoConvAssPath() const {
+	tstring getNicoConvAssPath() const {
 		return conf.nicoConvAssPath;
 	}
 
-  tstring getNicoConvChSidPath() const {
+	tstring getNicoConvChSidPath() const {
 		return conf.nicoConvChSidPath;
 	}
 
@@ -675,23 +675,23 @@ public:
 		return conf.vfr120fps;
 	}
 
-  tstring getChapterExePath() const {
+	tstring getChapterExePath() const {
 		return conf.chapterExePath;
 	}
 
-  tstring getChapterExeOptions() const {
-	  return conf.chapterExeOptions;
-  }
+	tstring getChapterExeOptions() const {
+		return conf.chapterExeOptions;
+	}
 
-  tstring getJoinLogoScpPath() const {
+	tstring getJoinLogoScpPath() const {
 		return conf.joinLogoScpPath;
 	}
 
-  tstring getJoinLogoScpCmdPath() const {
+	tstring getJoinLogoScpCmdPath() const {
 		return conf.joinLogoScpCmdPath;
 	}
 
-  tstring getJoinLogoScpOptions() const {
+	tstring getJoinLogoScpOptions() const {
 		return conf.joinLogoScpOptions;
 	}
 
@@ -731,31 +731,31 @@ public:
 		return conf.systemAvsPlugin;
 	}
 
-  tstring getAudioFilePath() const {
+	tstring getAudioFilePath() const {
 		return regtmp(StringFormat(_T("%s/audio.dat"), tmpDir.path()));
 	}
 
-  tstring getWaveFilePath() const {
+	tstring getWaveFilePath() const {
 		return regtmp(StringFormat(_T("%s/audio.wav"), tmpDir.path()));
 	}
 
-  tstring getIntVideoFilePath(int index) const {
+	tstring getIntVideoFilePath(int index) const {
 		return regtmp(StringFormat(_T("%s/i%d.mpg"), tmpDir.path(), index));
 	}
 
-  tstring getStreamInfoPath() const {
+	tstring getStreamInfoPath() const {
 		return conf.outVideoPath + _T("-streaminfo.dat");
 	}
 
-  tstring getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
+	tstring getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/v%d-%d%s.raw"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-  tstring getTimecodeFilePath(int vindex, int index, CMType cmtype) const {
+	tstring getTimecodeFilePath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/v%d-%d%s.timecode.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-  tstring getAvsTmpPath(int vindex, int index, CMType cmtype) const {
+	tstring getAvsTmpPath(int vindex, int index, CMType cmtype) const {
 		auto str = StringFormat(_T("%s/v%d-%d%s.avstmp"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);
 		// KFMCycleAnalyzeのデバッグダンプファイルも追加
@@ -763,13 +763,13 @@ public:
 		return str;
 	}
 
-  tstring getFilterAvsPath(int vindex, int index, CMType cmtype) const {
+	tstring getFilterAvsPath(int vindex, int index, CMType cmtype) const {
 		auto str = StringFormat(_T("%s/vfilter%d-%d%s.avs"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);
 		return str;
 	}
 
-  tstring getEncStatsFilePath(int vindex, int index, CMType cmtype) const
+	tstring getEncStatsFilePath(int vindex, int index, CMType cmtype) const
 	{
 		auto str = StringFormat(_T("%s/s%d-%d%s.log"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);
@@ -780,73 +780,73 @@ public:
 		return str;
 	}
 
-  tstring getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const {
+	tstring getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/a%d-%d-%d%s.aac"),
 			tmpDir.path(), vindex, index, aindex, GetCMSuffix(cmtype)));
 	}
 
-  tstring getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
+	tstring getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/c%d-%d-%d%s.ass"),
 			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
-  tstring getTmpSRTFilePath(int vindex, int index, int langindex, CMType cmtype) const {
+	tstring getTmpSRTFilePath(int vindex, int index, int langindex, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/c%d-%d-%d%s.srt"),
 			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
 	}
 
-  tstring getTmpAMTSourcePath(int vindex) const {
+	tstring getTmpAMTSourcePath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/amts%d.dat"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpSourceAVSPath(int vindex) const {
+	tstring getTmpSourceAVSPath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/amts%d.avs"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpLogoFramePath(int vindex) const {
+	tstring getTmpLogoFramePath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/logof%d.txt"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpChapterExePath(int vindex) const {
+	tstring getTmpChapterExePath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/chapter_exe%d.txt"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpChapterExeOutPath(int vindex) const {
+	tstring getTmpChapterExeOutPath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/chapter_exe_o%d.txt"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpTrimAVSPath(int vindex) const {
+	tstring getTmpTrimAVSPath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/trim%d.avs"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpJlsPath(int vindex) const {
+	tstring getTmpJlsPath(int vindex) const {
 		return regtmp(StringFormat(_T("%s/jls%d.txt"), tmpDir.path(), vindex));
 	}
 
-  tstring getTmpChapterPath(int vindex, int index, CMType cmtype) const {
+	tstring getTmpChapterPath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/chapter%d-%d%s.txt"),
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
-  tstring getTmpNicoJKXMLPath() const {
+	tstring getTmpNicoJKXMLPath() const {
 		return regtmp(StringFormat(_T("%s/nicojk.xml"), tmpDir.path()));
 	}
 
-  tstring getTmpNicoJKASSPath(NicoJKType type) const {
+	tstring getTmpNicoJKASSPath(NicoJKType type) const {
 		return regtmp(StringFormat(_T("%s/nicojk%s.ass"), tmpDir.path(), GetNicoJKSuffix(type)));
 	}
 
-  tstring getTmpNicoJKASSPath(int vindex, int index, CMType cmtype, NicoJKType type) const {
+	tstring getTmpNicoJKASSPath(int vindex, int index, CMType cmtype, NicoJKType type) const {
 		return regtmp(StringFormat(_T("%s/nicojk%d-%d%s%s.ass"),
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), GetNicoJKSuffix(type)));
 	}
 
-  tstring getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
+	tstring getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/t%d-%d%s.%s"),
 			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), getOutputExtention()));
 	}
 
-  tstring getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {
+	tstring getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/t%d-%d%s.meta"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
@@ -860,8 +860,8 @@ public:
 		return "amatsukze";
 	}
 
-  tstring getOutFilePath(int index, CMType cmtype) const {
-    StringBuilderT sb;
+	tstring getOutFilePath(int index, CMType cmtype) const {
+		StringBuilderT sb;
 		sb.append(_T("%s"), conf.outVideoPath);
 		if (index != 0) {
 			sb.append(_T("-%d"), index);
@@ -870,7 +870,7 @@ public:
 		return sb.str();
 	}
 
-  tstring getOutASSPath(int index, int langidx, CMType cmtype, NicoJKType jktype) const {
+	tstring getOutASSPath(int index, int langidx, CMType cmtype, NicoJKType jktype) const {
 		StringBuilderT sb;
 		sb.append(_T("%s"), conf.outVideoPath);
 		if (index != 0) {
@@ -887,15 +887,15 @@ public:
 		return sb.str();
 	}
 
-  tstring getOutSummaryPath() const {
+	tstring getOutSummaryPath() const {
 		return StringFormat(_T("%s.txt"), conf.outVideoPath);
 	}
 
-  tstring getDRCSMapPath() const {
+	tstring getDRCSMapPath() const {
 		return conf.drcsMapPath;
 	}
 
-  tstring getDRCSOutPath(const std::string& md5) const {
+	tstring getDRCSOutPath(const std::string& md5) const {
 		return StringFormat(_T("%s\\%s.bmp"), conf.drcsOutPath, md5);
 	}
 
@@ -903,7 +903,7 @@ public:
 		return conf.dumpFilter;
 	}
 
-  tstring getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
+	tstring getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
 		return regtmp(StringFormat(_T("%s/graph%d-%d%s.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
 	}
 
@@ -923,7 +923,7 @@ public:
 		return true;
 	}
 
-  tstring getOptions(
+	tstring getOptions(
 		int numFrames,
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale,
@@ -1048,7 +1048,7 @@ private:
 		return "unknown";
 	}
 
-  tstring regtmp(tstring str) const {
+	tstring regtmp(tstring str) const {
 		ctx.registerTmpFile(str);
 		return str;
 	}
@@ -1064,7 +1064,7 @@ public:
 	tstring getOutFilePath() const {
 		return setting_.getOutFilePath(index_, cmtype_);
 	}
-  tstring getOutASSPath(int langidx, NicoJKType jktype) const {
+	tstring getOutASSPath(int langidx, NicoJKType jktype) const {
 		return setting_.getOutASSPath(index_, langidx, cmtype_, jktype);
 	}
 private:

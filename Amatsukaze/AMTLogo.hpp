@@ -108,11 +108,11 @@ protected:
 		}
 		else {
 			temp = B / (1 - A) + 0.5f;
-			if (std::abs(temp)<0x7FFF) {
+			if (std::abs(temp) < 0x7FFF) {
 				// short‚Ì”ÍˆÍ“à
 				lgp.y = (short)temp;
 				temp = (1 - A) * LOGO_MAX_DP + 0.5f;
-				if (std::abs(temp)>0x3FFF || short(temp) == 0)
+				if (std::abs(temp) > 0x3FFF || short(temp) == 0)
 					lgp.y = lgp.dp_y = 0;
 				else
 					lgp.dp_y = (short)temp;
@@ -130,11 +130,11 @@ protected:
 		}
 		else {
 			temp = B / (1 - A) + 0.5f;
-			if (std::abs(temp)<0x7FFF) {
+			if (std::abs(temp) < 0x7FFF) {
 				// short”ÍˆÍ“à
 				lgp.cb = (short)temp;
 				temp = (1 - A) * LOGO_MAX_DP + 0.5f;
-				if (std::abs(temp)>0x3FFF || short(temp) == 0)
+				if (std::abs(temp) > 0x3FFF || short(temp) == 0)
 					lgp.cb = lgp.dp_cb = 0;
 				else
 					lgp.dp_cb = (short)temp;
@@ -152,11 +152,11 @@ protected:
 		}
 		else {
 			temp = B / (1 - A) + 0.5f;
-			if (std::abs(temp)<0x7FFF) {
+			if (std::abs(temp) < 0x7FFF) {
 				// short”ÍˆÍ“à
 				lgp.cr = (short)temp;
 				temp = (1 - A) * LOGO_MAX_DP + 0.5f;
-				if (std::abs(temp)>0x3FFF || short(temp) == 0)
+				if (std::abs(temp) > 0x3FFF || short(temp) == 0)
 					lgp.cr = lgp.dp_cr = 0;
 				else
 					lgp.dp_cr = (short)temp;

@@ -18,7 +18,7 @@ struct Exception {
 	virtual const char* message() const {
 		return "No Message ...";
 	};
-	virtual void raise() const { throw *this;	}
+	virtual void raise() const { throw *this; }
 };
 
 #define DEFINE_EXCEPTION(name) \
@@ -136,7 +136,7 @@ public:
 	MemoryChunk get() const {
 		return MemoryChunk(&data_[head_], size());
 	}
-	
+
 	/** @brief 追加スペース取得 */
 	MemoryChunk space(int at_least = 0) {
 		if (at_least > 0) {
@@ -223,17 +223,17 @@ private:
 #include "StringUtils.hpp"
 
 DWORD GetFullPathNameT(LPCWSTR lpFileName, DWORD nBufferLength, LPWSTR lpBuffer, LPWSTR* lpFilePart) {
-  return GetFullPathNameW(lpFileName, nBufferLength, lpBuffer, lpFilePart);
+	return GetFullPathNameW(lpFileName, nBufferLength, lpBuffer, lpFilePart);
 }
 
 DWORD GetFullPathNameT(LPCSTR lpFileName, DWORD nBufferLength, LPSTR lpBuffer, LPSTR* lpFilePart) {
-  return GetFullPathNameA(lpFileName, nBufferLength, lpBuffer, lpFilePart);
+	return GetFullPathNameA(lpFileName, nBufferLength, lpBuffer, lpFilePart);
 }
 
 template <typename Char>
 std::basic_string<Char> GetFullPath(const std::basic_string<Char>& path)
 {
-  Char buf[AMT_MAX_PATH];
+	Char buf[AMT_MAX_PATH];
 	int sz = GetFullPathNameT(path.c_str(), AMT_MAX_PATH, buf, nullptr);
 	if (sz >= AMT_MAX_PATH) {
 		THROWF(IOException, "パスが長すぎます: %s", path);
@@ -247,12 +247,12 @@ std::basic_string<Char> GetFullPath(const std::basic_string<Char>& path)
 class File : NonCopyable
 {
 public:
-  File(const tstring& path, const tchar* mode) {
-    fp_ = fsopenT(path.c_str(), mode, _SH_DENYNO);
-    if (fp_ == NULL) {
-      THROWF(IOException, "ファイルを開けません: %s", GetFullPath(path));
-    }
-  }
+	File(const tstring& path, const tchar* mode) {
+		fp_ = fsopenT(path.c_str(), mode, _SH_DENYNO);
+		if (fp_ == NULL) {
+			THROWF(IOException, "ファイルを開けません: %s", GetFullPath(path));
+		}
+	}
 	~File() {
 		fclose(fp_);
 	}
@@ -343,7 +343,7 @@ public:
 		enum { BUF_SIZE = 200 };
 		char buf[BUF_SIZE];
 		line.clear();
-		while(1) {
+		while (1) {
 			buf[BUF_SIZE - 2] = 0;
 			if (fgets(buf, BUF_SIZE, fp_) == nullptr) {
 				return line.size() > 0;

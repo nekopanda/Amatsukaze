@@ -151,10 +151,10 @@ static int ReadTS(AMTContext& ctx, const ConfigWrapper& setting)
 static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	tstring srcfile = setting.getSrcFilePath() + _T(".aac");
-  tstring testfile = setting.getSrcFilePath() + _T(".wav");
+	tstring testfile = setting.getSrcFilePath() + _T(".wav");
 
-  FILE* fp = fsopenT(srcfile.c_str(), _T("rb"), _SH_DENYNO);
-  if (fp == nullptr) {
+	FILE* fp = fsopenT(srcfile.c_str(), _T("rb"), _SH_DENYNO);
+	if (fp == nullptr) {
 		return 1;
 	}
 
@@ -190,11 +190,11 @@ static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	// ê≥âÉfÅ[É^Ç∆î‰är
-  FILE* testfp = fsopenT(testfile.c_str(), _T("rb"), _SH_DENYNO);
-  if (testfp == nullptr) {
+	FILE* testfp = fsopenT(testfile.c_str(), _T("rb"), _SH_DENYNO);
+	if (testfp == nullptr) {
 		return 1;
 	}
-	
+
 	auto testbuf = std::unique_ptr<uint8_t>(new uint8_t[BUF_SIZE]);
 	size_t testBytes = fread(testbuf.get(), 1, BUF_SIZE, testfp);
 	// data chunkÇíTÇ∑
@@ -234,8 +234,8 @@ static int WaveWriteHeader(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	tstring dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
 
-  FILE* fp = fsopenT(dstfile.c_str(), _T("wb"), _SH_DENYNO);
-  if (fp == nullptr) {
+	FILE* fp = fsopenT(dstfile.c_str(), _T("wb"), _SH_DENYNO);
+	if (fp == nullptr) {
 		fprintf(stderr, "failed to open file...\n");
 		return 1;
 	}
@@ -437,7 +437,7 @@ static int LogoFrameTest(AMTContext& ctx, const ConfigWrapper& setting)
 		logof.writeResult(setting.getTmpLogoFramePath(0));
 
 		ctx.infoF("BestLogo: %s\n", setting.getLogoPath()[logof.getBestLogo()].c_str());
-    ctx.infoF("LogoRatio: %f\n", logof.getLogoRatio());
+		ctx.infoF("LogoRatio: %f\n", logof.getLogoRatio());
 	}
 
 	return 0;
@@ -531,7 +531,7 @@ static int CaptionASS(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	try {
 		StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
-		
+
 		reformInfo.prepare(false);
 		auto audioDiffInfo = reformInfo.genAudio();
 		audioDiffInfo.printAudioPtsDiff(ctx);
@@ -632,35 +632,35 @@ static int DecodePerformance(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
 {
-  std::vector<int> durations;
-  for (int i = 0; i < 30; ++i) {
-    durations.push_back(2);
-    durations.push_back(3);
-  }
-  for (int i = 0; i < 40; ++i) {
-    durations.push_back(1);
-  }
-  for (int i = 0; i < 50; ++i) {
-    durations.push_back(2);
-  }
-  std::vector<EncoderZone> cmzones;
-  cmzones.push_back(EncoderZone{ 40, 80 });
-  cmzones.push_back(EncoderZone{ 110, 130 });
+	std::vector<int> durations;
+	for (int i = 0; i < 30; ++i) {
+		durations.push_back(2);
+		durations.push_back(3);
+	}
+	for (int i = 0; i < 40; ++i) {
+		durations.push_back(1);
+	}
+	for (int i = 0; i < 50; ++i) {
+		durations.push_back(2);
+	}
+	std::vector<EncoderZone> cmzones;
+	cmzones.push_back(EncoderZone{ 40, 80 });
+	cmzones.push_back(EncoderZone{ 110, 130 });
 
-  auto ret = MakeVFRBitrateZones(durations, cmzones, 0.6, 60000, 1001, 1.0, 0.15);
+	auto ret = MakeVFRBitrateZones(durations, cmzones, 0.6, 60000, 1001, 1.0, 0.15);
 
-  if (ret.size() != 3) THROW(TestException, "");
-  if (ret[0].startFrame != 0) THROW(TestException, "");
-  if (ret[0].endFrame != 40) THROW(TestException, "");
-  if (ret[0].bitrate != 2.5) THROW(TestException, "");
-  if (ret[1].startFrame != 40) THROW(TestException, "");
-  if (ret[1].endFrame != 128) THROW(TestException, "");
-  if (std::abs(1.195 - ret[1].bitrate) > 0.01) THROW(TestException, "");
-  if (ret[2].startFrame != 128) THROW(TestException, "");
-  if (ret[2].endFrame != 150) THROW(TestException, "");
-  if (ret[2].bitrate != 2.0) THROW(TestException, "");
+	if (ret.size() != 3) THROW(TestException, "");
+	if (ret[0].startFrame != 0) THROW(TestException, "");
+	if (ret[0].endFrame != 40) THROW(TestException, "");
+	if (ret[0].bitrate != 2.5) THROW(TestException, "");
+	if (ret[1].startFrame != 40) THROW(TestException, "");
+	if (ret[1].endFrame != 128) THROW(TestException, "");
+	if (std::abs(1.195 - ret[1].bitrate) > 0.01) THROW(TestException, "");
+	if (ret[2].startFrame != 128) THROW(TestException, "");
+	if (ret[2].endFrame != 150) THROW(TestException, "");
+	if (ret[2].bitrate != 2.0) THROW(TestException, "");
 
-  return 0;
+	return 0;
 }
 
 static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)

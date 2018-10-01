@@ -13,12 +13,12 @@ class Stopwatch
 {
 	int64_t sum;
 	int64_t prev;
-  int64_t freq;
+	int64_t freq;
 public:
 	Stopwatch()
 		: sum(0)
 	{
-    QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+		QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
 	}
 
 	void reset() {
@@ -29,11 +29,11 @@ public:
 		QueryPerformanceCounter((LARGE_INTEGER*)&prev);
 	}
 
-  double current() {
-    int64_t cur;
-    QueryPerformanceCounter((LARGE_INTEGER*)&cur);
-    return (double)(cur - prev) / freq;
-  }
+	double current() {
+		int64_t cur;
+		QueryPerformanceCounter((LARGE_INTEGER*)&cur);
+		return (double)(cur - prev) / freq;
+	}
 
 	void stop() {
 		int64_t cur;

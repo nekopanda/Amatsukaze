@@ -464,8 +464,8 @@ void DoBadThing() {
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
 #if 0
-  MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
-  //DoBadThing();
+	MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
+	//DoBadThing();
 #endif
 
 	const_cast<ConfigWrapper&>(setting).CreateTempDir();
@@ -733,7 +733,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						for (int i = 0; i < (int)pass.size(); ++i) {
 							encoderArgs.push_back(
 								argGen->GenEncoderOptions(
-									(frameDurations.size() > 0) ? (int)frameDurations.size() : outvi.num_frames,
+								(frameDurations.size() > 0) ? (int)frameDurations.size() : outvi.num_frames,
 									outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
 									videoFileIndex, encoderIndex, cmtype, pass[i]));
 						}

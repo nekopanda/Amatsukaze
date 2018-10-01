@@ -89,7 +89,7 @@ private:
 		sb.append(L",");
 		time(line.end);
 		sb.append(L",Default,,0000,0000,0000,,");
-		
+
 		// 途中で解像度が変わったとき用
 		float scalex = (float)PlayResX / line.line->planeW;
 		float scaley = (float)PlayResY / line.line->planeH;
@@ -97,7 +97,7 @@ private:
 		auto& fmts = line.line->formats;
 		int nfrags = (int)fmts.size();
 		auto& text = line.line->text;
-		
+
 		for (int i = 0; i < nfrags; ++i) {
 			int begin = fmts[i].pos;
 			int end = (i + 1 < nfrags) ? fmts[i + 1].pos : (int)text.size();
@@ -128,7 +128,7 @@ private:
 		setFontSize(fsx * scalex, fsy * scaley);
 		setSpacing((int)std::round(spacing * scalex));
 		setStyle(fmt.style);
-		
+
 		if (attr.getMC().length > 0) {
 			// オーバーライドコード出力
 			sb.append(L"{%s}", attr.str());
@@ -169,7 +169,7 @@ private:
 
 	void setFontSize(float fsx, float fsy) {
 		if (curState.fsx != fsx) {
-			attr.append(L"\\fscx%d",(int)(fsx * 100));
+			attr.append(L"\\fscx%d", (int)(fsx * 100));
 			curState.fsx = fsx;
 		}
 		if (curState.fsy != fsy) {

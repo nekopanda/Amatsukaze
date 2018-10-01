@@ -144,7 +144,7 @@ class AMTSource : public IClip, AMTObject
 		// export_mvs for codecview
 		//AVDictionary *opts = NULL;
 		//av_dict_set(&opts, "flags2", "+export_mvs", 0);
-		
+
 		if (avcodec_open2(codecCtx(), pCodec, NULL) != 0) {
 			env->ThrowError("avcodec_open2 failed");
 		}

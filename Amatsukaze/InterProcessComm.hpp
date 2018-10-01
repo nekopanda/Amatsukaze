@@ -75,11 +75,11 @@ static std::string toJsonString(const tstring& str) {
 }
 
 enum PipeCommand {
-  HOST_CMD_TSAnalyze = 0,
-  HOST_CMD_CMAnalyze,
-  HOST_CMD_Filter,
-  HOST_CMD_Encode,
-  HOST_CMD_Mux,
+	HOST_CMD_TSAnalyze = 0,
+	HOST_CMD_CMAnalyze,
+	HOST_CMD_Filter,
+	HOST_CMD_Encode,
+	HOST_CMD_Mux,
 
 	HOST_CMD_NoWait = 0x100,
 };
@@ -124,14 +124,14 @@ class ResourceManger : AMTObject
 		write(MemoryChunk((uint8_t*)&cmd, 4));
 	}
 
-  /*
-	void write(int cmd, const std::string& json) {
-		write(MemoryChunk((uint8_t*)&cmd, 4));
-		int sz = (int)json.size();
-		write(MemoryChunk((uint8_t*)&sz, 4));
-		write(MemoryChunk((uint8_t*)json.data(), sz));
-	}
-  */
+	/*
+	   void write(int cmd, const std::string& json) {
+		   write(MemoryChunk((uint8_t*)&cmd, 4));
+		   int sz = (int)json.size();
+		   write(MemoryChunk((uint8_t*)&sz, 4));
+		   write(MemoryChunk((uint8_t*)json.data(), sz));
+	   }
+	*/
 
 	static ResourceAllocation DefaultAllocation() {
 		ResourceAllocation res = { 0, -1, 0 };
@@ -143,9 +143,9 @@ class ResourceManger : AMTObject
 		int32_t cmd;
 		ResourceAllocation res;
 		read(MemoryChunk((uint8_t*)&cmd, sizeof(cmd)));
-    if (cmd != expected) {
-      THROW(RuntimeException, "invalid return command");
-    }
+		if (cmd != expected) {
+			THROW(RuntimeException, "invalid return command");
+		}
 		read(MemoryChunk((uint8_t*)&res, sizeof(res)));
 		return res;
 	}
@@ -167,17 +167,17 @@ public:
 
 	// リソース確保できるまで待つ
 	ResourceAllocation wait(PipeCommand phase) const {
-    if (inPipe == INVALID_HANDLE_VALUE) {
+		if (inPipe == INVALID_HANDLE_VALUE) {
 			return DefaultAllocation();
-    }
+		}
 		ResourceAllocation ret = request(phase);
-    if (ret.IsFailed()) {
-      writeCommand(phase);
-      ctx.progress("リソース待ち ...");
-      Stopwatch sw; sw.start();
-      ret = readCommand(phase);
-      ctx.infoF("リソース待ち %.2f秒", sw.getAndReset());
-    }
+		if (ret.IsFailed()) {
+			writeCommand(phase);
+			ctx.progress("リソース待ち ...");
+			Stopwatch sw; sw.start();
+			ret = readCommand(phase);
+			ctx.infoF("リソース待ち %.2f秒", sw.getAndReset());
+		}
 		return ret;
 	}
 };

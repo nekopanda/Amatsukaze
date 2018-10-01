@@ -34,7 +34,7 @@ enum {
 
 inline static int nblocks(int n, int block)
 {
-  return (n + block - 1) / block;
+	return (n + block - 1) / block;
 }
 
 /** @brief shiftだけ右シフトしてmask数bitだけ返す(bit shift mask) */
@@ -229,7 +229,7 @@ public:
 		if (filled + bits > 64) {
 			store();
 		}
-		current |= (((uint64_t)data & ((uint64_t(1)<<bits)-1)) << (64 - filled - bits));
+		current |= (((uint64_t)data & ((uint64_t(1) << bits) - 1)) << (64 - filled - bits));
 		filled += bits;
 	}
 
@@ -312,22 +312,22 @@ enum AMT_LOG_LEVEL {
 };
 
 enum AMT_ERROR_COUNTER {
-   // 不明なPTSのフレーム
-   AMT_ERR_UNKNOWN_PTS = 0,
-   // PESパケットデコードエラー
-   AMT_ERR_DECODE_PACKET_FAILED,
-   // H264におけるPTSミスマッチ
-   AMT_ERR_H264_PTS_MISMATCH,
-   // H264におけるフィールド配置エラー
-   AMT_ERR_H264_UNEXPECTED_FIELD,
-   // PTSが戻っている
-   AMT_ERR_NON_CONTINUOUS_PTS,
-   // DRCSマッピングがない
-   AMT_ERR_NO_DRCS_MAP,
-	 // 音声でコードエラー
-	 AMT_ERR_DECODE_AUDIO,
-   // エラーの個数
-   AMT_ERR_MAX,
+	// 不明なPTSのフレーム
+	AMT_ERR_UNKNOWN_PTS = 0,
+	// PESパケットデコードエラー
+	AMT_ERR_DECODE_PACKET_FAILED,
+	// H264におけるPTSミスマッチ
+	AMT_ERR_H264_PTS_MISMATCH,
+	// H264におけるフィールド配置エラー
+	AMT_ERR_H264_UNEXPECTED_FIELD,
+	// PTSが戻っている
+	AMT_ERR_NON_CONTINUOUS_PTS,
+	// DRCSマッピングがない
+	AMT_ERR_NO_DRCS_MAP,
+	// 音声でコードエラー
+	AMT_ERR_DECODE_AUDIO,
+	// エラーの個数
+	AMT_ERR_MAX,
 };
 
 const char* AMT_ERROR_NAMES[] = {
@@ -345,7 +345,7 @@ public:
 	AMTContext()
 		: debugEnabled(true)
 		, acp(GetACP())
-      , errCounter()
+		, errCounter()
 	{ }
 
 	const CRC32* getCRC() const {
@@ -359,7 +359,7 @@ public:
 		if (!debugEnabled) return;
 		print(str, AMT_LOG_DEBUG);
 	}
-  template <typename ... Args>
+	template <typename ... Args>
 	void debugF(const char *fmt, const Args& ... args) const {
 		if (!debugEnabled) return;
 		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_DEBUG);
@@ -367,28 +367,28 @@ public:
 	void info(const char *str) const {
 		print(str, AMT_LOG_INFO);
 	}
-  template <typename ... Args>
+	template <typename ... Args>
 	void infoF(const char *fmt, const Args& ... args) const {
 		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_INFO);
 	}
 	void warn(const char *str) const {
 		print(str, AMT_LOG_WARN);
 	}
-  template <typename ... Args>
+	template <typename ... Args>
 	void warnF(const char *fmt, const Args& ... args) const {
 		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_WARN);
 	}
 	void error(const char *str) const {
 		print(str, AMT_LOG_ERROR);
 	}
-  template <typename ... Args>
+	template <typename ... Args>
 	void errorF(const char *fmt, const Args& ... args) const {
 		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_ERROR);
 	}
 	void progress(const char *str) const {
 		printProgress(str);
 	}
-  template <typename ... Args>
+	template <typename ... Args>
 	void progressF(const char *fmt, const Args& ... args) const {
 		printProgress(StringFormat(fmt, args ...).c_str());
 	}
@@ -399,13 +399,13 @@ public:
 
 	void clearTmpFiles() {
 		for (auto& path : tmpFiles) {
-      removeT(path.c_str());
+			removeT(path.c_str());
 		}
 		tmpFiles.clear();
 	}
 
 	void incrementCounter(AMT_ERROR_COUNTER err) {
-      errCounter[err]++;
+		errCounter[err]++;
 	}
 
 	int getErrorCount(AMT_ERROR_COUNTER err) const {
@@ -463,7 +463,7 @@ private:
 	int acp;
 
 	std::set<tstring> tmpFiles;
-   std::array<int, AMT_ERR_MAX> errCounter;
+	std::array<int, AMT_ERR_MAX> errCounter;
 	std::string errMessage;
 
 	std::map<std::string, std::wstring> drcsMap;
@@ -481,7 +481,7 @@ private:
 class AMTObject {
 public:
 	AMTObject(AMTContext& ctx) : ctx(ctx) { }
-  virtual ~AMTObject() { }
+	virtual ~AMTObject() { }
 	AMTContext& ctx;
 };
 
@@ -582,7 +582,7 @@ double presenting_time(PICTURE_TYPE picType, double frameRate) {
 struct VideoFormat {
 	VIDEO_STREAM_FORMAT format;
 	int width, height; // フレームの横縦
-  int displayWidth, displayHeight; // フレームの内表示領域の縦横（表示領域中心オフセットはゼロと仮定）
+	int displayWidth, displayHeight; // フレームの内表示領域の縦横（表示領域中心オフセットはゼロと仮定）
 	int sarWidth, sarHeight; // アスペクト比
 	int frameRateNum, frameRateDenom; // フレームレート
 	uint8_t colorPrimaries, transferCharacteristics, colorSpace; // カラースペース
@@ -604,13 +604,13 @@ struct VideoFormat {
 		frameRateDenom /= g;
 	}
 
-  void getDAR(int& darWidth, int& darHeight) const {
-    darWidth = displayWidth * sarWidth;
-    darHeight = displayHeight * sarHeight;
-    int denom = gcd(darWidth, darHeight);
-    darWidth /= denom;
-    darHeight /= denom;
-  }
+	void getDAR(int& darWidth, int& darHeight) const {
+		darWidth = displayWidth * sarWidth;
+		darHeight = displayHeight * sarHeight;
+		int denom = gcd(darWidth, darHeight);
+		darWidth /= denom;
+		darHeight /= denom;
+	}
 
 	// アスペクト比は見ない
 	bool isBasicEquals(const VideoFormat& o) const {
@@ -623,7 +623,7 @@ struct VideoFormat {
 	bool operator==(const VideoFormat& o) const {
 		return (isBasicEquals(o)
 			&& displayWidth == o.displayWidth && displayHeight == o.displayHeight
-      && sarWidth == o.sarWidth && sarHeight == o.sarHeight);
+			&& sarWidth == o.sarWidth && sarHeight == o.sarHeight);
 	}
 	bool operator!=(const VideoFormat& o) const {
 		return !(*this == o);
@@ -668,14 +668,14 @@ enum AUDIO_CHANNELS {
 	AUDIO_2LANG, // 2 音声 (1/ 0 + 1 / 0)
 
 				 // 以下4K向け
-	AUDIO_52_LFE, // 7.1ch
-	AUDIO_33_LFE, // 3/3.1
-	AUDIO_2_22_LFE, // 2/0/0-2/0/2-0.1
-	AUDIO_322_LFE, // 3/2/2.1
-	AUDIO_2_32_LFE, // 2/0/0-3/0/2-0.1
-	AUDIO_020_32_LFE, // 0/2/0-3/0/2-0.1 // AUDIO_2_32_LFEと区別できなくね？
-	AUDIO_2_323_2LFE, // 2/0/0-3/2/3-0.2
-	AUDIO_333_523_3_2LFE, // 22.2ch
+				 AUDIO_52_LFE, // 7.1ch
+				 AUDIO_33_LFE, // 3/3.1
+				 AUDIO_2_22_LFE, // 2/0/0-2/0/2-0.1
+				 AUDIO_322_LFE, // 3/2/2.1
+				 AUDIO_2_32_LFE, // 2/0/0-3/0/2-0.1
+				 AUDIO_020_32_LFE, // 0/2/0-3/0/2-0.1 // AUDIO_2_32_LFEと区別できなくね？
+				 AUDIO_2_323_2LFE, // 2/0/0-3/2/3-0.2
+				 AUDIO_333_523_3_2LFE, // 22.2ch
 };
 
 const char* getAudioChannelString(AUDIO_CHANNELS channels) {

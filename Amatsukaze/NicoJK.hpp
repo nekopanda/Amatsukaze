@@ -84,14 +84,14 @@ private:
 			int nlines;
 		protected:
 			bool isErr;
-      virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) {
-        std::vector<char> line = utf8ToString(ptr, len);
-        line.push_back('\n');
-        auto out = isErr ? stderr : stdout;
-        fwrite(line.data(), line.size(), 1, out);
-        fflush(out);
-        ++nlines;
-      }
+			virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) {
+				std::vector<char> line = utf8ToString(ptr, len);
+				line.push_back('\n');
+				auto out = isErr ? stderr : stdout;
+				fwrite(line.data(), line.size(), 1, out);
+				fflush(out);
+				++nlines;
+			}
 		};
 
 		OutConv outConv, errConv;

@@ -46,7 +46,7 @@ public:
 			thread_handle_ = NULL;
 		}
 	}
-	bool isRunning() { return thread_handle_ != NULL;	}
+	bool isRunning() { return thread_handle_ != NULL; }
 
 protected:
 	virtual void run() = 0;
@@ -84,7 +84,7 @@ public:
 
 	void put(T&& data, size_t amount)
 	{
-    std::unique_lock<std::mutex> lock(critical_section_);
+		std::unique_lock<std::mutex> lock(critical_section_);
 		if (error_) {
 			THROW(RuntimeException, "DataPumpThread error");
 		}
@@ -112,7 +112,7 @@ public:
 
 	void join() {
 		{
-      std::unique_lock<std::mutex> lock(critical_section_);
+			std::unique_lock<std::mutex> lock(critical_section_);
 			finished_ = true;
 			cond_empty_.notify_one();
 		}
@@ -132,7 +132,7 @@ protected:
 private:
 	std::mutex critical_section_;
 	std::condition_variable cond_full_;
-  std::condition_variable cond_empty_;
+	std::condition_variable cond_empty_;
 
 	std::deque<std::pair<size_t, T>> data_;
 
@@ -150,7 +150,7 @@ private:
 		while (true) {
 			T data;
 			{
-        std::unique_lock<std::mutex> lock(critical_section_);
+				std::unique_lock<std::mutex> lock(critical_section_);
 				while (data_.size() == 0) {
 					// data_.size()==0でfinished_なら終了
 					if (finished_ || error_) return;
@@ -194,8 +194,8 @@ public:
 
 		// 必要ないハンドルは継承を無効化
 		if (SetHandleInformation(stdErrPipe_.readHandle, HANDLE_FLAG_INHERIT, 0) == 0 ||
-				SetHandleInformation(stdOutPipe_.readHandle, HANDLE_FLAG_INHERIT, 0) == 0 ||
-				SetHandleInformation(stdInPipe_.writeHandle, HANDLE_FLAG_INHERIT, 0) == 0)
+			SetHandleInformation(stdOutPipe_.readHandle, HANDLE_FLAG_INHERIT, 0) == 0 ||
+			SetHandleInformation(stdInPipe_.writeHandle, HANDLE_FLAG_INHERIT, 0) == 0)
 		{
 			THROW(RuntimeException, "failed to set handle information");
 		}
@@ -394,7 +394,7 @@ class StdRedirectedSubProcess : public EventBaseSubProcess
 public:
 	StdRedirectedSubProcess(const tstring& args, int bufferLines = 0, bool isUtf8 = false)
 		: EventBaseSubProcess(args)
-    , bufferLines(bufferLines)
+		, bufferLines(bufferLines)
 		, isUtf8(isUtf8)
 		, outLiner(this, false)
 		, errLiner(this, true)
@@ -402,68 +402,68 @@ public:
 
 	~StdRedirectedSubProcess() {
 		if (isUtf8) {
-      outLiner.Flush();
-      errLiner.Flush();
+			outLiner.Flush();
+			errLiner.Flush();
 		}
 	}
 
-  const std::deque<std::vector<char>>& getLastLines() {
-    outLiner.Flush();
-    errLiner.Flush();
-    return lastLines;
-  }
+	const std::deque<std::vector<char>>& getLastLines() {
+		outLiner.Flush();
+		errLiner.Flush();
+		return lastLines;
+	}
 
 private:
 	class SpStringLiner : public StringLiner
 	{
-    StdRedirectedSubProcess* pThis;
+		StdRedirectedSubProcess* pThis;
 	public:
-    SpStringLiner(StdRedirectedSubProcess* pThis, bool isErr)
-      : pThis(pThis), isErr(isErr) { }
+		SpStringLiner(StdRedirectedSubProcess* pThis, bool isErr)
+			: pThis(pThis), isErr(isErr) { }
 	protected:
 		bool isErr;
 		virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) {
-      pThis->onTextLine(isErr, ptr, len, brlen);
+			pThis->onTextLine(isErr, ptr, len, brlen);
 		}
 	};
 
 	bool isUtf8;
-  int bufferLines;
-  SpStringLiner outLiner, errLiner;
+	int bufferLines;
+	SpStringLiner outLiner, errLiner;
 
-  std::mutex mtx;
-  std::deque<std::vector<char>> lastLines;
+	std::mutex mtx;
+	std::deque<std::vector<char>> lastLines;
 
-  void onTextLine(bool isErr, const uint8_t* ptr, int len, int brlen) {
+	void onTextLine(bool isErr, const uint8_t* ptr, int len, int brlen) {
 
-    std::vector<char> line;
-    if (isUtf8) {
-      line = utf8ToString(ptr, len);
-      // 変換する場合はここで出力
-      auto out = isErr ? stderr : stdout;
-      fwrite(line.data(), line.size(), 1, out);
-      fprintf(out, "\n");
-      fflush(out);
-    }
-    else {
-      line = std::vector<char>(ptr, ptr + len);
-    }
+		std::vector<char> line;
+		if (isUtf8) {
+			line = utf8ToString(ptr, len);
+			// 変換する場合はここで出力
+			auto out = isErr ? stderr : stdout;
+			fwrite(line.data(), line.size(), 1, out);
+			fprintf(out, "\n");
+			fflush(out);
+		}
+		else {
+			line = std::vector<char>(ptr, ptr + len);
+		}
 
-    if (bufferLines > 0) {
-      std::lock_guard<std::mutex> lock(mtx);
-      if (lastLines.size() > bufferLines) {
-        lastLines.pop_front();
-      }
-      lastLines.push_back(line);
-    }
-  }
+		if (bufferLines > 0) {
+			std::lock_guard<std::mutex> lock(mtx);
+			if (lastLines.size() > bufferLines) {
+				lastLines.pop_front();
+			}
+			lastLines.push_back(line);
+		}
+	}
 
 	virtual void onOut(bool isErr, MemoryChunk mc) {
-    if (bufferLines > 0 || isUtf8) { // 必要がある場合のみ
-      (isErr ? errLiner : outLiner).AddBytes(mc);
-    }
+		if (bufferLines > 0 || isUtf8) { // 必要がある場合のみ
+			(isErr ? errLiner : outLiner).AddBytes(mc);
+		}
 		if (!isUtf8) {
-      // 変換しない場合はここですぐに出力
+			// 変換しない場合はここですぐに出力
 			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
 			fflush(isErr ? stderr : stdout);
 		}
@@ -546,7 +546,9 @@ extern "C" __declspec(dllexport) void* CPUInfo_Create(AMTContext* ctx) {
 }
 extern "C" __declspec(dllexport) void CPUInfo_Delete(CPUInfo* ptr) { delete ptr; }
 extern "C" __declspec(dllexport) const GROUP_AFFINITY* CPUInfo_GetData(CPUInfo* ptr, int tag, int* count)
-{ return ptr->GetData((PROCESSOR_INFO_TAG)tag, count); }
+{
+	return ptr->GetData((PROCESSOR_INFO_TAG)tag, count);
+}
 
 bool SetCPUAffinity(int group, uint64_t mask)
 {

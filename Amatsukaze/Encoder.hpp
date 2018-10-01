@@ -165,313 +165,313 @@ private:
 
 class AMTFilterVideoEncoder : public AMTObject {
 public:
-  AMTFilterVideoEncoder(
-    AMTContext&ctx)
-    : AMTObject(ctx)
-    , thread_(this, 16)
-  { }
+	AMTFilterVideoEncoder(
+		AMTContext&ctx)
+		: AMTObject(ctx)
+		, thread_(this, 16)
+	{ }
 
-  void encode(
-    PClip source, VideoFormat outfmt, const std::vector<int> frameDurations,
-    const std::vector<tstring>& encoderOptions,
-    IScriptEnvironment* env)
-  {
-    vi_ = source->GetVideoInfo();
-    outfmt_ = outfmt;
+	void encode(
+		PClip source, VideoFormat outfmt, const std::vector<int> frameDurations,
+		const std::vector<tstring>& encoderOptions,
+		IScriptEnvironment* env)
+	{
+		vi_ = source->GetVideoInfo();
+		outfmt_ = outfmt;
 
-    int bufsize = outfmt_.width * outfmt_.height * 3;
+		int bufsize = outfmt_.width * outfmt_.height * 3;
 
-    if (frameDurations.size() > 0 &&
-      vi_.num_frames != std::accumulate(frameDurations.begin(), frameDurations.end(), 0))
-    {
-      THROW(RuntimeException, "フレーム数が合いません");
-    }
+		if (frameDurations.size() > 0 &&
+			vi_.num_frames != std::accumulate(frameDurations.begin(), frameDurations.end(), 0))
+		{
+			THROW(RuntimeException, "フレーム数が合いません");
+		}
 
-    int npass = (int)encoderOptions.size();
-    for (int i = 0; i < npass; ++i) {
-      ctx.infoF("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, 
-        (frameDurations.size() > 0) ? frameDurations.size() : vi_.num_frames);
+		int npass = (int)encoderOptions.size();
+		for (int i = 0; i < npass; ++i) {
+			ctx.infoF("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass,
+				(frameDurations.size() > 0) ? frameDurations.size() : vi_.num_frames);
 
-      const tstring& args = encoderOptions[i];
+			const tstring& args = encoderOptions[i];
 
 			ctx.info("[エンコーダ起動]");
 			ctx.infoF("%s", args);
 
 			// 初期化
-      encoder_ = std::unique_ptr<Y4MEncodeWriter>(new Y4MEncodeWriter(ctx, args, vi_, outfmt_));
+			encoder_ = std::unique_ptr<Y4MEncodeWriter>(new Y4MEncodeWriter(ctx, args, vi_, outfmt_));
 
-      Stopwatch sw;
-      // エンコードスレッド開始
-      thread_.start();
-      sw.start();
+			Stopwatch sw;
+			// エンコードスレッド開始
+			thread_.start();
+			sw.start();
 
-      bool error = false;
+			bool error = false;
 
-      try {
-        // エンコード
-        for (int f = 0, i = 0; f < vi_.num_frames; ) {
-          auto frame = source->GetFrame(f, env);
-          thread_.put(std::unique_ptr<PVideoFrame>(new PVideoFrame(frame)), 1);
-          f += (frameDurations.size() > 0) ? frameDurations[i++] : 1;
-        }
-      }
-      catch (const AvisynthError& avserror) {
-        ctx.errorF("Avisynthフィルタでエラーが発生: %s", avserror.msg);
-        error = true;
-      }
-      catch (Exception&) {
-        error = true;
-      }
+			try {
+				// エンコード
+				for (int f = 0, i = 0; f < vi_.num_frames; ) {
+					auto frame = source->GetFrame(f, env);
+					thread_.put(std::unique_ptr<PVideoFrame>(new PVideoFrame(frame)), 1);
+					f += (frameDurations.size() > 0) ? frameDurations[i++] : 1;
+				}
+			}
+			catch (const AvisynthError& avserror) {
+				ctx.errorF("Avisynthフィルタでエラーが発生: %s", avserror.msg);
+				error = true;
+			}
+			catch (Exception&) {
+				error = true;
+			}
 
-      // エンコードスレッドを終了して自分に引き継ぐ
-      thread_.join();
+			// エンコードスレッドを終了して自分に引き継ぐ
+			thread_.join();
 
-      // 残ったフレームを処理
-      encoder_->finish();
+			// 残ったフレームを処理
+			encoder_->finish();
 
-      if (error) {
-        THROW(RuntimeException, "エンコード中に不明なエラーが発生");
-      }
+			if (error) {
+				THROW(RuntimeException, "エンコード中に不明なエラーが発生");
+			}
 
-      encoder_ = nullptr;
-      sw.stop();
+			encoder_ = nullptr;
+			sw.stop();
 
-      double prod, cons; thread_.getTotalWait(prod, cons);
-      ctx.infoF("Total: %.2fs, FilterWait: %.2fs, EncoderWait: %.2fs", sw.getTotal(), prod, cons);
-    }
-  }
+			double prod, cons; thread_.getTotalWait(prod, cons);
+			ctx.infoF("Total: %.2fs, FilterWait: %.2fs, EncoderWait: %.2fs", sw.getTotal(), prod, cons);
+		}
+	}
 
 private:
 
-  class SpDataPumpThread : public DataPumpThread<std::unique_ptr<PVideoFrame>, true> {
-  public:
-    SpDataPumpThread(AMTFilterVideoEncoder* this_, int bufferingFrames)
-      : DataPumpThread(bufferingFrames)
-      , this_(this_)
-    { }
-  protected:
-    virtual void OnDataReceived(std::unique_ptr<PVideoFrame>&& data) {
+	class SpDataPumpThread : public DataPumpThread<std::unique_ptr<PVideoFrame>, true> {
+	public:
+		SpDataPumpThread(AMTFilterVideoEncoder* this_, int bufferingFrames)
+			: DataPumpThread(bufferingFrames)
+			, this_(this_)
+		{ }
+	protected:
+		virtual void OnDataReceived(std::unique_ptr<PVideoFrame>&& data) {
 			this_->encoder_->inputFrame(*data);
-    }
-  private:
-    AMTFilterVideoEncoder * this_;
-  };
+		}
+	private:
+		AMTFilterVideoEncoder * this_;
+	};
 
-  VideoInfo vi_;
-  VideoFormat outfmt_;
-  std::unique_ptr<Y4MEncodeWriter> encoder_;
+	VideoInfo vi_;
+	VideoFormat outfmt_;
+	std::unique_ptr<Y4MEncodeWriter> encoder_;
 
-  SpDataPumpThread thread_;
+	SpDataPumpThread thread_;
 };
 
 class AMTSimpleVideoEncoder : public AMTObject {
 public:
-  AMTSimpleVideoEncoder(
-    AMTContext& ctx,
-    const ConfigWrapper& setting)
-    : AMTObject(ctx)
-    , setting_(setting)
-    , reader_(this)
-    , thread_(this, 8)
-  {
-    //
-  }
+	AMTSimpleVideoEncoder(
+		AMTContext& ctx,
+		const ConfigWrapper& setting)
+		: AMTObject(ctx)
+		, setting_(setting)
+		, reader_(this)
+		, thread_(this, 8)
+	{
+		//
+	}
 
-  void encode()
-  {
-    if (setting_.isTwoPass()) {
-      ctx.info("1/2パス エンコード開始");
-      processAllData(1);
-      ctx.info("2/2パス エンコード開始");
-      processAllData(2);
-    }
-    else {
-      processAllData(-1);
-    }
-  }
+	void encode()
+	{
+		if (setting_.isTwoPass()) {
+			ctx.info("1/2パス エンコード開始");
+			processAllData(1);
+			ctx.info("2/2パス エンコード開始");
+			processAllData(2);
+		}
+		else {
+			processAllData(-1);
+		}
+	}
 
-  int getAudioCount() const {
-    return audioCount_;
-  }
+	int getAudioCount() const {
+		return audioCount_;
+	}
 
-  int64_t getSrcFileSize() const {
-    return srcFileSize_;
-  }
+	int64_t getSrcFileSize() const {
+		return srcFileSize_;
+	}
 
-  VideoFormat getVideoFormat() const {
-    return videoFormat_;
-  }
+	VideoFormat getVideoFormat() const {
+		return videoFormat_;
+	}
 
 private:
-  class SpVideoReader : public av::VideoReader {
-  public:
-    SpVideoReader(AMTSimpleVideoEncoder* this_)
-      : VideoReader(this_->ctx)
-      , this_(this_)
-    { }
-  protected:
-    virtual void onFileOpen(AVFormatContext *fmt) {
-      this_->onFileOpen(fmt);
-    }
-    virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) {
-      this_->onVideoFormat(stream, fmt);
-    }
-    virtual void onFrameDecoded(av::Frame& frame) {
-      this_->onFrameDecoded(frame);
-    }
-    virtual void onAudioPacket(AVPacket& packet) {
-      this_->onAudioPacket(packet);
-    }
-  private:
-    AMTSimpleVideoEncoder * this_;
-  };
+	class SpVideoReader : public av::VideoReader {
+	public:
+		SpVideoReader(AMTSimpleVideoEncoder* this_)
+			: VideoReader(this_->ctx)
+			, this_(this_)
+		{ }
+	protected:
+		virtual void onFileOpen(AVFormatContext *fmt) {
+			this_->onFileOpen(fmt);
+		}
+		virtual void onVideoFormat(AVStream *stream, VideoFormat fmt) {
+			this_->onVideoFormat(stream, fmt);
+		}
+		virtual void onFrameDecoded(av::Frame& frame) {
+			this_->onFrameDecoded(frame);
+		}
+		virtual void onAudioPacket(AVPacket& packet) {
+			this_->onAudioPacket(packet);
+		}
+	private:
+		AMTSimpleVideoEncoder * this_;
+	};
 
-  class SpDataPumpThread : public DataPumpThread<std::unique_ptr<av::Frame>> {
-  public:
-    SpDataPumpThread(AMTSimpleVideoEncoder* this_, int bufferingFrames)
-      : DataPumpThread(bufferingFrames)
-      , this_(this_)
-    { }
-  protected:
-    virtual void OnDataReceived(std::unique_ptr<av::Frame>&& data) {
-      this_->onFrameReceived(std::move(data));
-    }
-  private:
-    AMTSimpleVideoEncoder * this_;
-  };
+	class SpDataPumpThread : public DataPumpThread<std::unique_ptr<av::Frame>> {
+	public:
+		SpDataPumpThread(AMTSimpleVideoEncoder* this_, int bufferingFrames)
+			: DataPumpThread(bufferingFrames)
+			, this_(this_)
+		{ }
+	protected:
+		virtual void OnDataReceived(std::unique_ptr<av::Frame>&& data) {
+			this_->onFrameReceived(std::move(data));
+		}
+	private:
+		AMTSimpleVideoEncoder * this_;
+	};
 
-  class AudioFileWriter : public av::AudioWriter {
-  public:
-    AudioFileWriter(AVStream* stream, const tstring& filename, int bufsize)
-      : AudioWriter(stream, bufsize)
-      , file_(filename, _T("wb"))
-    { }
-  protected:
-    virtual void onWrite(MemoryChunk mc) {
-      file_.write(mc);
-    }
-  private:
-    File file_;
-  };
+	class AudioFileWriter : public av::AudioWriter {
+	public:
+		AudioFileWriter(AVStream* stream, const tstring& filename, int bufsize)
+			: AudioWriter(stream, bufsize)
+			, file_(filename, _T("wb"))
+		{ }
+	protected:
+		virtual void onWrite(MemoryChunk mc) {
+			file_.write(mc);
+		}
+	private:
+		File file_;
+	};
 
-  const ConfigWrapper& setting_;
-  SpVideoReader reader_;
-  av::EncodeWriter* encoder_;
-  SpDataPumpThread thread_;
+	const ConfigWrapper& setting_;
+	SpVideoReader reader_;
+	av::EncodeWriter* encoder_;
+	SpDataPumpThread thread_;
 
-  int audioCount_;
-  std::vector<std::unique_ptr<AudioFileWriter>> audioFiles_;
-  std::vector<int> audioMap_;
+	int audioCount_;
+	std::vector<std::unique_ptr<AudioFileWriter>> audioFiles_;
+	std::vector<int> audioMap_;
 
-  int64_t srcFileSize_;
-  VideoFormat videoFormat_;
-  RFFExtractor rffExtractor_;
+	int64_t srcFileSize_;
+	VideoFormat videoFormat_;
+	RFFExtractor rffExtractor_;
 
-  int pass_;
+	int pass_;
 
-  void onFileOpen(AVFormatContext *fmt)
-  {
-    audioMap_ = std::vector<int>(fmt->nb_streams, -1);
-    if (pass_ <= 1) { // 2パス目は出力しない
-      audioCount_ = 0;
-      for (int i = 0; i < (int)fmt->nb_streams; ++i) {
-        if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-          audioFiles_.emplace_back(new AudioFileWriter(
-            fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_, CMTYPE_BOTH), 8 * 1024));
-          audioMap_[i] = audioCount_++;
-        }
-      }
-    }
-  }
+	void onFileOpen(AVFormatContext *fmt)
+	{
+		audioMap_ = std::vector<int>(fmt->nb_streams, -1);
+		if (pass_ <= 1) { // 2パス目は出力しない
+			audioCount_ = 0;
+			for (int i = 0; i < (int)fmt->nb_streams; ++i) {
+				if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+					audioFiles_.emplace_back(new AudioFileWriter(
+						fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_, CMTYPE_BOTH), 8 * 1024));
+					audioMap_[i] = audioCount_++;
+				}
+			}
+		}
+	}
 
-  void processAllData(int pass)
-  {
-    pass_ = pass;
+	void processAllData(int pass)
+	{
+		pass_ = pass;
 
-    encoder_ = new av::EncodeWriter(ctx);
+		encoder_ = new av::EncodeWriter(ctx);
 
-    // エンコードスレッド開始
-    thread_.start();
+		// エンコードスレッド開始
+		thread_.start();
 
-    // エンコード
-    reader_.readAll(setting_.getSrcFilePath(), setting_.getDecoderSetting());
+		// エンコード
+		reader_.readAll(setting_.getSrcFilePath(), setting_.getDecoderSetting());
 
-    // エンコードスレッドを終了して自分に引き継ぐ
-    thread_.join();
+		// エンコードスレッドを終了して自分に引き継ぐ
+		thread_.join();
 
-    // 残ったフレームを処理
-    encoder_->finish();
+		// 残ったフレームを処理
+		encoder_->finish();
 
-    if (pass_ <= 1) { // 2パス目は出力しない
-      for (int i = 0; i < audioCount_; ++i) {
-        audioFiles_[i]->flush();
-      }
-      audioFiles_.clear();
-    }
+		if (pass_ <= 1) { // 2パス目は出力しない
+			for (int i = 0; i < audioCount_; ++i) {
+				audioFiles_[i]->flush();
+			}
+			audioFiles_.clear();
+		}
 
-    rffExtractor_.clear();
-    audioMap_.clear();
-    delete encoder_; encoder_ = NULL;
-  }
+		rffExtractor_.clear();
+		audioMap_.clear();
+		delete encoder_; encoder_ = NULL;
+	}
 
-  void onVideoFormat(AVStream *stream, VideoFormat fmt)
-  {
-    videoFormat_ = fmt;
+	void onVideoFormat(AVStream *stream, VideoFormat fmt)
+	{
+		videoFormat_ = fmt;
 
-    // ビットレート計算
-    File file(setting_.getSrcFilePath(), _T("rb"));
-    srcFileSize_ = file.size();
-    double srcBitrate = ((double)srcFileSize_ * 8 / 1000) / (stream->duration * av_q2d(stream->time_base));
-    ctx.infoF("入力映像ビットレート: %d kbps", (int)srcBitrate);
+		// ビットレート計算
+		File file(setting_.getSrcFilePath(), _T("rb"));
+		srcFileSize_ = file.size();
+		double srcBitrate = ((double)srcFileSize_ * 8 / 1000) / (stream->duration * av_q2d(stream->time_base));
+		ctx.infoF("入力映像ビットレート: %d kbps", (int)srcBitrate);
 
-    if (setting_.isAutoBitrate()) {
-      ctx.infoF("目標映像ビットレート: %d kbps",
-        (int)setting_.getBitrate().getTargetBitrate(fmt.format, srcBitrate));
-    }
+		if (setting_.isAutoBitrate()) {
+			ctx.infoF("目標映像ビットレート: %d kbps",
+				(int)setting_.getBitrate().getTargetBitrate(fmt.format, srcBitrate));
+		}
 
-    // 初期化
-    tstring args = makeEncoderArgs(
-      setting_.getEncoder(),
-      setting_.getEncoderPath(),
-      setting_.getOptions(
-        0, fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
-      fmt, tstring(), false,
-      setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
+		// 初期化
+		tstring args = makeEncoderArgs(
+			setting_.getEncoder(),
+			setting_.getEncoderPath(),
+			setting_.getOptions(
+				0, fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
+			fmt, tstring(), false,
+			setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
 
-    ctx.info("[エンコーダ開始]");
-    ctx.infoF("%s", args);
+		ctx.info("[エンコーダ開始]");
+		ctx.infoF("%s", args);
 
-    // x265でインタレースの場合はフィールドモード
-    bool dstFieldMode =
-      (setting_.getEncoder() == ENCODER_X265 && fmt.progressive == false);
+		// x265でインタレースの場合はフィールドモード
+		bool dstFieldMode =
+			(setting_.getEncoder() == ENCODER_X265 && fmt.progressive == false);
 
-    int bufsize = fmt.width * fmt.height * 3;
-    encoder_->start(args, fmt, dstFieldMode, bufsize);
-  }
+		int bufsize = fmt.width * fmt.height * 3;
+		encoder_->start(args, fmt, dstFieldMode, bufsize);
+	}
 
-  void onFrameDecoded(av::Frame& frame__) {
-    // フレームをコピーしてスレッドに渡す
-    thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
-  }
+	void onFrameDecoded(av::Frame& frame__) {
+		// フレームをコピーしてスレッドに渡す
+		thread_.put(std::unique_ptr<av::Frame>(new av::Frame(frame__)), 1);
+	}
 
-  void onFrameReceived(std::unique_ptr<av::Frame>&& frame)
-  {
-    // RFFフラグ処理
-    // PTSはinputFrameで再定義されるので修正しないでそのまま渡す
-    PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
-    //fprintf(stderr, "%s\n", PictureTypeString(pic));
-    rffExtractor_.inputFrame(*encoder_, std::move(frame), pic);
+	void onFrameReceived(std::unique_ptr<av::Frame>&& frame)
+	{
+		// RFFフラグ処理
+		// PTSはinputFrameで再定義されるので修正しないでそのまま渡す
+		PICTURE_TYPE pic = getPictureTypeFromAVFrame((*frame)());
+		//fprintf(stderr, "%s\n", PictureTypeString(pic));
+		rffExtractor_.inputFrame(*encoder_, std::move(frame), pic);
 
-    //encoder_.inputFrame(*frame);
-  }
+		//encoder_.inputFrame(*frame);
+	}
 
-  void onAudioPacket(AVPacket& packet)
-  {
-    if (pass_ <= 1) { // 2パス目は出力しない
-      int audioIdx = audioMap_[packet.stream_index];
-      if (audioIdx >= 0) {
-        audioFiles_[audioIdx]->inputFrame(packet);
-      }
-    }
-  }
+	void onAudioPacket(AVPacket& packet)
+	{
+		if (pass_ <= 1) { // 2パス目は出力しない
+			int audioIdx = audioMap_[packet.stream_index];
+			if (audioIdx >= 0) {
+				audioFiles_[audioIdx]->inputFrame(packet);
+			}
+		}
+	}
 };

@@ -41,7 +41,7 @@ extern "C" {
 namespace av {
 
 int GetFFmpegThreads(int preferred) {
-  return std::min(8, std::max(1, preferred));
+	return std::min(8, std::max(1, preferred));
 }
 
 AVStream* GetVideoStream(AVFormatContext* pCtx)
@@ -410,7 +410,7 @@ private:
 			srcFormat = VS_MPEG2;
 			break;
 		}
-		
+
 		fmt_.format = srcFormat;
 		fmt_.progressive = !(frame->interlaced_frame);
 		fmt_.width = frame->width;
@@ -595,14 +595,14 @@ private:
 
 			st->time_base = enc->time_base = av_make_q(fmt_.frameRateDenom, fmt_.frameRateNum);
 			st->avg_frame_rate = av_make_q(fmt_.frameRateNum, fmt_.frameRateDenom);
-			
+
 			if (avcodec_open2(codecCtx_(), codecCtx_()->codec, NULL) != 0) {
 				THROW(FormatException, "avcodec_open2 failed");
 			}
 
 			// muxerにエンコーダパラメータを渡す
 			avcodec_parameters_from_context(st->codecpar, enc);
-			
+
 			// for debug
 			av_dump_format(outputCtx_(), 0, "-", 1);
 
@@ -651,7 +651,7 @@ public:
 
 	void flush() {
 		// flush muxer
-		if(av_interleaved_write_frame(outputCtx_(), NULL) < 0) {
+		if (av_interleaved_write_frame(outputCtx_(), NULL) < 0) {
 			THROW(FormatException, "av_interleaved_write_frame failed");
 		}
 	}
@@ -683,123 +683,123 @@ private:
 class Y4MParser
 {
 public:
-  void clear() {
-    y4mcur = 0;
-    frameSize = 0;
-    frameCount = 0;
-    y4mbuf.clear();
-  }
-  void inputData(MemoryChunk mc) {
-    y4mbuf.add(mc);
-    while (true) {
-      if (y4mcur==0) {
-        // ストリームヘッダ
-        auto data = y4mbuf.get();
-        uint8_t* end = (uint8_t*)memchr(data.data,0x0a,data.length);
-        if (end==nullptr) {
-          break;
-        }
-        *end = 0; // terminate
-        char* next_token = nullptr;
-        char* token = strtok_s((char*)data.data," ",&next_token);
-        // token == "YUV4MPEG2"
-        int width = 0,height = 0,bp4p = 0;
-        while (true) {
-          token = strtok_s(nullptr," ",&next_token);
-          if (token==nullptr) {
-            break;
-          }
-          switch (*(token++)) {
-          case 'W':
-            width = atoi(token);
-            break;
-          case 'H':
-            height = atoi(token);
-            break;
-          case 'C':
-            if (strcmp(token,"420jpeg")==0||
-              strcmp(token,"420mpeg2")==0||
-              strcmp(token,"420paldv")==0) {
-              bp4p = 6;
-            }
-            else if (strcmp(token,"mono")==0) {
-              bp4p = 4;
-            }
-            else if (strcmp(token,"mono16")==0) {
-              bp4p = 8;
-            }
-            else if (strcmp(token,"411")==0) {
-              bp4p = 6;
-            }
-            else if (strcmp(token,"422")==0) {
-              bp4p = 8;
-            }
-            else if (strcmp(token,"444")==0) {
-              bp4p = 12;
-            }
-            else if (strcmp(token,"420p9")==0||
-              strcmp(token,"420p10")==0||
-              strcmp(token,"420p12")==0||
-              strcmp(token,"420p14")==0||
-              strcmp(token,"420p16")==0) {
-              bp4p = 12;
-            }
-            else if (strcmp(token,"422p9")==0||
-              strcmp(token,"422p10")==0||
-              strcmp(token,"422p12")==0||
-              strcmp(token,"422p14")==0||
-              strcmp(token,"422p16")==0) {
-              bp4p = 16;
-            }
-            else if (strcmp(token,"444p9")==0||
-              strcmp(token,"444p10")==0||
-              strcmp(token,"444p12")==0||
-              strcmp(token,"444p14")==0||
-              strcmp(token,"444p16")==0) {
-              bp4p = 24;
-            }
-            else {
-              THROWF(FormatException,"[y4m] Unknown pixel format: %s", token);
-            }
-            break;
-          }
-        }
-        if (width==0||height==0||bp4p==0) {
-          THROW(FormatException,"[y4m] missing stream information");
-        }
-        frameSize = (width * height * bp4p)>>2;
-        y4mbuf.trimHead(end-data.data+1);
-        y4mcur = 1; // 次はフレームヘッダ
-      }
-      if (y4mcur==1) {
-        // フレームヘッダ
-        auto data = y4mbuf.get();
-        uint8_t* end = (uint8_t*)memchr(data.data,0x0a,data.length);
-        if (end==nullptr) {
-          break;
-        }
-        y4mbuf.trimHead(end-data.data+1);
-        y4mcur = 2; // 次はフレームデータ
-      }
-      if (y4mcur==2) {
-        // フレームデータ
-        if (y4mbuf.size()<frameSize) {
-          break;
-        }
-        y4mbuf.trimHead(frameSize);
-        frameCount++;
-        y4mcur = 1; // 次はフレームヘッダ
-      }
-    }
-  }
-  int getFrameCount() const {
-    return frameCount;
-  }
+	void clear() {
+		y4mcur = 0;
+		frameSize = 0;
+		frameCount = 0;
+		y4mbuf.clear();
+	}
+	void inputData(MemoryChunk mc) {
+		y4mbuf.add(mc);
+		while (true) {
+			if (y4mcur == 0) {
+				// ストリームヘッダ
+				auto data = y4mbuf.get();
+				uint8_t* end = (uint8_t*)memchr(data.data, 0x0a, data.length);
+				if (end == nullptr) {
+					break;
+				}
+				*end = 0; // terminate
+				char* next_token = nullptr;
+				char* token = strtok_s((char*)data.data, " ", &next_token);
+				// token == "YUV4MPEG2"
+				int width = 0, height = 0, bp4p = 0;
+				while (true) {
+					token = strtok_s(nullptr, " ", &next_token);
+					if (token == nullptr) {
+						break;
+					}
+					switch (*(token++)) {
+					case 'W':
+						width = atoi(token);
+						break;
+					case 'H':
+						height = atoi(token);
+						break;
+					case 'C':
+						if (strcmp(token, "420jpeg") == 0 ||
+							strcmp(token, "420mpeg2") == 0 ||
+							strcmp(token, "420paldv") == 0) {
+							bp4p = 6;
+						}
+						else if (strcmp(token, "mono") == 0) {
+							bp4p = 4;
+						}
+						else if (strcmp(token, "mono16") == 0) {
+							bp4p = 8;
+						}
+						else if (strcmp(token, "411") == 0) {
+							bp4p = 6;
+						}
+						else if (strcmp(token, "422") == 0) {
+							bp4p = 8;
+						}
+						else if (strcmp(token, "444") == 0) {
+							bp4p = 12;
+						}
+						else if (strcmp(token, "420p9") == 0 ||
+							strcmp(token, "420p10") == 0 ||
+							strcmp(token, "420p12") == 0 ||
+							strcmp(token, "420p14") == 0 ||
+							strcmp(token, "420p16") == 0) {
+							bp4p = 12;
+						}
+						else if (strcmp(token, "422p9") == 0 ||
+							strcmp(token, "422p10") == 0 ||
+							strcmp(token, "422p12") == 0 ||
+							strcmp(token, "422p14") == 0 ||
+							strcmp(token, "422p16") == 0) {
+							bp4p = 16;
+						}
+						else if (strcmp(token, "444p9") == 0 ||
+							strcmp(token, "444p10") == 0 ||
+							strcmp(token, "444p12") == 0 ||
+							strcmp(token, "444p14") == 0 ||
+							strcmp(token, "444p16") == 0) {
+							bp4p = 24;
+						}
+						else {
+							THROWF(FormatException, "[y4m] Unknown pixel format: %s", token);
+						}
+						break;
+					}
+				}
+				if (width == 0 || height == 0 || bp4p == 0) {
+					THROW(FormatException, "[y4m] missing stream information");
+				}
+				frameSize = (width * height * bp4p) >> 2;
+				y4mbuf.trimHead(end - data.data + 1);
+				y4mcur = 1; // 次はフレームヘッダ
+			}
+			if (y4mcur == 1) {
+				// フレームヘッダ
+				auto data = y4mbuf.get();
+				uint8_t* end = (uint8_t*)memchr(data.data, 0x0a, data.length);
+				if (end == nullptr) {
+					break;
+				}
+				y4mbuf.trimHead(end - data.data + 1);
+				y4mcur = 2; // 次はフレームデータ
+			}
+			if (y4mcur == 2) {
+				// フレームデータ
+				if (y4mbuf.size() < frameSize) {
+					break;
+				}
+				y4mbuf.trimHead(frameSize);
+				frameCount++;
+				y4mcur = 1; // 次はフレームヘッダ
+			}
+		}
+	}
+	int getFrameCount() const {
+		return frameCount;
+	}
 private:
-  int y4mcur;
-  int frameSize;
-  int frameCount;
-  AutoBuffer y4mbuf;
+	int y4mcur;
+	int frameSize;
+	int frameCount;
+	AutoBuffer y4mbuf;
 };
 
 class EncodeWriter : AMTObject, NonCopyable
@@ -831,7 +831,7 @@ public:
 			fmt.height /= 2;
 			fmt.frameRateNum *= 2;
 		}
-    y4mparser.clear();
+		y4mparser.clear();
 		videoWriter_ = new MyVideoWriter(this, fmt, bufsize);
 		process_ = new StdRedirectedSubProcess(encoder_args, 5);
 	}
@@ -862,19 +862,19 @@ public:
 			process_->finishWrite();
 			int ret = process_->join();
 			if (ret != 0) {
-        ctx.error("↓↓↓↓↓↓エンコーダ最後の出力↓↓↓↓↓↓");
-        for (auto v : process_->getLastLines()) {
-          v.push_back(0); // null terminate
-          ctx.errorF("%s", v.data());
-        }
-        ctx.error("↑↑↑↑↑↑エンコーダ最後の出力↑↑↑↑↑↑");
+				ctx.error("↓↓↓↓↓↓エンコーダ最後の出力↓↓↓↓↓↓");
+				for (auto v : process_->getLastLines()) {
+					v.push_back(0); // null terminate
+					ctx.errorF("%s", v.data());
+				}
+				ctx.error("↑↑↑↑↑↑エンコーダ最後の出力↑↑↑↑↑↑");
 				THROWF(RuntimeException, "エンコーダ終了コード: 0x%x", ret);
 			}
-      int inFrame = getFrameCount();
-      int outFrame = y4mparser.getFrameCount();
-      if (inFrame!=outFrame) {
-        THROWF(RuntimeException,"フレーム数が合いません(%d vs %d)",inFrame,outFrame);
-      }
+			int inFrame = getFrameCount();
+			int outFrame = y4mparser.getFrameCount();
+			if (inFrame != outFrame) {
+				THROWF(RuntimeException, "フレーム数が合いません(%d vs %d)", inFrame, outFrame);
+			}
 		}
 	}
 
@@ -886,16 +886,16 @@ public:
 		return videoWriter_->getAvgFrameRate();
 	}
 
-  const std::deque<std::vector<char>>& getLastLines() {
-    process_->getLastLines();
-  }
+	const std::deque<std::vector<char>>& getLastLines() {
+		process_->getLastLines();
+	}
 
 private:
 	class MyVideoWriter : public VideoWriter {
 	public:
 		MyVideoWriter(EncodeWriter* this_, VideoFormat fmt, int bufsize)
 			: VideoWriter(fmt, bufsize)
-			, this_(this_) 
+			, this_(this_)
 		{ }
 	protected:
 		virtual void onWrite(MemoryChunk mc) {
@@ -906,15 +906,15 @@ private:
 	};
 
 	MyVideoWriter* videoWriter_;
-  StdRedirectedSubProcess* process_;
+	StdRedirectedSubProcess* process_;
 	bool fieldMode_;
 	bool error_;
 
-  // 出力チェック用（なくても処理は問題ない）
-  Y4MParser y4mparser;
+	// 出力チェック用（なくても処理は問題ない）
+	Y4MParser y4mparser;
 
 	void onVideoWrite(MemoryChunk mc) {
-    y4mparser.inputData(mc);
+		y4mparser.inputData(mc);
 		try {
 			process_->write(mc);
 		}

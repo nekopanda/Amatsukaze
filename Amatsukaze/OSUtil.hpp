@@ -17,20 +17,20 @@
 extern HMODULE g_DllHandle;
 
 std::wstring GetModulePath() {
-  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	wchar_t buf[AMT_MAX_PATH] = { 0 };
 	GetModuleFileNameW(g_DllHandle, buf, AMT_MAX_PATH);
 	return buf;
 }
 
 std::wstring GetModuleDirectory() {
-  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	wchar_t buf[AMT_MAX_PATH] = { 0 };
 	GetModuleFileNameW(g_DllHandle, buf, AMT_MAX_PATH);
 	PathRemoveFileSpecW(buf);
 	return buf;
 }
 
 std::wstring SearchExe(const std::wstring& name) {
-  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	wchar_t buf[AMT_MAX_PATH] = { 0 };
 	if (!SearchPathW(0, name.c_str(), 0, AMT_MAX_PATH, buf, 0)) {
 		return name;
 	}
@@ -38,7 +38,7 @@ std::wstring SearchExe(const std::wstring& name) {
 }
 
 std::wstring GetDirectoryPath(const std::wstring& name) {
-  wchar_t buf[AMT_MAX_PATH] = { 0 };
+	wchar_t buf[AMT_MAX_PATH] = { 0 };
 	std::copy(name.begin(), name.end(), buf);
 	PathRemoveFileSpecW(buf);
 	return buf;
@@ -46,12 +46,12 @@ std::wstring GetDirectoryPath(const std::wstring& name) {
 
 bool DirectoryExists(const std::wstring& dirName_in)
 {
-  DWORD ftyp = GetFileAttributesW(dirName_in.c_str());
-  if (ftyp == INVALID_FILE_ATTRIBUTES)
-    return false;
-  if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
-    return true;
-  return false;
+	DWORD ftyp = GetFileAttributesW(dirName_in.c_str());
+	if (ftyp == INVALID_FILE_ATTRIBUTES)
+		return false;
+	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+		return true;
+	return false;
 }
 
 // dirpathÇÕ èIí[\\Ç»Çµ

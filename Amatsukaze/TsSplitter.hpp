@@ -101,7 +101,7 @@ protected:
 private:
 	VIDEO_STREAM_FORMAT videoStreamFormat;
 	VideoFormat videoFormat;
-	
+
 	std::vector<VideoFrameInfo> frameInfo;
 
 	MPEG2VideoParser mpeg2parser;
@@ -238,7 +238,7 @@ private:
 	class SpCaptionFormatter : public CaptionDLLParser {
 		CaptionParser& this_;
 	public:
-		SpCaptionFormatter(CaptionParser& this_) 
+		SpCaptionFormatter(CaptionParser& this_)
 			: CaptionDLLParser(this_.ctx), this_(this_)
 		{ }
 		virtual DRCSOutInfo getDRCSOutPath(int64_t PTS, const std::string& md5) {
@@ -410,8 +410,8 @@ public:
 		, tsPacketSelector(ctx)
 		, videoParser(ctx, *this)
 		, captionParser(ctx, *this)
-    , enableVideo(enableVideo)
-    , enableAudio(enableAudio)
+		, enableVideo(enableVideo)
+		, enableAudio(enableAudio)
 		, enableCaption(enableCaption)
 		, numTotalPackets(0)
 		, numScramblePackets(0)
@@ -492,7 +492,7 @@ protected:
 				int64_t startClock = this_.tsSystemClock.getClock(0);
 				this_.ctx.infoF("開始Clock: %lld", startClock);
 				this_.tsPacketSelector.setStartClock(startClock);
-				
+
 				this_.tsPacketParser.backAndInput();
 				// もう必要ないのでバッファリングはOFF
 				this_.tsPacketParser.setEnableBuffering(false);
@@ -562,8 +562,8 @@ protected:
 	std::vector<SpAudioFrameParser*> audioParsers;
 	SpCaptionParser captionParser;
 
-  bool enableVideo;
-  bool enableAudio;
+	bool enableVideo;
+	bool enableAudio;
 	bool enableCaption;
 	int preferedServiceId;
 	int selectedServiceId;
@@ -666,7 +666,7 @@ protected:
 	}
 
 	virtual void onVideoPacket(int64_t clock, TsPacket packet) {
-		if(enableVideo && checkScramble(packet)) videoParser.onTsPacket(clock, packet);
+		if (enableVideo && checkScramble(packet)) videoParser.onTsPacket(clock, packet);
 	}
 
 	virtual void onAudioPacket(int64_t clock, TsPacket packet, int audioIdx) {

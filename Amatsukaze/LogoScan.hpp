@@ -60,7 +60,7 @@ namespace logo {
 
 class LogoDataParam : public LogoData
 {
-  enum {
+	enum {
 		KSIZE = 5,
 		KLEN = KSIZE * KSIZE,
 		CSHIFT = 3,
@@ -103,8 +103,8 @@ public:
 	int getImgX() const { return imgx; }
 	int getImgY() const { return imgy; }
 
-  const uint8_t* GetMask() { return mask.get(); }
-  const float* GetKernels() { return kernels.get(); }
+	const uint8_t* GetMask() { return mask.get(); }
+	const float* GetKernels() { return kernels.get(); }
 	float getThresh() const { return thresh; }
 	int getMaskPixels() const { return maskpixels; }
 
@@ -142,13 +142,13 @@ public:
 			// 平均値
 			float avg = std::accumulate(k, k + KLEN, 0.0f) / KLEN;
 			// 平均値をゼロにする
-			std::transform(k, k + KLEN, 
+			std::transform(k, k + KLEN,
 				stdext::checked_array_iterator<float*>(k, KLEN), [=](float p) { return p - avg; });
 		};
 
-    // 特徴点の抽出 //
-		// 単色背景にロゴを乗せた画像の各ピクセルを中心とする5x5ウィンドウの
-		// 画素値の分散の大きい順にmaskratio割合のピクセルを着目点とする
+		// 特徴点の抽出 //
+			 // 単色背景にロゴを乗せた画像の各ピクセルを中心とする5x5ウィンドウの
+			 // 画素値の分散の大きい順にmaskratio割合のピクセルを着目点とする
 		std::vector<std::pair<float, int>> variance(YSize);
 		// 各ピクセルの分散を計算（計算されていないところはゼロ初期化されてる）
 		for (int y = 2; y < h - 2; ++y) {
@@ -179,15 +179,15 @@ public:
 		});
 #endif
 
-    // ピクセル周辺の特徴
-    kernels = std::unique_ptr<float[]>(new float[maskpixels * KLEN + 8]);
+		// ピクセル周辺の特徴
+		kernels = std::unique_ptr<float[]>(new float[maskpixels * KLEN + 8]);
 		// 各ピクセルx各単色背景での相関値スケール
 		scales = std::unique_ptr<ScaleLimit[]>(new ScaleLimit[maskpixels * CLEN]);
-    int count = 0;
+		int count = 0;
 		float avgCorr = 0.0f;
-    for (int y = 2; y < h - 2; ++y) {
-      for (int x = 2; x < w - 2; ++x) {
-        if (mask[x + y * w]) {
+		for (int y = 2; y < h - 2; ++y) {
+			for (int x = 2; x < w - 2; ++x) {
+				if (mask[x + y * w]) {
 					float* k = &kernels[count * KLEN];
 					ScaleLimit* s = &scales[count * CLEN];
 					makeKernel(k, memWork.get(), x, y, w);
@@ -196,9 +196,9 @@ public:
 						avgCorr += s[i].scale = std::abs(pCalcCorrelation5x5(k, slice, x, y, w, nullptr));
 					}
 					++count;
-        }
-      }
-    }
+				}
+			}
+		}
 		avgCorr /= maskpixels * CLEN;
 		// 相関下限（これより小さい相関のピクセルはスケールしない）
 		float limitCorr = avgCorr * corrLowerLimit;
@@ -209,18 +209,18 @@ public:
 		}
 
 #if 0
-    // ロゴカーネルをチェック
-    for (int idx = 0; idx < count; ++idx) {
-      float* k = &kernels[idx++ * KLEN];
-      float sum = std::accumulate(k, k + KLEN, 0.0f);
-      //float abssum = std::accumulate(k, k + KLEN, 0.0f,
-      //  [](float sum, float val) { return sum + std::abs(val); });
-      // チェック
-      if (std::abs(sum) > 0.00001f /*&& std::abs(abssum - 1.0f) > 0.00001f*/) {
-        //printf("Error: %d => sum: %f, abssum: %f\n", idx, sum, abssum);
+		// ロゴカーネルをチェック
+		for (int idx = 0; idx < count; ++idx) {
+			float* k = &kernels[idx++ * KLEN];
+			float sum = std::accumulate(k, k + KLEN, 0.0f);
+			//float abssum = std::accumulate(k, k + KLEN, 0.0f,
+			//  [](float sum, float val) { return sum + std::abs(val); });
+			// チェック
+			if (std::abs(sum) > 0.00001f /*&& std::abs(abssum - 1.0f) > 0.00001f*/) {
+				//printf("Error: %d => sum: %f, abssum: %f\n", idx, sum, abssum);
 				printf("Error: %d => sum: %f\n", idx, sum);
-      }
-    }
+			}
+		}
 #endif
 
 		// 黒背景の評価値（これがはっきり出たときの基準）
@@ -258,7 +258,7 @@ public:
 	{
 		auto logo = std::unique_ptr<LogoDataParam>(
 			new LogoDataParam(LogoData(w, h / 2, logUVx, logUVy), imgw, imgh / 2, imgx, imgy / 2));
-		
+
 		for (int y = 0; y < logo->h; ++y) {
 			for (int x = 0; x < logo->w; ++x) {
 				logo->aY[x + y * w] = aY[x + (bottom + y * 2) * w];
@@ -284,19 +284,19 @@ public:
 
 private:
 
-  // 画素ごとにロゴとの相関を計算
-  float CorrelationScore(const float *work, float maxv)
-  {
-    const uint8_t* mask = GetMask();
-    const float* kernels = GetKernels();
+	// 画素ごとにロゴとの相関を計算
+	float CorrelationScore(const float *work, float maxv)
+	{
+		const uint8_t* mask = GetMask();
+		const float* kernels = GetKernels();
 
-    // ロゴとの相関を評価
-    int count = 0;
-    float result = 0;
-    for (int y = 2; y < h - 2; ++y) {
-      for (int x = 2; x < w - 2; ++x) {
-        if (mask[x + y * w]) {
-          const float* k = &kernels[count * KLEN];
+		// ロゴとの相関を評価
+		int count = 0;
+		float result = 0;
+		for (int y = 2; y < h - 2; ++y) {
+			for (int x = 2; x < w - 2; ++x) {
+				if (mask[x + y * w]) {
+					const float* k = &kernels[count * KLEN];
 
 					float avg;
 					float sum = pCalcCorrelation5x5(k, work, x, y, w, &avg);
@@ -310,12 +310,12 @@ private:
 					result += score;
 
 					++count;
-        }
-      }
-    }
+				}
+			}
+		}
 
-    return result;
-  }
+		return result;
+	}
 
 	void AddLogo(float* Y, int maxv)
 	{
@@ -514,7 +514,7 @@ public:
 		}
 
 		if (clean) {
-			
+
 			// ロゴ周辺を消す
 			// メリット
 			//   ロゴを消したときにロゴを含む長方形がうっすら出るのが防げる
@@ -793,11 +793,11 @@ typedef bool(*LOGO_ANALYZE_CB)(float progress, int nread, int total, int ngather
 
 class LogoAnalyzer : AMTObject
 {
-  tstring srcpath;
+	tstring srcpath;
 	int serviceid;
 
-  tstring workfile;
-  tstring dstpath;
+	tstring workfile;
+	tstring dstpath;
 	LOGO_ANALYZE_CB cb;
 
 	int scanx, scany;
@@ -862,7 +862,7 @@ class LogoAnalyzer : AMTObject
 			}
 
 			const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get((AVPixelFormat)(frame->format));
-			
+
 			pThis->logUVx = desc->log2_chroma_w;
 			pThis->logUVy = desc->log2_chroma_h;
 			pThis->imgw = frame->width;
@@ -1029,7 +1029,7 @@ class LogoAnalyzer : AMTObject
 		// ロゴ作成
 		logoscan.Normalize(255);
 		logodata = logoscan.GetLogo(true);
-		
+
 		if (logodata == nullptr) {
 			THROW(RuntimeException, "Insufficient logo frames");
 		}
@@ -1037,8 +1037,8 @@ class LogoAnalyzer : AMTObject
 
 public:
 	LogoAnalyzer(AMTContext& ctx, const tchar* srcpath, int serviceid, const tchar* workfile, const tchar* dstpath,
-			int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
-			LOGO_ANALYZE_CB cb)
+		int imgx, int imgy, int w, int h, int thy, int numMaxFrames,
+		LOGO_ANALYZE_CB cb)
 		: AMTObject(ctx)
 		, srcpath(srcpath)
 		, serviceid(serviceid)
@@ -1474,7 +1474,7 @@ public:
 		catch (const IOException&) {
 			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
 		}
-		
+
 		if (logofPath.size() > 0) {
 			ReadLogoFrameFile(logofPath, env);
 		}
@@ -1647,34 +1647,34 @@ public:
 		const float medianDur = 0.5f;
 
 		// ロゴを選択 //
-    struct Summary {
-      float cost;    // 消した後のゴミの量
-      int numFrames;  // 検出したフレーム数
-    };
+		struct Summary {
+			float cost;    // 消した後のゴミの量
+			int numFrames;  // 検出したフレーム数
+		};
 		std::vector<Summary> logoSummary(numLogos);
 		for (int n = 0; n < numFrames; ++n) {
 			for (int i = 0; i < numLogos; ++i) {
 				auto& r = evalResults[n * numLogos + i];
 				// ロゴを検出 かつ 消せてる
-        if (r.corr0 > thresh && std::abs(r.corr1) < thresh) {
-          logoSummary[i].numFrames++;
-          logoSummary[i].cost += std::abs(r.corr1);
-        }
+				if (r.corr0 > thresh && std::abs(r.corr1) < thresh) {
+					logoSummary[i].numFrames++;
+					logoSummary[i].cost += std::abs(r.corr1);
+				}
 			}
 		}
-    std::vector<float> logoScore(numLogos);
-    for (int i = 0; i < numLogos; ++i) {
-      auto& s = logoSummary[i];
-      // (消した後のゴミの量の平均) * (検出したフレーム割合の逆数)
-      logoScore[i] = (s.numFrames == 0) ? INFINITY :
-        (s.cost / s.numFrames) * (numFrames / (float)s.numFrames);
+		std::vector<float> logoScore(numLogos);
+		for (int i = 0; i < numLogos; ++i) {
+			auto& s = logoSummary[i];
+			// (消した後のゴミの量の平均) * (検出したフレーム割合の逆数)
+			logoScore[i] = (s.numFrames == 0) ? INFINITY :
+				(s.cost / s.numFrames) * (numFrames / (float)s.numFrames);
 #if 1
-      ctx.debugF("logo%d: %f * %f = %f", i + 1,
-        (s.cost / s.numFrames),
-        (numFrames / (float)s.numFrames),
-        logoScore[i]);
+			ctx.debugF("logo%d: %f * %f = %f", i + 1,
+				(s.cost / s.numFrames),
+				(numFrames / (float)s.numFrames),
+				logoScore[i]);
 #endif
-    }
+		}
 		bestLogo = (int)(std::min_element(logoScore.begin(), logoScore.end()) - logoScore.begin());
 		logoRatio = (float)logoSummary[bestLogo].numFrames / numFrames;
 
@@ -1695,7 +1695,7 @@ public:
 		// 両端を端の値で埋める
 		std::fill(rawScores_.begin(), rawScores, rawScores[0]);
 		std::fill(rawScores + numFrames, rawScores_.end(), rawScores[numFrames - 1]);
-		
+
 		struct FrameResult {
 			int result;
 			float score;
@@ -1732,7 +1732,7 @@ public:
 
 		// 不明部分を推測
 		// 両側がロゴありとなっていたらロゴありとする
-		for(auto it = frameResult.begin(); it != frameResult.end();) {
+		for (auto it = frameResult.begin(); it != frameResult.end();) {
 			auto first1 = std::find_if(it, frameResult.end(), [](FrameResult r) { return r.result == 1; });
 			it = std::find_if_not(first1, frameResult.end(), [](FrameResult r) { return r.result == 1; });
 			int prevResult = (first1 == frameResult.begin()) ? 0 : (first1 - 1)->result;
@@ -1744,7 +1744,7 @@ public:
 				});
 			}
 		}
-		
+
 		// ロゴ区間を出力
 		StringBuilder sb;
 		for (auto it = frameResult.begin(); it != frameResult.end();) {

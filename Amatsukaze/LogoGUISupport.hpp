@@ -168,9 +168,13 @@ extern "C" __declspec(dllexport) void* MediaFile_Create(AMTContext* ctx, const t
 }
 extern "C" __declspec(dllexport) void MediaFile_Delete(av::GUIMediaFile* ptr) { delete ptr; }
 extern "C" __declspec(dllexport) int MediaFile_DecodeFrame(
-	av::GUIMediaFile* ptr, float pos, int* pwidth, int* pheight) { return ptr->decodeFrame(pos, pwidth, pheight); }
+	av::GUIMediaFile* ptr, float pos, int* pwidth, int* pheight) {
+	return ptr->decodeFrame(pos, pwidth, pheight);
+}
 extern "C" __declspec(dllexport) void MediaFile_GetFrame(
-	av::GUIMediaFile* ptr, uint8_t* rgb, int width, int height) { ptr->getFrame(rgb, width, height); }
+	av::GUIMediaFile* ptr, uint8_t* rgb, int width, int height) {
+	ptr->getFrame(rgb, width, height);
+}
 
 namespace logo {
 

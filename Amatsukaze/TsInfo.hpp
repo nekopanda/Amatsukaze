@@ -36,8 +36,8 @@ struct ContentNibbles {
 
 struct ContentInfo {
 	int serviceId;
-  std::wstring eventName;
-  std::wstring text;
+	std::wstring eventName;
+	std::wstring text;
 	std::vector<ContentNibbles> nibbles;
 };
 
@@ -66,31 +66,31 @@ public:
 	}
 
 	bool isProgramOK() const {
-    if (!patOK) return false;
+		if (!patOK) return false;
 		for (int i = 0; i < numPrograms; ++i) {
-      // 全プログラムのパケットがあるとは限らないので
-      // 1つでも映像のあるプログラムが取得できればOKとする
+			// 全プログラムのパケットがあるとは限らないので
+			// 1つでも映像のあるプログラムが取得できればOKとする
 			if (programList[i].programOK && programList[i].hasVideo) return true;
 		}
 		return false;
 	}
 
-  bool isScrampbled() const {
-    bool hasScrambleNG = false;
-    bool hasOKVideo = false;
-    for (int i = 0; i < numPrograms; ++i) {
-      if (!programList[i].programOK && programList[i].hasVideo && programList[i].hasScramble) {
-        // スクランブルで映像情報が取得できなかった
-        hasScrambleNG = true;
-      }
-      if (programList[i].programOK && programList[i].hasVideo) {
-        // 映像情報が取得できたプログラム
-        hasOKVideo = true;
-      }
-    }
-    // 映像情報が1つも取得できなくて、スクランブル映像があった場合
-    return !hasOKVideo && hasScrambleNG;
-  }
+	bool isScrampbled() const {
+		bool hasScrambleNG = false;
+		bool hasOKVideo = false;
+		for (int i = 0; i < numPrograms; ++i) {
+			if (!programList[i].programOK && programList[i].hasVideo && programList[i].hasScramble) {
+				// スクランブルで映像情報が取得できなかった
+				hasScrambleNG = true;
+			}
+			if (programList[i].programOK && programList[i].hasVideo) {
+				// 映像情報が取得できたプログラム
+				hasOKVideo = true;
+			}
+		}
+		// 映像情報が1つも取得できなくて、スクランブル映像があった場合
+		return !hasOKVideo && hasScrambleNG;
+	}
 
 	bool isOK() const {
 		for (int i = 0; i < numPrograms; ++i) {
@@ -137,14 +137,14 @@ private:
 		int pid;
 	public:
 		PSIDelegator(AMTContext&ctx, TsInfoParser& this_, int pid)
-			: PsiUpdatedDetector(ctx), this_(this_) , pid(pid) { }
+			: PsiUpdatedDetector(ctx), this_(this_), pid(pid) { }
 		virtual void onTableUpdated(int64_t clock, PsiSection section) {
 			this_.onPsiUpdated(pid, section);
 		}
 	};
 	struct ProgramItem : ProgramInfo {
 		bool programOK;
-    bool hasScramble;
+		bool hasScramble;
 		int pmtPid;
 		std::unique_ptr<PSIDelegator> pmtHandler;
 		std::unique_ptr<VideoFrameParser> videoHandler;
@@ -154,7 +154,7 @@ private:
 
 		ProgramItem()
 			: programOK(false)
-      , hasScramble(false)
+			, hasScramble(false)
 			, pmtPid(-1)
 			, eventOK(false)
 		{
@@ -170,20 +170,20 @@ private:
 	public:
 		SpVideoFrameParser(AMTContext&ctx, TsInfoParser& this_, ProgramItem* item)
 			: VideoFrameParser(ctx), this_(this_), item(item) { }
-    virtual void onTsPacket(int64_t clock, TsPacket packet) {
-      if (packet.transport_scrambling_control()) {
-        // スクランブルパケット
-        if (item->hasScramble == false) {
-          for (int i = 0; i < (int)this_.programList.size(); ++i) {
-            if (this_.programList[i].videoPid == item->videoPid) {
-              this_.programList[i].hasScramble = true;
-            }
-          }
-        }
-        return;
-      }
-      PesParser::onTsPacket(clock, packet);
-    }
+		virtual void onTsPacket(int64_t clock, TsPacket packet) {
+			if (packet.transport_scrambling_control()) {
+				// スクランブルパケット
+				if (item->hasScramble == false) {
+					for (int i = 0; i < (int)this_.programList.size(); ++i) {
+						if (this_.programList[i].videoPid == item->videoPid) {
+							this_.programList[i].hasScramble = true;
+						}
+					}
+				}
+				return;
+			}
+			PesParser::onTsPacket(clock, packet);
+		}
 	protected:
 		virtual void onVideoPesPacket(int64_t clock, const std::vector<VideoFrameInfo>& frames, PESPacket packet) { }
 		virtual void onVideoFormatChanged(VideoFormat fmt) {
@@ -272,9 +272,9 @@ private:
 		PAT pat = section;
 		if (pat.parse() && pat.check()) {
 #if 1
-      if (section.current_next_indicator() == 0) {
-        printf("IS NEXT PAT\n");
-      }
+			if (section.current_next_indicator() == 0) {
+				printf("IS NEXT PAT\n");
+			}
 #endif
 			std::vector<PATElement> programs;
 			for (int i = 0; i < pat.numElems(); ++i) {
@@ -397,23 +397,23 @@ private:
 	{
 		EIT eit(section);
 		if (section.current_next_indicator() && eit.parse() && eit.check() &&
-      section.section_number() == 0) // 現在の番組のみ
-    {
+			section.section_number() == 0) // 現在の番組のみ
+		{
 			ProgramItem* item = getProgramItem(eit.service_id());
 			if (item != nullptr) {
 				if (eit.numElems() > 0) {
 					auto elem = eit.get(0);
 					startTime = elem.start_time();
 					auto descs = ParseDescriptors(elem.descriptor());
-          ContentInfo info;
+					ContentInfo info;
 					for (int i = 0; i < (int)descs.size(); ++i) {
-            if (descs[i].tag() == 0x4D) { // 短形式イベント記述子
-              ShortEventDescriptor seventdesc(descs[i]);
-              if (seventdesc.parse()) {
-                info.eventName = GetAribString(seventdesc.event_name());
-                info.text = GetAribString(seventdesc.text());
-              }
-            }
+						if (descs[i].tag() == 0x4D) { // 短形式イベント記述子
+							ShortEventDescriptor seventdesc(descs[i]);
+							if (seventdesc.parse()) {
+								info.eventName = GetAribString(seventdesc.event_name());
+								info.text = GetAribString(seventdesc.text());
+							}
+						}
 						else if (descs[i].tag() == 0x54) { // コンテント記述子
 							ContentDescriptor contentdesc(descs[i]);
 							if (contentdesc.parse()) {
@@ -425,7 +425,7 @@ private:
 									data.content_nibble_level_2 = data_i.content_nibble_level_2();
 									data.user_nibble_1 = data_i.user_nibble_1();
 									data.user_nibble_2 = data_i.user_nibble_2();
-                  info.nibbles.push_back(data);
+									info.nibbles.push_back(data);
 								}
 							}
 						}
@@ -433,8 +433,8 @@ private:
 					// 同じPIDのプログラムは全て上書き
 					for (int i = 0; i < (int)programList.size(); ++i) {
 						if (programList[i].videoPid == item->videoPid) {
-              programList[i].contentInfo = info;
-              programList[i].contentInfo.serviceId = programList[i].programId;
+							programList[i].contentInfo = info;
+							programList[i].contentInfo.serviceId = programList[i].programId;
 							programList[i].eventOK = true;
 						}
 					}
@@ -470,26 +470,26 @@ public:
 	{ }
 
 	void ReadFile(const tchar* filepath) {
-			File srcfile(std::wstring(filepath), _T("rb"));
-			// ファイルの真ん中を読む
-			srcfile.seek(srcfile.size() / 2, SEEK_SET);
-      int ret = ReadTS(srcfile);
-			if (ret == 0) {
-				return;
-			}
-      bool isScrampbled = (ret == 2);
-			// ダメだったらファイルの先頭付近を読む
-			srcfile.seek(srcfile.size() / 30, SEEK_SET);
-      ret = ReadTS(srcfile);
-      if (ret == 0) {
-        return;
-      }
-      if (isScrampbled) {
-        THROW(FormatException, "すべてのプログラムがスクランブルされています");
-      }
-      else {
-        THROW(FormatException, "TSファイルに情報がありません");
-      }
+		File srcfile(std::wstring(filepath), _T("rb"));
+		// ファイルの真ん中を読む
+		srcfile.seek(srcfile.size() / 2, SEEK_SET);
+		int ret = ReadTS(srcfile);
+		if (ret == 0) {
+			return;
+		}
+		bool isScrampbled = (ret == 2);
+		// ダメだったらファイルの先頭付近を読む
+		srcfile.seek(srcfile.size() / 30, SEEK_SET);
+		ret = ReadTS(srcfile);
+		if (ret == 0) {
+			return;
+		}
+		if (isScrampbled) {
+			THROW(FormatException, "すべてのプログラムがスクランブルされています");
+		}
+		else {
+			THROW(FormatException, "TSファイルに情報がありません");
+		}
 	}
 
 	bool ReadFileFromC(const tchar* filepath) {
@@ -562,13 +562,13 @@ public:
 		return parser.getServiceList()[i].name.c_str();
 	}
 
-  const wchar_t* GetEventName(int i) {
-    return parser.getContent(i).eventName.c_str();
-  }
+	const wchar_t* GetEventName(int i) {
+		return parser.getContent(i).eventName.c_str();
+	}
 
-  const wchar_t* GetEventText(int i) {
-    return parser.getContent(i).text.c_str();
-  }
+	const wchar_t* GetEventText(int i) {
+		return parser.getContent(i).text.c_str();
+	}
 
 	std::vector<int> getSetPids() const {
 		return parser.getSetPids();
@@ -605,8 +605,8 @@ private:
 			if (parser.isOK()) return 0;
 			totalRead += readBytes;
 		} while (readBytes == buffer.length && totalRead < MAX_BYTES);
-    if (parser.isProgramOK()) return 0;
-    if (parser.isScrampbled()) return 2;
+		if (parser.isProgramOK()) return 0;
+		if (parser.isScrampbled()) return 2;
 		return 1;
 	}
 };
@@ -620,11 +620,17 @@ extern "C" __declspec(dllexport) void TsInfo_GetDay(TsInfo* ptr, int* y, int* m,
 extern "C" __declspec(dllexport) void TsInfo_GetTime(TsInfo* ptr, int* h, int* m, int* s) { return ptr->GetTime(h, m, s); }
 extern "C" __declspec(dllexport) int TsInfo_GetNumProgram(TsInfo* ptr) { return ptr->GetNumProgram(); }
 extern "C" __declspec(dllexport) void TsInfo_GetProgramInfo(TsInfo* ptr, int i, int* progId, int* hasVideo, int* videoPid, int* numContent)
-{ return ptr->GetProgramInfo(i, progId, hasVideo, videoPid, numContent); }
+{
+	return ptr->GetProgramInfo(i, progId, hasVideo, videoPid, numContent);
+}
 extern "C" __declspec(dllexport) void TsInfo_GetVideoFormat(TsInfo* ptr, int i, int* stream, int* width, int* height, int* sarW, int* sarH)
-{ return ptr->GetVideoFormat(i, stream, width, height, sarW, sarH); }
+{
+	return ptr->GetVideoFormat(i, stream, width, height, sarW, sarH);
+}
 extern "C" __declspec(dllexport) void TsInfo_GetContentNibbles(TsInfo* ptr, int i, int ci, int *level1, int *level2, int* user1, int* user2)
-{ return ptr->GetContentNibbles(i, ci, level1, level2, user1, user2); }
+{
+	return ptr->GetContentNibbles(i, ci, level1, level2, user1, user2);
+}
 extern "C" __declspec(dllexport) int TsInfo_GetNumService(TsInfo* ptr) { return ptr->GetNumService(); }
 extern "C" __declspec(dllexport) int TsInfo_GetServiceId(TsInfo* ptr, int i) { return ptr->GetServiceId(i); }
 extern "C" __declspec(dllexport) const wchar_t* TsInfo_GetProviderName(TsInfo* ptr, int i) { return ptr->GetProviderName(i); }
