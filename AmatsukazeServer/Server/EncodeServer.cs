@@ -314,7 +314,7 @@ namespace Amatsukaze.Server
 #endif
             // キュー状態を戻す
             queueManager.LoadAppData();
-            if (queueManager.Queue.Any(s => s.IsActive))
+            if (AppData_.setting.PauseOnStarted && queueManager.Queue.Any(s => s.IsActive))
             {
                 // アクティブなアイテムがある状態から開始する場合はキューを凍結する
                 EncodePaused = true;

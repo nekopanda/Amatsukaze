@@ -2555,6 +2555,19 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+
+        #region PauseOnStarted変更通知プロパティ
+        public bool PauseOnStarted {
+            get { return Model.PauseOnStarted; }
+            set { 
+                if (Model.PauseOnStarted == value)
+                    return;
+                Model.PauseOnStarted = value;
+                RaisePropertyChanged("PauseOnStarted");
+            }
+        }
+        #endregion
+
     }
 
     public class DisplayUIState

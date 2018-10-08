@@ -369,6 +369,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public double X265VFRTimeFactor { get; set; }
 
+        [DataMember]
+        public bool PauseOnStarted { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ActualWorkPath
