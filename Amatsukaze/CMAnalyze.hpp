@@ -226,6 +226,10 @@ private:
 	tstring makeAVSFile(int videoFileIndex)
 	{
 		StringBuilder sb;
+		
+		// オートロードプラグインのロードに失敗すると動作しなくなるのでそれを回避
+		sb.append("ClearAutoloadDirs()\n");
+
 		sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
 		sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(videoFileIndex));
 		sb.append("Prefetch(1)\n");
