@@ -238,6 +238,8 @@ namespace Amatsukaze.ViewModels
             Model = new LogoAnalyzeModel();
         }
 
+        FileStream deleteOnCloseFile = null;
+
         private async Task<bool> Prepare()
         {
             if (string.IsNullOrWhiteSpace(App.Option.WorkPath))
@@ -280,6 +282,8 @@ namespace Amatsukaze.ViewModels
                 {
                     int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
                     tmpTs = App.Option.WorkPath + "\\slimts-" + pid + ".ts";
+                    deleteOnCloseFile = new FileStream(App.Option.WorkPath + "\\slimts-" + pid,
+                        FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.DeleteOnClose);
                     currentTask = Model.MakeSlimFile(App.Option.FilePath, tmpTs, App.Option.ServiceId);
                     await currentTask;
                     Model.Load(tmpTs, App.Option.ServiceId);

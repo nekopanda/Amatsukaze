@@ -1284,9 +1284,9 @@ namespace Amatsukaze.Server
 
         private void CleanTmpDir()
         {
+            // amtディレクトリ
             foreach (var dir in Directory
-                .GetDirectories(AppData_.setting.ActualWorkPath)
-                .Where(s => Path.GetFileName(s).StartsWith("amt")))
+                .GetDirectories(AppData_.setting.ActualWorkPath, "amt*"))
             {
                 try
                 {
@@ -1294,13 +1294,28 @@ namespace Amatsukaze.Server
                 }
                 catch (Exception) { } // 例外は無視
             }
+            // amtファイル
             foreach (var file in Directory
-                .GetFiles(AppData_.setting.ActualWorkPath)
-                .Where(s => Path.GetFileName(s).StartsWith("amt")))
+                .GetFiles(AppData_.setting.ActualWorkPath, "amt*"))
             {
                 try
                 {
                     File.Delete(file);
+                }
+                catch (Exception) { } // 例外は無視
+            }
+            // slimtsファイル
+            foreach (var file in Directory
+                .GetFiles(AppData_.setting.ActualWorkPath, "slimts*.ts"))
+            {
+                try
+                {
+                    // 拡張子なしファイルがある場合は使用中なので除く
+                    var meta = AppData_.setting.ActualWorkPath + "\\" + Path.GetFileNameWithoutExtension(file);
+                    if(!File.Exists(meta))
+                    {
+                        File.Delete(file);
+                    }
                 }
                 catch (Exception) { } // 例外は無視
             }
