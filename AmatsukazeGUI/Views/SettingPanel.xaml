@@ -62,7 +62,7 @@
                               IsChecked="{Binding Model.Setting.ClearWorkDirOnStart, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="エンコード中はスリープしないようにする" 
                               IsChecked="{Binding Model.Setting.SupressSleep, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <CheckBox Height="16" Margin="0,3"  Content="Amatsukaze起動時にアクティブなアイテムが有るときはキューを停止する" 
+                    <CheckBox Height="16" Margin="0,3"  Content="Amatsukaze起動時にアクティブなアイテムがあるときはキューを停止する" 
                               IsChecked="{Binding Model.Setting.PauseOnStarted, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
 
