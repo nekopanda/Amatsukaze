@@ -202,7 +202,16 @@ public:
 							frameData.numDecodedSamples = frameInfo.samples / numChannels;
 							frameData.format.channels = getAudioChannels(header, frameInfo);
 							frameData.format.sampleRate = frameInfo.samplerate;
-							frameData.codedDataSize = frameInfo.bytesconsumed;
+							
+							// ストリームが正常なら frameInfo.bytesconsumed == header.frame_length となるはずだが
+							// ストリームが不正だと同じにならないことがある
+							// その場合、長さは header.frame_length を優先する
+							//（その方が次のフレームが正しくデコードされる確率が上がるのと
+							//  L-SMASHがheader.frame_lengthを見てフレームをスキップしているので
+							//  これが実際のフレーム長と一致していないと落ちるので）
+							//frameData.codedDataSize = frameInfo.bytesconsumed;
+							frameData.codedDataSize = header.frame_length;
+
 							// codedBuffer内データへのポインタを入れているので
 							// codedBufferには触らないように注意！
 							frameData.codedData = ptr;
