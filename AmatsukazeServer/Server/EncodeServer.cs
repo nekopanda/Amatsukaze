@@ -1218,7 +1218,7 @@ namespace Amatsukaze.Server
                         .Append("\"");
                 }
 
-                string[] decoderNames = new string[] { "default", "QSV", "CUVID" };
+                string[] decoderNames = new string[] { "default", "default", "CUVID" };
                 if (profile.Mpeg2Decoder != DecoderType.Default)
                 {
                     sb.Append("  --mpeg2decoder ");
