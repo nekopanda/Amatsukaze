@@ -191,8 +191,18 @@ public:
 							frameInfo.num_back_channels + frameInfo.num_side_channels + frameInfo.num_lfe_channels;
 
 						if (numChannels != 2) {
+							// フォーマットが変わるとバグって2chにできないこともあるので、初期化してもう１回食わせる
+							// 変な使い方だけどNeroAAC君はストリームの途中で(ry
+							resetDecoder(MemoryChunk(ptr, len));
+							samples = NeAACDecDecode(hAacDec, &frameInfo, ptr, len);
+
+							numChannels = frameInfo.num_front_channels +
+								frameInfo.num_back_channels + frameInfo.num_side_channels + frameInfo.num_lfe_channels;
+						}
+
+						if (frameInfo.error != 0 || numChannels != 2) {
 							ctx.incrementCounter(AMT_ERR_DECODE_AUDIO);
-							ctx.warnF("デコードされた音声が2chではありません(ch=%d)", numChannels);
+							ctx.warn("音声フレームを正しくデコードできませんでした");
 						}
 						else {
 							decodedBuffer.add(MemoryChunk((uint8_t*)samples, frameInfo.samples * 2));
