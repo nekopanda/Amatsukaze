@@ -157,6 +157,11 @@ enum AVFrameSideDataType {
      * av_frame_get_qp_table() to access this instead.
      */
     AV_FRAME_DATA_QP_TABLE_DATA,
+
+    /**
+     * DC values for each MBs. Size of table is same as QP table above.
+     */
+    AV_FRAME_DATA_MB_DC_TABLE_DATA,
 #endif
 };
 
