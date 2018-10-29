@@ -614,7 +614,7 @@ protected:
 			sb.append(" 指定サービスID: %d", preferedServiceId);
 			ctx.error("指定されたサービスがありません");
 			ctx.error(sb.str().c_str());
-			THROW(InvalidOperationException, "failed to select service");
+			//THROW(InvalidOperationException, "failed to select service");
 		}
 		selectedServiceId = pids[0];
 		ctx.infoF("サービス %d を選択（指定がありませんでした）", selectedServiceId);

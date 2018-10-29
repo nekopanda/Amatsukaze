@@ -131,6 +131,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public DeblockStrength DeblockStrength;
         [DataMember]
+        public bool DeblockSharpen;
+        [DataMember]
         public bool EnableDeinterlace;
         [DataMember]
         public DeinterlaceAlgorithm DeinterlaceAlgorithm;

@@ -801,7 +801,7 @@ namespace Amatsukaze.Server
 
             try
             {
-                bool hashEnabled = (item.IsCheck == false && item.Hash != null);
+                bool hashEnabled = (item.IsCheck == false && item.Hash != null && profile.DisableHashCheck == false);
                 // システムデフォルトエンコーディングで変換不可なファイル名の場合もコピー
                 bool needCopy = hashEnabled || !IsEncodableString(srcpath + ";" + dstpath);
                 if (needCopy)

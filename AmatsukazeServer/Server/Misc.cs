@@ -1283,7 +1283,7 @@ namespace Amatsukaze.Server
                         ", nr=" + (setting.KfmEnableNr ? "true" : "false") +
                         ", svp=" + ((setting.KfmFps == FilterFPS.SVP) ? "true" : "false") +
                         ", cuda=" + (setting.EnableCUDA ? "true" : "false") +
-                        ", filepath=AMT_TMP)");
+                        ", dev=AMT_DEV, filepath=AMT_TMP)");
                 }
                 else
                 {
@@ -1325,7 +1325,8 @@ namespace Amatsukaze.Server
                 {
                     sb.AppendLine("KDeblock(qpclip=dsrc.QPClip(),quality=" +
                         setting.DeblockQuality + "," +
-                        GetDeblockOption(setting.DeblockStrength) + ")");
+                        GetDeblockOption(setting.DeblockStrength) + ",sharp=" +
+                        setting.DeblockSharpen + ")");
                 }
                 if (setting.EnableResize || setting.EnableTemporalNR ||
                     setting.EnableDeband || setting.EnableEdgeLevel)
@@ -1350,7 +1351,7 @@ namespace Amatsukaze.Server
                     sb.AppendLine("ConvertBits(10, dither=0)");
                     sb.AppendLine("if(IsProcess(\"AvsPmod.exe\")) { ConvertBits(8, dither=0) }");
                 }
-                sb.AppendLine(setting.EnableCUDA ? "OnCUDA(2)" : "Prefetch(4)");
+                sb.AppendLine(setting.EnableCUDA ? "OnCUDA(2, AMT_DEV)" : "Prefetch(4)");
             }
 
             return sb.ToString();

@@ -112,6 +112,11 @@
                         </TextBlock>
                     </ComboBox.ToolTip>
                 </ComboBox>
+                <CheckBox VerticalAlignment="Center"
+                          IsChecked="{Binding DeblockSharpen, Mode=TwoWay}"
+                          IsEnabled="{Binding EnableDeblock}">
+                    シャープ化
+                </CheckBox>
                 <Border/>
             </DockPanel>
         </GroupBox>

@@ -659,6 +659,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region DeblockSharpen変更通知プロパティ
+        public bool DeblockSharpen {
+            get { return Data.DeblockSharpen; }
+            set { 
+                if (Data.DeblockSharpen == value)
+                    return;
+                Data.DeblockSharpen = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region EnableDeinterlace変更通知プロパティ
         public bool EnableDeinterlace
         {
