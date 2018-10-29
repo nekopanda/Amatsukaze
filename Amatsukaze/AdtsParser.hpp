@@ -258,7 +258,7 @@ public:
 							info.push_back(frameData);
 
 							// データを進める
-							ASSERT(frameInfo.bytesconsumed == header.frame_length);
+							//ASSERT(frameInfo.bytesconsumed == header.frame_length);
 							ibytes += header.frame_length - 1;
 							bytesConsumed_ = ibytes + 1;
 

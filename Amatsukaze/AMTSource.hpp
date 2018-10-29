@@ -383,7 +383,8 @@ class AMTSource : public IClip, AMTObject
 				}
 				qpvi.pixel_type = VideoInfo::CS_Y8;
 				PVideoFrame qpframe = env->NewVideoFrame(qpvi);
-				env->BitBlt(qpframe->GetWritePtr(), qpframe->GetPitch(), (const BYTE*)qp_table, qpvi.width, qpvi.width, qpvi.height);
+				env->BitBlt(qpframe->GetWritePtr(), qpframe->GetPitch(), 
+					(const BYTE*)qp_table, qpvi.width, qpvi.width, qpvi.height);
 				if (top->pict_type != AV_PICTURE_TYPE_B) {
 					nonBQPTable = qpframe;
 				}
@@ -391,6 +392,14 @@ class AMTSource : public IClip, AMTObject
 				ret->SetProperty("QP_Table_Non_B", nonBQPTable);
 				ret->SetProperty("QP_Stride", qp_stride ? qpframe->GetPitch() : 0);
 				ret->SetProperty("QP_ScaleType", qp_scale_type);
+
+				PVideoFrame dcframe = env->NewVideoFrame(qpvi);
+				auto dc_table_data = av_frame_get_side_data(top, AV_FRAME_DATA_MB_DC_TABLE_DATA);
+				if (dc_table_data) {
+					env->BitBlt(dcframe->GetWritePtr(), dcframe->GetPitch(),
+						(const BYTE*)dc_table_data->data, qpvi.width, qpvi.width, qpvi.height);
+					ret->SetProperty("DC_Table", dcframe);
+				}
 			}
 		}
 
