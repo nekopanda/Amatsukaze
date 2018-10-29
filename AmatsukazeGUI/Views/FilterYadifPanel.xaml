@@ -21,7 +21,7 @@
             <TextBlock Margin="4" Text="出力fps" VerticalAlignment="Center"/>
             <ComboBox Margin="4" ItemsSource="{Binding FPSList}" SelectedIndex="{Binding SelectedFPS, Mode=TwoWay}"/>
         </DockPanel>
-        <TextBlock Margin="4" TextWrapping="Wrap">
+        <!--<TextBlock Margin="4" TextWrapping="Wrap">
             Yadifに必要なプラグインはAmatsukazeに同梱されていません。以下の必要なdllを配置してください。
         </TextBlock>
         <TextBlock Margin="4" TextWrapping="Wrap">
@@ -39,6 +39,6 @@
             <Hyperlink NavigateUri="exe_files\plugins64"
                         RequestNavigate="Hyperlink_PluginFolder">exe_files\plugins64</Hyperlink>
             にコピー
-        </TextBlock>
+        </TextBlock>-->
     </StackPanel>
 </UserControl>
