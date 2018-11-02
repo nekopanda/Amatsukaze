@@ -19,16 +19,6 @@
 #include "ProcessThread.hpp"
 #include "PerformanceUtil.hpp"
 
-static void PrintFileAll(const tstring& path)
-{
-	File file(path, _T("rb"));
-	int sz = (int)file.size();
-	if (sz == 0) return;
-	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
-	auto rsz = file.read(MemoryChunk(buf.get(), sz));
-	fwrite(buf.get(), 1, strnlen_s((char*)buf.get(), rsz), stderr);
-}
-
 class CMAnalyze : public AMTObject
 {
 public:
@@ -192,6 +182,23 @@ public:
 		makeCMZones(numFrames);
 	}
 
+	void inputTrimAVS(int numFrames, const tstring& trimavsPath)
+	{
+		ctx.infoF("[Trim情報入力]: %s", trimavsPath.c_str());
+		PrintFileAll(trimavsPath);
+
+		// AVSファイルからCM区間を読む
+		File file(trimavsPath, _T("r"));
+		std::string str;
+		if (!file.getline(str)) {
+			THROW(FormatException, "TrimAVSファイルが読めません");
+		}
+		readTrimAVS(str, numFrames);
+
+		// cmzonesに反映
+		makeCMZones(numFrames);
+	}
+
 private:
 	class MySubProcess : public EventBaseSubProcess {
 	public:
@@ -337,11 +344,17 @@ private:
 		if (!file.getline(str)) {
 			THROW(FormatException, "join_logo_scp.exeの出力AVSファイルが読めません");
 		}
+		readTrimAVS(str, numFrames);
+	}
 
-		std::regex re("Trim\\((\\d+),(\\d+)\\)");
+	void readTrimAVS(std::string str, int numFrames)
+	{
+		std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+		std::regex re("trim\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)");
 		std::sregex_iterator iter(str.begin(), str.end(), re);
 		std::sregex_iterator end;
 
+		trims.clear();
 		for (; iter != end; ++iter) {
 			trims.push_back(std::stoi((*iter)[1].str()));
 			trims.push_back(std::stoi((*iter)[2].str()) + 1);

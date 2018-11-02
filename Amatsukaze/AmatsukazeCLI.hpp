@@ -68,6 +68,7 @@ static void printHelp(const tchar* bin) {
 		"  --jls <パス>         join_logo_scp.exeへのパス\n"
 		"  --jls-cmd <パス>    join_logo_scpのコマンドファイルへのパス\n"
 		"  --jls-option <オプション>    join_logo_scpのコマンドファイルへのパス\n"
+		"  --trimavs <パス>    CMカット用Trim AVSファイルへのパス。メインファイルのCMカット出力でのみ使用される。\n"
 		"  --nicoass <パス>     NicoConvASSへのパス\n"
 		"  -om|--cmoutmask <数値> 出力マスク[1]\n"
 		"                      1 : 通常\n"
@@ -396,6 +397,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--jls-option")) {
 			conf.joinLogoScpOptions = getParam(argc, argv, i++);
+		}
+		else if (key == _T("--trimavs")) {
+			conf.trimavsPath = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--nicoass")) {
 			conf.nicoConvAssPath = getParam(argc, argv, i++);

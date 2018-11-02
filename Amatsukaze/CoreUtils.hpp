@@ -436,3 +436,18 @@ void WriteGrayBitmap(const std::string& path, int w, int h, F pixels) {
 	file.write(MemoryChunk((uint8_t*)&bmiHeader, sizeof(bmiHeader)));
 	file.write(MemoryChunk(buf.get(), h * stride));
 }
+
+static void PrintFileAll(const tstring& path)
+{
+	File file(path, _T("rb"));
+	int sz = (int)file.size();
+	if (sz == 0) return;
+	auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[sz]);
+	auto rsz = file.read(MemoryChunk(buf.get(), sz));
+	fwrite(buf.get(), 1, strnlen_s((char*)buf.get(), rsz), stderr);
+	if (buf[rsz - 1] != '\n') {
+		// ‰üs‚ÅI‚í‚Á‚Ä‚¢‚È‚¢‚Æ‚«‚Í‰üs‚·‚é
+		fprintf(stderr, "\n");
+	}
+}
+

@@ -795,6 +795,7 @@ namespace Amatsukaze.Server
                 yield return ".ts.err";
                 yield return ".ts.program.txt";
             }
+            yield return ".ts.trim.avs";
         }
 
         public class ErrorDescription

@@ -433,7 +433,7 @@ struct Config {
 	tstring workDir;
 	tstring mode;
 	tstring modeArgs; // テスト用
-	   // 入力ファイルパス（拡張子を含む）
+	// 入力ファイルパス（拡張子を含む）
 	tstring srcFilePath;
 	// 出力ファイルパス（拡張子を除く）
 	tstring outVideoPath;
@@ -483,6 +483,7 @@ struct Config {
 	tstring joinLogoScpCmdPath;
 	tstring joinLogoScpOptions;
 	int cmoutmask;
+	tstring trimavsPath;
 	// 検出モード用
 	int maxframes;
 	// ホストプロセスとの通信用
@@ -693,6 +694,10 @@ public:
 
 	tstring getJoinLogoScpOptions() const {
 		return conf.joinLogoScpOptions;
+	}
+
+	tstring getTrimAVSPath() const {
+		return conf.trimavsPath;
 	}
 
 	const std::vector<CMType>& getCMTypes() const {

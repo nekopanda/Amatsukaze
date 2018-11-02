@@ -299,6 +299,17 @@ public:
 		return ret;
 	}
 
+	int getMainVideoFileIndex() const {
+		int maxFrames = 0, maxIndex = 0;
+		for (int i = 0; i < (int)filterFrameList_.size(); ++i) {
+			if (maxFrames < filterFrameList_[i].size()) {
+				maxFrames = (int)filterFrameList_[i].size();
+				maxIndex = i;
+			}
+		}
+		return maxIndex;
+	}
+
 	// フィルタ入力映像フレーム
 	const std::vector<FilterSourceFrame>& getFilterSourceFrames(int videoFileIndex) const {
 		return filterFrameList_[videoFileIndex];

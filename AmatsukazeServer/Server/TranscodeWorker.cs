@@ -371,6 +371,7 @@ namespace Amatsukaze.Server
                 },
                 Chapter = json.cmanalyze,
                 NicoJK = json.nicojk,
+                TrimAVS = json.trimavs,
                 OutputMask = outputMask,
                 ServiceName = item.ServiceName,
                 ServiceId = item.ServiceId,
@@ -799,6 +800,13 @@ namespace Amatsukaze.Server
             string localdst = dstpath;
             string tmpBase = null;
 
+            // Trim指定ファイル
+            string trimavs = srcpath + ".trim.avs";
+            if(!File.Exists(trimavs))
+            {
+                trimavs = null;
+            }
+
             try
             {
                 bool hashEnabled = (item.IsCheck == false && item.Hash != null && profile.DisableHashCheck == false);
@@ -860,7 +868,7 @@ namespace Amatsukaze.Server
                     server.AppData_.setting,
                     isMp4,
                     srcpath, localdst + ext, json,
-                    item.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt, ceopt,
+                    item.ServiceId, logopaths, ignoreNoLogo, jlscmd, jlsopt, ceopt, trimavs,
                     pipes?.InHandle, pipes?.OutHandle, Id);
                 string exename = server.AppData_.setting.AmatsukazePath;
 

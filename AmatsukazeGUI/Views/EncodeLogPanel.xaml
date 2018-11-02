@@ -87,6 +87,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="チャンネル"/>
                     <TextBlock HorizontalAlignment="Left" Text="チャプター・CM解析"/>
                     <TextBlock HorizontalAlignment="Left" Text="ニコニコ実況コメント"/>
+                    <TextBlock HorizontalAlignment="Left" Text="Trim情報入力" ToolTip="外部Trim情報を使用したか(拡張子を含むファイル名.trim.avs)"/>
                     <TextBlock HorizontalAlignment="Left" Text="出力"/>
                     <TextBlock HorizontalAlignment="Left" Text="ロゴファイル"/>
                     <TextBlock HorizontalAlignment="Left" Text="開始"/>
@@ -104,6 +105,7 @@
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayChapter}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayNicoJK}"/>
+                    <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTrimAVS}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayOutputMask}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayLogo}"/>
                     <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayEncodeStart}"/>

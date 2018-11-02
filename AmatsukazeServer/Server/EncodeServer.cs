@@ -980,7 +980,7 @@ namespace Amatsukaze.Server
             bool isGeneric,
             string src, string dst, string json,
             int serviceId, string[] logofiles,
-            bool ignoreNoLogo, string jlscommand, string jlsopt, string ceopt,
+            bool ignoreNoLogo, string jlscommand, string jlsopt, string ceopt, string trimavs,
             string inHandle, string outHandle, int pid)
         {
             StringBuilder sb = new StringBuilder();
@@ -1256,6 +1256,10 @@ namespace Amatsukaze.Server
                         .Append(profile.PmtCutHeadRate / 100)
                         .Append(":")
                         .Append(profile.PmtCutTailRate / 100);
+                }
+                if(string.IsNullOrEmpty(trimavs) == false)
+                {
+                    sb.Append(" --trimavs \"").Append(trimavs).Append("\"");
                 }
 
                 if (logofiles != null)

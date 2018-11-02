@@ -845,6 +845,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool NicoJK { get; set; }
         [DataMember]
+        public bool TrimAVS { get; set; }
+        [DataMember]
         public int OutputMask { get; set; }
         [DataMember]
         public string ServiceName { get; set; }
@@ -932,6 +934,7 @@ namespace Amatsukaze.Server
         public string DisplayLogo { get { return LogoFiles?.FirstOrDefault() ?? "なし"; } }
         public string DisplayChapter { get { return Chapter ? "○" : "☓"; } }
         public string DisplayNicoJK { get { return NicoJK ? "○" : "☓"; } }
+        public string DisplayTrimAVS { get { return TrimAVS ? "○" : "☓"; } }
         public string DisplayOutputMask {
             get {
                 switch(OutputMask)

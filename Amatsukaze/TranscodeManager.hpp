@@ -544,6 +544,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 	int numVideoFiles = reformInfo.getNumVideoFile();
 	int numOutFiles = reformInfo.getNumOutFiles();
+	int mainFileIndex = reformInfo.getMainVideoFileIndex();
 	std::vector<std::unique_ptr<CMAnalyze>> cmanalyze;
 
 	// ソースファイル読み込み用データ保存
@@ -578,6 +579,13 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				// PMT変更によるCM追加認識
 				cmanalyze.back()->applyPmtCut(numFrames, setting.getPmtCutSideRate(),
 					reformInfo.getPidChangedList(videoFileIndex));
+			}
+
+			if (videoFileIndex == mainFileIndex) {
+				if (setting.getTrimAVSPath().size()) {
+					// Trim情報入力
+					cmanalyze.back()->inputTrimAVS(numFrames, setting.getTrimAVSPath());
+				}
 			}
 
 			logoFound.emplace_back(numFrames, cmanalyze.back()->getLogoPath().size() > 0);
@@ -835,6 +843,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		sb.append(" }");
 		sb.append(", \"cmanalyze\": %s", (setting.isChapterEnabled() ? "true" : "false"))
 			.append(", \"nicojk\": %s", (nicoOK ? "true" : "false"))
+			.append(", \"trimavs\": %s", (setting.getTrimAVSPath().size() ? "true" : "false"))
 			.append(" }");
 
 		std::string str = sb.str();
