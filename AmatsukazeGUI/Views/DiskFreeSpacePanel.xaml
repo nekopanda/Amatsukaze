@@ -9,10 +9,10 @@
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:DiskFreeSpaceViewModel}}">
     <Grid>
-        <ListBox ItemsSource="{Binding DiskItems}" HorizontalContentAlignment="Stretch">
-            <ListBox.ItemTemplate>
+        <ItemsControl ItemsSource="{Binding DiskItems}" HorizontalContentAlignment="Stretch">
+            <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="vm:DiskItemViewModel">
-                    <Grid>
+                    <Grid Margin="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="15"/>
                             <RowDefinition Height="15"/>
@@ -25,7 +25,7 @@
                         <Rectangle Grid.Row="1" Fill="#FF498ED5" Stroke="Gray" StrokeThickness="1" HorizontalAlignment="Left" Width="{Binding BarWidth}" />
                     </Grid>
                 </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Grid>
 </UserControl>

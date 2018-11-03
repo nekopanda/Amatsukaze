@@ -25,7 +25,7 @@
         </TextBlock>
         <DockPanel>
             <TextBlock Margin="4" Text="使用GPU" VerticalAlignment="Center"/>
-            <ComboBox Margin="4" ItemsSource="{Binding GPUList}" SelectedIndex="{Binding GPU, Mode=TwoWay}"/>
+            <ComboBox Margin="4" Height="22" ItemsSource="{Binding GPUList}" SelectedIndex="{Binding GPU, Mode=TwoWay}"/>
         </DockPanel>
         <TextBlock Margin="4" TextWrapping="Wrap">
             出力は60fps固定です。

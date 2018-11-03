@@ -88,7 +88,7 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <Label DockPanel.Dock="Left" x:Name="label1" Content="最大取得フレーム数" Margin="5"
+            <TextBlock DockPanel.Dock="Left" x:Name="label1" Text="最大取得フレーム数" Margin="5"
                    VerticalAlignment="Center" HorizontalAlignment="Left" Width="104" Grid.RowSpan="2"/>
 
             <ComboBox DockPanel.Dock="Left" x:Name="maxFramesCombo" Style="{StaticResource SettingCombo}"
@@ -96,7 +96,7 @@
                       ItemsSource="{Binding MaxFramesList}" IsEditable="True"
                       Text="{Binding MaxFrames, Mode=TwoWay, StringFormat=\{0:N0\}, UpdateSourceTrigger=PropertyChanged}" Grid.RowSpan="2"/>
 
-            <Label DockPanel.Dock="Left" x:Name="label" Content="しきい値" Margin="5"
+            <TextBlock DockPanel.Dock="Left" x:Name="label" Text="しきい値" Margin="5"
                    VerticalAlignment="Center" HorizontalAlignment="Left" Width="49" Grid.RowSpan="2"/>
 
             <ComboBox DockPanel.Dock="Left" x:Name="thresholdCombo" Style="{StaticResource SettingCombo}"

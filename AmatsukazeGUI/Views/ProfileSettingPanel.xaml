@@ -73,12 +73,12 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコーダ" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,28">エンコーダ<LineBreak/>追加オプション</TextBlock>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="エンコーダ"/>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,28" Height="32">エンコーダ<LineBreak/>追加オプション</TextBlock>
 
-                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Top" TextAlignment="Right">JoinLogoScp<LineBreak/>コマンドファイル</TextBlock>
-                    <TextBlock HorizontalAlignment="Right" Text="オプション" VerticalAlignment="Top" Margin="0"/>
-                    <TextBlock HorizontalAlignment="Right" Text="chapter_exeオプション" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right" Height="32">JoinLogoScp<LineBreak/>コマンドファイル</TextBlock>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0" Height="16" Text="オプション"/>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="chapter_exeオプション"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">
@@ -89,7 +89,7 @@
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Content="プロファイル設定をテキストでコピー" Height="20"
                                 Command="{Binding Model.SelectedProfile.CopySettingTextCommand}"/>
-                        <ComboBox Margin="0,3" HorizontalAlignment="Left" VerticalAlignment="Top" Width="120" 
+                        <ComboBox Margin="0,3" HorizontalAlignment="Left" VerticalAlignment="Top" Width="120" Height="22" 
                               ItemsSource="{Binding Model.SelectedProfile.EncoderList}"
                               SelectedIndex="{Binding Model.SelectedProfile.EncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
@@ -99,7 +99,7 @@
                              VerticalAlignment="Top"
                              ToolTip="入力ファイルの解像度、アスペクト比、インタレースフラグ、&#xA;フレームレート、カラーマトリクス等は（自動ビットレートONの場合はビットレート設定も）&#xA;自動で追加されるので不要です。"/>
 
-                    <ComboBox Margin="0,3" Height="23" 
+                    <ComboBox Margin="0,3" Height="22" 
                       SelectedItem="{Binding Model.SelectedProfile.JLSCommandFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" 
                           ToolTip="CM判定に使います。">
                         <ComboBox.Resources>
@@ -115,7 +115,7 @@
                         </ComboBox.ItemsSource>
                     </ComboBox>
                     <DockPanel>
-                        <CheckBox Content="チャンネル設定に従う" DockPanel.Dock="Right" x:Name="JLSOptionEnable" 
+                        <CheckBox Content="チャンネル設定に従う" DockPanel.Dock="Right" x:Name="JLSOptionEnable" VerticalAlignment="Center"
                                   IsChecked="{Binding Model.SelectedProfile.EnableJLSOption, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"/>
                         <TextBox ToolTip="JoinLogoScpのオプション"
                                  Text="{Binding Model.SelectedProfile.JLSOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -127,14 +127,14 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="1">
-                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Text="MPEG2デコーダ" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" TextWrapping="Wrap" Text="H264デコーダ" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力フォーマット" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="出力選択" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" Text="VFRフレームタイミング" VerticalAlignment="Top" Margin="0,6"/>
+                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" TextWrapping="Wrap" Text="MPEG2デコーダ"/>
+                    <TextBlock Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" TextWrapping="Wrap" Text="H264デコーダ"/>
+                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="出力フォーマット"/>
+                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="出力選択"/>
+                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="VFRフレームタイミング"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0">
-                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120" 
+                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120" Height="22"
                        ItemsSource="{Binding Model.SelectedProfile.Mpeg2DecoderList}"
                           SelectedIndex="{Binding Model.SelectedProfile.Mpeg2DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <ComboBox.ToolTip>
@@ -147,33 +147,33 @@
                         </ComboBox.ToolTip>
                     </ComboBox>
 
-                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120"
+                    <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120" Height="22"
                       ItemsSource="{Binding Model.SelectedProfile.H264DecoderList}"
                           SelectedIndex="{Binding Model.SelectedProfile.H264DecoderInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="CUVIDの方が速いです。&#xA;QSVは現バージョンのFFmpegが壊れてて使えません。"/>
 
-                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="78"
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="78" Height="22"
                        ItemsSource="{Binding Model.SelectedProfile.FormatList}" 
                        SelectedIndex="{Binding Model.SelectedProfile.OutputFormatInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="MP4の場合、ASS字幕は別ファイルとして出力されます"/>
 
-                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="130"
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="130" Height="22"
                        ItemsSource="{Binding Model.SelectedProfile.OutputOptionList}" 
                        SelectedItem="{Binding Model.SelectedProfile.OutputMask, Mode=TwoWay}"
                        ToolTip="CMカットの精度は100%ではありません"/>
 
-                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="80"
+                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="80" Height="22"
                        ItemsSource="{Binding Model.SelectedProfile.VFRFpsList}" 
                        SelectedIndex="{Binding Model.SelectedProfile.VFRFps, Mode=TwoWay}"
                        ToolTip="24fpsフレームのフレーム時刻に影響します"/>
                 </StackPanel>
                 
                 <StackPanel Grid.Row="2" Grid.Column="0">
-                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,3" Text="リネーム"/>
-                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,15" Text="SCRename書式"/>
-                    <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
-                    <TextBlock HorizontalAlignment="Right" Text="実行前バッチ" Margin="0,6"/>
-                    <TextBlock HorizontalAlignment="Right" Text="実行後バッチ" Margin="0,6"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,3" Text="リネーム"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,15" Text="SCRename書式"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Text="" Margin="0,3"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Text="実行前バッチ" Margin="0,6"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Text="実行後バッチ" Margin="0,6"/>
                 </StackPanel>
                 <StackPanel Grid.Row="2" Grid.Column="1" Margin="10,0">
                     <CheckBox Height="16" Margin="0,3"  Content="SCRenameによるリネームを行う" 
@@ -189,17 +189,17 @@
                               IsChecked="{Binding Model.SelectedProfile.EnableGunreFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="SCRenameで名前が取得できた場合はフォルダ分けされません。" />
                     
-                    <ComboBox Height="23" Margin="0,3" ToolTip="エンコード実行直前に実行するバッチファイル"
+                    <ComboBox Height="22" Margin="0,3" ToolTip="エンコード実行直前に実行するバッチファイル"
                               ItemsSource="{Binding Model.PreBatFiles}"
                               SelectedItem="{Binding Model.SelectedProfile.PreBatchFile, Mode=TwoWay}" />
-                    <ComboBox Height="23" Margin="0,3" ToolTip="エンコード実行後に実行するバッチファイル"
+                    <ComboBox Height="22" Margin="0,3" ToolTip="エンコード実行後に実行するバッチファイル"
                               ItemsSource="{Binding Model.PostBatFiles}"
                               SelectedItem="{Binding Model.SelectedProfile.PostBatchFile, Mode=TwoWay}" />
                 </StackPanel>
 
                 <TextBlock Grid.Row="3" HorizontalAlignment="Left" Text="フィルタ設定" VerticalAlignment="Center"/>
                 <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,4">
-                    <ComboBox Margin="0,3"
+                    <ComboBox Margin="0,3" Height="22"
                               ItemsSource="{Binding Model.SelectedProfile.FilterOptions}"
                               SelectedIndex="{Binding Model.SelectedProfile.FilterOption, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
@@ -438,7 +438,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type m:DisplayResource}">
                                     <DockPanel>
-                                        <TextBlock Width="90" Text="{Binding Name, Mode=OneWay}" TextAlignment="Right" Margin="0,0,5,0"/>
+                                        <TextBlock Width="90" VerticalAlignment="Center" Text="{Binding Name, Mode=OneWay}" TextAlignment="Right" Margin="0,0,5,0"/>
                                         <TextBox Width="50" Text="{Binding CPU, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBox Width="50" Text="{Binding HDD, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBox Width="50" Text="{Binding GPU, FallbackValue=0, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

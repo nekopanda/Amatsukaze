@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amatsukaze.Components;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,6 +23,7 @@ namespace Amatsukaze.Views
         public NewAutoSelectWindow()
         {
             InitializeComponent();
+            Utils.SetWindowProperties(this);
         }
     }
 }

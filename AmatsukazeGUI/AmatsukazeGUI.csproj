@@ -96,6 +96,7 @@
     <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Components\ObservableViewModelCollection.cs" />
     <Compile Include="Components\TaskbarInfoBehavior.cs" />
+    <Compile Include="Components\Utils.cs" />
     <Compile Include="Models\DisplayData.cs" />
     <Compile Include="Models\LogoAnalyzeModel.cs" />
     <Compile Include="ViewModels\AddQueueConsoleViewModel.cs" />

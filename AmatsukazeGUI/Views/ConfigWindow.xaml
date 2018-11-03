@@ -55,16 +55,16 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             
-            <TextBlock Text="サーバIP" VerticalAlignment="Center" Margin="5"/>
+            <TextBlock Text="サーバIP" VerticalAlignment="Center" Margin="5" Height="16"/>
             <TextBox Grid.Column="1" Text="{Binding ServerIP, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" TabIndex="1" Margin="5">
                 <TextBox.InputBindings>
                     <KeyBinding Key="Enter" Command="{Binding OkCommand, Mode=OneWay}"/>
                 </TextBox.InputBindings>
             </TextBox>
-            
-            <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="5" Text="ポート"/>
+
+            <TextBlock Grid.Row="1" VerticalAlignment="Center" Margin="5" Text="ポート" Height="16"/>
             <DockPanel Grid.Row="1" Grid.Column="1">
-                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="5" Text="デフォルト値は32768"/>
+                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="5" Height="16" Text="デフォルト値は32768"/>
                 <TextBox Text="{Binding ServerPort}" VerticalAlignment="Center" TabIndex="1" Margin="5">
                     <TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding OkCommand, Mode=OneWay}"/>

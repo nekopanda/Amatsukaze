@@ -25,30 +25,30 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel>
-                <TextBlock HorizontalAlignment="Left" Text="結果"/>
-                <TextBlock HorizontalAlignment="Left" Text="メッセージ"/>
-                <TextBlock HorizontalAlignment="Left" Text="フォルダ"/>
-                <TextBlock HorizontalAlignment="Left" Text="ファイル名"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="結果"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="メッセージ"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="フォルダ"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="ファイル名"/>
             </StackPanel>
             <StackPanel Grid.Column="2" Grid.ColumnSpan="4">
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayResult}"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayReason}"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcDirectory}"/>
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplaySrcFileName}"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="{Binding DisplayResult}"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="{Binding DisplayReason}"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="{Binding DisplaySrcDirectory}"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="{Binding DisplaySrcFileName}"/>
             </StackPanel>
 
             <StackPanel Grid.Row="1">
-                <TextBlock HorizontalAlignment="Left" Text="録画日"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="録画日"/>
             </StackPanel>
             <StackPanel Grid.Row="1" Grid.Column="2">
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayTsTime}"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="{Binding DisplayTsTime}"/>
             </StackPanel>
 
             <StackPanel Grid.Row="1" Grid.Column="3">
-                <TextBlock HorizontalAlignment="Left" Text="チャンネル"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="チャンネル"/>
             </StackPanel>
             <StackPanel Grid.Row="1" Grid.Column="5">
-                <TextBlock HorizontalAlignment="Left" Text="{Binding DisplayService}"/>
+                <TextBlock HorizontalAlignment="Left" Height="16" Text="{Binding DisplayService}"/>
             </StackPanel>
         </Grid>
         

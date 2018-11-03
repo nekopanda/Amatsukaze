@@ -76,7 +76,7 @@
             </Grid>
             <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
             <DockPanel>
-                <ComboBox Width="40" HorizontalAlignment="Left" DockPanel.Dock="Right"
+                <ComboBox Width="40" Height="22" HorizontalAlignment="Left" DockPanel.Dock="Right"
                                 ItemsSource="{Binding Model.PriorityList}" 
                                 SelectedItem="{Binding Item.Outputs[0].Priority, Mode=TwoWay}"/>
                 <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
@@ -85,7 +85,7 @@
             </DockPanel>
             <DockPanel>
                 <TextBlock Text="追加時バッチ" VerticalAlignment="Center" Margin="5,0"/>
-                <ComboBox ItemsSource="{Binding Model.AddQueueBatFiles}"
+                <ComboBox ItemsSource="{Binding Model.AddQueueBatFiles}" Height="22"
                           SelectedItem="{Binding AddQueueBat, Mode=TwoWay}"/>
             </DockPanel>
         </StackPanel>

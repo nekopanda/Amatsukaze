@@ -43,7 +43,7 @@
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top">
                     <TextBlock VerticalAlignment="Center" Text="解除方法"/>
-                    <ComboBox Margin="4,0"
+                    <ComboBox Margin="4,0" Height="22"
                               ItemsSource="{Binding DeinterlaceList}"
                               SelectedIndex="{Binding DeinterlaceAlgorithm, Mode=TwoWay}"
                               IsEnabled="{Binding EnableDeinterlace}">
@@ -86,7 +86,7 @@
             </GroupBox.Header>
             <DockPanel>
                 <TextBlock VerticalAlignment="Center" Text="強度"/>
-                <ComboBox Margin="4,0" Width="120" 
+                <ComboBox Margin="4,0" Width="120"  Height="22"
                           ItemsSource="{Binding DeblockStrengthList}"
                           SelectedIndex="{Binding DeblockStrength, Mode=TwoWay}"
                           IsEnabled="{Binding EnableDeblock}">
@@ -101,7 +101,7 @@
                     </ComboBox.ToolTip>
                 </ComboBox>
                 <TextBlock VerticalAlignment="Center" Text="品質"/>
-                <ComboBox Margin="4,0" Width="60" 
+                <ComboBox Margin="4,0" Width="60"  Height="22"
                           ItemsSource="{Binding DeblockQualityList}"
                           SelectedIndex="{Binding DeblockQuality, Mode=TwoWay}"
                           IsEnabled="{Binding EnableDeblock}">

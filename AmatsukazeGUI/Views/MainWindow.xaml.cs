@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Amatsukaze.Components;
 
 namespace Amatsukaze.Views
 {
@@ -30,6 +31,7 @@ namespace Amatsukaze.Views
         public MainWindow()
         {
             InitializeComponent();
+            Utils.SetWindowProperties(this);
         }
 
         private void Window_SourceInitialized(object sender, EventArgs e)

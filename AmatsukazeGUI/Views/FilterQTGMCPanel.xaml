@@ -24,7 +24,7 @@
         </TextBlock>
         <DockPanel>
             <TextBlock Text="プリセット" Margin="4" VerticalAlignment="Center"/>
-            <ComboBox Margin="4" ItemsSource="{Binding PresetList}"
+            <ComboBox Margin="4" Height="22" ItemsSource="{Binding PresetList}"
                       SelectedIndex="{Binding Preset, Mode=TwoWay}"/>
         </DockPanel>
         <TextBlock Margin="4" TextWrapping="Wrap">

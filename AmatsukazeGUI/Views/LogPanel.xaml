@@ -25,7 +25,8 @@
              ItemsSource="{Binding Panels}" SelectedItem="{Binding SelectedPanel, Mode=TwoWay}" >
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Stretch" TextAlignment="Center" />
+                    <TextBlock Text="{Binding Name}" HorizontalAlignment="Stretch"
+                               VerticalAlignment="Center" TextAlignment="Center" Height="16" />
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>

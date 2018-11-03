@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amatsukaze.Components;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,6 +31,7 @@ namespace Amatsukaze.Views
         public ServerWindow()
         {
             InitializeComponent();
+            Utils.SetWindowProperties(this);
         }
 
         private void MenuItem_Click(object sender, RoutedEventArgs e)

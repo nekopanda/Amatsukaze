@@ -16,7 +16,8 @@
         <Setter Property="ItemTemplate">
             <Setter.Value>
                 <DataTemplate>
-                    <TextBlock Margin="3" Text="{Binding Name}" HorizontalAlignment="Stretch" TextAlignment="Center" />
+                    <TextBlock Margin="3" Text="{Binding Name}" HorizontalAlignment="Stretch"
+                               VerticalAlignment="Center" TextAlignment="Center" Height="16" />
                 </DataTemplate>
             </Setter.Value>
         </Setter>

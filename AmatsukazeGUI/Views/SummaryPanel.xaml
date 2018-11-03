@@ -7,54 +7,66 @@
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
              d:DataContext="{d:DesignInstance {x:Type vm:SummaryViewModel}}">
-    <ListBox ItemsSource="{Binding ConsoleList}"
+    <ItemsControl ItemsSource="{Binding ConsoleList}"
              HorizontalContentAlignment="Stretch"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-        <ListBox.ItemTemplate>
+        <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:SummaryItemViewModel">
-                <DockPanel>
-                    <DockPanel.InputBindings>
-                        <MouseBinding MouseAction="LeftDoubleClick"
-                                  Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
-                                  CommandParameter="{Binding}" />
-                    </DockPanel.InputBindings>
-                    <TextBlock Text="{Binding Data.Id, Mode=OneWay}" VerticalAlignment="Center" TextAlignment="Center" MinWidth="14"/>
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                    <TextBlock FontWeight="Bold" Text="{Binding Data.PhaseString, Mode=OneWay}" 
+                <Button Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                        CommandParameter="{Binding}">
+                    <Button.Style>
+                        <Style TargetType="ButtonBase">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ButtonBase">
+                                        <Border Background="{TemplateBinding Background}" Padding="0,3">
+                                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Background" Value="White"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="LightGray" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <DockPanel>
+                        <TextBlock Text="{Binding Data.Id, Mode=OneWay}" VerticalAlignment="Center" TextAlignment="Center" MinWidth="14"/>
+                        <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <TextBlock FontWeight="Bold" Text="{Binding Data.PhaseString, Mode=OneWay}" 
                                VerticalAlignment="Center" TextAlignment="Center"
                                Width="50" Margin="3,0">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
-                                        <Setter Property="Visibility" Value="Hidden"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock DockPanel.Dock="Right" Margin="5,0,0,0">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
+                                            <Setter Property="Visibility" Value="Hidden"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock DockPanel.Dock="Right" Margin="5,0,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
                         CPU:<Run Text="{Binding Data.CPU, Mode=OneWay}"/>
                         HDD:<Run Text="{Binding Data.HDD, Mode=OneWay}"/>
                         GPU:<Run Text="{Binding Data.GPU, Mode=OneWay}"/>@<Run Text="{Binding Data.GpuIndex, Mode=OneWay}"/>
-                    </TextBlock>
-                    <TextBlock Text="{Binding Data.LastLine, Mode=OneWay}" Foreground="{Binding ForeColor, Mode=OneWay}" VerticalAlignment="Center"/>
-                </DockPanel>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Data.LastLine, Mode=OneWay}" Foreground="{Binding ForeColor, Mode=OneWay}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Button>
             </DataTemplate>
-        </ListBox.ItemTemplate>
-        <ListBox.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="項目ダブルクリックでコンソール表示" IsEnabled="False"/>
-            </ContextMenu>
-        </ListBox.ContextMenu>
-    </ListBox>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
 </UserControl>

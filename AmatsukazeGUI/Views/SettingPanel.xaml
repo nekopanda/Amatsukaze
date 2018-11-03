@@ -131,45 +131,44 @@
                     </StackPanel>
                 </DockPanel>
 
-                <StackPanel Grid.Row="3" Margin="0,4,0,0">
-                  <TextBlock HorizontalAlignment="Right" Text="x265VFR時間レート" VerticalAlignment="Top" Margin="0,10,0,4"/>
-                  <TextBlock HorizontalAlignment="Right" Text="フィルタグラフ出力" VerticalAlignment="Top" Margin="0,4,0,6"/>
-                    <TextBlock HorizontalAlignment="Right" Text="エンコード最大並列数" VerticalAlignment="Top" Margin="0,4"/>
-                    <TextBlock HorizontalAlignment="Right" Text="プロセス優先度" VerticalAlignment="Top" Margin="0,6"/>
-                    <TextBlock HorizontalAlignment="Right" Text="CPUアフィニティ" VerticalAlignment="Top" Margin="0,4"/>
-                    <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,4"/>
-                    <TextBlock HorizontalAlignment="Right" Text="スケジューリング" VerticalAlignment="Top" Margin="0,4"/>
+                <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="x265VFR時間レート"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="フィルタグラフ出力"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="エンコード最大並列数"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="プロセス優先度"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="CPUアフィニティ"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text=""/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="スケジューリング"/>
                 </StackPanel>
 
-                <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,4,0,0">
-                    <DockPanel Margin="0,6,0,3"
-                               ToolTip="x265で擬似VFRレートコントロールするときの時間レートファクター。 デフォルト値: 0.25&#xA;VFRで24fpsや30fps部分のビットレートがこの値に連動します。&#xA;CRFモードでVFRで出力したときと60fpsで出力したときでビットレートが一致するように調整するのが理想です。">
+                <StackPanel Grid.Row="3" Grid.Column="1" Margin="10,10,0,0">
+                    <DockPanel ToolTip="x265で擬似VFRレートコントロールするときの時間レートファクター。 デフォルト値: 0.25&#xA;VFRで24fpsや30fps部分のビットレートがこの値に連動します。&#xA;CRFモードでVFRで出力したときと60fpsで出力したときでビットレートが一致するように調整するのが理想です。">
                         <DockPanel.Resources>
                             <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
                                                          ConvertWhenTrue="Visible" ConvertWhenFalse="Hidden"/>
                         </DockPanel.Resources>
-                        <CheckBox DockPanel.Dock="Left" VerticalAlignment="Center" Content="デフォルト値を使う" Margin="0,0,5,0"
+                        <CheckBox DockPanel.Dock="Left" VerticalAlignment="Center" Content="デフォルト値を使う" Margin="0,4" Height="16"
                                   IsChecked="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"/>
                         <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="30"
                                    VerticalAlignment="Center" HorizontalAlignment="Center"
                                    Visibility="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=OneWay, Converter={StaticResource VisibilityAndBooleanConverter}}"
                                    Text="{Binding Model.Setting.X265VFRTimeFactor, StringFormat=N2}"/>
-                        <Slider Margin="3"
+                        <Slider Margin="3,2" Height="18"
                                 SmallChange="0.01" Maximum="1" Minimum="0"
                                 Value="{Binding Model.Setting.X265VFRTimeFactor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                    IsEnabled="{Binding Model.Setting.EnableX265VFRTimeFactor, Mode=OneWay}"
                                 LargeChange="0.01" TickFrequency="0.1"/>
                     </DockPanel>
-                    <CheckBox Margin="0,3,0,6" Content="フィルタグラフを出力する" IsChecked="{Binding Model.Setting.DumpFilter, Mode=TwoWay}"/>
+                    <CheckBox  Margin="0,4" Height="16" Content="フィルタグラフを出力する" IsChecked="{Binding Model.Setting.DumpFilter, Mode=TwoWay}"/>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="22" VerticalAlignment="Center" HorizontalAlignment="Center"
                                    Text="{Binding Model.Setting.NumParallel}"/>
-                        <Slider Margin="3"
+                        <Slider Margin="3,2" Height="18"
                                 SmallChange="1" Maximum="22" Minimum="0"
                                 Value="{Binding Model.Setting.NumParallelIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 ToolTip="同時に実行するインスタンス数です。エンコーダのスレッド数ではありません。&#xA;リソーススケジューリングで中断しているインスタンスも並列数にカウントされるので&#xA;リソーススケジューリングを使う場合は多めに設定してください。"/>
                     </DockPanel>
-                    <ComboBox IsReadOnly="True" Width="100" HorizontalAlignment="Left" Margin="0,3"
+                    <ComboBox IsReadOnly="True" Width="100" HorizontalAlignment="Left" Margin="0,3" Height="22"
                                   ItemsSource="{Binding Model.ProcessPriorityList}"
                                   SelectedIndex="{Binding Model.Setting.ProcessPriority, Mode=TwoWay}"
                                   ToolTip="「通常以下」または「低」推奨です"/>
@@ -185,7 +184,7 @@
                                 <Border />
                             </ControlTemplate>
                         </DockPanel.Resources>
-                        <ComboBox IsReadOnly="True" Width="70"
+                        <ComboBox IsReadOnly="True" Width="70" Height="22"
                                   ItemsSource="{Binding Model.AffinityList}"
                                   SelectedIndex="{Binding Model.Setting.AffinitySetting, Mode=TwoWay}"
                                   ToolTip="コア数の多いCPUではアフィニティを設定したほうが性能が良くなる場合があります。&#xA;L3キャッシュごとに割り当てれば、だいだいベストな性能が出ます。&#xA;GroupはWindowsのプロセッサーグループです。"/>

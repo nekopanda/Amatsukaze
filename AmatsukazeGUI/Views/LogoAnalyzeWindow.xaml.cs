@@ -1,4 +1,5 @@
-﻿using Amatsukaze.ViewModels;
+﻿using Amatsukaze.Components;
+using Amatsukaze.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,6 +34,7 @@ namespace Amatsukaze.Views
         public LogoAnalyzeWindow()
         {
             InitializeComponent();
+            Utils.SetWindowProperties(this);
         }
 
         private void image_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
