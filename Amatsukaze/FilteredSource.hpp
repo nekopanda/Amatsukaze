@@ -132,12 +132,6 @@ static PICTURE_TYPE getPictureTypeFromAVFrame(AVFrame* frame)
 	}
 }
 
-enum FILTER_PHASE {
-	PHASE_PRE_PROCESS = 0,
-	PHASE_GEN_TIMING = 1,
-	PHASE_GEN_IMAGE = 2,
-};
-
 class AMTFilterSource : public AMTObject {
 	class AvsScript
 	{
@@ -182,28 +176,12 @@ public:
 			auto res = rm.wait(HOST_CMD_Filter);
 			std::vector<int> outFrames;
 
-			//Kパスまである場合
-			//<=K-2: 前処理
-			//K-1: タイミング生成
-			//K: 画像生成（タイミングも同時に生成）
-			//PHASE
-			//0: 前処理
-			//1: タイミング生成
-			//2: 画像生成
 			int pass = 0;
 			for (; pass < 4; ++pass) {
-				int phase = FilterPass(pass, res.gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
-				if (phase == PHASE_PRE_PROCESS) {
-					// 前処理を実行
-					ReadAllFrames(pass, phase);
-				}
-				else if (phase == PHASE_GEN_TIMING) {
-					// タイミング生成
-					ReadAllFrames(pass, phase);
-				}
-				else {
+				if(!FilterPass(pass, res.gpuIndex, fileId, encoderId, cmtype, outFrames, reformInfo, logopath)) {
 					break;
 				}
+				ReadAllFrames(pass);
 			}
 
 			// エンコード用リソース確保
@@ -231,11 +209,24 @@ public:
 				sb.append("Import(\"%s\")\n", postpath);
 			}
 
+			auto durationpath = setting_.getAvsDurationPath(fileId, encoderId, cmtype);
+			// durationファイルがあったら読み込む
+			if (File::exists(durationpath)) {
+				File file(durationpath, _T("r"));
+				std::string str;
+				while (file.getline(str)) {
+					if (str.size()) {
+						frameDurations.push_back(std::atoi(str.c_str()));
+					}
+				}
+				sb.append("AMTDecimate(\"%s\")\n", durationpath);
+			}
+
 			if (setting_.isDumpFilter()) {
-				sb.append("DumpFilterGraph(\"%s\", 1)",
+				sb.append("DumpFilterGraph(\"%s\", 1)\n",
 					setting_.getFilterGraphDumpPath(fileId, encoderId, cmtype));
 				// メモリデバッグ用 2000フレームごとにグラフダンプ
-				//sb.append("DumpFilterGraph(\"%s\", 2, 2000, true)",
+				//sb.append("DumpFilterGraph(\"%s\", 2, 2000, true)\n",
 				//	setting_.getFilterGraphDumpPath(fileId, encoderId, cmtype));
 			}
 
@@ -369,7 +360,7 @@ private:
 		sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
 	}
 
-	void ReadAllFrames(int pass, int phase) {
+	void ReadAllFrames(int pass) {
 		PClip clip = env_->GetVar("last").AsClip();
 		const VideoInfo vi = clip->GetVideoInfo();
 
@@ -378,23 +369,12 @@ private:
 		sw.start();
 		int prevFrames = 0;
 
-		if (phase == PHASE_GEN_TIMING) {
-			frameDurations.clear();
-		}
-
-		for (int i = 0; i < vi.num_frames; ) {
+		for (int i = 0; i < vi.num_frames; ++i) {
 			PVideoFrame frame = clip->GetFrame(i, env_.get());
-			if (phase == PHASE_GEN_TIMING) {
-				frameDurations.push_back(std::max(1, frame->GetProperty("FrameDuration", 1)));
-				i += frameDurations.back();
-			}
-			else {
-				++i;
-			}
 			double elapsed = sw.current();
 			if (elapsed >= 1.0) {
 				double fps = (i - prevFrames) / elapsed;
-				ctx.progressF("%dフレーム完了 %.2ffps", i, fps);
+				ctx.progressF("%dフレーム完了 %.2ffps", i + 1, fps);
 
 				prevFrames = i;
 				sw.stop();
@@ -469,7 +449,8 @@ private:
 		}
 	}
 
-	int FilterPass(int pass, int gpuIndex,
+	// 戻り値: 前処理？
+	bool FilterPass(int pass, int gpuIndex,
 		int fileId, int encoderId, CMType cmtype,
 		std::vector<int>& outFrames,
 		const StreamReformInfo& reformInfo,
@@ -479,11 +460,13 @@ private:
 
 		InitEnv();
 
+		auto tmppath = setting_.getAvsTmpPath(fileId, encoderId, cmtype);
+
 		makeMainFilterSource(fileId, encoderId, cmtype, outFrames, reformInfo, logopath);
 
 		auto& sb = script_.Get();
 		sb.append("AMT_SOURCE = last\n");
-		sb.append("AMT_TMP = \"%s\"\n", setting_.getAvsTmpPath(fileId, encoderId, cmtype));
+		sb.append("AMT_TMP = \"%s\"\n", tmppath);
 		sb.append("AMT_PASS = %d\n", pass);
 		sb.append("AMT_DEV = %d\n", gpuIndex);
 		sb.append("AMT_SOURCE\n");
@@ -494,7 +477,7 @@ private:
 		}
 
 		script_.Apply(env_.get());
-		return env_->GetVarDef("AMT_PHASE", PHASE_GEN_IMAGE).AsInt();
+		return env_->GetVarDef("AMT_PRE_PROC", false).AsBool();
 	}
 
 	void MakeZones(
@@ -503,8 +486,6 @@ private:
 		const std::vector<EncoderZone>& zones,
 		const StreamReformInfo& reformInfo)
 	{
-		int numSrcFrames = (int)outFrames.size();
-
 		// このencoderIndex用のゾーンを作成
 		outZones_.clear();
 		for (int i = 0; i < (int)zones.size(); ++i) {
@@ -518,10 +499,16 @@ private:
 			}
 		}
 
-		const VideoFormat& infmt = reformInfo.getFormat(encoderId, fileId).videoFormat;
+		int numSrcFrames = (int)outFrames.size();
+
 		VideoInfo outvi = filter_->GetVideoInfo();
+		int numOutFrames = frameDurations.size()
+			? std::accumulate(frameDurations.begin(), frameDurations.end(), 0)
+			: outvi.num_frames;
+
+		const VideoFormat& infmt = reformInfo.getFormat(encoderId, fileId).videoFormat;
 		double srcDuration = (double)numSrcFrames * infmt.frameRateDenom / infmt.frameRateNum;
-		double clipDuration = (double)outvi.num_frames * outvi.fps_denominator / outvi.fps_numerator;
+		double clipDuration = (double)numOutFrames * outvi.fps_denominator / outvi.fps_numerator;
 		bool outParity = filter_->GetParity(0);
 
 		ctx.infoF("フィルタ入力: %dフレーム %d/%dfps (%s)",
@@ -529,23 +516,23 @@ private:
 			infmt.progressive ? "プログレッシブ" : "インターレース");
 
 		ctx.infoF("フィルタ出力: %dフレーム %d/%dfps (%s)",
-			outvi.num_frames, outvi.fps_numerator, outvi.fps_denominator,
+			numOutFrames, outvi.fps_numerator, outvi.fps_denominator,
 			outParity ? "インターレース" : "プログレッシブ");
 
 		if (std::abs(srcDuration - clipDuration) > 0.1f) {
 			THROWF(RuntimeException, "フィルタ出力映像の時間が入力と一致しません（入力: %.3f秒 出力: %.3f秒）", srcDuration, clipDuration);
 		}
 
-		if (numSrcFrames != outvi.num_frames && outParity) {
+		if (numSrcFrames != numOutFrames && outParity) {
 			ctx.warn("フレーム数が変わっていますがインターレースのままです。プログレッシブ出力が目的ならAssumeBFF()をavsファイルの最後に追加してください。");
 		}
 
 		// フレーム数が変わっている場合はゾーンを引き伸ばす
-		if (numSrcFrames != outvi.num_frames) {
-			double scale = (double)outvi.num_frames / numSrcFrames;
+		if (numSrcFrames != numOutFrames) {
+			double scale = (double)numOutFrames / numSrcFrames;
 			for (int i = 0; i < (int)outZones_.size(); ++i) {
-				outZones_[i].startFrame = std::max(0, std::min(outvi.num_frames, (int)std::round(outZones_[i].startFrame * scale)));
-				outZones_[i].endFrame = std::max(0, std::min(outvi.num_frames, (int)std::round(outZones_[i].endFrame * scale)));
+				outZones_[i].startFrame = std::max(0, std::min(numOutFrames, (int)std::round(outZones_[i].startFrame * scale)));
+				outZones_[i].endFrame = std::max(0, std::min(numOutFrames, (int)std::round(outZones_[i].endFrame * scale)));
 			}
 		}
 	}
@@ -702,6 +689,36 @@ public:
 		}
 		File file(filepath, _T("w"));
 		file.write(sb.getMC());
+	}
+};
+
+class AMTDecimate : public GenericVideoFilter
+{
+	std::vector<int> durations;
+	std::vector<int> framesMap;
+public:
+	AMTDecimate(PClip source, const std::string& duration, IScriptEnvironment* env)
+		: GenericVideoFilter(source)
+	{
+		File file(to_tstring(duration), _T("r"));
+		std::string str;
+		while (file.getline(str)) {
+			durations.push_back(std::atoi(str.c_str()));
+		}
+		if (vi.num_frames != durations.size()) {
+			env->ThrowError("[AMTDecimate] # of frames does not match. %d(%s) vs %d(source clip)",
+				(int)durations.size(), duration.c_str(), vi.num_frames);
+		}
+		framesMap.resize(durations.size());
+		framesMap[0] = 0;
+		for (int i = 0; i < (int)durations.size() - 1; ++i) {
+			framesMap[i + 1] = framesMap[i] + durations[i];
+		}
+	}
+
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env)
+	{
+		return child->GetFrame(framesMap[std::max(0, std::min(n, vi.num_frames - 1))], env);
 	}
 };
 

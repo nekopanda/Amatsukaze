@@ -768,6 +768,12 @@ public:
 		return str;
 	}
 
+	tstring getAvsDurationPath(int vindex, int index, CMType cmtype) const {
+		auto str = StringFormat(_T("%s/v%d-%d%s.avstmp.duration.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+		ctx.registerTmpFile(str);
+		return str;
+	}
+
 	tstring getFilterAvsPath(int vindex, int index, CMType cmtype) const {
 		auto str = StringFormat(_T("%s/vfilter%d-%d%s.avs"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
 		ctx.registerTmpFile(str);

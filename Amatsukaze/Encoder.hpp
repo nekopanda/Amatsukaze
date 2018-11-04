@@ -172,7 +172,7 @@ public:
 	{ }
 
 	void encode(
-		PClip source, VideoFormat outfmt, const std::vector<int> frameDurations,
+		PClip source, VideoFormat outfmt, const std::vector<int>& frameDurations,
 		const std::vector<tstring>& encoderOptions,
 		IScriptEnvironment* env)
 	{
@@ -181,16 +181,14 @@ public:
 
 		int bufsize = outfmt_.width * outfmt_.height * 3;
 
-		if (frameDurations.size() > 0 &&
-			vi_.num_frames != std::accumulate(frameDurations.begin(), frameDurations.end(), 0))
+		if (frameDurations.size() > 0 && vi_.num_frames != frameDurations.size())
 		{
 			THROW(RuntimeException, "フレーム数が合いません");
 		}
 
 		int npass = (int)encoderOptions.size();
 		for (int i = 0; i < npass; ++i) {
-			ctx.infoF("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass,
-				(frameDurations.size() > 0) ? frameDurations.size() : vi_.num_frames);
+			ctx.infoF("%d/%dパス エンコード開始 予定フレーム数: %d", i + 1, npass, vi_.num_frames);
 
 			const tstring& args = encoderOptions[i];
 
@@ -209,10 +207,9 @@ public:
 
 			try {
 				// エンコード
-				for (int f = 0, i = 0; f < vi_.num_frames; ) {
-					auto frame = source->GetFrame(f, env);
+				for (int i = 0; i < vi_.num_frames; ++i) {
+					auto frame = source->GetFrame(i, env);
 					thread_.put(std::unique_ptr<PVideoFrame>(new PVideoFrame(frame)), 1);
-					f += (frameDurations.size() > 0) ? frameDurations[i++] : 1;
 				}
 			}
 			catch (const AvisynthError& avserror) {
