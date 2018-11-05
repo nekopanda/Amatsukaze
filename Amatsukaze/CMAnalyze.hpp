@@ -71,6 +71,9 @@ public:
 		// シーンチェンジ
 		readSceneChanges(videoFileIndex);
 
+		// 分割情報
+		readDiv(videoFileIndex, numFrames);
+
 		makeCMZones(numFrames);
 	}
 
@@ -90,6 +93,10 @@ public:
 
 	const std::vector<EncoderZone>& getZones() const {
 		return cmzones;
+	}
+
+	const std::vector<int>& getDivs() const {
+		return divs;
 	}
 
 	// PMT変更情報からCM追加認識
@@ -229,6 +236,7 @@ private:
 	std::vector<int> trims;
 	std::vector<EncoderZone> cmzones;
 	std::vector<int> sceneChanges;
+	std::vector<int> divs;
 
 	tstring makeAVSFile(int videoFileIndex)
 	{
@@ -361,6 +369,26 @@ private:
 		}
 	}
 
+	void readDiv(int videoFileIndex, int numFrames)
+	{
+		File file(setting_.getTmpDivPath(videoFileIndex), _T("r"));
+		std::string str;
+		divs.clear();
+		while (file.getline(str)) {
+			if (str.size()) {
+				divs.push_back(std::atoi(str.c_str()));
+			}
+		}
+		// 正規化
+		if (divs.size() == 0) {
+			divs.push_back(0);
+		}
+		if (divs.front() != 0) {
+			divs.insert(divs.begin(), 0);
+		}
+		divs.push_back(numFrames);
+	}
+
 	void readSceneChanges(int videoFileIndex)
 	{
 		File file(setting_.getTmpChapterExeOutPath(videoFileIndex), _T("r"));
@@ -419,19 +447,22 @@ public:
 		const ConfigWrapper& setting,
 		const StreamReformInfo& reformInfo,
 		int videoFileIndex,
-		const std::vector<int>& trims)
+		const std::vector<int>& trims,
+		const std::vector<int>& divs)
 		: AMTObject(ctx)
 		, setting(setting)
 		, reformInfo(reformInfo)
+		, divs(divs)
 	{
 		makeBase(trims, readJls(setting.getTmpJlsPath(videoFileIndex)));
+		
 	}
 
-	void exec(int videoFileIndex, int encoderIndex, CMType cmtype)
+	void exec(EncodeFileKey key)
 	{
-		auto filechapters = makeFileChapter(videoFileIndex, encoderIndex, cmtype);
+		auto filechapters = makeFileChapter(key);
 		if (filechapters.size() > 0) {
-			writeChapter(filechapters, videoFileIndex, encoderIndex, cmtype);
+			writeChapter(filechapters, key);
 		}
 	}
 
@@ -450,6 +481,7 @@ private:
 	const StreamReformInfo& reformInfo;
 
 	std::vector<JlsElement> chapters;
+	std::vector<int> divs;
 
 	std::vector<JlsElement> readJls(const tstring& jlspath)
 	{
@@ -554,15 +586,17 @@ private:
 		}
 	}
 
-	std::vector<JlsElement> makeFileChapter(int videoFileIndex, int encoderIndex, CMType cmtype)
+	std::vector<JlsElement> makeFileChapter(EncodeFileKey key)
 	{
 		// 分割後のフレーム番号を取得
-		auto& srcFrames = reformInfo.getFilterSourceFrames(videoFileIndex);
+		auto& srcFrames = reformInfo.getFilterSourceFrames(key.video);
+		int divStart = divs[key.div];
+		int divEnd = divs[key.div + 1];
 		std::vector<int> outFrames;
-		for (int i = 0; i < (int)srcFrames.size(); ++i) {
+		for (int i = divStart; i < divEnd; ++i) {
 			int frameEncoderIndex = reformInfo.getEncoderIndex(srcFrames[i].frameIndex);
-			if (encoderIndex == frameEncoderIndex) {
-				if (cmtype == CMTYPE_BOTH || cmtype == srcFrames[i].cmType) {
+			if (key.format == frameEncoderIndex) {
+				if (key.cm == CMTYPE_BOTH || key.cm == srcFrames[i].cmType) {
 					outFrames.push_back(i);
 				}
 			}
@@ -579,7 +613,7 @@ private:
 		}
 
 		// 短すぎるチャプターは消す
-		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
+		auto& vfmt = reformInfo.getFormat(key.format, key.video).videoFormat;
 		int fps = (int)std::round((float)vfmt.frameRateNum / vfmt.frameRateDenom);
 		std::vector<JlsElement> fileChapters;
 		JlsElement cur = { 0 };
@@ -607,12 +641,12 @@ private:
 		return fileChapters;
 	}
 
-	void writeChapter(const std::vector<JlsElement>& chapters, int videoFileIndex, int encoderIndex, CMType cmtype)
+	void writeChapter(const std::vector<JlsElement>& chapters, EncodeFileKey key)
 	{
-		auto& vfmt = reformInfo.getFormat(encoderIndex, videoFileIndex).videoFormat;
+		auto& vfmt = reformInfo.getFormat(key.format, key.video).videoFormat;
 		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
 
-		ctx.infoF("ファイル: %d-%d %s", videoFileIndex, encoderIndex, CMTypeToString(cmtype));
+		ctx.infoF("ファイル: %d-%d-%d %s", key.video, key.format, key.div, CMTypeToString(key.cm));
 
 		StringBuilder sb;
 		int sumframes = 0;
@@ -636,7 +670,7 @@ private:
 			sumframes += c.frameEnd - c.frameStart;
 		}
 
-		File file(setting.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype), _T("w"));
+		File file(setting.getTmpChapterPath(key), _T("w"));
 		file.write(sb.getMC());
 	}
 };

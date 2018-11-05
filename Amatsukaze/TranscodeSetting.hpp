@@ -752,37 +752,43 @@ public:
 		return conf.outVideoPath + _T("-streaminfo.dat");
 	}
 
-	tstring getEncVideoFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/v%d-%d%s.raw"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	tstring getEncVideoFilePath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/v%d-%d-%d%s.raw"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
 
-	tstring getTimecodeFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/v%d-%d%s.timecode.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	tstring getTimecodeFilePath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/v%d-%d-%d%s.timecode.txt"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
 
-	tstring getAvsTmpPath(int vindex, int index, CMType cmtype) const {
-		auto str = StringFormat(_T("%s/v%d-%d%s.avstmp"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+	tstring getAvsTmpPath(EncodeFileKey key) const {
+		auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
 		// KFMCycleAnalyzeのデバッグダンプファイルも追加
 		ctx.registerTmpFile(str + _T(".debug"));
 		return str;
 	}
 
-	tstring getAvsDurationPath(int vindex, int index, CMType cmtype) const {
-		auto str = StringFormat(_T("%s/v%d-%d%s.avstmp.duration.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+	tstring getAvsDurationPath(EncodeFileKey key) const {
+		auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp.duration.txt"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
 		return str;
 	}
 
-	tstring getFilterAvsPath(int vindex, int index, CMType cmtype) const {
-		auto str = StringFormat(_T("%s/vfilter%d-%d%s.avs"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+	tstring getFilterAvsPath(EncodeFileKey key) const {
+		auto str = StringFormat(_T("%s/vfilter%d-%d-%d%s.avs"), 
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
 		return str;
 	}
 
-	tstring getEncStatsFilePath(int vindex, int index, CMType cmtype) const
+	tstring getEncStatsFilePath(EncodeFileKey key) const
 	{
-		auto str = StringFormat(_T("%s/s%d-%d%s.log"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype));
+		auto str = StringFormat(_T("%s/s%d-%d%s.log"), 
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
 		// x264は.mbtreeも生成するので
 		ctx.registerTmpFile(str + _T(".mbtree"));
@@ -791,19 +797,19 @@ public:
 		return str;
 	}
 
-	tstring getIntAudioFilePath(int vindex, int index, int aindex, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/a%d-%d-%d%s.aac"),
-			tmpDir.path(), vindex, index, aindex, GetCMSuffix(cmtype)));
+	tstring getIntAudioFilePath(EncodeFileKey key, int aindex) const {
+		return regtmp(StringFormat(_T("%s/a%d-%d-%d-%d%s.aac"),
+			tmpDir.path(), key.video, key.format, key.div, aindex, GetCMSuffix(key.cm)));
 	}
 
-	tstring getTmpASSFilePath(int vindex, int index, int langindex, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/c%d-%d-%d%s.ass"),
-			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
+	tstring getTmpASSFilePath(EncodeFileKey key, int langindex) const {
+		return regtmp(StringFormat(_T("%s/c%d-%d-%d-%d%s.ass"),
+			tmpDir.path(), key.video, key.format, key.div, langindex, GetCMSuffix(key.cm)));
 	}
 
-	tstring getTmpSRTFilePath(int vindex, int index, int langindex, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/c%d-%d-%d%s.srt"),
-			tmpDir.path(), vindex, index, langindex, GetCMSuffix(cmtype)));
+	tstring getTmpSRTFilePath(EncodeFileKey key, int langindex) const {
+		return regtmp(StringFormat(_T("%s/c%d-%d-%d-%d%s.srt"),
+			tmpDir.path(), key.video, key.format, key.div, langindex, GetCMSuffix(key.cm)));
 	}
 
 	tstring getTmpAMTSourcePath(int vindex) const {
@@ -834,9 +840,13 @@ public:
 		return regtmp(StringFormat(_T("%s/jls%d.txt"), tmpDir.path(), vindex));
 	}
 
-	tstring getTmpChapterPath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/chapter%d-%d%s.txt"),
-			tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	tstring getTmpDivPath(int vindex) const {
+		return regtmp(StringFormat(_T("%s/div%d.txt"), tmpDir.path(), vindex));
+	}
+
+	tstring getTmpChapterPath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/chapter%d-%d-%d%s.txt"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
 
 	tstring getTmpNicoJKXMLPath() const {
@@ -847,18 +857,19 @@ public:
 		return regtmp(StringFormat(_T("%s/nicojk%s.ass"), tmpDir.path(), GetNicoJKSuffix(type)));
 	}
 
-	tstring getTmpNicoJKASSPath(int vindex, int index, CMType cmtype, NicoJKType type) const {
-		return regtmp(StringFormat(_T("%s/nicojk%d-%d%s%s.ass"),
-			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), GetNicoJKSuffix(type)));
+	tstring getTmpNicoJKASSPath(EncodeFileKey key, NicoJKType type) const {
+		return regtmp(StringFormat(_T("%s/nicojk%d-%d-%d%s%s.ass"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm), GetNicoJKSuffix(type)));
 	}
 
-	tstring getVfrTmpFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/t%d-%d%s.%s"),
-			tmpDir.path(), vindex, index, GetCMSuffix(cmtype), getOutputExtention()));
+	tstring getVfrTmpFilePath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/t%d-%d-%d%s.%s"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm), getOutputExtention()));
 	}
 
-	tstring getM2tsMetaFilePath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/t%d-%d%s.meta"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	tstring getM2tsMetaFilePath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/t%d-%d-%d%s.meta"), 
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
 
 	const char* getOutputExtention() const {
@@ -881,11 +892,14 @@ public:
 		return sb.str();
 	}
 
-	tstring getOutASSPath(int index, int langidx, CMType cmtype, NicoJKType jktype) const {
+	tstring getOutASSPath(int index, int div, int langidx, CMType cmtype, NicoJKType jktype) const {
 		StringBuilderT sb;
 		sb.append(_T("%s"), conf.outVideoPath);
 		if (index != 0) {
 			sb.append(_T("-%d"), index);
+		}
+		if (div >= 0) {
+			sb.append(_T("-%d"), div);
 		}
 		sb.append(_T("%s"), GetCMSuffix(cmtype));
 		if (langidx < 0) {
@@ -938,7 +952,7 @@ public:
 		int numFrames,
 		VIDEO_STREAM_FORMAT srcFormat, double srcBitrate, bool pulldown,
 		int pass, const std::vector<BitrateZone>& zones, double vfrBitrateScale,
-		int vindex, int index, CMType cmtype) const
+		EncodeFileKey key) const
 	{
 		StringBuilderT sb;
 		sb.append(_T("%s"), conf.encoderOptions);
@@ -949,7 +963,7 @@ public:
 				targetBitrate *= vfrBitrateScale;
 			}
 			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
-			if (cmtype == CMTYPE_CM) {
+			if (key.cm == CMTYPE_CM) {
 				targetBitrate *= conf.bitrateCM;
 			}
 			if (conf.encoder == ENCODER_QSVENC) {
@@ -965,7 +979,7 @@ public:
 		}
 		if (pass >= 0) {
 			sb.append(_T(" --pass %d --stats \"%s\""),
-				pass, getEncStatsFilePath(vindex, index, cmtype));
+				pass, getEncStatsFilePath(key));
 		}
 		if (zones.size() &&
 			isZoneAvailable() &&
@@ -1067,19 +1081,21 @@ private:
 
 class OutPathGenerator {
 public:
-	OutPathGenerator(const ConfigWrapper& setting, int index, CMType cmtype)
+	OutPathGenerator(const ConfigWrapper& setting, int index, int numDiv, CMType cmtype)
 		: setting_(setting)
 		, index_(index)
+		, numDiv_(numDiv)
 		, cmtype_(cmtype)
 	{ }
 	tstring getOutFilePath() const {
 		return setting_.getOutFilePath(index_, cmtype_);
 	}
-	tstring getOutASSPath(int langidx, NicoJKType jktype) const {
-		return setting_.getOutASSPath(index_, langidx, cmtype_, jktype);
+	tstring getOutASSPath(int langidx, int div, NicoJKType jktype) const {
+		return setting_.getOutASSPath(index_, langidx, (numDiv_ == 1) ? -1 : div, cmtype_, jktype);
 	}
 private:
 	const ConfigWrapper& setting_;
 	int index_;
+	int numDiv_;
 	CMType cmtype_;
 };

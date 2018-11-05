@@ -358,21 +358,20 @@ public:
 		double vfrBitrateScale,
 		tstring timecodepath,
 		bool is120fps,
-		int videoFileIndex, int encoderIndex, CMType cmtype, int pass)
+		EncodeFileKey key, int pass)
 	{
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
-		double srcBitrate = getSourceBitrate(videoFileIndex);
+		double srcBitrate = getSourceBitrate(key.video);
 		return makeEncoderArgs(
 			setting_.getEncoder(),
 			setting_.getEncoderPath(),
 			setting_.getOptions(
 				numFrames,
-				srcFormat, srcBitrate, false, pass, zones, vfrBitrateScale,
-				videoFileIndex, encoderIndex, cmtype),
+				srcFormat, srcBitrate, false, pass, zones, vfrBitrateScale, key),
 			outfmt,
 			timecodepath,
 			is120fps,
-			setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype));
+			setting_.getEncVideoFilePath(key));
 	}
 
 	double getSourceBitrate(int fileId) const
@@ -460,6 +459,27 @@ void DoBadThing() {
 	memset(p, 'x', 32);
 }
 #endif
+
+std::vector<EncodeFileKey> getFileList(
+	const StreamReformInfo& reformInfo,
+	const std::vector<std::unique_ptr<CMAnalyze>>& cmanalyze,
+	const std::vector<CMType>& cmtypes)
+{
+	std::vector<EncodeFileKey> result;
+	int numVideoFiles = reformInfo.getNumVideoFile();
+	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
+		const CMAnalyze* cma = cmanalyze[videoFileIndex].get();
+		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
+		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex) {
+			for (int div = 0; div < cma->getDivs().size() - 1; ++div) {
+				for (CMType cmtype : cmtypes) {
+					result.push_back({ videoFileIndex, encoderIndex, div, cmtype });
+				}
+			}
+		}
+	}
+	return result;
+}
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
@@ -575,29 +595,33 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(
 				new CMAnalyze(ctx, setting, videoFileIndex, numFrames)));
 
+			CMAnalyze* cma = cmanalyze.back().get();
+
 			if (setting.isPmtCutEnabled()) {
 				// PMT変更によるCM追加認識
-				cmanalyze.back()->applyPmtCut(numFrames, setting.getPmtCutSideRate(),
+				cma->applyPmtCut(numFrames, setting.getPmtCutSideRate(),
 					reformInfo.getPidChangedList(videoFileIndex));
 			}
 
 			if (videoFileIndex == mainFileIndex) {
 				if (setting.getTrimAVSPath().size()) {
 					// Trim情報入力
-					cmanalyze.back()->inputTrimAVS(numFrames, setting.getTrimAVSPath());
+					cma->inputTrimAVS(numFrames, setting.getTrimAVSPath());
 				}
 			}
 
-			logoFound.emplace_back(numFrames, cmanalyze.back()->getLogoPath().size() > 0);
+			logoFound.emplace_back(numFrames, cma->getLogoPath().size() > 0);
 			reformInfo.applyCMZones(videoFileIndex, cmanalyze.back()->getZones());
 
 			// チャプター推定
 			ctx.info("[チャプター生成]");
-			MakeChapter makechapter(ctx, setting, reformInfo, videoFileIndex, cmanalyze.back()->getTrims());
+			MakeChapter makechapter(ctx, setting, reformInfo, videoFileIndex, cma->getTrims(), cma->getDivs());
 			int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
 			for (int i = 0; i < numEncoders; ++i) {
-				for (CMType cmtype : setting.getCMTypes()) {
-					makechapter.exec(videoFileIndex, i, cmtype);
+				for (int d = 0; d < (int)cma->getDivs().size() - 1; ++d) {
+					for (CMType cmtype : setting.getCMTypes()) {
+						makechapter.exec({ videoFileIndex, i, d, cmtype });
+					}
 				}
 			}
 		}
@@ -625,36 +649,32 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		return;
 	}
 
+	auto keys = getFileList(reformInfo, cmanalyze, setting.getCMTypes());
+
 	auto audioDiffInfo = reformInfo.genAudio();
 	audioDiffInfo.printAudioPtsDiff(ctx);
 
 	ctx.info("[字幕ファイル生成]");
-	for (int videoFileIndex = 0, currentEncoderFile = 0;
-		videoFileIndex < numVideoFiles; ++videoFileIndex) {
+	for (int i = 0; i < (int)keys.size(); ++i) {
 		CaptionASSFormatter formatterASS(ctx);
 		CaptionSRTFormatter formatterSRT(ctx);
 		NicoJKFormatter formatterNicoJK(ctx);
-		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentEncoderFile) {
-			for (CMType cmtype : setting.getCMTypes()) {
-				auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, cmtype);
-				for (int lang = 0; lang < capList.size(); ++lang) {
-					WriteUTF8File(
-						setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, cmtype),
-						formatterASS.generate(capList[lang]));
-					WriteUTF8File(
-						setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, cmtype),
-						formatterSRT.generate(capList[lang]));
-				}
-				if (nicoOK) {
-					const auto& headerLines = nicoJK.getHeaderLines();
-					const auto& dialogues = reformInfo.getOutNicoJKList(encoderIndex, videoFileIndex, cmtype);
-					for (NicoJKType jktype : setting.getNicoJKTypes()) {
-						File file(setting.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype), _T("w"));
-						auto text = formatterNicoJK.generate(headerLines[(int)jktype], dialogues[(int)jktype]);
-						file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
-					}
-				}
+		auto& capList = reformInfo.getOutCaptionList(keys[i]);
+		for (int lang = 0; lang < capList.size(); ++lang) {
+			WriteUTF8File(
+				setting.getTmpASSFilePath(keys[i], lang),
+				formatterASS.generate(capList[lang]));
+			WriteUTF8File(
+				setting.getTmpSRTFilePath(keys[i], lang),
+				formatterSRT.generate(capList[lang]));
+		}
+		if (nicoOK) {
+			const auto& headerLines = nicoJK.getHeaderLines();
+			const auto& dialogues = reformInfo.getOutNicoJKList(keys[i]);
+			for (NicoJKType jktype : setting.getNicoJKTypes()) {
+				File file(setting.getTmpNicoJKASSPath(keys[i], jktype), _T("w"));
+				auto text = formatterNicoJK.generate(headerLines[(int)jktype], dialogues[(int)jktype]);
+				file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
 			}
 		}
 	}
@@ -665,95 +685,83 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	std::vector<VideoFormat> outfiles;
 
 	sw.start();
-	for (int videoFileIndex = 0, currentEncoderFile = 0;
-		videoFileIndex < numVideoFiles; ++videoFileIndex) {
-		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-		if (numEncoders == 0) {
-			ctx.warn("numEncoders == 0 ...");
-		}
-		else {
-			const CMAnalyze* cma = cmanalyze[videoFileIndex].get();
+	for (int i = 0; i < (int)keys.size(); ++i) {
+		auto key = keys[i];
+		const CMAnalyze* cma = cmanalyze[key.video].get();
 
-			for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex, ++currentEncoderFile) {
-				for (CMType cmtype : setting.getCMTypes()) {
+		// 出力が1秒以下ならスキップ
+		if (reformInfo.getFileDuration(key) < MPEG_CLOCK_HZ)
+			continue;
 
-					// 出力が1秒以下ならスキップ
-					if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) < MPEG_CLOCK_HZ)
-						continue;
+		AMTFilterSource filterSource(ctx, setting, reformInfo,
+			cma->getZones(), cma->getLogoPath(), key, rm);
 
-					AMTFilterSource filterSource(ctx, setting, reformInfo,
-						cma->getZones(), cma->getLogoPath(),
-						videoFileIndex, encoderIndex, cmtype, rm);
+		auto getTcPath = [&]() {
+			return setting.getTimecodeFilePath(key);
+		};
 
-					auto getTcPath = [&]() {
-						return setting.getTimecodeFilePath(videoFileIndex, encoderIndex, cmtype);
-					};
+		try {
+			PClip filterClip = filterSource.getClip();
+			IScriptEnvironment2* env = filterSource.getEnv();
+			auto encoderZones = filterSource.getZones();
+			auto& outfmt = filterSource.getFormat();
+			auto& outvi = filterClip->GetVideoInfo();
+			auto& frameDurations = filterSource.getFrameDurations();
+			FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
 
-					try {
-						PClip filterClip = filterSource.getClip();
-						IScriptEnvironment2* env = filterSource.getEnv();
-						auto encoderZones = filterSource.getZones();
-						auto& outfmt = filterSource.getFormat();
-						auto& outvi = filterClip->GetVideoInfo();
-						auto& frameDurations = filterSource.getFrameDurations();
-						FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
+			ctx.infoF("[エンコード開始] %d/%d %s", i + 1, numOutFiles, CMTypeToString(key.cm));
 
-						ctx.infoF("[エンコード開始] %d/%d %s", currentEncoderFile + 1, numOutFiles, CMTypeToString(cmtype));
+			outFileInfo.push_back(argGen->printBitrate(ctx, key.video, key.cm));
+			outfiles.push_back(outfmt);
 
-						outFileInfo.push_back(argGen->printBitrate(ctx, videoFileIndex, cmtype));
-						outfiles.push_back(outfmt);
+			bool vfrEnabled = eoInfo.afsTimecode;
 
-						bool vfrEnabled = eoInfo.afsTimecode;
-
-						if (vfrProc.isEnabled()) {
-							// フィルタによるVFRが有効
-							if (eoInfo.afsTimecode) {
-								THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
-							}
-							else if (!setting.isFormatVFRSupported()) {
-								THROW(FormatException, "M2TS/TS出力はVFRをサポートしていません");
-							}
-							vfrEnabled = true;
-							// ゾーンをVFRフレーム番号に修正
-							vfrProc.toVFRZones(encoderZones);
-							// タイムコード生成
-							vfrProc.makeTimecode(getTcPath());
-						}
-
-						if (vfrEnabled) {
-							outFileInfo.back().tcPath = getTcPath();
-						}
-
-						std::vector<int> pass;
-						if (setting.isTwoPass()) {
-							pass.push_back(1);
-							pass.push_back(2);
-						}
-						else {
-							pass.push_back(-1);
-						}
-
-						auto bitrateZones = MakeBitrateZones(frameDurations, encoderZones, setting, outvi);
-						auto vfrBitrateScale = AdjustVFRBitrate(frameDurations);
-						// VFRフレームタイミングが120fpsか
-						bool is120fps = (eoInfo.afsTimecode || setting.isVFR120fps());
-						std::vector<tstring> encoderArgs;
-						for (int i = 0; i < (int)pass.size(); ++i) {
-							encoderArgs.push_back(
-								argGen->GenEncoderOptions(
-									outvi.num_frames,
-									outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
-									videoFileIndex, encoderIndex, cmtype, pass[i]));
-						}
-						AMTFilterVideoEncoder encoder(ctx);
-						encoder.encode(filterClip, outfmt,
-							frameDurations, encoderArgs, env);
-					}
-					catch (const AvisynthError& avserror) {
-						THROWF(AviSynthException, "%s", avserror.msg);
-					}
+			if (vfrProc.isEnabled()) {
+				// フィルタによるVFRが有効
+				if (eoInfo.afsTimecode) {
+					THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
 				}
+				else if (!setting.isFormatVFRSupported()) {
+					THROW(FormatException, "M2TS/TS出力はVFRをサポートしていません");
+				}
+				vfrEnabled = true;
+				// ゾーンをVFRフレーム番号に修正
+				vfrProc.toVFRZones(encoderZones);
+				// タイムコード生成
+				vfrProc.makeTimecode(getTcPath());
 			}
+
+			if (vfrEnabled) {
+				outFileInfo.back().tcPath = getTcPath();
+			}
+
+			std::vector<int> pass;
+			if (setting.isTwoPass()) {
+				pass.push_back(1);
+				pass.push_back(2);
+			}
+			else {
+				pass.push_back(-1);
+			}
+
+			auto bitrateZones = MakeBitrateZones(frameDurations, encoderZones, setting, outvi);
+			auto vfrBitrateScale = AdjustVFRBitrate(frameDurations);
+			// VFRフレームタイミングが120fpsか
+			bool is120fps = (eoInfo.afsTimecode || setting.isVFR120fps());
+			std::vector<tstring> encoderArgs;
+			for (int i = 0; i < (int)pass.size(); ++i) {
+				encoderArgs.push_back(
+					argGen->GenEncoderOptions(
+						outvi.num_frames,
+						outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
+						key, pass[i]));
+			}
+			AMTFilterVideoEncoder encoder(ctx);
+			encoder.encode(filterClip, outfmt,
+				frameDurations, encoderArgs, env);
+		}
+		catch (const AvisynthError& avserror) {
+			THROWF(AviSynthException, "%s", avserror.msg);
 		}
 	}
 	ctx.infoF("エンコード完了: %.2f秒", sw.getAndReset());
@@ -787,9 +795,8 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 
 				ctx.infoF("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
 				muxer->mux(
-					videoFileIndex, encoderIndex, cmtype,
-					vfmt, eoInfo, OutPathGenerator(setting,
-						outFileMapping[outIndex], (i == 0) ? CMTYPE_BOTH : cmtype), nicoOK, info);
+					key, vfmt, eoInfo, OutPathGenerator(setting,
+						outFileMapping[outIndex], ?, (i == 0) ? CMTYPE_BOTH : cmtype), nicoOK, info);
 
 				totalOutSize += info.fileSize;
 			}

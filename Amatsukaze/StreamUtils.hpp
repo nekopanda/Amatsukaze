@@ -510,6 +510,14 @@ enum CMType {
 	CMTYPE_MAX
 };
 
+// 出力ファイル識別
+struct EncodeFileKey {
+	int video;   // 中間ファイル番号（映像フォーマット切り替えによる分割）
+	int format;  // フォーマット番号（音声その他のフォーマット変更による分割）
+	int div;     // 分割番号（CM構成認識による分割）
+	CMType cm;   // CMタイプ（本編、CMなど）
+};
+
 static const char* CMTypeToString(CMType cmtype) {
 	if (cmtype == CMTYPE_CM) return "CM";
 	if (cmtype == CMTYPE_NONCM) return "本編";

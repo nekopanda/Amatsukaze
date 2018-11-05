@@ -36,7 +36,7 @@ public:
 		, audioCache_(ctx, setting.getAudioFilePath(), reformInfo.getAudioFileOffsets(), 12, 4)
 	{ }
 
-	void mux(int videoFileIndex, int encoderIndex, CMType cmtype,
+	void mux(EncodeFileKey key,
 		const VideoFormat& fvfmt, // フィルタ出力フォーマット
 		const EncoderOptionInfo& eoInfo, // エンコーダオプション情報
 		const OutPathGenerator& pathgen, // パス生成器
@@ -83,8 +83,8 @@ public:
 					// デュアルモノは2つのAACに分離
 					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", encoderIndex, asrc);
 					SpDualMonoSplitter splitter(ctx);
-					tstring filepath0 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
-					tstring filepath1 = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+					tstring filepath0 = setting_.getIntAudioFilePath(key, adst++);
+					tstring filepath1 = setting_.getIntAudioFilePath(key, adst++);
 					splitter.open(0, filepath0);
 					splitter.open(1, filepath1);
 					for (int frameIndex : frameList) {
@@ -94,7 +94,7 @@ public:
 					audioFiles.push_back(filepath1);
 				}
 				else {
-					tstring filepath = setting_.getIntAudioFilePath(videoFileIndex, encoderIndex, adst++, cmtype);
+					tstring filepath = setting_.getIntAudioFilePath(key, adst++);
 					File file(filepath, _T("wb"));
 					for (int frameIndex : frameList) {
 						file.write(audioCache_[frameIndex]);
@@ -106,12 +106,12 @@ public:
 
 		// 映像ファイル
 		tstring encVideoFile;
-		encVideoFile = setting_.getEncVideoFilePath(videoFileIndex, encoderIndex, cmtype);
+		encVideoFile = setting_.getEncVideoFilePath(key);
 
 		// チャプターファイル
 		tstring chapterFile;
 		if (setting_.isChapterEnabled()) {
-			auto path = setting_.getTmpChapterPath(videoFileIndex, encoderIndex, cmtype);
+			auto path = setting_.getTmpChapterPath(key);
 			if (File::exists(path)) {
 				chapterFile = path;
 			}
@@ -122,7 +122,7 @@ public:
 		std::vector<tstring> subsTitles;
 		if (nicoOK) {
 			for (NicoJKType jktype : setting_.getNicoJKTypes()) {
-				auto srcsub = setting_.getTmpNicoJKASSPath(videoFileIndex, encoderIndex, cmtype, jktype);
+				auto srcsub = setting_.getTmpNicoJKASSPath(key, jktype);
 				if (setting_.getFormat() == FORMAT_MKV) {
 					subsFiles.push_back(srcsub);
 					subsTitles.push_back(StringFormat(_T("NicoJK%s"), GetNicoJKSuffix(jktype)));
