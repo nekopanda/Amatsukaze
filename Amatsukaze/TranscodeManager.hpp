@@ -374,42 +374,33 @@ public:
 			setting_.getEncVideoFilePath(key));
 	}
 
-	double getSourceBitrate(int fileId) const
+	// src, target
+	std::pair<double, double> printBitrate(AMTContext& ctx, EncodeFileKey key) const
 	{
-		// ビットレート計算
-		int64_t srcBytes = 0;
-		double srcDuration = 0;
-		int numEncoders = reformInfo_.getNumEncoders(fileId);
-		for (int i = 0; i < numEncoders; ++i) {
-			const auto& info = reformInfo_.getSrcVideoInfo(i, fileId);
-			srcBytes += info.first;
-			srcDuration += info.second;
-		}
-		return ((double)srcBytes * 8 / 1000) / ((double)srcDuration / MPEG_CLOCK_HZ);
-	}
-
-	EncodeFileInfo printBitrate(AMTContext& ctx, int videoFileIndex, CMType cmtype) const
-	{
-		double srcBitrate = getSourceBitrate(videoFileIndex);
+		double srcBitrate = getSourceBitrate(key.video);
 		ctx.infoF("入力映像ビットレート: %d kbps", (int)srcBitrate);
 		VIDEO_STREAM_FORMAT srcFormat = reformInfo_.getVideoStreamFormat();
 		double targetBitrate = std::numeric_limits<float>::quiet_NaN();
 		if (setting_.isAutoBitrate()) {
 			targetBitrate = setting_.getBitrate().getTargetBitrate(srcFormat, srcBitrate);
-			if (cmtype == CMTYPE_CM) {
+			if (key.cm == CMTYPE_CM) {
 				targetBitrate *= setting_.getBitrateCM();
 			}
 			ctx.infoF("目標映像ビットレート: %d kbps", (int)targetBitrate);
 		}
-		EncodeFileInfo info;
-		info.srcBitrate = srcBitrate;
-		info.targetBitrate = targetBitrate;
-		return info;
+		return std::make_pair(srcBitrate, targetBitrate);
 	}
 
 private:
 	const ConfigWrapper& setting_;
 	const StreamReformInfo& reformInfo_;
+
+	double getSourceBitrate(int fileId) const
+	{
+		// ビットレート計算
+		const auto& info = reformInfo_.getSrcVideoInfo(fileId);
+		return ((double)info.first * 8 / 1000) / ((double)info.second / MPEG_CLOCK_HZ);
+	}
 };
 
 static std::vector<BitrateZone> MakeBitrateZones(
@@ -459,27 +450,6 @@ void DoBadThing() {
 	memset(p, 'x', 32);
 }
 #endif
-
-std::vector<EncodeFileKey> getFileList(
-	const StreamReformInfo& reformInfo,
-	const std::vector<std::unique_ptr<CMAnalyze>>& cmanalyze,
-	const std::vector<CMType>& cmtypes)
-{
-	std::vector<EncodeFileKey> result;
-	int numVideoFiles = reformInfo.getNumVideoFile();
-	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
-		const CMAnalyze* cma = cmanalyze[videoFileIndex].get();
-		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex) {
-			for (int div = 0; div < cma->getDivs().size() - 1; ++div) {
-				for (CMType cmtype : cmtypes) {
-					result.push_back({ videoFileIndex, encoderIndex, div, cmtype });
-				}
-			}
-		}
-	}
-	return result;
-}
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
@@ -563,14 +533,13 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	int numVideoFiles = reformInfo.getNumVideoFile();
-	int numOutFiles = reformInfo.getNumOutFiles();
 	int mainFileIndex = reformInfo.getMainVideoFileIndex();
 	std::vector<std::unique_ptr<CMAnalyze>> cmanalyze;
 
 	// ソースファイル読み込み用データ保存
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
 		// ファイル読み込み情報を保存
-		auto& fmt = reformInfo.getFormat(0, videoFileIndex);
+		auto& fmt = reformInfo.getFormat(EncodeFileKey(videoFileIndex, 0));
 		auto amtsPath = setting.getTmpAMTSourcePath(videoFileIndex);
 		av::SaveAMTSource(amtsPath,
 			setting.getIntVideoFilePath(videoFileIndex),
@@ -585,6 +554,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	rm.wait(HOST_CMD_CMAnalyze);
 	sw.start();
 	std::vector<std::pair<size_t, bool>> logoFound;
+	std::vector<std::unique_ptr<MakeChapter>> chapterMakers(numVideoFiles);
 	for (int videoFileIndex = 0; videoFileIndex < numVideoFiles; ++videoFileIndex) {
 		size_t numFrames = reformInfo.getFilterSourceFrames(videoFileIndex).size();
 		// チャプター解析は300フレーム（約10秒）以上ある場合だけ
@@ -611,19 +581,10 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			}
 
 			logoFound.emplace_back(numFrames, cma->getLogoPath().size() > 0);
-			reformInfo.applyCMZones(videoFileIndex, cmanalyze.back()->getZones());
+			reformInfo.applyCMZones(videoFileIndex, cma->getZones(), cma->getDivs());
 
-			// チャプター推定
-			ctx.info("[チャプター生成]");
-			MakeChapter makechapter(ctx, setting, reformInfo, videoFileIndex, cma->getTrims(), cma->getDivs());
-			int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-			for (int i = 0; i < numEncoders; ++i) {
-				for (int d = 0; d < (int)cma->getDivs().size() - 1; ++d) {
-					for (CMType cmtype : setting.getCMTypes()) {
-						makechapter.exec({ videoFileIndex, i, d, cmtype });
-					}
-				}
-			}
+			chapterMakers[videoFileIndex] = std::unique_ptr<MakeChapter>(
+				new MakeChapter(ctx, setting, reformInfo, videoFileIndex, cma->getTrims()));
 		}
 		else {
 			// チャプターCM解析無効
@@ -649,30 +610,45 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		return;
 	}
 
-	auto keys = getFileList(reformInfo, cmanalyze, setting.getCMTypes());
-
-	auto audioDiffInfo = reformInfo.genAudio();
+	auto audioDiffInfo = reformInfo.genAudio(setting.getCMTypes());
 	audioDiffInfo.printAudioPtsDiff(ctx);
+
+	const auto& allKeys = reformInfo.getOutFileKeys();
+	std::vector<EncodeFileKey> keys;
+	// 1秒以下なら出力しない
+	std::copy_if(allKeys.begin(), allKeys.end(), std::back_inserter(keys),
+		[&](EncodeFileKey key) { return reformInfo.getEncodeFile(key).duration >= MPEG_CLOCK_HZ; });
+
+	std::vector<EncodeFileOutput> outFileInfo(keys.size());
+
+	ctx.info("[チャプター生成]");
+	for (int i = 0; i < (int)keys.size(); ++i) {
+		auto key = keys[i];
+		if (chapterMakers[key.video]) {
+			chapterMakers[key.video]->exec(key);
+		}
+	}
 
 	ctx.info("[字幕ファイル生成]");
 	for (int i = 0; i < (int)keys.size(); ++i) {
+		auto key = keys[i];
 		CaptionASSFormatter formatterASS(ctx);
 		CaptionSRTFormatter formatterSRT(ctx);
 		NicoJKFormatter formatterNicoJK(ctx);
-		auto& capList = reformInfo.getOutCaptionList(keys[i]);
+		const auto& capList = reformInfo.getEncodeFile(key).captionList;
 		for (int lang = 0; lang < capList.size(); ++lang) {
 			WriteUTF8File(
-				setting.getTmpASSFilePath(keys[i], lang),
+				setting.getTmpASSFilePath(key, lang),
 				formatterASS.generate(capList[lang]));
 			WriteUTF8File(
-				setting.getTmpSRTFilePath(keys[i], lang),
+				setting.getTmpSRTFilePath(key, lang),
 				formatterSRT.generate(capList[lang]));
 		}
 		if (nicoOK) {
 			const auto& headerLines = nicoJK.getHeaderLines();
-			const auto& dialogues = reformInfo.getOutNicoJKList(keys[i]);
+			const auto& dialogues = reformInfo.getEncodeFile(key).nicojkList;
 			for (NicoJKType jktype : setting.getNicoJKTypes()) {
-				File file(setting.getTmpNicoJKASSPath(keys[i], jktype), _T("w"));
+				File file(setting.getTmpNicoJKASSPath(key, jktype), _T("w"));
 				auto text = formatterNicoJK.generate(headerLines[(int)jktype], dialogues[(int)jktype]);
 				file.write(MemoryChunk((uint8_t*)text.data(), text.size()));
 			}
@@ -681,24 +657,14 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	ctx.infoF("字幕ファイル生成完了: %.2f秒", sw.getAndReset());
 
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
-	std::vector<EncodeFileInfo> outFileInfo;
-	std::vector<VideoFormat> outfiles;
 
 	sw.start();
 	for (int i = 0; i < (int)keys.size(); ++i) {
 		auto key = keys[i];
 		const CMAnalyze* cma = cmanalyze[key.video].get();
 
-		// 出力が1秒以下ならスキップ
-		if (reformInfo.getFileDuration(key) < MPEG_CLOCK_HZ)
-			continue;
-
 		AMTFilterSource filterSource(ctx, setting, reformInfo,
 			cma->getZones(), cma->getLogoPath(), key, rm);
-
-		auto getTcPath = [&]() {
-			return setting.getTimecodeFilePath(key);
-		};
 
 		try {
 			PClip filterClip = filterSource.getClip();
@@ -709,10 +675,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 			auto& frameDurations = filterSource.getFrameDurations();
 			FilterVFRProc vfrProc(ctx, frameDurations, outvi, setting.isVFR120fps());
 
-			ctx.infoF("[エンコード開始] %d/%d %s", i + 1, numOutFiles, CMTypeToString(key.cm));
+			ctx.infoF("[エンコード開始] %d/%d %s", i + 1, (int)keys.size(), CMTypeToString(key.cm));
+			auto bitrate = argGen->printBitrate(ctx, key);
 
-			outFileInfo.push_back(argGen->printBitrate(ctx, key.video, key.cm));
-			outfiles.push_back(outfmt);
+			outFileInfo[i].vfmt = outfmt;
+			outFileInfo[i].srcBitrate = bitrate.first;
+			outFileInfo[i].targetBitrate = bitrate.second;
 
 			bool vfrEnabled = eoInfo.afsTimecode;
 
@@ -728,12 +696,10 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				// ゾーンをVFRフレーム番号に修正
 				vfrProc.toVFRZones(encoderZones);
 				// タイムコード生成
-				vfrProc.makeTimecode(getTcPath());
+				vfrProc.makeTimecode(setting.getTimecodeFilePath(key));
 			}
 
-			if (vfrEnabled) {
-				outFileInfo.back().tcPath = getTcPath();
-			}
+			outFileInfo.back().vfrEnabled = vfrEnabled;
 
 			std::vector<int> pass;
 			if (setting.isTwoPass()) {
@@ -753,8 +719,9 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				encoderArgs.push_back(
 					argGen->GenEncoderOptions(
 						outvi.num_frames,
-						outfmt, bitrateZones, vfrBitrateScale, outFileInfo.back().tcPath, is120fps,
-						key, pass[i]));
+						outfmt, bitrateZones, vfrBitrateScale,
+						vfrEnabled ? setting.getTimecodeFilePath(key) : tstring(), 
+						is120fps, key, pass[i]));
 			}
 			AMTFilterVideoEncoder encoder(ctx);
 			encoder.encode(filterClip, outfmt,
@@ -772,42 +739,23 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	sw.start();
 	int64_t totalOutSize = 0;
 	auto muxer = std::unique_ptr<AMTMuxder>(new AMTMuxder(ctx, setting, reformInfo));
-	for (int videoFileIndex = 0, currentOutFile = 0;
-		videoFileIndex < numVideoFiles; ++videoFileIndex)
-	{
-		int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-		auto& cmtypes = setting.getCMTypes();
-		auto& outFileMapping = reformInfo.getOutFileMapping();
+	for (int i = 0; i < (int)keys.size(); ++i) {
+		auto key = keys[i];
 
-		for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex) {
-			int outIndex = reformInfo.getOutFileIndex(encoderIndex, videoFileIndex);
+		ctx.infoF("[Mux開始] %d/%d %s", i + 1, (int)keys.size(), CMTypeToString(key.cm));
+		muxer->mux(key, eoInfo, nicoOK, outFileInfo[i]);
 
-			for (int i = 0; i < (int)cmtypes.size(); ++i) {
-				CMType cmtype = cmtypes[i];
-
-				// 出力が1秒以下ならスキップ
-				if (reformInfo.getFileDuration(encoderIndex, videoFileIndex, cmtype) < MPEG_CLOCK_HZ)
-					continue;
-
-				auto& info = outFileInfo[currentOutFile];
-				const auto& vfmt = outfiles[currentOutFile];
-				++currentOutFile;
-
-				ctx.infoF("[Mux開始] %d/%d %s", outIndex + 1, reformInfo.getNumOutFiles(), CMTypeToString(cmtype));
-				muxer->mux(
-					key, vfmt, eoInfo, OutPathGenerator(setting,
-						outFileMapping[outIndex], ?, (i == 0) ? CMTYPE_BOTH : cmtype), nicoOK, info);
-
-				totalOutSize += info.fileSize;
-			}
-		}
+		totalOutSize += outFileInfo[i].fileSize;
 	}
 	ctx.infoF("Mux完了: %.2f秒", sw.getAndReset());
 
 	muxer = nullptr;
 
 	// 出力結果を表示
-	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
+	reformInfo.printOutputMapping([&](EncodeFileKey key) {
+		const auto& file = reformInfo.getEncodeFile(key);
+		return setting.getOutFilePath(file.outKey, file.keyMax);
+	});
 
 	// 出力結果JSON出力
 	if (setting.getOutInfoJsonPath().size() > 0) {
@@ -815,11 +763,12 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		sb.append("{ ")
 			.append("\"srcpath\": \"%s\", ", toJsonString(setting.getSrcFilePath()))
 			.append("\"outfiles\": [");
-		for (int i = 0; i < (int)outFileInfo.size(); ++i) {
+		for (int i = 0; i < (int)keys.size(); ++i) {
 			if (i > 0) sb.append(", ");
+			const auto& file = reformInfo.getEncodeFile(keys[i]);
 			const auto& info = outFileInfo[i];
 			sb.append("{ \"path\": \"%s\", \"srcbitrate\": %d, \"outbitrate\": %d, \"outfilesize\": %lld, ",
-				toJsonString(info.outPath), (int)info.srcBitrate,
+				toJsonString(setting.getOutFilePath(file.outKey, file.keyMax)), (int)info.srcBitrate,
 				std::isnan(info.targetBitrate) ? -1 : (int)info.targetBitrate, info.fileSize);
 			sb.append("\"subs\": [");
 			for (int s = 0; s < (int)info.outSubs.size(); ++s) {
@@ -883,7 +832,7 @@ static void transcodeSimpleMain(AMTContext& ctx, const ConfigWrapper& setting)
 	if (setting.getOutInfoJsonPath().size() > 0) {
 		StringBuilder sb;
 		sb.append("{ \"srcpath\": \"%s\"", toJsonString(setting.getSrcFilePath()))
-			.append(", \"outpath\": \"%s\"", toJsonString(setting.getOutFilePath(0, CMTYPE_BOTH)))
+			.append(", \"outpath\": \"%s\"", toJsonString(setting.getOutFilePath(EncodeFileKey(), EncodeFileKey())))
 			.append(", \"srcfilesize\": %lld", srcFileSize)
 			.append(", \"outfilesize\": %lld", totalOutSize)
 			.append(" }");

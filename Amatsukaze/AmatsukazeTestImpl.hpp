@@ -232,7 +232,7 @@ static int AacDecode(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int WaveWriteHeader(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	tstring dstfile = setting.getOutFilePath(0, CMTYPE_BOTH);
+	tstring dstfile = setting.getOutFilePath(EncodeFileKey(), EncodeFileKey());
 
 	FILE* fp = fsopenT(dstfile.c_str(), _T("wb"), _SH_DENYNO);
 	if (fp == nullptr) {
@@ -285,9 +285,12 @@ static int FileStreamInfo(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 	reformInfo.prepare(false);
-	auto audioDiffInfo = reformInfo.genAudio();
+	auto audioDiffInfo = reformInfo.genAudio({ CMTYPE_BOTH });
 	audioDiffInfo.printAudioPtsDiff(ctx);
-	reformInfo.printOutputMapping([&](int index) { return setting.getOutFilePath(index, CMTYPE_BOTH); });
+	reformInfo.printOutputMapping([&](EncodeFileKey key) {
+		const auto& file = reformInfo.getEncodeFile(key);
+		return setting.getOutFilePath(file.outKey, file.keyMax);
+	});
 	return 0;
 }
 
@@ -363,7 +366,7 @@ static int LosslessFileTest(AMTContext& ctx, const ConfigWrapper& setting)
 
 	{
 		int numframes = 100;
-		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), _T("wb"));
+		LosslessVideoFile file(ctx, setting.getOutFilePath(EncodeFileKey(), EncodeFileKey()), _T("wb"));
 		PClip clip = env->Invoke("Import", to_string(setting.getFilterScriptPath()).c_str()).AsClip();
 
 		VideoInfo vi = clip->GetVideoInfo();
@@ -396,7 +399,7 @@ static int LosslessFileTest(AMTContext& ctx, const ConfigWrapper& setting)
 	}
 
 	{
-		LosslessVideoFile file(ctx, setting.getOutFilePath(0, CMTYPE_BOTH), _T("rb"));
+		LosslessVideoFile file(ctx, setting.getOutFilePath(EncodeFileKey(), EncodeFileKey()), _T("rb"));
 		file.readHeader();
 
 		int width = file.getWidth();
@@ -463,8 +466,8 @@ public:
 static int SplitDualMonoAAC(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	std::vector<tstring> outpaths;
-	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 0, CMTYPE_BOTH));
-	outpaths.push_back(setting.getIntAudioFilePath(0, 0, 1, CMTYPE_BOTH));
+	outpaths.push_back(setting.getIntAudioFilePath(EncodeFileKey(), 0));
+	outpaths.push_back(setting.getIntAudioFilePath(EncodeFileKey(), 1));
 	TestSplitDualMono splitter(ctx, outpaths);
 
 	File src(setting.getSrcFilePath(), _T("rb"));
@@ -533,26 +536,22 @@ static int CaptionASS(AMTContext& ctx, const ConfigWrapper& setting)
 		StreamReformInfo reformInfo = StreamReformInfo::deserialize(ctx, setting.getStreamInfoPath());
 
 		reformInfo.prepare(false);
-		auto audioDiffInfo = reformInfo.genAudio();
+		auto audioDiffInfo = reformInfo.genAudio({ CMTYPE_BOTH });
 		audioDiffInfo.printAudioPtsDiff(ctx);
 
 		CaptionASSFormatter formatterASS(ctx);
 		CaptionSRTFormatter formatterSRT(ctx);
-		int numFiles = reformInfo.getNumVideoFile();
-		for (int videoFileIndex = 0; videoFileIndex < numFiles; ++videoFileIndex) {
-			int numEncoders = reformInfo.getNumEncoders(videoFileIndex);
-			for (int encoderIndex = 0; encoderIndex < numEncoders; ++encoderIndex) {
-				for (int c = 0; c < CMTYPE_MAX; ++c) {
-					auto& capList = reformInfo.getOutCaptionList(encoderIndex, videoFileIndex, (CMType)c);
-					for (int lang = 0; lang < capList.size(); ++lang) {
-						WriteUTF8File(
-							setting.getTmpASSFilePath(videoFileIndex, encoderIndex, lang, (CMType)c),
-							formatterASS.generate(capList[lang]));
-						WriteUTF8File(
-							setting.getTmpSRTFilePath(videoFileIndex, encoderIndex, lang, (CMType)c),
-							formatterSRT.generate(capList[lang]));
-					}
-				}
+		const auto& keys = reformInfo.getOutFileKeys();
+		for (int i = 0; i < (int)keys.size(); ++i) {
+			auto key = keys[i];
+			auto& capList = reformInfo.getEncodeFile(key).captionList;
+			for (int lang = 0; lang < capList.size(); ++lang) {
+				WriteUTF8File(
+					setting.getTmpASSFilePath(key, lang),
+					formatterASS.generate(capList[lang]));
+				WriteUTF8File(
+					setting.getTmpSRTFilePath(key, lang),
+					formatterSRT.generate(capList[lang]));
 			}
 		}
 	}

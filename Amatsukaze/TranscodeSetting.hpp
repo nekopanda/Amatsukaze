@@ -882,26 +882,29 @@ public:
 		return "amatsukze";
 	}
 
-	tstring getOutFilePath(int index, CMType cmtype) const {
+	tstring getOutFilePath(EncodeFileKey key, EncodeFileKey keyMax) const {
 		StringBuilderT sb;
 		sb.append(_T("%s"), conf.outVideoPath);
-		if (index != 0) {
-			sb.append(_T("-%d"), index);
+		if (key.format > 0) {
+			sb.append(_T("-%d"), key.format);
 		}
-		sb.append(_T("%s.%s"), GetCMSuffix(cmtype), getOutputExtention());
+		if (keyMax.div > 1) {
+			sb.append(_T("_div%d"), key.div + 1);
+		}
+		sb.append(_T("%s.%s"), GetCMSuffix(key.cm), getOutputExtention());
 		return sb.str();
 	}
 
-	tstring getOutASSPath(int index, int div, int langidx, CMType cmtype, NicoJKType jktype) const {
+	tstring getOutASSPath(EncodeFileKey key, EncodeFileKey keyMax, int langidx, NicoJKType jktype) const {
 		StringBuilderT sb;
 		sb.append(_T("%s"), conf.outVideoPath);
-		if (index != 0) {
-			sb.append(_T("-%d"), index);
+		if (key.format > 0) {
+			sb.append(_T("-%d"), key.format);
 		}
-		if (div >= 0) {
-			sb.append(_T("-%d"), div);
+		if (keyMax.div > 1) {
+			sb.append(_T("_div%d"), key.div + 1);
 		}
-		sb.append(_T("%s"), GetCMSuffix(cmtype));
+		sb.append(_T("%s"), GetCMSuffix(key.cm));
 		if (langidx < 0) {
 			sb.append(_T("-nicojk%s"), GetNicoJKSuffix(jktype));
 		}
@@ -928,8 +931,9 @@ public:
 		return conf.dumpFilter;
 	}
 
-	tstring getFilterGraphDumpPath(int vindex, int index, CMType cmtype) const {
-		return regtmp(StringFormat(_T("%s/graph%d-%d%s.txt"), tmpDir.path(), vindex, index, GetCMSuffix(cmtype)));
+	tstring getFilterGraphDumpPath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/graph%d-%d-%d%s.txt"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
 
 	bool isZoneAvailable() const {
@@ -1077,25 +1081,4 @@ private:
 		ctx.registerTmpFile(str);
 		return str;
 	}
-};
-
-class OutPathGenerator {
-public:
-	OutPathGenerator(const ConfigWrapper& setting, int index, int numDiv, CMType cmtype)
-		: setting_(setting)
-		, index_(index)
-		, numDiv_(numDiv)
-		, cmtype_(cmtype)
-	{ }
-	tstring getOutFilePath() const {
-		return setting_.getOutFilePath(index_, cmtype_);
-	}
-	tstring getOutASSPath(int langidx, int div, NicoJKType jktype) const {
-		return setting_.getOutASSPath(index_, langidx, (numDiv_ == 1) ? -1 : div, cmtype_, jktype);
-	}
-private:
-	const ConfigWrapper& setting_;
-	int index_;
-	int numDiv_;
-	CMType cmtype_;
 };

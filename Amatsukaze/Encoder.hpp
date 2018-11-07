@@ -374,7 +374,7 @@ private:
 			for (int i = 0; i < (int)fmt->nb_streams; ++i) {
 				if (fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
 					audioFiles_.emplace_back(new AudioFileWriter(
-						fmt->streams[i], setting_.getIntAudioFilePath(0, 0, audioCount_, CMTYPE_BOTH), 8 * 1024));
+						fmt->streams[i], setting_.getIntAudioFilePath(EncodeFileKey(), audioCount_), 8 * 1024));
 					audioMap_[i] = audioCount_++;
 				}
 			}
@@ -431,9 +431,9 @@ private:
 			setting_.getEncoder(),
 			setting_.getEncoderPath(),
 			setting_.getOptions(
-				0, fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, 0, 0, CMTYPE_BOTH),
+				0, fmt.format, srcBitrate, false, pass_, std::vector<BitrateZone>(), 1, EncodeFileKey()),
 			fmt, tstring(), false,
-			setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH));
+			setting_.getEncVideoFilePath(EncodeFileKey()));
 
 		ctx.info("[エンコーダ開始]");
 		ctx.infoF("%s", args);

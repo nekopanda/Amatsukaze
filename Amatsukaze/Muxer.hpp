@@ -15,9 +15,9 @@
 #include "AdtsParser.hpp"
 #include "ProcessThread.hpp"
 
-struct EncodeFileInfo {
-	tstring outPath;
-	tstring tcPath; // タイムコードファイルパス
+struct EncodeFileOutput {
+	bool vfrEnabled;
+	VideoFormat vfmt;
 	std::vector<tstring> outSubs; // 外部ファイルで出力された字幕
 	int64_t fileSize;
 	double srcBitrate;
@@ -37,14 +37,13 @@ public:
 	{ }
 
 	void mux(EncodeFileKey key,
-		const VideoFormat& fvfmt, // フィルタ出力フォーマット
 		const EncoderOptionInfo& eoInfo, // エンコーダオプション情報
-		const OutPathGenerator& pathgen, // パス生成器
 		bool nicoOK,
-		EncodeFileInfo& outFilePath) // 出力情報
+		EncodeFileOutput& fileOut) // 出力情報
 	{
-		auto fmt = reformInfo_.getFormat(encoderIndex, videoFileIndex);
-		auto vfmt = fvfmt;
+		const auto& fileIn = reformInfo_.getEncodeFile(key);
+		auto fmt = reformInfo_.getFormat(key);
+		auto vfmt = fileOut.vfmt;
 
 		if (vfmt.progressive == false) {
 			// エンコーダでインタレ解除している場合があるので、それを反映する
@@ -74,14 +73,12 @@ public:
 
 		// 音声ファイルを作成
 		std::vector<tstring> audioFiles;
-		const FileAudioFrameList& fileFrameList =
-			reformInfo_.getFileAudioFrameList(encoderIndex, videoFileIndex, cmtype);
-		for (int asrc = 0, adst = 0; asrc < (int)fileFrameList.size(); ++asrc) {
-			const std::vector<int>& frameList = fileFrameList[asrc];
+		for (int asrc = 0, adst = 0; asrc < (int)fileIn.audioFrames.size(); ++asrc) {
+			const std::vector<int>& frameList = fileIn.audioFrames[asrc];
 			if (frameList.size() > 0) {
 				if (fmt.audioFormat[asrc].channels == AUDIO_2LANG) {
 					// デュアルモノは2つのAACに分離
-					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", encoderIndex, asrc);
+					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", fileIn.outKey.format, asrc);
 					SpDualMonoSplitter splitter(ctx);
 					tstring filepath0 = setting_.getIntAudioFilePath(key, adst++);
 					tstring filepath1 = setting_.getIntAudioFilePath(key, adst++);
@@ -128,27 +125,24 @@ public:
 					subsTitles.push_back(StringFormat(_T("NicoJK%s"), GetNicoJKSuffix(jktype)));
 				}
 				else { // MP4の場合は別ファイルとしてコピー
-					auto dstsub = pathgen.getOutASSPath(-1, jktype);
+					auto dstsub = setting_.getOutASSPath(fileIn .outKey, fileIn .keyMax, -1, jktype);
 					File::copy(srcsub, dstsub);
-					outFilePath.outSubs.push_back(dstsub);
+					fileOut.outSubs.push_back(dstsub);
 				}
 			}
 		}
-		auto& capList = reformInfo_.getOutCaptionList(encoderIndex, videoFileIndex, cmtype);
-		for (int lang = 0; lang < capList.size(); ++lang) {
-			auto srcsub = setting_.getTmpASSFilePath(
-				videoFileIndex, encoderIndex, lang, cmtype);
+		for (int lang = 0; lang < fileIn.captionList.size(); ++lang) {
+			auto srcsub = setting_.getTmpASSFilePath(key, lang);
 			if (setting_.getFormat() == FORMAT_MKV) {
 				subsFiles.push_back(srcsub);
 				subsTitles.push_back(_T("ASS"));
 			}
 			else { // MP4,M2TSの場合は別ファイルとしてコピー
-				auto dstsub = pathgen.getOutASSPath(lang, (NicoJKType)0);
+				auto dstsub = setting_.getOutASSPath(fileIn.outKey, fileIn.keyMax, lang, (NicoJKType)0);
 				File::copy(srcsub, dstsub);
-				outFilePath.outSubs.push_back(dstsub);
+				fileOut.outSubs.push_back(dstsub);
 			}
-			subsFiles.push_back(setting_.getTmpSRTFilePath(
-				videoFileIndex, encoderIndex, lang, cmtype));
+			subsFiles.push_back(setting_.getTmpSRTFilePath(key, lang));
 			subsTitles.push_back(_T("SRT"));
 		}
 
@@ -156,8 +150,7 @@ public:
 		bool is120fps = (eoInfo.afsTimecode || setting_.isVFR120fps());
 		std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * (is120fps ? 4 : 2), vfmt.frameRateDenom);
 
-		tstring tmpOutPath = setting_.getVfrTmpFilePath(videoFileIndex, encoderIndex, cmtype);
-		outFilePath.outPath = pathgen.getOutFilePath();
+		tstring tmpOutPath = setting_.getVfrTmpFilePath(key);
 
 		tstring metaFile;
 		if (setting_.getFormat() == FORMAT_M2TS || setting_.getFormat() == FORMAT_TS) {
@@ -185,17 +178,18 @@ public:
 					spath, fps, vfmt.width, vfmt.height);
 			}
 
-			metaFile = setting_.getM2tsMetaFilePath(videoFileIndex, encoderIndex, cmtype);
+			metaFile = setting_.getM2tsMetaFilePath(key);
 			File file(metaFile, _T("w"));
 			file.write(sb.getMC());
 		}
 
+		auto outPath = setting_.getOutFilePath(fileIn.outKey, fileIn.keyMax);
 		auto args = makeMuxerArgs(
 			setting_.getFormat(),
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, vfmt, audioFiles,
-			outFilePath.outPath, tmpOutPath, chapterFile,
-			outFilePath.tcPath, timebase, subsFiles, subsTitles, metaFile);
+			outPath, tmpOutPath, chapterFile,
+			setting_.getTimecodeFilePath(key), timebase, subsFiles, subsTitles, metaFile);
 
 		for (int i = 0; i < (int)args.size(); ++i) {
 			ctx.infoF("%s", args[i].first);
@@ -208,8 +202,8 @@ public:
 			ctx.setDefaultCP();
 		}
 
-		File outfile(outFilePath.outPath, _T("rb"));
-		outFilePath.fileSize = outfile.size();
+		File outfile(outPath, _T("rb"));
+		fileOut.fileSize = outfile.size();
 	}
 
 private:
@@ -246,10 +240,10 @@ public:
 		// Mux
 		std::vector<tstring> audioFiles;
 		for (int i = 0; i < audioCount; ++i) {
-			audioFiles.push_back(setting_.getIntAudioFilePath(0, 0, i, CMTYPE_BOTH));
+			audioFiles.push_back(setting_.getIntAudioFilePath(EncodeFileKey(), i));
 		}
-		tstring encVideoFile = setting_.getEncVideoFilePath(0, 0, CMTYPE_BOTH);
-		tstring outFilePath = setting_.getOutFilePath(0, CMTYPE_BOTH);
+		tstring encVideoFile = setting_.getEncVideoFilePath(EncodeFileKey());
+		tstring outFilePath = setting_.getOutFilePath(EncodeFileKey(), EncodeFileKey());
 		auto args = makeMuxerArgs(
 			FORMAT_MP4,
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
@@ -268,7 +262,7 @@ public:
 		}
 
 		{ // 出力サイズ取得
-			File outfile(setting_.getOutFilePath(0, CMTYPE_BOTH), _T("rb"));
+			File outfile(setting_.getOutFilePath(EncodeFileKey(), EncodeFileKey()), _T("rb"));
 			totalOutSize_ += outfile.size();
 		}
 	}

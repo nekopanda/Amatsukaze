@@ -447,15 +447,12 @@ public:
 		const ConfigWrapper& setting,
 		const StreamReformInfo& reformInfo,
 		int videoFileIndex,
-		const std::vector<int>& trims,
-		const std::vector<int>& divs)
+		const std::vector<int>& trims)
 		: AMTObject(ctx)
 		, setting(setting)
 		, reformInfo(reformInfo)
-		, divs(divs)
 	{
 		makeBase(trims, readJls(setting.getTmpJlsPath(videoFileIndex)));
-		
 	}
 
 	void exec(EncodeFileKey key)
@@ -481,7 +478,6 @@ private:
 	const StreamReformInfo& reformInfo;
 
 	std::vector<JlsElement> chapters;
-	std::vector<int> divs;
 
 	std::vector<JlsElement> readJls(const tstring& jlspath)
 	{
@@ -588,19 +584,7 @@ private:
 
 	std::vector<JlsElement> makeFileChapter(EncodeFileKey key)
 	{
-		// 分割後のフレーム番号を取得
-		auto& srcFrames = reformInfo.getFilterSourceFrames(key.video);
-		int divStart = divs[key.div];
-		int divEnd = divs[key.div + 1];
-		std::vector<int> outFrames;
-		for (int i = divStart; i < divEnd; ++i) {
-			int frameEncoderIndex = reformInfo.getEncoderIndex(srcFrames[i].frameIndex);
-			if (key.format == frameEncoderIndex) {
-				if (key.cm == CMTYPE_BOTH || key.cm == srcFrames[i].cmType) {
-					outFrames.push_back(i);
-				}
-			}
-		}
+		const auto& outFrames = reformInfo.getEncodeFile(key).videoFrames;
 
 		// チャプターを分割後のフレーム番号に変換
 		std::vector<JlsElement> cvtChapters;
@@ -613,7 +597,7 @@ private:
 		}
 
 		// 短すぎるチャプターは消す
-		auto& vfmt = reformInfo.getFormat(key.format, key.video).videoFormat;
+		auto& vfmt = reformInfo.getFormat(key).videoFormat;
 		int fps = (int)std::round((float)vfmt.frameRateNum / vfmt.frameRateDenom);
 		std::vector<JlsElement> fileChapters;
 		JlsElement cur = { 0 };
@@ -643,7 +627,7 @@ private:
 
 	void writeChapter(const std::vector<JlsElement>& chapters, EncodeFileKey key)
 	{
-		auto& vfmt = reformInfo.getFormat(key.format, key.video).videoFormat;
+		auto& vfmt = reformInfo.getFormat(key).videoFormat;
 		float frameMs = (float)vfmt.frameRateDenom / vfmt.frameRateNum * 1000.0f;
 
 		ctx.infoF("ファイル: %d-%d-%d %s", key.video, key.format, key.div, CMTypeToString(key.cm));

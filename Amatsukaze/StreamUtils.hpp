@@ -516,6 +516,17 @@ struct EncodeFileKey {
 	int format;  // フォーマット番号（音声その他のフォーマット変更による分割）
 	int div;     // 分割番号（CM構成認識による分割）
 	CMType cm;   // CMタイプ（本編、CMなど）
+
+	explicit EncodeFileKey()
+		: video(0), format(0), div(0), cm(CMTYPE_BOTH) { }
+	EncodeFileKey(int video, int format)
+		: video(video), format(format), div(0), cm(CMTYPE_BOTH) { }
+	EncodeFileKey(int video, int format, int div, CMType cm)
+		: video(video), format(format), div(div), cm(cm) { }
+
+	int key() const {
+		return (video << 24) | (format << 14) | (div << 4) | cm;
+	}
 };
 
 static const char* CMTypeToString(CMType cmtype) {
