@@ -453,7 +453,7 @@ void DoBadThing() {
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
-#if 0
+#if 1
 	MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
 	//DoBadThing();
 #endif
@@ -699,7 +699,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				vfrProc.makeTimecode(setting.getTimecodeFilePath(key));
 			}
 
-			outFileInfo.back().vfrEnabled = vfrEnabled;
+			outFileInfo[i].vfrEnabled = vfrEnabled;
 
 			std::vector<int> pass;
 			if (setting.isTwoPass()) {

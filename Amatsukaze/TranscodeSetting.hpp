@@ -767,15 +767,17 @@ public:
 			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
 		// KFMCycleAnalyzeのデバッグダンプファイルも追加
-		ctx.registerTmpFile(str + _T(".debug"));
+    ctx.registerTmpFile(str + _T(".cycle.dat"));
+		ctx.registerTmpFile(str + _T(".cycle.debug"));
 		return str;
 	}
 
 	tstring getAvsDurationPath(EncodeFileKey key) const {
-		auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp.duration.txt"),
-			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
-		ctx.registerTmpFile(str);
-		return str;
+    auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
+      tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
+    ctx.registerTmpFile(str + _T(".duration.txt"));
+    ctx.registerTmpFile(str + _T(".timecode.txt"));
+		return str + _T(".duration.txt");
 	}
 
 	tstring getFilterAvsPath(EncodeFileKey key) const {

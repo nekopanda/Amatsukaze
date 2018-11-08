@@ -1269,13 +1269,13 @@ namespace Amatsukaze.Server
                     {
                         // VFR
                         sb.AppendLine("pass = Select(AMT_PASS, 1, 2, 3)");
-                        sb.AppendLine("AMT_PHASE = Select(AMT_PASS, 0, 1, 2)");
+                        sb.AppendLine("AMT_PRE_PROC = (AMT_PASS < 2)");
                         videoOutPass = 2;
                     }
                     else
                     {
                         sb.AppendLine("pass = Select(AMT_PASS, 1, 3)");
-                        sb.AppendLine("AMT_PHASE = Select(AMT_PASS, 0, 2)");
+                        sb.AppendLine("AMT_PRE_PROC = (AMT_PASS < 1)");
                         videoOutPass = 1;
                     }
                     sb.AppendLine("dsrc.KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 0) +

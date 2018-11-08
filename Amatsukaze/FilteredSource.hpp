@@ -502,9 +502,15 @@ private:
 			numSrcFrames, infmt.frameRateNum, infmt.frameRateDenom,
 			infmt.progressive ? "プログレッシブ" : "インターレース");
 
-		ctx.infoF("フィルタ出力: %dフレーム %d/%dfps (%s)",
-			numOutFrames, outvi.fps_numerator, outvi.fps_denominator,
-			outParity ? "インターレース" : "プログレッシブ");
+		if (frameDurations.size()) {
+			ctx.infoF("フィルタ出力: %dフレーム VFR (ベース %d/%d fps)",
+				outvi.num_frames, outvi.fps_numerator, outvi.fps_denominator);
+		}
+		else {
+			ctx.infoF("フィルタ出力: %dフレーム %d/%dfps (%s)",
+				numOutFrames, outvi.fps_numerator, outvi.fps_denominator,
+				outParity ? "インターレース" : "プログレッシブ");
+		}
 
 		if (std::abs(srcDuration - clipDuration) > 0.1f) {
 			THROWF(RuntimeException, "フィルタ出力映像の時間が入力と一致しません（入力: %.3f秒 出力: %.3f秒）", srcDuration, clipDuration);
@@ -692,10 +698,12 @@ public:
 		while (file.getline(str)) {
 			durations.push_back(std::atoi(str.c_str()));
 		}
-		if (vi.num_frames != durations.size()) {
+		int numSourceFrames = std::accumulate(durations.begin(), durations.end(), 0);
+		if (vi.num_frames != numSourceFrames) {
 			env->ThrowError("[AMTDecimate] # of frames does not match. %d(%s) vs %d(source clip)",
-				(int)durations.size(), duration.c_str(), vi.num_frames);
+				(int)numSourceFrames, duration.c_str(), vi.num_frames);
 		}
+ 		vi.num_frames = (int)durations.size();
 		framesMap.resize(durations.size());
 		framesMap[0] = 0;
 		for (int i = 0; i < (int)durations.size() - 1; ++i) {
@@ -706,6 +714,15 @@ public:
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env)
 	{
 		return child->GetFrame(framesMap[std::max(0, std::min(n, vi.num_frames - 1))], env);
+	}
+
+	static AVSValue __cdecl Create(AVSValue args, void* user_data, IScriptEnvironment* env)
+	{
+		return new AMTDecimate(
+			args[0].AsClip(),       // source
+			args[1].AsString(),       // analyzeclip
+			env
+		);
 	}
 };
 

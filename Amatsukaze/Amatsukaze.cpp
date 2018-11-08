@@ -57,7 +57,7 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	env->AddFunction("AMTAnalyzeLogo", "cs[maskratio]i", logo::AMTAnalyzeLogo::Create, 0);
 	env->AddFunction("AMTEraseLogo", "ccs[logof]s[mode]i", logo::AMTEraseLogo::Create, 0);
 
-	env->AddFunction("AMTDecimate", "c[duration]s", logo::AMTEraseLogo::Create, 0);
+	env->AddFunction("AMTDecimate", "c[duration]s", AMTDecimate::Create, 0);
 
 	return "Amatsukaze plugin";
 }

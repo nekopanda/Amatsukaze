@@ -365,11 +365,6 @@ public:
 		return format_[fileFormatId_[fileId]];
 	}
 
-	// 出力通し番号
-	//int getOutFileIndex(int encoderIndex, int videoFileIndex) const {
-	//	return fileFormatStartIndex_[videoFileIndex] + encoderIndex;
-	//}
-
 	// genAudio後使用可能
 	const std::vector<EncodeFileKey>& getOutFileKeys() const {
 		return outFileKeys_;
@@ -380,27 +375,6 @@ public:
 		return std::make_pair(filterSrcSize_[videoFileIndex], filterSrcDuration_[videoFileIndex]);
 	}
 
-	//const FileAudioFrameList& getFileAudioFrameList(
-	//	int encoderIndex, int videoFileIndex, CMType cmtype) const
-	//{
-	//	int fileId = fileFormatStartIndex_[videoFileIndex] + encoderIndex;
-	//	return *reformedAudioFrameList_[fileId][cmtype].get();
-	//}
-
-	//const OutCaptionList& getOutCaptionList(
-	//	int encoderIndex, int videoFileIndex, CMType cmtype) const
-	//{
-	//	int fileId = fileFormatStartIndex_[videoFileIndex] + encoderIndex;
-	//	return *reformedCationList_[fileId][cmtype].get();
-	//}
-
-	//const NicoJKList& getOutNicoJKList(
-	//	int encoderIndex, int videoFileIndex, CMType cmtype) const
-	//{
-	//	int fileId = fileFormatStartIndex_[videoFileIndex] + encoderIndex;
-	//	return *reformedNicoJKList_[fileId][cmtype].get();
-	//}
-
 	// TODO: VFR用タイムコード取得
 	// infps: フィルタ入力のFPS
 	// outpfs: フィルタ出力のFPS
@@ -410,19 +384,9 @@ public:
 		//
 	}
 
-	// 各ファイルの再生時間
-	//double getFileDuration(int encoderIndex, int videoFileIndex, CMType cmtype) const {
-	//	int fileId = fileFormatStartIndex_[videoFileIndex] + encoderIndex;
-	//	return fileDuration_[fileId][cmtype];
-	//}
-
 	const std::vector<int64_t>& getAudioFileOffsets() const {
 		return audioFileOffsets_;
 	}
-
-	//const std::vector<int>& getOutFileMapping() const {
-	//	return outFormatIndex_;
-	//}
 
 	bool isVFR() const {
 		return isVFR_;
@@ -444,7 +408,7 @@ public:
 	{
 		ctx.info("[出力ファイル]");
 		for (int i = 0; i < (int)outFileKeys_.size(); ++i) {
-			ctx.infoF("%d: %s", i, outFileKeys_[i]);
+			ctx.infoF("%d: %s", i, getFileName(outFileKeys_[i]));
 		}
 
 		ctx.info("[入力->出力マッピング]");
@@ -557,35 +521,18 @@ private:
 	std::vector<std::vector<int>> fileDivs_; // CM解析結果
 
 	std::vector<int> frameFormatId_; // [DTS順] -> [フォーマット(出力)順]
-	//std::map<int64_t, int> framePtsMap_;
 
 	// 出力ファイルリスト
 	std::vector<EncodeFileKey> outFileKeys_; // [出力ファイル順]
 	std::map<int, EncodeFileInput> outFiles_; // キーはEncodeFileKey.key()
 
-	// 出力ファイルごとの入力映像データサイズ、時間
-	//std::vector<int64_t> fileSrcSize_;
-	//std::vector<double> fileSrcDuration_;
-	//std::vector<std::array<double, CMTYPE_MAX>> fileDuration_; // 各ファイルの再生時間
-
 	// 最初の映像フレームの時刻(UNIX時間)
 	time_t firstFrameTime_;
 
-	// 2nd phase 出力
-	//std::vector<bool> encodedFrames_;
-
-	// 音声構築用
-	//std::vector<std::array<std::unique_ptr<FileAudioFrameList>, CMTYPE_MAX>> reformedAudioFrameList_;
-
 	std::vector<int64_t> audioFileOffsets_; // 音声ファイルキャッシュ用
-	//std::vector<int> outFormatIndex_; // 出力番号マッピング
 
 	double srcTotalDuration_;
 	double outTotalDuration_;
-
-	// 字幕構築用
-	//std::vector<std::array<std::unique_ptr<OutCaptionList>, CMTYPE_MAX>> reformedCationList_;
-	//std::vector<std::array<std::unique_ptr<NicoJKList>, CMTYPE_MAX>> reformedNicoJKList_;
 
 	void reformMain(bool splitSub)
 	{
@@ -983,6 +930,8 @@ private:
 			t.tm_sec -= (int)std::round(diff); // 最初のフレームまで戻す
 			firstFrameTime_ = _mkgmtime(&t);
 		}
+
+    fileDivs_.resize(numVideoFile_);
 	}
 
 	void calcSizeAndTime(const std::vector<CMType>& cmtypes)
@@ -1196,7 +1145,7 @@ private:
 		}
 		for (int videoId = 0; videoId < numVideoFile_; ++videoId) {
 			const auto& frameList = filterFrameList_[videoId];
-			for (int i = 0; i < (int)filterFrameList_.size(); ++i) {
+			for (int i = 0; i < (int)frameList.size(); ++i) {
 				const auto& frame = frameList[i];
 				int fileFormatId = frameFormatId_[frame.frameIndex];
 				const auto& audioFormats = format_[fileFormatId_[fileFormatId]].audioFormat;

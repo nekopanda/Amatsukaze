@@ -189,7 +189,8 @@ public:
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, vfmt, audioFiles,
 			outPath, tmpOutPath, chapterFile,
-			setting_.getTimecodeFilePath(key), timebase, subsFiles, subsTitles, metaFile);
+      fileOut.vfrEnabled ? setting_.getTimecodeFilePath(key) : tstring(),
+      timebase, subsFiles, subsTitles, metaFile);
 
 		for (int i = 0; i < (int)args.size(); ++i) {
 			ctx.infoF("%s", args[i].first);

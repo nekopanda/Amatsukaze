@@ -1049,7 +1049,16 @@ namespace Amatsukaze.Server
                     {
                         // 成功
                         var log = LogFromJson(isMp4, item.Profile.Name, json, start, finish, item, outputMask);
-                        log.DstPath = dstpath;
+                        log.DstPath = dstpath + ext;
+
+                        if(File.Exists(log.DstPath) && log.OutPath.IndexOf(log.DstPath) == -1)
+                        {
+                            // 出力ファイル名が変わっている可能性があるのでゴミファイルが残らないように消しておく
+                            if(new System.IO.FileInfo(log.DstPath).Length == 0)
+                            {
+                                File.Delete(dstpath);
+                            }
+                        }
 
                         // ハッシュがある（ネットワーク経由）の場合はリモートにコピー
                         if (needCopy)

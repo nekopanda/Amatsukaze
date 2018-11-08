@@ -1122,6 +1122,7 @@ namespace Amatsukaze.Models
                 return (object)Data.JLSCommandFile ?? NullValue.Value;
             }
             set {
+                if (value == null) return; // なぜかnullがセットされることがあるので
                 var newValue = (value is NullValue) ? null : (value as string);
                 if (Data.JLSCommandFile == newValue)
                     return;
