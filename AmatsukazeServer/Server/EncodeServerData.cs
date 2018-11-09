@@ -373,6 +373,8 @@ namespace Amatsukaze.Server
 
         [DataMember]
         public bool PauseOnStarted { get; set; }
+        [DataMember]
+        public bool PrintTimePrefix { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

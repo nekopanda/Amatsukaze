@@ -2581,6 +2581,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region PrintTimePrefix変更通知プロパティ
+        public bool PrintTimePrefix
+        {
+            get { return Model.PrintTimePrefix; }
+            set
+            {
+                if (Model.PrintTimePrefix == value)
+                    return;
+                Model.PrintTimePrefix = value;
+                RaisePropertyChanged("PrintTimePrefix");
+            }
+        }
+        #endregion
+
     }
 
     public class DisplayUIState

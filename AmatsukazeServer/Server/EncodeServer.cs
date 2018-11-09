@@ -1003,6 +1003,11 @@ namespace Amatsukaze.Server
                 sb.Append(" --dump-filter");
             }
 
+            if(setting.PrintTimePrefix)
+            {
+                sb.Append(" --print-prefix time");
+            }
+
             sb.Append(" -i \"")
                 .Append(src)
                 .Append("\" -s ")

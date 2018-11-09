@@ -344,6 +344,11 @@ enum AMT_CLI_MODE {
 	AMT_CLI_GENERIC,
 };
 
+enum AMT_PRINT_PREFIX {
+  AMT_PREFIX_DEFAULT,
+  AMT_PREFIX_TIME,
+};
+
 class TempDirectory : AMTObject, NonCopyable
 {
 public:
@@ -495,7 +500,8 @@ struct Config {
 	bool dumpStreamInfo;
 	bool systemAvsPlugin;
 	bool noRemoveTmp;
-	bool dumpFilter;
+  bool dumpFilter;
+  AMT_PRINT_PREFIX printPrefix;
 };
 
 class ConfigWrapper : public AMTObject
@@ -735,6 +741,10 @@ public:
 	bool isSystemAvsPlugin() const {
 		return conf.systemAvsPlugin;
 	}
+
+  AMT_PRINT_PREFIX getPrintPrefix() const {
+    return conf.printPrefix;
+  }
 
 	tstring getAudioFilePath() const {
 		return regtmp(StringFormat(_T("%s/audio.dat"), tmpDir.path()));

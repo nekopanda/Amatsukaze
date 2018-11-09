@@ -343,7 +343,7 @@ const char* AMT_ERROR_NAMES[] = {
 class AMTContext {
 public:
 	AMTContext()
-		: debugEnabled(true)
+		: timePrefix(true)
 		, acp(GetACP())
 		, errCounter()
 	{ }
@@ -356,12 +356,10 @@ public:
 	// Åi%Ç™ä‹Ç‹ÇÍÇƒÇ¢ÇÈÇ∆åÎìÆçÏÇ∑ÇÈÇÃÇ≈Åj
 
 	void debug(const char *str) const {
-		if (!debugEnabled) return;
 		print(str, AMT_LOG_DEBUG);
 	}
 	template <typename ... Args>
 	void debugF(const char *fmt, const Args& ... args) const {
-		if (!debugEnabled) return;
 		print(StringFormat(fmt, args ...).c_str(), AMT_LOG_DEBUG);
 	}
 	void info(const char *str) const {
@@ -420,6 +418,10 @@ public:
 		return errMessage;
 	}
 
+  void setTimePrefix(bool enable) {
+    timePrefix = enable;
+  }
+
 	const std::map<std::string, std::wstring>& getDRCSMapping() const {
 		return drcsMap;
 	}
@@ -458,7 +460,7 @@ public:
 	}
 
 private:
-	bool debugEnabled;
+	bool timePrefix;
 	CRC32 crc;
 	int acp;
 
@@ -468,13 +470,34 @@ private:
 
 	std::map<std::string, std::wstring> drcsMap;
 
+  void printWithTimePrefix(const char* str) const {
+    time_t rawtime;
+    char buffer[80];
+
+    time(&rawtime);
+    tm * timeinfo = localtime(&rawtime);
+
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+    PRINTF("%s %s\n", buffer, str);
+  }
+
 	void print(const char* str, AMT_LOG_LEVEL level) const {
-		static const char* log_levels[] = { "debug", "info", "warn", "error" };
-		PRINTF("AMT [%s] %s\n", log_levels[level], str);
+    if (timePrefix) {
+      printWithTimePrefix(str);
+    }
+    else {
+      static const char* log_levels[] = { "debug", "info", "warn", "error" };
+      PRINTF("AMT [%s] %s\n", log_levels[level], str);
+    }
 	}
 
 	void printProgress(const char* str) const {
-		PRINTF("AMT %s\r", str);
+    if (timePrefix) {
+      printWithTimePrefix(str);
+    }
+    else {
+      PRINTF("AMT %s\r", str);
+    }
 	}
 };
 

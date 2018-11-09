@@ -456,6 +456,18 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 				THROWF(ArgumentException, "--pmt-cutの指定が間違っています");
 			}
 		}
+    else if (key == _T("--print-prefix")) {
+      const auto arg = getParam(argc, argv, i++);
+      if (arg == _T("default")) {
+        conf.printPrefix = AMT_PREFIX_DEFAULT;
+      }
+      else if (arg == _T("time")) {
+        conf.printPrefix = AMT_PREFIX_TIME;
+      }
+      else {
+        THROWF(ArgumentException, "--print-prefixの指定が間違っています");
+      }
+    }
 		else if (key.size() == 0) {
 			continue;
 		}
@@ -673,6 +685,8 @@ __declspec(dllexport) int AmatsukazeCLI(int argc, const wchar_t* argv[]) {
 		ctx.setDefaultCP();
 
 		auto setting = parseArgs(ctx, argc, argv);
+
+    ctx.setTimePrefix(setting->getPrintPrefix() == AMT_PREFIX_TIME);
 
 		// CPUアフィニティを設定
 		if (!SetCPUAffinity(setting->getAffinityGroup(), setting->getAffinityMask())) {

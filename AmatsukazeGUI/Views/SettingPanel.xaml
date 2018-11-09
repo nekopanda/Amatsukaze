@@ -134,6 +134,7 @@
                 <StackPanel Grid.Row="3" Margin="0,10,0,0">
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="x265VFR時間レート"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="フィルタグラフ出力"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="CLIログ表示"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="エンコード最大並列数"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="プロセス優先度"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="CPUアフィニティ"/>
@@ -160,6 +161,7 @@
                                 LargeChange="0.01" TickFrequency="0.1"/>
                     </DockPanel>
                     <CheckBox  Margin="0,4" Height="16" Content="フィルタグラフを出力する" IsChecked="{Binding Model.Setting.DumpFilter, Mode=TwoWay}"/>
+                    <CheckBox  Margin="0,4" Height="16" Content="ログの先頭に時刻を表示する" IsChecked="{Binding Model.Setting.PrintTimePrefix, Mode=TwoWay}"/>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="22" VerticalAlignment="Center" HorizontalAlignment="Center"
                                    Text="{Binding Model.Setting.NumParallel}"/>
