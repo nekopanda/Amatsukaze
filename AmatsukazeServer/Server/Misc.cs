@@ -1324,7 +1324,10 @@ namespace Amatsukaze.Server
             {
                 if (setting.EnableDeblock)
                 {
-                    sb.AppendLine("KDeblock(qpclip=dsrc.QPClip(),quality=" +
+                    // QPClipのOnCPUはGPUメモリ節約のため
+                    // dsrcにQTGMCパスと25フレームくらいの時間差でアクセスすることになるので
+                    // キャッシュを大量に消費してしまうので、CPU側に逃がす
+                    sb.AppendLine("KDeblock(qpclip=dsrc.QPClip().OnCPU(2),quality=" +
                         setting.DeblockQuality + "," +
                         GetDeblockOption(setting.DeblockStrength) + ",sharp=" +
                         setting.DeblockSharpen + ")");

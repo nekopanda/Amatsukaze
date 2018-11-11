@@ -776,9 +776,10 @@ public:
 		auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
 			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
+		ctx.registerTmpFile(str + _T(".result.dat"));
 		// KFMCycleAnalyzeのデバッグダンプファイルも追加
-    ctx.registerTmpFile(str + _T(".cycle.dat"));
-		ctx.registerTmpFile(str + _T(".cycle.debug"));
+		ctx.registerTmpFile(str + _T(".pattern.txt"));
+		ctx.registerTmpFile(str + _T(".debug.txt"));
 		return str;
 	}
 
@@ -799,7 +800,7 @@ public:
 
 	tstring getEncStatsFilePath(EncodeFileKey key) const
 	{
-		auto str = StringFormat(_T("%s/s%d-%d%s.log"), 
+		auto str = StringFormat(_T("%s/s%d-%d-%d%s.log"), 
 			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
 		ctx.registerTmpFile(str);
 		// x264は.mbtreeも生成するので

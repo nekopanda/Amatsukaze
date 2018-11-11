@@ -116,6 +116,11 @@
                           IsChecked="{Binding DeblockSharpen, Mode=TwoWay}"
                           IsEnabled="{Binding EnableDeblock}">
                     シャープ化
+                    <CheckBox.ToolTip>
+                        <TextBlock>
+                            高圧縮部分はボケるので、ボケた分だけシャープ化して戻す機能です
+                        </TextBlock>
+                    </CheckBox.ToolTip>
                 </CheckBox>
                 <Border/>
             </DockPanel>

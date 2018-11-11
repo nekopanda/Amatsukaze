@@ -453,7 +453,7 @@ void DoBadThing() {
 
 static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 {
-#if 1
+#if 0
 	MessageBox(NULL, "Debug", "Amatsukaze", MB_OK);
 	//DoBadThing();
 #endif

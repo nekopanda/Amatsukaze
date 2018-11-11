@@ -354,7 +354,8 @@ private:
 		}
 		// メモリ節約オプションを有効にする
 		sb.append("SetCacheMode(CACHE_OPTIMAL_SIZE)\n");
-		sb.append("SetDeviceOpt(DEV_FREE_THRESHOLD, 1000)\n");
+		// これはメモリ不足になると極端に性能が落ちるのでやめる
+		//sb.append("SetDeviceOpt(DEV_FREE_THRESHOLD, 1000)\n");
 		// Amatsukaze.dllをロード
 		sb.append("LoadPlugin(\"%s\")\n", GetModulePath());
 	}
