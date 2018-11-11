@@ -1056,7 +1056,7 @@ namespace Amatsukaze.Server
                             // 出力ファイル名が変わっている可能性があるのでゴミファイルが残らないように消しておく
                             if(new System.IO.FileInfo(log.DstPath).Length == 0)
                             {
-                                File.Delete(dstpath);
+                                File.Delete(log.DstPath);
                             }
                         }
 
