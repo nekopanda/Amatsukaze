@@ -59,8 +59,8 @@ namespace Amatsukaze.Server
 
         internal readonly AffinityCreator affinityCreator = new AffinityCreator();
 
-        private Dictionary<string, ProfileSetting> profiles = new Dictionary<string, ProfileSetting>();
-        private Dictionary<string, AutoSelectProfile> autoSelects = new Dictionary<string, AutoSelectProfile>();
+        private Dictionary<string, ProfileSetting> profiles = new Dictionary<string, ProfileSetting>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, AutoSelectProfile> autoSelects = new Dictionary<string, AutoSelectProfile>(StringComparer.OrdinalIgnoreCase);
         private List<string> JlsCommandFiles = new List<string>();
         private List<string> MainScriptFiles = new List<string>();
         private List<string> PostScriptFiles = new List<string>();
@@ -1802,7 +1802,7 @@ namespace Amatsukaze.Server
 
                             var initialUpdate = (profiles.Count == 0);
 
-                            foreach (var name in newProfiles.Union(profiles.Keys.ToArray()))
+                            foreach (var name in newProfiles.Union(profiles.Keys.ToArray(), StringComparer.OrdinalIgnoreCase))
                             {
                                 var filepath = GetProfilePath(profilepath, name);
                                 if (profiles.ContainsKey(name) == false)
@@ -1825,7 +1825,7 @@ namespace Amatsukaze.Server
                                         await FatalError("プロファイル「" + filepath + "」の読み込みに失敗", e);
                                     }
                                 }
-                                else if (newProfiles.Contains(name) == false)
+                                else if (newProfiles.Contains(name, StringComparer.OrdinalIgnoreCase) == false)
                                 {
                                     // 削除された
                                     var profile = profiles[name];

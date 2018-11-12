@@ -3,6 +3,8 @@ using Amatsukaze.Server;
 using Livet;
 using Livet.Commands;
 using Livet.Messaging;
+using System;
+using System.Linq;
 
 namespace Amatsukaze.ViewModels
 {
@@ -106,7 +108,9 @@ namespace Amatsukaze.ViewModels
                 if(newp.Success)
                 {
                     var newprofile = ServerSupport.DeepCopy(profile.Data);
-                    newprofile.Name = newp.Name;
+                    var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+                    newprofile.Name = new string(newp.Name.ToCharArray()
+                        .Where(c => Array.IndexOf(invalidChars, c) == -1).ToArray());
                     await Model.AddProfile(newprofile);
                 }
             }

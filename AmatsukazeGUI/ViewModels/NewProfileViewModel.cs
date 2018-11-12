@@ -68,7 +68,13 @@ namespace Amatsukaze.ViewModels
 
         private bool IsDuplicate()
         {
-            return Model.ProfileList.Any(s => s.Data.Name == _Name);
+            return Model.ProfileList.Any(s => s.Data.Name.Equals(_Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private bool IsInvalid()
+        {
+            var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+            return _Name.Any(c => Array.IndexOf(invalidChars, c) != -1);
         }
 
         #region OkCommand
@@ -86,7 +92,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Ok()
         {
-            if(!IsDuplicate())
+            if(!IsDuplicate() && !IsInvalid())
             {
                 Success = true;
                 await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -123,7 +129,7 @@ namespace Amatsukaze.ViewModels
                 if (_Name == value)
                     return;
                 _Name = value;
-                Description = IsDuplicate() ? "名前が重複しています。" : "";
+                Description = IsInvalid() ? "無効な文字が含まれています。" : IsDuplicate() ? "名前が重複しています。" : "";
                 RaisePropertyChanged();
             }
         }
