@@ -111,7 +111,7 @@
                     <TextBlock VerticalAlignment="Center">操作パネル</TextBlock>
                     <DockPanel Grid.Column="1">
                         <TextBlock Margin="0,0,0,6" VerticalAlignment="Center">表示</TextBlock>
-                        <Slider Margin="3" Height="24" Maximum="2" Value="{Binding ListStyle, Mode=TwoWay}"
+                        <Slider Margin="3" Height="24" Maximum="2" Value="{Binding Model.Setting.ListStyle, Mode=TwoWay}"
                             VerticalAlignment="Center" HorizontalAlignment="Stretch" ToolTip="表示切り替え"/>
                     </DockPanel>
                 </Grid>
@@ -495,10 +495,10 @@
                     <Style TargetType="ListBox">
                         <Setter Property="ItemTemplate" Value="{StaticResource DetailedItemTemplate}"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding ListStyle}" Value="1">
+                            <DataTrigger Binding="{Binding Model.Setting.ListStyle}" Value="1">
                                 <Setter Property="ItemTemplate" Value="{StaticResource NormatlItemTemplate}"/>
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding ListStyle}" Value="2">
+                            <DataTrigger Binding="{Binding Model.Setting.ListStyle}" Value="2">
                                 <Setter Property="ItemTemplate" Value="{StaticResource ShortItemTemplate}"/>
                             </DataTrigger>
                         </Style.Triggers>

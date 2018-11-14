@@ -2465,6 +2465,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region ListStyle変更通知プロパティ
+        public int ListStyle {
+            get { return Model.ListStyle; }
+            set { 
+                if (Model.ListStyle == value)
+                    return;
+                Model.ListStyle = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region SupressSleep変更通知プロパティ
         public bool SupressSleep
         {
