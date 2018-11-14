@@ -26,6 +26,7 @@ struct EncoderOptionInfo {
 	VIDEO_STREAM_FORMAT format;
 	ENUM_ENCODER_DEINT deint;
 	bool afsTimecode;
+	int selectEvery;
 };
 
 static std::vector<std::wstring> SplitOptions(const tstring& str)
@@ -122,6 +123,24 @@ EncoderOptionInfo ParseEncoderOption(ENUM_ENCODER encoder, const tstring& str)
 				info.afsTimecode = false;
 			}
 		}
+		else if (arg == L"--vpp-select-every") {
+			std::wregex re(L"([^=,]+)(=([^,]+))?,?");
+			std::wsregex_iterator it(next.begin(), next.end(), re);
+			std::wsregex_iterator end;
+			std::vector<std::wstring> argv;
+			for (; it != end; ++it) {
+				auto key = (*it)[1].str();
+				auto val = (*it)[3].str();
+				if (val.length()) {
+					if (key == L"step") {
+						info.selectEvery = std::stoi(val);
+					}
+				}
+				else {
+					info.selectEvery = std::stoi(key);
+				}
+			}
+		}
 		else if (arg == L"-c" || arg == L"--codec") {
 			if (next == L"h264") {
 				info.format = VS_H264;
@@ -158,5 +177,8 @@ void PrintEncoderInfo(AMTContext& ctx, EncoderOptionInfo info) {
 	case ENCODER_DEINT_VFR:
 		ctx.info("エンコーダでのインタレ解除: VFR化");
 		break;
+	}
+	if (info.selectEvery > 1) {
+		ctx.infoF("エンコーダで%dフレームに1フレーム間引く", info.selectEvery);
 	}
 }

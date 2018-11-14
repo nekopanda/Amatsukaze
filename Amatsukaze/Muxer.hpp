@@ -45,6 +45,11 @@ public:
 		auto fmt = reformInfo_.getFormat(key);
 		auto vfmt = fileOut.vfmt;
 
+		if (eoInfo.selectEvery > 1) {
+			// エンコーダで間引く場合があるので、それを反映する
+			vfmt.mulDivFps(1, eoInfo.selectEvery);
+		}
+
 		if (vfmt.progressive == false) {
 			// エンコーダでインタレ解除している場合があるので、それを反映する
 			switch (eoInfo.deint) {

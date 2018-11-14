@@ -689,6 +689,9 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				if (eoInfo.afsTimecode) {
 					THROW(ArgumentException, "エンコーダとフィルタの両方でVFRタイムコードが出力されています。");
 				}
+				if (eoInfo.selectEvery > 1) {
+					THROW(ArgumentException, "VFRで出力する場合は、エンコーダで間引くことはできません");
+				}
 				else if (!setting.isFormatVFRSupported()) {
 					THROW(FormatException, "M2TS/TS出力はVFRをサポートしていません");
 				}
