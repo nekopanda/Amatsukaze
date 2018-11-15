@@ -470,6 +470,10 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 	if (!isNoEncode && !setting.isFormatVFRSupported() && eoInfo.afsTimecode) {
 		THROW(FormatException, "M2TS/TS出力はVFRをサポートしていません");
 	}
+	if (!isNoEncode && eoInfo.selectEvery > 1 && eoInfo.afsTimecode) {
+		THROW(FormatException, "NVEncCの自動フィールドシフト(--vpp-afs timecode=true)によるVFR化と"
+			"フレーム間引き(--vpp-select-every)の同時使用はサポートしていません");
+	}
 
 	ResourceManger rm(ctx, setting.getInPipe(), setting.getOutPipe());
 	rm.wait(HOST_CMD_TSAnalyze);
