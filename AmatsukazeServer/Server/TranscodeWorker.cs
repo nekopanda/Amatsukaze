@@ -28,7 +28,7 @@ namespace Amatsukaze.Server
         private ILog currentScriptLog;
 
         private QueueItem item;
-        private FileStream logWriter;
+        private LogWriter logWriter;
         private CancellationTokenSource resourceCancel;
         private IProcessExecuter process;
 
@@ -925,7 +925,7 @@ namespace Amatsukaze.Server
                         {
                             if (item.IsCheck == false && profile.DisableLogFile == false)
                             {
-                                logWriter = File.Create(logpath);
+                                logWriter = new LogWriter(logpath);
                             }
 
                             // 起動コマンドをログ出力

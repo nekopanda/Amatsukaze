@@ -1426,6 +1426,97 @@ namespace Amatsukaze.Server
         }
     }
 
+    // ログ書き込みができなくても処理を続行させる
+    public class LogWriter
+    {
+        private string fileName;
+        private Task writeThread;
+        private BufferBlock<byte[]> writeQ = new BufferBlock<byte[]>();
+
+        public LogWriter(string fileName)
+        {
+            this.fileName = fileName;
+            this.writeThread = Task.Run(() => { WriteThread(); });
+        }
+
+        private void WriteThread()
+        {
+            var fs = File.Create(fileName);
+            Action forceClose = () =>
+            {
+                if (fs != null)
+                {
+                    try
+                    {
+                        fs.Close();
+                    }
+                    catch (Exception) { }
+                    finally
+                    {
+                        fs = null;
+                    }
+                }
+            };
+            while(true)
+            {
+                var data = writeQ.Receive();
+                if(data == null)
+                {
+                    break;
+                }
+                int retry = 0;
+                while(true)
+                {
+                    if (fs != null)
+                    {
+                        try
+                        {
+                            fs.Write(data, 0, data.Length);
+                            fs.Flush();
+                            break;
+                        }
+                        catch (Exception) { }
+
+                        forceClose();
+                    }
+
+                    if(retry++ >= 5)
+                    {
+                        // 十分再試行したら、諦める
+                        while (writeQ.TryReceive(out data)) ;
+                        break;
+                    }
+
+                    // 書き込みに失敗したら少し待ってやり直す
+                    Thread.Sleep(3000);
+
+                    try
+                    {
+                        fs = File.Create(fileName);
+                    }
+                    catch (Exception)
+                    {
+                        fs = null;
+                    }
+                }
+            }
+            forceClose();
+        }
+
+        public void Close()
+        {
+            writeQ.Post(null);
+            writeThread.Wait();
+        }
+
+        public void Write(byte[] array, int offset, int length)
+        {
+            byte[] data = new byte[length];
+            Array.Copy(array, 0, data, 0, length);
+            writeQ.Post(data);
+        }
+    }
+
     public static class Extentions
     {
         public static TValue GetOrDefault<TKey, TValue>(
