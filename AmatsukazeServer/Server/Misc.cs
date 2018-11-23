@@ -1278,7 +1278,7 @@ namespace Amatsukaze.Server
                         sb.AppendLine("AMT_PRE_PROC = (AMT_PASS < 1)");
                         videoOutPass = 1;
                     }
-                    sb.AppendLine("dsrc.KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 0) +
+                    sb.AppendLine("dsrc.KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 4) +
                         ", pass=pass" +
                         ", ucf=" + (setting.KfmEnableUcf ? "true" : "false") +
                         ", nr=" + (setting.KfmEnableNr ? "true" : "false") +
