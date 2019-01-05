@@ -65,7 +65,16 @@ namespace Amatsukaze.Server
             this.stream = client.GetStream();
 
             var endPoint = (IPEndPoint)client.Client.RemoteEndPoint;
-            HostName = Dns.GetHostEntry(endPoint.Address).HostName;
+            try
+            {
+                // クライアントの名前を取得
+                HostName = Dns.GetHostEntry(endPoint.Address).HostName;
+            }
+            catch(Exception)
+            {
+                // 名前を取得できなかったらIPアドレスをそのまま使う
+                HostName = endPoint.Address.ToString();
+            }
             Port = endPoint.Port;
 
             Util.AddLog("クライアント(" + HostName + ":" + Port + ")と接続", null);
