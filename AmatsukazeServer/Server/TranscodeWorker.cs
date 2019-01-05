@@ -1049,14 +1049,15 @@ namespace Amatsukaze.Server
                     {
                         // 成功
                         var log = LogFromJson(isMp4, item.Profile.Name, json, start, finish, item, outputMask);
-                        log.DstPath = dstpath + ext;
+                        var dstFullPath = dstpath + ext;
+                        log.DstPath = dstpath;
 
-                        if(File.Exists(log.DstPath) && log.OutPath.IndexOf(log.DstPath) == -1)
+                        if(File.Exists(dstFullPath) && log.OutPath.IndexOf(dstFullPath) == -1)
                         {
                             // 出力ファイル名が変わっている可能性があるのでゴミファイルが残らないように消しておく
-                            if(new System.IO.FileInfo(log.DstPath).Length == 0)
+                            if(new System.IO.FileInfo(dstFullPath).Length == 0)
                             {
-                                File.Delete(log.DstPath);
+                                File.Delete(dstFullPath);
                             }
                         }
 
