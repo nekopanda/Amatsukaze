@@ -136,17 +136,17 @@ namespace Amatsukaze.Server
                 }
             }
 
-            var tailParser = new Regex("(-(\\d+))?(-cm)?(\\..+)");
+            var tailParser = new Regex("(-(\\d+))?(_div(\\d+))?(-cm)?(-nicojk-\\d+[ST])?(\\..+)");
             Func<string, int> fileType = tail =>
             {
                 var m = tailParser.Match(tail);
                 if (m.Success == false)
                 {
-                    throw new FormatException("出力ファイルのフォーマットがパースできません");
+                    throw new FormatException("出力ファイルのフォーマットがパースできません: " + tail);
                 }
                 var numStr = m.Groups[2].Value;
-                var cmStr = m.Groups[3].Value;
-                var ext = m.Groups[4].Value;
+                var cmStr = m.Groups[5].Value;
+                var ext = m.Groups[7].Value;
                 bool isSubs = (ext == ".ass") || (ext == ".srt");
                 int number = (numStr.Length == 0) ? 0 : int.Parse(numStr);
                 bool isCM = (cmStr.Length > 0);
