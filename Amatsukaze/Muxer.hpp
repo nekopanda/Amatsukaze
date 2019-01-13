@@ -137,18 +137,22 @@ public:
 			}
 		}
 		for (int lang = 0; lang < fileIn.captionList.size(); ++lang) {
-			auto srcsub = setting_.getTmpASSFilePath(key, lang);
+			auto srcass = setting_.getTmpASSFilePath(key, lang);
 			if (setting_.getFormat() == FORMAT_MKV) {
-				subsFiles.push_back(srcsub);
+				subsFiles.push_back(srcass);
 				subsTitles.push_back(_T("ASS"));
 			}
 			else { // MP4,M2TSの場合は別ファイルとしてコピー
 				auto dstsub = setting_.getOutASSPath(fileIn.outKey, fileIn.keyMax, lang, (NicoJKType)0);
-				File::copy(srcsub, dstsub);
+				File::copy(srcass, dstsub);
 				fileOut.outSubs.push_back(dstsub);
 			}
-			subsFiles.push_back(setting_.getTmpSRTFilePath(key, lang));
-			subsTitles.push_back(_T("SRT"));
+			auto srcsrt = setting_.getTmpSRTFilePath(key, lang);
+			if (File::exists(srcsrt)) {
+				// SRTは極稀に出力されないこともあることに注意
+				subsFiles.push_back(srcsrt);
+				subsTitles.push_back(_T("SRT"));
+			}
 		}
 
 		// タイムコード用

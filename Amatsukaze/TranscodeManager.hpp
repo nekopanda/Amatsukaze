@@ -641,12 +641,14 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		NicoJKFormatter formatterNicoJK(ctx);
 		const auto& capList = reformInfo.getEncodeFile(key).captionList;
 		for (int lang = 0; lang < capList.size(); ++lang) {
-			WriteUTF8File(
-				setting.getTmpASSFilePath(key, lang),
-				formatterASS.generate(capList[lang]));
-			WriteUTF8File(
-				setting.getTmpSRTFilePath(key, lang),
-				formatterSRT.generate(capList[lang]));
+			auto ass = formatterASS.generate(capList[lang]);
+			auto srt = formatterSRT.generate(capList[lang]);
+			WriteUTF8File(setting.getTmpASSFilePath(key, lang), ass);
+			if (srt.size() > 0) {
+				// SRTはCP_STR_SMALLしかなかった場合など出力がない場合があり、
+				// 空ファイルはmux時にエラーになるので、1行もない場合は出力しない
+				WriteUTF8File(setting.getTmpSRTFilePath(key, lang), srt);
+			}
 		}
 		if (nicoOK) {
 			const auto& headerLines = nicoJK.getHeaderLines();
