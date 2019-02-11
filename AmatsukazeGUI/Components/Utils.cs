@@ -18,5 +18,12 @@ namespace Amatsukaze.Components
                 TextOptions.SetTextRenderingMode(win, TextRenderingMode.ClearType);
             }
         }
+
+        public static void SetWindowCenter(Window win)
+        {
+            Window mainWindow = Application.Current.MainWindow;
+            win.Left = mainWindow.Left + (mainWindow.Width - win.ActualWidth) / 2;
+            win.Top = mainWindow.Top + (mainWindow.Height - win.ActualHeight) / 2;
+        }
     }
 }
