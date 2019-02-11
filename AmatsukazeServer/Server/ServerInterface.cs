@@ -26,6 +26,7 @@ namespace Amatsukaze.Server
         Task ChangeItem(ChangeItemData data);
         Task PauseEncode(bool pause);
         Task CancelAddQueue();
+        Task CancelSleep();
 
         Task SetCommonData(CommonData data);
         Task SetServiceSetting(ServiceSettingUpdate update);
@@ -63,6 +64,13 @@ namespace Amatsukaze.Server
         Task OnDrcsData(DrcsImageUpdate update);
     }
 
+    // サーバとクライアント両方で扱うのでその共通インターフェース
+    public interface ISleepCancel
+    {
+        FinishSetting SleepCancel { get; set; }
+        Task CancelSleep();
+    }
+
     public interface ICommandHost
     {
         string AddTag(string tag);
@@ -77,6 +85,7 @@ namespace Amatsukaze.Server
         ChangeItem,
         PauseEncode,
         CancelAddQueue,
+        CancelSleep,
         SetCommonData,
         SetServiceSetting,
         AddDrcsMap,
@@ -183,6 +192,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
             { RPCMethodId.PauseEncode, typeof(bool) },
             { RPCMethodId.CancelAddQueue, null },
+            { RPCMethodId.CancelSleep, null },
             { RPCMethodId.SetCommonData, typeof(CommonData) },
             { RPCMethodId.SetServiceSetting, typeof(ServiceSettingUpdate) },
             { RPCMethodId.AddDrcsMap, typeof(DrcsImage) },
@@ -506,6 +516,11 @@ namespace Amatsukaze.Server
         public Task CancelAddQueue()
         {
             return Server.CancelAddQueue();
+        }
+
+        public Task CancelSleep()
+        {
+            return Server.CancelSleep();
         }
 
         public Task Request(ServerRequest req)

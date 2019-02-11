@@ -925,21 +925,6 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
-        #region ListStyle変更通知プロパティ
-        private int _ListStyle;
-
-        public int ListStyle {
-            get { return _ListStyle; }
-            set {
-                if (_ListStyle == value)
-                    return;
-                _ListStyle = value;
-                RaisePropertyChanged();
-                itemsView.Refresh();
-            }
-        }
-        #endregion
-
         #region ShiftDown変更通知プロパティ
         private bool _ShiftDown;
 

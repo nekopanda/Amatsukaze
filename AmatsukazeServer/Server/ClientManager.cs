@@ -263,6 +263,9 @@ namespace Amatsukaze.Server
                 case RPCMethodId.CancelAddQueue:
                     server.CancelAddQueue();
                     break;
+                case RPCMethodId.CancelSleep:
+                    server.CancelSleep();
+                    break;
                 case RPCMethodId.SetCommonData:
                     server.SetCommonData((CommonData)arg);
                     break;

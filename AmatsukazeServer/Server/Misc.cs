@@ -18,6 +18,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using System.Windows.Forms;
 
 namespace Amatsukaze.Server
 {
@@ -1514,6 +1515,48 @@ namespace Amatsukaze.Server
             byte[] data = new byte[length];
             Array.Copy(array, 0, data, 0, length);
             writeQ.Post(data);
+        }
+    }
+
+    public class FinishActionRunner
+    {
+        public FinishAction Action { get; private set; }
+        public int Seconds { get; private set; }
+        private Task Thread;
+
+        private PowerState ActionPowerState {
+            get {
+                switch(Action)
+                {
+                    case FinishAction.Suspend:
+                        return PowerState.Suspend;
+                    case FinishAction.Hibernate:
+                        return PowerState.Hibernate;
+                }
+                throw new NotSupportedException();
+            }
+        }
+
+        public bool Canceled;
+
+        public FinishActionRunner(FinishAction action, int seconds)
+        {
+            if(action == FinishAction.None)
+            {
+                throw new InvalidOperationException("ActionがNoneです");
+            }
+            Action = action;
+            Seconds = seconds;
+            Thread = Run();
+        }
+
+        private async Task Run()
+        {
+            await Task.Delay(Seconds * 1000);
+
+            if (Canceled) return;
+
+            Application.SetSuspendState(ActionPowerState, false, false);
         }
     }
 

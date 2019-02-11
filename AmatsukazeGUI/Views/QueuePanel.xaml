@@ -215,12 +215,19 @@
             </Button.Style>
         </Button>-->
 
-        <Grid DockPanel.Dock="Bottom"
-            ToolTip="キュー停止状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
-            <DockPanel HorizontalAlignment="Stretch">
-                <TextBlock DockPanel.Dock="Left" Text="キュー停止" VerticalAlignment="Center" Margin="6,0"/>
-                <TextBlock DockPanel.Dock="Right" Text="キュー稼働" VerticalAlignment="Center" Margin="6,0"/>
-                <Button DockPanel.Dock="Left" Height="20" Command="{Binding TogglePauseCommand, Mode=OneWay}">
+        <DockPanel DockPanel.Dock="Bottom" Margin="6,0">
+            <DockPanel DockPanel.Dock="Right">
+                <TextBlock Height="16" Text="エンコード後"/>
+                <ComboBox IsReadOnly="True" Width="85" Height="22"
+                    ItemsSource="{Binding Model.FinishActionList}"
+                    SelectedIndex="{Binding Model.FinishSetting.Action, Mode=TwoWay}"/>
+            </DockPanel>
+            <Separator DockPanel.Dock="Right" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+            <DockPanel HorizontalAlignment="Stretch"
+                ToolTip="キュー停止状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
+                <TextBlock DockPanel.Dock="Left" Text="キュー停止" VerticalAlignment="Center"/>
+                <TextBlock DockPanel.Dock="Right" Text="キュー稼働" VerticalAlignment="Center"/>
+                <Button DockPanel.Dock="Left" Height="20" Margin="6,0" Command="{Binding TogglePauseCommand, Mode=OneWay}">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Template">
@@ -278,7 +285,7 @@
                     </Button.Style>
                 </Button>
             </DockPanel>
-        </Grid>
+        </DockPanel>
 
         <Grid>
             <Grid.Resources>

@@ -1,5 +1,6 @@
 ﻿using Amatsukaze.Server;
 using Livet;
+using Livet.EventListeners;
 using Livet.Messaging;
 using Livet.Messaging.Windows;
 using log4net;
@@ -65,6 +66,8 @@ namespace Amatsukaze.ViewModels
 
         private bool disposed = false;
 
+        private SleepCancelViewModel SleepCancelVM;
+
         public async void Initialize()
         {
             await GetGlobalLock();
@@ -79,6 +82,12 @@ namespace Amatsukaze.ViewModels
                 await Server.Init();
                 RaisePropertyChanged("Server");
                 WindowCaption = "AmatsukazeServer@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
+
+                // SleepCancel
+                SleepCancelVM = new SleepCancelViewModel() { Model = Server };
+                var modelListener = new PropertyChangedEventListener(Server);
+                modelListener.Add(() => Server.SleepCancel, (_, __) => ShowOrCloseSleepCancel());
+                CompositeDisposable.Add(modelListener);
             }
             catch(Exception e)
             {
@@ -163,6 +172,20 @@ namespace Amatsukaze.ViewModels
                 {
                     _Log.Add(item);
                 }
+            }
+        }
+
+        private Task ShowOrCloseSleepCancel()
+        {
+            if (Server.SleepCancel == null ||
+                Server.SleepCancel.Action == FinishAction.None)
+            {
+                return SleepCancelVM.Close();
+            }
+            else
+            {
+                return Messenger.RaiseAsync(new TransitionMessage(
+                    typeof(Views.SleepCancelWindow), SleepCancelVM, TransitionMode.Modal, "FromMain"));
             }
         }
 

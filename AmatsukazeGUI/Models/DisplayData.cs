@@ -2459,6 +2459,8 @@ namespace Amatsukaze.Models
             {
                 if (Model.HideOneSeg == value)
                     return;
+                // GUIの表示にしか関係しないので、
+                // 設定の適用ボタンを押したときにサーバに反映されるゆるい同期を採用
                 Model.HideOneSeg = value;
                 RaisePropertyChanged();
             }
@@ -2471,6 +2473,8 @@ namespace Amatsukaze.Models
             set { 
                 if (Model.ListStyle == value)
                     return;
+                // GUIの表示にしか関係しないので、
+                // 設定の適用ボタンを押したときにサーバに反映されるゆるい同期を採用
                 Model.ListStyle = value;
                 RaisePropertyChanged();
             }
@@ -2606,7 +2610,26 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+    }
 
+    public class DisplayFinishSetting : NotificationObject
+    {
+        public ClientModel Model { get; set; }
+
+        public FinishSetting Data { get; set; }
+
+        #region Action変更通知プロパティ
+        public int Action {
+            get { return (int)Data.Action; }
+            set {
+                if (Data.Action == (FinishAction)value)
+                    return;
+                Data.Action = (FinishAction)value;
+                RaisePropertyChanged();
+                Model.SendFinishSetting();
+            }
+        }
+        #endregion
     }
 
     public class DisplayUIState

@@ -13,7 +13,7 @@ using System.Threading.Tasks.Dataflow;
 
 namespace Amatsukaze.Server
 {
-    public class EncodeServer : NotificationObject, IEncodeServer, IDisposable
+    public class EncodeServer : NotificationObject, IEncodeServer, ISleepCancel, IDisposable
     {
         [DataContract]
         public class AppData : IExtensibleDataObject
@@ -26,6 +26,8 @@ namespace Amatsukaze.Server
             public MakeScriptData scriptData;
             [DataMember]
             public ServiceSetting services;
+            [DataMember]
+            public FinishSetting finishSetting;
 
             // 0: ～4.0.3
             // 1: 4.1.0～
@@ -52,6 +54,8 @@ namespace Amatsukaze.Server
         private QueueManager queueManager;
         private ScheduledQueue scheduledQueue;
         private WorkerPool workerPool;
+
+        private FinishActionRunner finishActionRunner;
 
         private LogData logData = new LogData();
         private CheckLogData checkLogData = new CheckLogData();
@@ -136,6 +140,20 @@ namespace Amatsukaze.Server
                 if (_Progress == value)
                     return;
                 _Progress = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SleepCancelData変更通知プロパティ
+        private FinishSetting _SleepCancelData;
+
+        public FinishSetting SleepCancel {
+            get { return _SleepCancelData; }
+            set { 
+                if (_SleepCancelData == value)
+                    return;
+                _SleepCancelData = value;
                 RaisePropertyChanged();
             }
         }
@@ -228,7 +246,7 @@ namespace Amatsukaze.Server
             {
                 Queue = scheduledQueue,
                 NewWorker = id => new TranscodeWorker(id, this),
-                OnStart = () => {
+                OnStart = async () => {
                     if(!Directory.Exists(GetDRCSDirectoryPath()))
                     {
                         Directory.CreateDirectory(GetDRCSDirectoryPath());
@@ -241,33 +259,35 @@ namespace Amatsukaze.Server
                     {
                         CleanTmpDir();
                     }
+                    await CancelSleep(); // 大丈夫だと思うけどきれいにしておく
                     NowEncoding = true;
                     Progress = 0;
-                    return RequestState();
+                    await RequestState();
                 },
-                OnFinish = ()=> {
+                OnFinish = async ()=> {
                     NowEncoding = false;
                     Progress = 1;
-                    var task = RequestState();
+                    await RequestState();
                     if (preventSuspend != null)
                     {
                         preventSuspend.Dispose();
                         preventSuspend = null;
                     }
-                    //if (appData.setting.FinishAction != FinishAction.None)
-                    //{
-                    //    // これは使えない
-                    //    // - サービスだとユーザ操作を検知できない
-                    //    // - なぜか常に操作があると認識されることがある
-                    //    //if (WinAPI.GetLastInputTime().Minutes >= 3)
-                    //    {
-                    //        var state = (appData.setting.FinishAction == FinishAction.Suspend)
-                    //                ? System.Windows.Forms.PowerState.Suspend
-                    //                : System.Windows.Forms.PowerState.Hibernate;
-                    //        System.Windows.Forms.Application.SetSuspendState(state, false, false);
-                    //    }
-                    //}
-                    return task;
+                    if (AppData_.finishSetting.Action != FinishAction.None)
+                    {
+                        await CancelSleep(); // 2重に走るのは回避する
+                        finishActionRunner = new FinishActionRunner(
+                            AppData_.finishSetting.Action, AppData_.finishSetting.Seconds);
+                        SleepCancel = new FinishSetting()
+                        {
+                            Action = AppData_.finishSetting.Action,
+                            Seconds = AppData_.finishSetting.Seconds - 2
+                        };
+                        await Client?.OnUIData(new UIData()
+                        {
+                            SleepCancel = SleepCancel
+                        });
+                    }
                 },
                 OnError = (id, mes, e) =>
                 {
@@ -777,6 +797,14 @@ namespace Amatsukaze.Server
             if (AppData_.services.ServiceMap == null)
             {
                 AppData_.services.ServiceMap = new Dictionary<int, ServiceSettingElement>();
+            }
+            if(AppData_.finishSetting == null)
+            {
+                AppData_.finishSetting = new FinishSetting();
+            }
+            if(AppData_.finishSetting.Seconds <= 0)
+            {
+                AppData_.finishSetting.Seconds = 30;
             }
         }
 
@@ -2195,6 +2223,14 @@ namespace Amatsukaze.Server
                         MakeScriptData = data.MakeScriptData
                     });
                 }
+                else if(data.FinishSetting != null)
+                {
+                    AppData_.finishSetting = data.FinishSetting;
+                    settingUpdated = true;
+                    return Client.OnCommonData(new CommonData() {
+                        FinishSetting = data.FinishSetting
+                    });
+                }
                 return Task.FromResult(0);
             }
             catch(Exception e)
@@ -2220,6 +2256,21 @@ namespace Amatsukaze.Server
         public Task CancelAddQueue()
         {
             queueManager.CancelAddQueue();
+            return Task.FromResult(0);
+        }
+
+        public Task CancelSleep()
+        {
+            if(finishActionRunner != null)
+            {
+                finishActionRunner.Canceled = true;
+                finishActionRunner = null;
+                SleepCancel = new FinishSetting();
+                return Client?.OnUIData(new UIData()
+                {
+                    SleepCancel = SleepCancel
+                });
+            }
             return Task.FromResult(0);
         }
 
@@ -2378,7 +2429,8 @@ namespace Amatsukaze.Server
                 },
                 AddQueueBatFiles = AddQueueBatFiles,
                 PreBatFiles = PreBatFiles,
-                PostBatFiles = PostBatFiles
+                PostBatFiles = PostBatFiles,
+                FinishSetting = AppData_.finishSetting
             });
 
             // プロファイル

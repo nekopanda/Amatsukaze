@@ -39,6 +39,10 @@
             <l:ConfirmationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>
 
+        <l:InteractionMessageTrigger Messenger="{Binding Messenger}" MessageKey="FromMain">
+            <l:TransitionInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+        </l:InteractionMessageTrigger>
+
         <l:InteractionMessageTrigger MessageKey="Message" Messenger="{Binding Messenger}">
             <l:InformationDialogInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
         </l:InteractionMessageTrigger>

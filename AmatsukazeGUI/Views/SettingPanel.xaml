@@ -51,6 +51,7 @@
                     <TextBlock HorizontalAlignment="Right" Text="一時フォルダ (重要)" VerticalAlignment="Top" Margin="0,6"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
                     <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
+                    <TextBlock HorizontalAlignment="Right" Text="" VerticalAlignment="Top" Margin="0,3"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="10,0">

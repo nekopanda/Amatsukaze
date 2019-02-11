@@ -996,6 +996,15 @@ namespace Amatsukaze.Server
     }
 
     [DataContract]
+    public class FinishSetting
+    {
+        [DataMember]
+        public FinishAction Action { get; set; }
+        [DataMember]
+        public int Seconds { get; set; }
+    }
+
+    [DataContract]
     public class UIData
     {
         [DataMember]
@@ -1014,6 +1023,8 @@ namespace Amatsukaze.Server
         public ConsoleData ConsoleData { get; set; }
         [DataMember]
         public EncodeState EncodeState { get; set; }
+        [DataMember]
+        public FinishSetting SleepCancel { get; set; }
     }
 
     [DataContract]
@@ -1219,6 +1230,8 @@ namespace Amatsukaze.Server
         public List<string> PreBatFiles { get; set; }
         [DataMember]
         public List<string> PostBatFiles { get; set; }
+        [DataMember]
+        public FinishSetting FinishSetting { get; set; }
     }
 
     [DataContract]

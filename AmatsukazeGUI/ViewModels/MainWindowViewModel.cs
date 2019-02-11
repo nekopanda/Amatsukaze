@@ -74,6 +74,8 @@ namespace Amatsukaze.ViewModels
         public ObservableCollection<ViewModel> ConsolePanelMenu { get; } = new ObservableCollection<ViewModel>();
         public ObservableCollection<ViewModel> InfoPanelMenu { get; } = new ObservableCollection<ViewModel>();
 
+        private SleepCancelViewModel SleepCancelVM;
+
         #region SelectedMainPanel変更通知プロパティ
         private ViewModel _SelectedMainPanel;
 
@@ -173,6 +175,8 @@ namespace Amatsukaze.ViewModels
             InfoPanelMenu.Add(new DiskFreeSpaceViewModel() { Name = "ディスク空き", Model = Model });
             InfoPanelMenu.Add(new MakeScriptViewModel() { Name = "その他", Model = Model });
             InfoPanelMenu.Add(new ClientLogViewModel() { Name = "クライアントログ", Model = Model });
+
+            SleepCancelVM = new SleepCancelViewModel() { Model = Model };
         }
 
         private static void InitializeVM(dynamic vm)
@@ -190,6 +194,7 @@ namespace Amatsukaze.ViewModels
                 RaisePropertyChanged("StatusBackColor");
                 RaisePropertyChanged("StatusForeColor");
             });
+            modelListener.Add(() => Model.SleepCancel, (_, __) => ShowOrCloseSleepCancel());
             CompositeDisposable.Add(modelListener);
 
             // 他のVMのInitializeを読んでやる
@@ -271,6 +276,20 @@ namespace Amatsukaze.ViewModels
                 // キャンセルされたら継続できないので終了
                 Messenger.Raise(new WindowActionMessage(WindowAction.Close, "MainWindowAction"));
                 return;
+            }
+        }
+
+        private Task ShowOrCloseSleepCancel()
+        {
+            if(Model.SleepCancel == null ||
+                Model.SleepCancel.Action == FinishAction.None)
+            {
+                return SleepCancelVM.Close();
+            }
+            else
+            {
+                return Messenger.RaiseAsync(new TransitionMessage(
+                    typeof(Views.SleepCancelWindow), SleepCancelVM, TransitionMode.Modal, "FromMain"));
             }
         }
 

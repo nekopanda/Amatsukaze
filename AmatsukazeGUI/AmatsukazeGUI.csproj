@@ -119,6 +119,7 @@
     <Compile Include="ViewModels\ServerViewModel.cs" />
     <Compile Include="ViewModels\ServiceSettingViewModel.cs" />
     <Compile Include="ViewModels\SettingViewModel.cs" />
+    <Compile Include="ViewModels\SleepCancelViewModel.cs" />
     <Compile Include="ViewModels\SummaryItemViewModel.cs" />
     <Compile Include="ViewModels\SummaryViewModel.cs" />
     <Compile Include="Views\AddQueueConsolePanel.xaml.cs">
@@ -201,6 +202,9 @@
     </Compile>
     <Compile Include="Views\SettingPanel.xaml.cs">
       <DependentUpon>SettingPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\SleepCancelWindow.xaml.cs">
+      <DependentUpon>SleepCancelWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\SummaryPanel.xaml.cs">
       <DependentUpon>SummaryPanel.xaml</DependentUpon>
@@ -362,6 +366,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SettingPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SleepCancelWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

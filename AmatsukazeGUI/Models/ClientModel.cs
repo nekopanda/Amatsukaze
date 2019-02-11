@@ -20,7 +20,7 @@ using System.Windows.Shell;
 
 namespace Amatsukaze.Models
 {
-    public class ClientModel : NotificationObject, IUserClient, IDisposable
+    public class ClientModel : NotificationObject, IUserClient, ISleepCancel, IDisposable
     {
         /*
          * NotificationObjectはプロパティ変更通知の仕組みを実装したオブジェクトです。
@@ -83,6 +83,8 @@ namespace Amatsukaze.Models
         public string[] AffinityList { get { return new string[] { "なし", "コア", "L2", "L3", "NUMA", "Group" }; } }
 
         public string[] ProcessPriorityList { get { return new string[] { "通常", "通常以下", "低" }; } }
+
+        public string[] FinishActionList { get { return new string[] { "何もしない", "スリープ", "休止状態" }; } }
 
         #region ServerHostName変更通知プロパティ
         private string _ServerHostName;
@@ -542,6 +544,34 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region FinishSetting変更通知プロパティ
+        private DisplayFinishSetting _FinishSetting;
+
+        public DisplayFinishSetting FinishSetting {
+            get { return _FinishSetting; }
+            set { 
+                if (_FinishSetting == value)
+                    return;
+                _FinishSetting = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SleepCancelData変更通知プロパティ
+        private FinishSetting _SleepCancel = new FinishSetting();
+
+        public FinishSetting SleepCancel {
+            get { return _SleepCancel; }
+            set { 
+                if (_SleepCancel == value)
+                    return;
+                _SleepCancel = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         public SimpleDisplayConsole AddQueueConsole { get; } = new SimpleDisplayConsole();
 
         public ClientModel()
@@ -879,6 +909,14 @@ namespace Amatsukaze.Models
             });
         }
 
+        public Task SendFinishSetting()
+        {
+            return Server?.SetCommonData(new CommonData()
+            {
+                FinishSetting = FinishSetting.Data
+            });
+        }
+
         public void ExportLogCSV(Stream fs)
         {
             var sw = new StreamWriter(fs, Encoding.UTF8);
@@ -1034,6 +1072,10 @@ namespace Amatsukaze.Models
                 console.Phase = data.EncodeState.Phase;
                 console.Resource = data.EncodeState.Resource;
             }
+            if(data.SleepCancel != null)
+            {
+                SleepCancel = data.SleepCancel;
+            }
             return Task.FromResult(0);
         }
 
@@ -1123,6 +1165,10 @@ namespace Amatsukaze.Models
             if (data.PostBatFiles != null)
             {
                 PostBatFiles = new string[] { "なし" }.Concat(data.PostBatFiles).ToList();
+            }
+            if (data.FinishSetting != null)
+            {
+                FinishSetting = new DisplayFinishSetting() { Model = this, Data = data.FinishSetting };
             }
             return Task.FromResult(0);
         }
@@ -1483,6 +1529,11 @@ namespace Amatsukaze.Models
                 }
             }
             return Task.FromResult(0);
+        }
+
+        public Task CancelSleep()
+        {
+            return Server.CancelSleep();
         }
     }
 }
