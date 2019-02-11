@@ -804,7 +804,7 @@ namespace Amatsukaze.Server
             }
             if(AppData_.finishSetting.Seconds <= 0)
             {
-                AppData_.finishSetting.Seconds = 30;
+                AppData_.finishSetting.Seconds = 45;
             }
         }
 
@@ -2324,6 +2324,8 @@ namespace Amatsukaze.Server
         {
             scheduledQueue.AddQueue(item);
 
+            // OnStartでやると、エンコードが始まってから設定が
+            // 変更されたときに反映されないので、ここでやる
             if (AppData_.setting.SupressSleep)
             {
                 // サスペンドを抑止

@@ -9,7 +9,7 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         mc:Ignorable="d" 
-        Title="{Binding WindowTitle}" Width="350"
+        Title="{Binding WindowTitle}" Width="350" Topmost="True"
         d:DataContext="{d:DesignInstance {x:Type vm:SleepCancelViewModel}}"
         SizeToContent="Height" Loaded="Window_Loaded" >
 

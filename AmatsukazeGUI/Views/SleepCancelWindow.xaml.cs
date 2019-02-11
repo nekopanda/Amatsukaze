@@ -25,6 +25,12 @@ namespace Amatsukaze.Views
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             Utils.SetWindowCenter(this);
+
+            var mainWindow = Application.Current.MainWindow;
+            if(mainWindow.WindowState == WindowState.Minimized)
+            {
+                mainWindow.WindowState = WindowState.Normal;
+            }
         }
     }
 }
