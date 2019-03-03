@@ -20,7 +20,7 @@ namespace Amatsukaze.Server
         {
             [DataMember]
             public Setting setting;
-            [DataMember]
+            [DataMember, Obsolete("EncodeServer.UIState_を使ってください", false)]
             public UIState uiState;
             [DataMember]
             public MakeScriptData scriptData;
@@ -30,7 +30,8 @@ namespace Amatsukaze.Server
             public FinishSetting finishSetting;
 
             // 0: ～4.0.3
-            // 1: 4.1.0～
+            // 1: 4.1.0～ DRCS文字のハッシュ並びを修正
+            // 2: 8.6.0～ uiState(History)を別ファイル化
             [DataMember]
             public int Version;
 
@@ -73,6 +74,9 @@ namespace Amatsukaze.Server
         private List<string> PostBatFiles = new List<string>();
         private DRCSManager drcsManager;
 
+        private UIState UIState_ = new UIState() { OutputPathHistory = new List<string>() };
+        private OrderedSet<string> OutPathHistory = new OrderedSet<string>();
+
         // キューに追加されるTSを解析するスレッド
         private Task queueThread;
         private BufferBlock<AddQueueRequest> queueQ = new BufferBlock<AddQueueRequest>();
@@ -86,6 +90,7 @@ namespace Amatsukaze.Server
         private Task saveSettingThread;
         private BufferBlock<int> saveSettingQ = new BufferBlock<int>();
         private bool settingUpdated;
+        private bool uiStateUpdated;
         private bool autoSelectUpdated;
 
         // DRCS処理用スレッド
@@ -166,36 +171,23 @@ namespace Amatsukaze.Server
         public Dictionary<int, ServiceSettingElement> ServiceMap { get { return AppData_.services.ServiceMap; } }
 
         public string LastUsedProfile {
-            get { return AppData_.uiState.LastUsedProfile; }
+            get { return UIState_.LastUsedProfile; }
             set {
-                if (AppData_.uiState.LastUsedProfile != value)
+                if (UIState_.LastUsedProfile != value)
                 {
-                    AppData_.uiState.LastUsedProfile = value;
-                    settingUpdated = true;
-                }
-            }
-        }
-
-        public string LastOutputPath
-        {
-            get { return AppData_.uiState.LastOutputPath; }
-            set
-            {
-                if (AppData_.uiState.LastOutputPath != value)
-                {
-                    AppData_.uiState.LastOutputPath = value;
-                    settingUpdated = true;
+                    UIState_.LastUsedProfile = value;
+                    uiStateUpdated = true;
                 }
             }
         }
 
         public string LastAddQueueBat {
-            get { return AppData_.uiState.LastAddQueueBat; }
+            get { return UIState_.LastAddQueueBat; }
             set {
-                if (AppData_.uiState.LastAddQueueBat != value)
+                if (UIState_.LastAddQueueBat != value)
                 {
-                    AppData_.uiState.LastAddQueueBat = value;
-                    settingUpdated = true;
+                    UIState_.LastAddQueueBat = value;
+                    uiStateUpdated = true;
                 }
             }
         }
@@ -253,7 +245,7 @@ namespace Amatsukaze.Server
                     }
                     if(!File.Exists(GetDRCSMapPath()))
                     {
-                        File.Create(GetDRCSMapPath());
+                        using (File.Create(GetDRCSMapPath())) { }
                     }
                     if (AppData_.setting.ClearWorkDirOnStart)
                     {
@@ -417,7 +409,20 @@ namespace Amatsukaze.Server
                         }
                     }
 
-                    if(autoSelectUpdated)
+                    if (uiStateUpdated)
+                    {
+                        uiStateUpdated = false;
+                        try
+                        {
+                            SaveUIState();
+                        }
+                        catch (Exception)
+                        {
+                            // Dispose中の例外は仕方ないので無視する
+                        }
+                    }
+
+                    if (autoSelectUpdated)
                     {
                         autoSelectUpdated = false;
                         try
@@ -458,6 +463,11 @@ namespace Amatsukaze.Server
         private string GetSettingFilePath()
         {
             return "config\\AmatsukazeServer.xml";
+        }
+
+        private string GetUIStateFilePath()
+        {
+            return "config\\UIState.xml";
         }
 
         private string GetAutoSelectFilePath()
@@ -595,14 +605,13 @@ namespace Amatsukaze.Server
             scheduledQueue.EnableResourceScheduling = enable;
         }
 
-        private void UpdateFromOldVersion()
+        private void UpdateFromVersion0()
         {
-            int CurrentVersion = 1;
+            // DRCS文字の並びを変更する //
+            int NextVersion = 1;
 
-            // 古いバージョンからのアップデート処理
-            if(AppData_.Version < CurrentVersion)
+            if (AppData_.Version < NextVersion)
             {
-                // DRCS文字の並びを変更する
                 drcsManager.UpdateFromOldVersion();
 
                 // ログファイルを移行
@@ -631,12 +640,42 @@ namespace Amatsukaze.Server
                 }
 
                 // 現在バージョンに更新
-                AppData_.Version = CurrentVersion;
+                AppData_.Version = NextVersion;
 
                 // 起動処理で落ちると２重に処理することになるので、
                 // ここで設定ファイルに書き込んでおく
                 SaveAppData();
             }
+        }
+
+        private void UpdateFromVersion1()
+        {
+            // uiStateを別ファイル化する //
+            int NextVersion = 2;
+
+            if (AppData_.Version < NextVersion)
+            {
+#pragma warning disable 0618
+                UIState_ = AppData_.uiState;
+                AppData_.uiState = null;
+#pragma warning restore 0618
+                SaveUIState();
+                LoadUIState();
+
+                // 現在バージョンに更新
+                AppData_.Version = NextVersion;
+
+                // 起動処理で落ちると２重に処理することになるので、
+                // ここで設定ファイルに書き込んでおく
+                SaveAppData();
+            }
+        }
+
+        private void UpdateFromOldVersion()
+        {
+            // 古いバージョンからのアップデート処理
+            UpdateFromVersion0();
+            UpdateFromVersion1();
         }
 
         #region メッセージ出力
@@ -782,10 +821,6 @@ namespace Amatsukaze.Server
             {
                 AppData_.setting.MaxGPUResources = Enumerable.Repeat(100, ResourceManager.MAX_GPU).ToArray();
             }
-            if (AppData_.uiState == null)
-            {
-                AppData_.uiState = new UIState();
-            }
             if (AppData_.scriptData == null)
             {
                 AppData_.scriptData = new MakeScriptData();
@@ -816,6 +851,44 @@ namespace Amatsukaze.Server
             {
                 var s = new DataContractSerializer(typeof(AppData));
                 s.WriteObject(fs, AppData_);
+            }
+        }
+
+        private void LoadUIState()
+        {
+            string path = GetUIStateFilePath();
+            if (File.Exists(path) == false)
+            {
+                UIState_ = new  UIState();
+            }
+            else
+            {
+                using (FileStream fs = new FileStream(path, FileMode.Open))
+                {
+                    var s = new DataContractSerializer(typeof(UIState));
+                    UIState_ = (UIState)s.ReadObject(fs);
+                }
+            }
+            if (UIState_.OutputPathHistory == null)
+            {
+                UIState_.OutputPathHistory = new List<string>();
+            }
+            OutPathHistory.Clear();
+            foreach (var item in UIState_.OutputPathHistory)
+            {
+                OutPathHistory.Add(item);
+            }
+            UIState_.OutputPathHistory = OutPathHistory.ToList();
+        }
+
+        private void SaveUIState()
+        {
+            string path = GetUIStateFilePath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using (FileStream fs = new FileStream(path, FileMode.Create))
+            {
+                var s = new DataContractSerializer(typeof(UIState));
+                s.WriteObject(fs, UIState_);
             }
         }
 
@@ -1967,7 +2040,20 @@ namespace Amatsukaze.Server
                         settingUpdated = false;
                     }
 
-                    if(autoSelectUpdated)
+                    if (uiStateUpdated)
+                    {
+                        try
+                        {
+                            SaveUIState();
+                        }
+                        catch (Exception e)
+                        {
+                            await FatalError("UI情報保存に失敗しました", e);
+                        }
+                        uiStateUpdated = false;
+                    }
+
+                    if (autoSelectUpdated)
                     {
                         try
                         {
@@ -2024,6 +2110,20 @@ namespace Amatsukaze.Server
             {
                 await FatalError(
                     "DrcsThreadがエラー終了しました", exception);
+            }
+        }
+
+        internal void AddOutPathHistory(string path)
+        {
+            if (UIState_.LastOutputPath != path)
+            {
+                UIState_.LastOutputPath = path;
+                uiStateUpdated = true;
+            }
+            if (OutPathHistory.AddHistory(path))
+            {
+                UIState_.OutputPathHistory = OutPathHistory.ToList();
+                uiStateUpdated = true;
             }
         }
 
@@ -2419,7 +2519,7 @@ namespace Amatsukaze.Server
         {
             await Client.OnCommonData(new CommonData() {
                 Setting = AppData_.setting,
-                UIState = AppData_.uiState,
+                UIState = UIState_,
                 JlsCommandFiles = JlsCommandFiles,
                 MainScriptFiles = MainScriptFiles,
                 PostScriptFiles = PostScriptFiles,
@@ -2522,7 +2622,7 @@ namespace Amatsukaze.Server
         {
             return Client.OnCommonData(new CommonData()
             {
-                UIState = AppData_.uiState
+                UIState = UIState_
             });
         }
 

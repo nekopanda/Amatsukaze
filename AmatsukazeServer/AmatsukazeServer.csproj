@@ -71,6 +71,7 @@
   <ItemGroup>
     <Compile Include="DynamicJson.cs" />
     <Compile Include="Lib\AmatsukazeNatives.cs" />
+    <Compile Include="Lib\OrderedSet.cs" />
     <Compile Include="Lib\WindowsNatives.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Server\ClientManager.cs" />

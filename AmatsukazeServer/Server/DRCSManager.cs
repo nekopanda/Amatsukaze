@@ -446,7 +446,7 @@ namespace Amatsukaze.Server
                         // BOMありUTF-8
                         try
                         {
-                            using (var sw = new StreamWriter(File.OpenWrite(tmppath), Encoding.UTF8))
+                            using (var sw = new StreamWriter(File.Create(tmppath), Encoding.UTF8))
                             {
                                 foreach (var s in drcsMap.Values)
                                 {

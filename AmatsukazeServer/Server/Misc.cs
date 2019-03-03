@@ -1556,7 +1556,15 @@ namespace Amatsukaze.Server
 
             if (Canceled) return;
 
-            Application.SetSuspendState(ActionPowerState, false, false);
+            if(Action == FinishAction.Shutdown)
+            {
+                WinAPI.AdjustToken();
+                WinAPI.ExitWindowsEx(WinAPI.ExitWindows.EWX_POWEROFF, 0);
+            }
+            else
+            {
+                Application.SetSuspendState(ActionPowerState, false, false);
+            }
         }
     }
 

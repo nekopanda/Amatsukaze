@@ -5,12 +5,39 @@ using Livet.Commands;
 using Livet.Messaging;
 using Livet.Messaging.Windows;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace Amatsukaze.ViewModels
 {
+    public class OutPathHistoryViewModel : ViewModel
+    {
+        public SelectOutPathViewModel OutPathVM { get; set; }
+        public string Path { get; set; }
+
+        #region SelectedCommand
+        private ViewModelCommand _SelectedCommand;
+
+        public ViewModelCommand SelectedCommand {
+            get {
+                if (_SelectedCommand == null)
+                {
+                    _SelectedCommand = new ViewModelCommand(Selected);
+                }
+                return _SelectedCommand;
+            }
+        }
+
+        public void Selected()
+        {
+            OutPathVM.OutPath = Path;
+        }
+        #endregion
+
+    }
+
     public class SelectOutPathViewModel : ViewModel
     {
         /* コマンド、プロパティの定義にはそれぞれ 
@@ -77,7 +104,11 @@ namespace Amatsukaze.ViewModels
                     ? (object)Model.AutoSelectList.FirstOrDefault(s => s.Model.Name == profileName)
                     : Model.ProfileList.FirstOrDefault(s => s.Data.Name == profileName);
             }
+            OutPathHistory = Model.UIState.Model.OutputPathHistory.Select(
+                path => new OutPathHistoryViewModel() { OutPathVM = this, Path = path }).ToList();
         }
+
+        public List<OutPathHistoryViewModel> OutPathHistory { get; private set; }
 
         public bool Succeeded { get; private set; }
 

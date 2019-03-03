@@ -45,7 +45,7 @@ namespace Amatsukaze.Server
 
     public enum FinishAction
     {
-        None, Suspend, Hibernate
+        None, Suspend, Hibernate, Shutdown
     }
 
     // サーバに要求する情報の識別フラグ
@@ -410,6 +410,8 @@ namespace Amatsukaze.Server
         public string LastOutputPath { get; set; }
         [DataMember]
         public string LastAddQueueBat { get; set; }
+        [DataMember]
+        public List<string> OutputPathHistory { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
     }

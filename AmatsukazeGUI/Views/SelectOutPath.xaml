@@ -9,6 +9,7 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:m="clr-namespace:Amatsukaze.Models" 
+        xmlns:c="clr-namespace:Amatsukaze.Components" 
         mc:Ignorable="d" 
         d:DataContext="{d:DesignInstance {x:Type vm:SelectOutPathViewModel}}"
         Title="Amatsukaze プロファイル＆出力先選択" SizeToContent="Height" Width="400" Loaded="Window_Loaded">
@@ -70,11 +71,26 @@
             <Grid>
                 <TextBlock Margin="2" Text="出力先フォルダ" HorizontalAlignment="Center" FontSize="18"/>
                 <Canvas>
-                    <Button Content="デフォルト" Margin="5,0" Command="{Binding ResetOutPathCommand}"
-                            Canvas.Bottom="2" Canvas.Right="0"/>
+                    <DockPanel Canvas.Bottom="0" Canvas.Right="3">
+                        <c:DropDownMenuButton Content="履歴" Margin="2" Style="{StaticResource ButtonStyle}">
+                            <c:DropDownMenuButton.DropDownContextMenu>
+                                <ContextMenu ItemsSource="{Binding OutPathHistory}">
+                                    <ContextMenu.ItemContainerStyle>
+                                        <Style TargetType="MenuItem">
+                                            <Setter Property="Header" Value="{Binding Path=Path}"/>
+                                            <Setter Property="Command" Value="{Binding Path=SelectedCommand}"/>
+                                        </Style>
+                                    </ContextMenu.ItemContainerStyle>
+                                </ContextMenu>
+                            </c:DropDownMenuButton.DropDownContextMenu>
+                        </c:DropDownMenuButton>
+                        <Button Content="デフォルト" Margin="2" Command="{Binding ResetOutPathCommand}"/>
+                    </DockPanel>
                 </Canvas>
             </Grid>
-            <TextBox Margin="2" Height="23" TextWrapping="Wrap" Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
+            <TextBox Margin="2" Height="23" TextWrapping="Wrap" 
+                     Text="{Binding OutPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalAlignment="Top" PreviewDragOver="textBox_PreviewDragOver" Drop="textBox_Drop"/>
             <DockPanel>
                 <ComboBox Width="40" Height="22" HorizontalAlignment="Left" DockPanel.Dock="Right"
                                 ItemsSource="{Binding Model.PriorityList}" 

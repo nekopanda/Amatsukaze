@@ -110,6 +110,8 @@ namespace Amatsukaze.ViewModels
                         return "スリープ";
                     case Server.FinishAction.Hibernate:
                         return "休止状態";
+                    case Server.FinishAction.Shutdown:
+                        return "シャットダウン";
                 }
                 return "???";
             }

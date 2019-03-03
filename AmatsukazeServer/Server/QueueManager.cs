@@ -531,7 +531,7 @@ namespace Amatsukaze.Server
             {
                 // 最後に使った設定を記憶しておく
                 server.LastUsedProfile = req.Outputs[0].Profile;
-                server.LastOutputPath = req.Outputs[0].DstPath;
+                server.AddOutPathHistory(req.Outputs[0].DstPath);
                 server.LastAddQueueBat = req.AddQueueBat;
                 waits.Add(server.RequestUIState());
             }
