@@ -251,6 +251,11 @@ namespace Amatsukaze.Server
         public bool DisableLogFile { get; set; }
 
         [DataMember]
+        public bool EnableMaxFadeLength { get; set; }
+        [DataMember]
+        public int MaxFadeLength { get; set; }
+
+        [DataMember]
         public bool EnableRename { get; set; }
         [DataMember]
         public string RenameFormat { get; set; }

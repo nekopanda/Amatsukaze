@@ -395,8 +395,8 @@ private:
 
 		if (setting_.isNoDelogo() == false && logopath.size() > 0) {
 			sb.append("logo = \"%s\"\n", logopath);
-			sb.append("AMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\")\n",
-				true ? setting_.getTmpLogoFramePath(key.video) : _T(""));
+			sb.append("AMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\", maxfade=%d)\n",
+				setting_.getTmpLogoFramePath(key.video), setting_.getMaxFadeLength());
 			sb.append("Prefetch(1, 4)\n");
 		}
 

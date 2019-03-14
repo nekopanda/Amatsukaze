@@ -278,4 +278,5 @@
     </Style>
 
     <c:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+    <c:NegateValueConverter x:Key="NegateValueConverter"/>
 </ResourceDictionary>

@@ -1550,6 +1550,30 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region EnableMaxFadeLength変更通知プロパティ
+        public bool EnableMaxFadeLength {
+            get { return Data.EnableMaxFadeLength; }
+            set { 
+                if (Data.EnableMaxFadeLength == value)
+                    return;
+                Data.EnableMaxFadeLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region MaxFadeLength変更通知プロパティ
+        public int MaxFadeLength {
+            get { return Data.MaxFadeLength; }
+            set { 
+                if (Data.MaxFadeLength == value)
+                    return;
+                Data.MaxFadeLength = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region PreBatchFile変更通知プロパティ
         public string PreBatchFile {
             get { return string.IsNullOrEmpty(Data.PreBatchFile) ? "なし" : Data.PreBatchFile; }

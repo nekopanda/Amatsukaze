@@ -403,6 +403,21 @@
                             <TextBlock Text="PMT更新がある場合はCMとする"/>
                         </WrapPanel>
                     </CheckBox>
+                    <CheckBox Margin="0,3"
+                              IsChecked="{Binding Model.SelectedProfile.EnableMaxFadeLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <CheckBox.ToolTip>
+                            <TextBlock>デフォルトは16フレームです。
+                            <LineBreak/>ゆっくりフェードするようなロゴは16フレームを超えるので、
+                            <LineBreak/>フェード部分が消えない場合はここを設定してください。
+                            <LineBreak/>2秒なら60、3秒なら90です。
+                            </TextBlock>
+                        </CheckBox.ToolTip>
+                        <WrapPanel Orientation="Horizontal">
+                            <TextBlock Text="ロゴ最長フェードフレーム数:"/>
+                            <TextBox Width="30" IsEnabled="{Binding Model.SelectedProfile.EnableMaxFadeLength, Mode=OneWay}"
+                                     Text="{Binding Model.SelectedProfile.MaxFadeLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </WrapPanel>
+                    </CheckBox>
                 </StackPanel>
 
                 <StackPanel Grid.Row="7" Grid.Column="0">

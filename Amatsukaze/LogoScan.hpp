@@ -1243,6 +1243,7 @@ class AMTEraseLogo : public GenericVideoFilter
 	std::unique_ptr<LogoDataParam> logo;
 	LogoHeader header;
 	int mode;
+	int maxFadeLength;
 
 	template <typename pixel_t>
 	void Delogo(pixel_t* dst, int w, int h, int logopitch, int imgpitch, float maxv, const float* A, const float* B, float fade)
@@ -1322,17 +1323,15 @@ class AMTEraseLogo : public GenericVideoFilter
 		else {
 			// ロゴ解析結果を大局的に使って、
 			// 切り替わり周辺だけリアルタイム解析結果を使う
-			enum {
-				DIST = 8,
-			};
-			int frames[DIST * 2 + 1];
-			for (int i = -DIST; i <= DIST; ++i) {
+			int halfWidth = (maxFadeLength >> 1);
+			std::vector<int> frames(halfWidth * 2 + 1);
+			for (int i = -halfWidth; i <= halfWidth; ++i) {
 				int nsrc = std::max(0, std::min(vi.num_frames - 1, n + i));
-				frames[i + DIST] = frameResult[nsrc];
+				frames[i + halfWidth] = frameResult[nsrc];
 			}
-			if (std::all_of(frames, frames + DIST * 2 + 1, [&](int p) { return p == frames[0]; })) {
+			if (std::all_of(frames.begin(), frames.end(), [&](int p) { return p == frames[0]; })) {
 				// ON or OFF
-				fadeT = fadeB = ((frames[DIST] == 2) ? 1.0f : 0.0f);
+				fadeT = fadeB = ((frames[halfWidth] == 2) ? 1.0f : 0.0f);
 			}
 			else {
 				// 切り替わりを含む
@@ -1462,10 +1461,11 @@ class AMTEraseLogo : public GenericVideoFilter
 	}
 
 public:
-	AMTEraseLogo(PClip clip, PClip analyzeclip, const tstring& logoPath, const tstring& logofPath, int mode, IScriptEnvironment* env)
+	AMTEraseLogo(PClip clip, PClip analyzeclip, const tstring& logoPath, const tstring& logofPath, int mode, int maxFadeLength, IScriptEnvironment* env)
 		: GenericVideoFilter(clip)
 		, analyzeclip(analyzeclip)
 		, mode(mode)
+		, maxFadeLength(maxFadeLength)
 	{
 		try {
 			logo = std::unique_ptr<LogoDataParam>(
@@ -1512,6 +1512,7 @@ public:
 			to_tstring(args[2].AsString()),			// logopath
 			to_tstring(args[3].AsString("")),		// logofpath
 			args[4].AsInt(0),       // mode
+			args[5].AsInt(16),      // maxfade
 			env
 		);
 	}

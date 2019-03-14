@@ -1363,7 +1363,11 @@ namespace Amatsukaze.Server
                         .Append(":")
                         .Append(profile.PmtCutTailRate / 100);
                 }
-                if(string.IsNullOrEmpty(trimavs) == false)
+                if (profile.EnableMaxFadeLength)
+                {
+                    sb.Append(" --max-fade-length ").Append(profile.MaxFadeLength);
+                }
+                if (string.IsNullOrEmpty(trimavs) == false)
                 {
                     sb.Append(" --trimavs \"").Append(trimavs).Append("\"");
                 }

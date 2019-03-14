@@ -482,6 +482,7 @@ struct Config {
 	bool looseLogoDetection;
 	bool noDelogo;
 	bool vfr120fps;
+	int maxFadeLength;
 	tstring chapterExePath;
 	tstring chapterExeOptions;
 	tstring joinLogoScpPath;
@@ -680,6 +681,10 @@ public:
 
 	bool isVFR120fps() const {
 		return conf.vfr120fps;
+	}
+
+	int getMaxFadeLength() const {
+		return conf.maxFadeLength;
 	}
 
 	tstring getChapterExePath() const {
