@@ -518,7 +518,10 @@
                             <Setter.Value>
                                 <ControlTemplate TargetType="{x:Type ContentControl}">
                                     <Border Background="{TemplateBinding Background}">
-                                        <ContentPresenter />
+                                        <Border BorderBrush="MediumSlateBlue" BorderThickness="{TemplateBinding BorderThickness}"
+                                                Background="{TemplateBinding BorderBrush}">
+                                            <ContentPresenter Margin="{TemplateBinding BorderThickness, Converter={StaticResource NegateValueConverter}}"/>
+                                        </Border>
                                     </Border>
                                 </ControlTemplate>
                             </Setter.Value>
@@ -526,24 +529,32 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsComplete}" Value="True">
                                 <Setter Property="Background" Value="#A0FFFF"/>
+                                <!--<Setter Property="BorderBrush" Value="#A0FFFF"/>-->
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsEncoding}" Value="True">
                                 <Setter Property="Background" Value="Green"/>
+                                <!--<Setter Property="BorderBrush" Value="Green"/>-->
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsError}" Value="True">
                                 <Setter Property="Background" Value="Red"/>
+                                <!--<Setter Property="BorderBrush" Value="Red"/>-->
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsPending}" Value="True">
                                 <Setter Property="Background" Value="Yellow"/>
+                                <!--<Setter Property="BorderBrush" Value="Yellow"/>-->
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsCanceled}" Value="True">
                                 <Setter Property="Foreground" Value="Gray"/>
                             </DataTrigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="Plum" />
-                            </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="LightGray" />
+                                <Setter Property="BorderBrush">
+                                    <Setter.Value>
+                                        <SolidColorBrush Color="Plum" Opacity="0.5"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="BorderThickness" Value="4"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
