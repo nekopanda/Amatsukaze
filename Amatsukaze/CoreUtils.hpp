@@ -247,7 +247,7 @@ std::basic_string<Char> GetFullPath(const std::basic_string<Char>& path)
 class File : NonCopyable
 {
 public:
-	File(const tstring& path, const tchar* mode) {
+	File(const tstring& path, const tchar* mode) : path_(path) {
 		fp_ = fsopenT(path.c_str(), mode, _SH_DENYNO);
 		if (fp_ == NULL) {
 			THROWF(IOException, "ファイルを開けません: %s", GetFullPath(path));
@@ -259,7 +259,7 @@ public:
 	void write(MemoryChunk mc) const {
 		if (mc.length == 0) return;
 		if (fwrite(mc.data, mc.length, 1, fp_) != 1) {
-			THROWF(IOException, "failed to write to file");
+			THROWF(IOException, "failed to write to file: %s", GetFullPath(path_));
 		}
 	}
 	template <typename T>
@@ -285,7 +285,7 @@ public:
 			return 0;
 		}
 		if (ret <= 0) {
-			THROWF(IOException, "failed to read from file");
+			THROWF(IOException, "failed to read from file: %s", GetFullPath(path_));
 		}
 		return ret;
 	}
@@ -293,7 +293,7 @@ public:
 	T readValue() const {
 		T v;
 		if (read(MemoryChunk((uint8_t*)&v, sizeof(T))) != sizeof(T)) {
-			THROWF(IOException, "failed to read value from file");
+			THROWF(IOException, "failed to read value from file: %s", GetFullPath(path_));
 		}
 		return v;
 	}
@@ -302,7 +302,7 @@ public:
 		size_t len = (size_t)readValue<int64_t>();
 		std::vector<T> arr(len);
 		if (read(MemoryChunk((uint8_t*)arr.data(), sizeof(T)*len)) != sizeof(T)*len) {
-			THROWF(IOException, "failed to read array from file");
+			THROWF(IOException, "failed to read array from file: %s", GetFullPath(path_));
 		}
 		return arr;
 	}
@@ -315,7 +315,7 @@ public:
 	}
 	void seek(int64_t offset, int origin) const {
 		if (_fseeki64(fp_, offset, origin) != 0) {
-			THROWF(IOException, "failed to seek file");
+			THROWF(IOException, "failed to seek file: %s", GetFullPath(path_));
 		}
 	}
 	int64_t pos() const {
@@ -324,18 +324,18 @@ public:
 	int64_t size() const {
 		int64_t cur = _ftelli64(fp_);
 		if (cur < 0) {
-			THROWF(IOException, "_ftelli64 failed");
+			THROWF(IOException, "_ftelli64 failed: %s", GetFullPath(path_));
 		}
 		if (_fseeki64(fp_, 0L, SEEK_END) != 0) {
-			THROWF(IOException, "failed to seek to end");
+			THROWF(IOException, "failed to seek to end: %s", GetFullPath(path_));
 		}
 		int64_t last = _ftelli64(fp_);
 		if (last < 0) {
-			THROWF(IOException, "_ftelli64 failed");
+			THROWF(IOException, "_ftelli64 failed: %s", GetFullPath(path_));
 		}
 		_fseeki64(fp_, cur, SEEK_SET);
 		if (_fseeki64(fp_, cur, SEEK_SET) != 0) {
-			THROWF(IOException, "failed to seek back to current");
+			THROWF(IOException, "failed to seek back to current: %s", GetFullPath(path_));
 		}
 		return last;
 	}
@@ -380,6 +380,7 @@ public:
 		CopyFileW(srcpath.c_str(), dstpath.c_str(), FALSE);
 	}
 private:
+	const tstring path_; // エラーメッセージ表示用
 	FILE* fp_;
 };
 
