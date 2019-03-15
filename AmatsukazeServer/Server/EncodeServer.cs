@@ -2313,9 +2313,19 @@ namespace Amatsukaze.Server
                     workerPool.SetNumParallel(data.Setting.NumParallel);
                     SetScheduleParam(AppData_.setting.SchedulingEnabled,
                         AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
+
+                    if(AppData_.setting.EnableShutdownAction == false &&
+                        AppData_.finishSetting.Action == FinishAction.Shutdown) {
+                        // 無効な設定となった
+                        AppData_.finishSetting.Action = FinishAction.None;
+                    }
+
                     settingUpdated = true;
                     return Task.WhenAll(
-                        Client.OnCommonData(new CommonData() { Setting = AppData_.setting }),
+                        Client.OnCommonData(new CommonData() {
+                            Setting = AppData_.setting,
+                            FinishSetting = AppData_.finishSetting
+                        }),
                         RequestFreeSpace(),
                         NotifyMessage("設定を更新しました", false));
                 }

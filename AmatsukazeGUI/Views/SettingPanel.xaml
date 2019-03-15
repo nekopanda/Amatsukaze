@@ -136,6 +136,7 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="x265VFR時間レート"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="フィルタグラフ出力"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="CLIログ表示"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="GUI設定"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="エンコード最大並列数"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="プロセス優先度"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" VerticalAlignment="Center" Margin="0,4" Text="CPUアフィニティ"/>
@@ -163,6 +164,9 @@
                     </DockPanel>
                     <CheckBox  Margin="0,4" Height="16" Content="フィルタグラフを出力する" IsChecked="{Binding Model.Setting.DumpFilter, Mode=TwoWay}"/>
                     <CheckBox  Margin="0,4" Height="16" Content="ログの先頭に時刻を表示する" IsChecked="{Binding Model.Setting.PrintTimePrefix, Mode=TwoWay}"/>
+                    <CheckBox  Margin="0,4" Height="16" Content="エンコード後シャットダウンの選択肢を有効化"
+                               IsChecked="{Binding Model.Setting.EnableShutdownAction, Mode=TwoWay}"
+                               ToolTip="誤操作を防ぐためデフォルトではシャットダウンを選択できないようになっています。"/>
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Right" TextWrapping="Wrap" Width="22" VerticalAlignment="Center" HorizontalAlignment="Center"
                                    Text="{Binding Model.Setting.NumParallel}"/>

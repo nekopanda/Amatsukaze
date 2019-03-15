@@ -382,6 +382,8 @@ namespace Amatsukaze.Server
         public bool PauseOnStarted { get; set; }
         [DataMember]
         public bool PrintTimePrefix { get; set; }
+        [DataMember]
+        public bool EnableShutdownAction { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

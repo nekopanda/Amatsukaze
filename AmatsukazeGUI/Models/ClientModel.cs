@@ -84,8 +84,6 @@ namespace Amatsukaze.Models
 
         public string[] ProcessPriorityList { get { return new string[] { "通常", "通常以下", "低" }; } }
 
-        public string[] FinishActionList { get { return new string[] { "何もしない", "スリープ", "休止状態", "シャットダウン" }; } }
-
         #region ServerHostName変更通知プロパティ
         private string _ServerHostName;
 
@@ -447,6 +445,8 @@ namespace Amatsukaze.Models
                 _Setting.PropertyChanged += SettingChanged;
                 RaisePropertyChanged("CurrentClusters");
                 RaisePropertyChanged();
+                FinishActionList = _Setting.Model.EnableShutdownAction 
+                    ? FinishActionListWithShutdown : FinishActionListNoShutdown;
             }
         }
 
@@ -567,6 +567,22 @@ namespace Amatsukaze.Models
                 if (_SleepCancel == value)
                     return;
                 _SleepCancel = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region FinishActionList変更通知プロパティ
+        private static string[] FinishActionListNoShutdown { get { return new string[] { "何もしない", "スリープ", "休止状態" }; } }
+        private static string[] FinishActionListWithShutdown { get { return new string[] { "何もしない", "スリープ", "休止状態", "シャットダウン" }; } }
+        private string[] _FinishActionList;
+
+        public string[] FinishActionList {
+            get { return _FinishActionList; }
+            set { 
+                if (_FinishActionList == value)
+                    return;
+                _FinishActionList = value;
                 RaisePropertyChanged();
             }
         }
