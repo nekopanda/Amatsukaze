@@ -870,6 +870,10 @@ namespace Amatsukaze.Server
                     UIState_ = (UIState)s.ReadObject(fs);
                 }
             }
+            if(UIState_ == null)
+            {
+                UIState_ = new UIState();
+            }
             if (UIState_.OutputPathHistory == null)
             {
                 UIState_.OutputPathHistory = new List<string>();
