@@ -203,6 +203,7 @@ namespace Amatsukaze.Server
             drcsManager = new DRCSManager(this);
 
             LoadAppData();
+            LoadUIState();
             LoadAutoSelectData();
             if (client != null)
             {

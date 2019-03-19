@@ -414,7 +414,7 @@
                         </CheckBox.ToolTip>
                         <WrapPanel Orientation="Horizontal">
                             <TextBlock Text="ロゴ最長フェードフレーム数:"/>
-                            <TextBox Width="30" IsEnabled="{Binding Model.SelectedProfile.EnableMaxFadeLength, Mode=OneWay}"
+                            <TextBox Width="40" IsEnabled="{Binding Model.SelectedProfile.EnableMaxFadeLength, Mode=OneWay}"
                                      Text="{Binding Model.SelectedProfile.MaxFadeLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </WrapPanel>
                     </CheckBox>
