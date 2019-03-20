@@ -139,6 +139,7 @@ class AMTSource : public IClip, AMTObject
 		if (avcodec_parameters_to_context(codecCtx(), videoStream->codecpar) != 0) {
 			env->ThrowError("avcodec_parameters_to_context failed");
 		}
+		codecCtx()->pkt_timebase = videoStream->time_base;
 		codecCtx()->thread_count = GetFFmpegThreads(GetProcessorCount());
 
 		// export_mvs for codecview
@@ -584,15 +585,45 @@ class AMTSource : public IClip, AMTObject
 	void DecodeLoop(int goal, IScriptEnvironment* env) {
 		Frame frame;
 		AVPacket packet = AVPacket();
+
+		// CUVIDはpic_typeが適切にセットされないのでキーフレームかどうかが分からない
+		// FFmpegは参照フレームが欠如していてもフレームを返してしまうので
+		// シーク後の最初のフレームが欠損を含む可能性がある
+		// これはFFmpegがその欠如した参照フレームがパケットロスによるものなのか
+		// シークによるものなのかの区別ができないため、仕方ないのだが、
+		// シークによるものの場合は、本来はデコードできたはずのフレームなので、
+		// その欠損を含むフレームを返してしまうのは問題
+		// pic_typeが適切にセットされるデコーダの場合は、
+		// 「Iフレームからが有効なフレーム」と判定すれば良かったが
+		// pic_typeが適切にセットされないデコーダの場合は、
+		// 自分でIフレームかどうか判定する必要がある
+		// packetからキーフレームのPTSを取得して
+		// デコードしたフレームがそのPTSならキーフレームと判断する
+		int64_t keyFramePTS = -1;
+		auto isFrameReady = [&]() {
+			// シーク後最初のフレームでないならOK
+			if (lastDecodeFrame != -1) return true;
+			// キーフレームならOK
+			if (frame()->key_frame) return true;
+			// タイムスタンプがキーフレームのものならキーフレームと判断
+			if (keyFramePTS != -1 && keyFramePTS == frame()->pts) return true;
+			// まだキーフレームでないので、欠損を含む可能性がある
+			return false;
+		};
+
 		while (av_read_frame(inputCtx(), &packet) == 0) {
 			if (packet.stream_index == videoStream->index) {
+				if ((packet.flags & AV_PKT_FLAG_KEY) && keyFramePTS == -1) {
+					// 最初のキーフレームのPTSを覚えておく
+					keyFramePTS = packet.pts;
+				}
 				if (avcodec_send_packet(codecCtx(), &packet) != 0) {
 					ctx.incrementCounter(AMT_ERR_DECODE_PACKET_FAILED);
 					ctx.warn("avcodec_send_packet failed");
 				}
 				while (avcodec_receive_frame(codecCtx(), frame()) == 0) {
-					// 最初はIフレームまでスキップ
-					if (lastDecodeFrame != -1 || frame()->key_frame) {
+					// 最初はキーフレームまでスキップ
+					if (isFrameReady()) {
 #if ENABLE_FFMPEG_FILTER
 						OnFrameDecoded(frame, env);
 #else
