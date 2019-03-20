@@ -3,9 +3,11 @@ using Amatsukaze.Lib;
 using Livet;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
@@ -169,6 +171,13 @@ namespace Amatsukaze.Server
         }
 
         public Dictionary<int, ServiceSettingElement> ServiceMap { get { return AppData_.services.ServiceMap; } }
+
+        public string Version {
+            get {
+                return FileVersionInfo.GetVersionInfo(
+                        Assembly.GetExecutingAssembly().Location).FileVersion;
+            }
+        }
 
         public string LastUsedProfile {
             get { return UIState_.LastUsedProfile; }
@@ -2546,7 +2555,8 @@ namespace Amatsukaze.Server
                 ServerInfo = new ServerInfo()
                 {
                     HostName = Dns.GetHostName(),
-                    MacAddress = ClientManager?.GetMacAddress()
+                    MacAddress = ClientManager?.GetMacAddress(),
+                    Version = Version
                 },
                 AddQueueBatFiles = AddQueueBatFiles,
                 PreBatFiles = PreBatFiles,

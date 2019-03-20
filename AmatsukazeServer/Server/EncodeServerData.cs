@@ -59,7 +59,7 @@ namespace Amatsukaze.Server
         Console = (1 << 4),
         State = (1 << 5),
         FreeSpace = (1 << 6),
-        ServiceSetting = (1 << 7)
+        ServiceSetting = (1 << 7),
     }
 
     public struct ReqResource
@@ -1170,6 +1170,8 @@ namespace Amatsukaze.Server
         public string HostName { get; set; }
         [DataMember]
         public byte[] MacAddress { get; set; }
+        [DataMember]
+        public string Version { get; set; }
     }
 
     [DataContract]

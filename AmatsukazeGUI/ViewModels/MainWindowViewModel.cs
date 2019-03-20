@@ -129,7 +129,11 @@ namespace Amatsukaze.ViewModels
                 {
                     return "AmatsukazeGUI(未接続)";
                 }
-                return "AmatsukazeClient@" + hostName;
+                if (Model.ServerVersion == null)
+                {
+                    return "AmatsukazeClient@" + hostName;
+                }
+                return "Amatsukaze" + Model.ServerVersion + "@" + hostName;
             }
         }
         #endregion
@@ -189,6 +193,7 @@ namespace Amatsukaze.ViewModels
             var modelListener = new PropertyChangedEventListener(Model);
             modelListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
             modelListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
+            modelListener.Add(() => Model.ServerVersion, (_, __) => RaisePropertyChanged(() => WindowCaption));
             modelListener.Add(() => Model.IsCurrentResultFail, (_, __) =>
             {
                 RaisePropertyChanged("StatusBackColor");

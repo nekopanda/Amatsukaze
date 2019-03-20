@@ -84,19 +84,23 @@ namespace Amatsukaze.Models
 
         public string[] ProcessPriorityList { get { return new string[] { "通常", "通常以下", "低" }; } }
 
-        #region ServerHostName変更通知プロパティ
-        private string _ServerHostName;
-
         public string ServerHostName {
-            get { return _ServerHostName; }
-            set { 
-                if (_ServerHostName == value)
-                    return;
-                _ServerHostName = value;
-                RaisePropertyChanged();
+            get {
+                if(serverInfo.HostName == null)
+                {
+                    return null;
+                }
+                if (Server is ServerConnection)
+                {
+                    return serverInfo.HostName + ":" + ServerPort;
+                }
+                return serverInfo.HostName; ;
             }
         }
-        #endregion
+
+        public string ServerVersion {
+            get { return serverInfo.Version; }
+        }
 
         public ObservableCollection<DisplayConsole> ConsoleList { get; } = new ObservableCollection<DisplayConsole>();
 
@@ -1095,15 +1099,6 @@ namespace Amatsukaze.Models
             return Task.FromResult(0);
         }
 
-        private string GetDisplayServerNeme()
-        {
-            if (Server is ServerConnection)
-            {
-                return serverInfo.HostName + ":" + ServerPort;
-            }
-            return serverInfo.HostName;
-        }
-
         public Task OnCommonData(CommonData data)
         {
             if(data.Setting != null)
@@ -1161,7 +1156,8 @@ namespace Amatsukaze.Models
             if(data.ServerInfo != null)
             {
                 serverInfo = data.ServerInfo;
-                ServerHostName = GetDisplayServerNeme();
+                RaisePropertyChanged("ServerHostName");
+                RaisePropertyChanged("ServerVersion");
             }
             if(data.State != null)
             {
