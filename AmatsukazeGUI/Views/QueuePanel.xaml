@@ -498,6 +498,9 @@
                 Drop="ListBox_Drop" AllowDrop="True" 
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                 SelectionMode="Extended">
+                <i:Interaction.Behaviors>
+                    <c:DragBehavior OnlyEvent="True" OnDropAt="{Binding DropAtCommand}" />
+                </i:Interaction.Behaviors>
                 <ListBox.Style>
                     <Style TargetType="ListBox">
                         <Setter Property="ItemTemplate" Value="{StaticResource DetailedItemTemplate}"/>

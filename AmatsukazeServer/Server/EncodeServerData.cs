@@ -629,6 +629,9 @@ namespace Amatsukaze.Server
         [DataMember]
         public List<string> Tags { get; set; }
 
+        // 内部処理順決定用パラメータ
+        public int Order { get; set; }
+
         public DateTime EncodeFinish
         {
             get
@@ -690,7 +693,7 @@ namespace Amatsukaze.Server
 
     public enum UpdateType
     {
-        Add, Remove, Update, Clear
+        Add, Remove, Update, Clear, Move
     }
 
     [DataContract]
@@ -700,6 +703,8 @@ namespace Amatsukaze.Server
         public UpdateType Type { get; set; }
         [DataMember]
         public QueueItem Item { get; set; }
+        [DataMember]
+        public int Position { get; set; }
     }
 
     public enum ChangeItemType
@@ -714,6 +719,7 @@ namespace Amatsukaze.Server
         RemoveCompleted,  // 完了項目を削除
         ForceStart, // アイテムを強制的に開始
         RemoveSourceFile, // ソースTSを削除（通常or自動追加の完了した項目のみ有効）
+        Move,       // リスト上で移動
     }
 
     [DataContract]
@@ -727,6 +733,8 @@ namespace Amatsukaze.Server
         public int Priority { get; set; }
         [DataMember]
         public string Profile { get; set; }
+        [DataMember]
+        public int Position { get; set; }
     }
 
     [DataContract]

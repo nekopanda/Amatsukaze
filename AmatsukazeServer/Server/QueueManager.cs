@@ -239,7 +239,7 @@ namespace Amatsukaze.Server
                     }
                     else if (map.ContainsKey(item.ServiceId) == false)
                     {
-                        item.FailReason = "このTSに対する設定がありません";
+                        item.FailReason = "このTSのチャンネル設定がありません（追加し直してください）";
                         item.Reset();
                     }
                     else if (item.Profile.DisableChapter == false &&
@@ -483,6 +483,7 @@ namespace Amatsukaze.Server
                             UpdateProfileItem(item, null);
                         }
                         // 追加
+                        item.Order = Queue.Count;
                         Queue.Add(item);
                         // まずは内部だけで状態を更新
                         UpdateQueueItem(item, null);
@@ -617,7 +618,7 @@ namespace Amatsukaze.Server
                     item.Hash = cacheItem.HashDict[filename];
                 }
 
-                server.UpdateProfile(item);
+                server.ReScheduleQueue();
                 UpdateQueueItem(item, waits);
 
                 waits?.Add(ClientQueueUpdate(new QueueUpdate()
@@ -636,6 +637,7 @@ namespace Amatsukaze.Server
         {
             var newItem = ServerSupport.DeepCopy(item);
             newItem.Id = nextItemId++;
+            newItem.Order = Queue.Count;
             Queue.Add(newItem);
 
             // 状態はリセットしておく
@@ -666,18 +668,31 @@ namespace Amatsukaze.Server
             return Task.FromResult(0);
         }
 
+        private void UpdateQueueOrder()
+        {
+            for(int i = 0; i < Queue.Count; ++i)
+            {
+                Queue[i].Order = i;
+            }
+            server.ReScheduleQueue();
+        }
+
         private void RemoveCompleted(List<Task> waits)
         {
             var removeItems = Queue.Where(s => s.State == QueueState.Complete || s.State == QueueState.PreFailed).ToArray();
-            foreach (var item in removeItems)
+            if(removeItems.Length > 0)
             {
-                Queue.Remove(item);
-                waits.Add(ClientQueueUpdate(new QueueUpdate()
+                foreach (var item in removeItems)
                 {
-                    Type = UpdateType.Remove,
-                    Item = item
-                }));
-            }
+                    Queue.Remove(item);
+                    waits.Add(ClientQueueUpdate(new QueueUpdate()
+                    {
+                        Type = UpdateType.Remove,
+                        Item = item
+                    }));
+                }
+                UpdateQueueOrder();
+            } 
             waits.Add(server.NotifyMessage("" + removeItems.Length + "件削除しました", false));
         }
 
@@ -810,7 +825,7 @@ namespace Amatsukaze.Server
             else if (data.ChangeType == ChangeItemType.Priority)
             {
                 target.Priority = data.Priority;
-                server.UpdatePriority(target);
+                server.ReScheduleQueue();
                 return Task.WhenAll(
                     ClientQueueUpdate(new QueueUpdate()
                     {
@@ -848,6 +863,7 @@ namespace Amatsukaze.Server
                 server.CancelItem(target);
                 target.State = QueueState.Canceled;
                 Queue.Remove(target);
+                UpdateQueueOrder();
                 return Task.WhenAll(
                     ClientQueueUpdate(new QueueUpdate()
                     {
@@ -901,6 +917,7 @@ namespace Amatsukaze.Server
 
                 // アイテム削除
                 Queue.Remove(target);
+                UpdateQueueOrder();
                 return Task.WhenAll(
                     ClientQueueUpdate(new QueueUpdate()
                     {
@@ -908,6 +925,24 @@ namespace Amatsukaze.Server
                         Item = target
                     }),
                     server.NotifyMessage("TSファイルを削除しました", false));
+            }
+            else if(data.ChangeType == ChangeItemType.Move)
+            {
+                if(data.Position >= Queue.Count)
+                {
+                    return server.NotifyError("位置が範囲外です", false);
+                }
+
+                Queue.Remove(target);
+                Queue.Insert(data.Position, target);
+                UpdateQueueOrder();
+                return Task.WhenAll(
+                    ClientQueueUpdate(new QueueUpdate()
+                    {
+                        Type = UpdateType.Move,
+                        Item = target,
+                        Position = data.Position
+                    }));
             }
             return Task.FromResult(0);
         }

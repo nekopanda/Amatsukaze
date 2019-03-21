@@ -2,11 +2,11 @@
 
 using System;
 using System.Collections;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interactivity;
 using Amatsukaze.Components.DragExtention;
+using System.Windows.Input;
 
 namespace Amatsukaze.Components
 {
@@ -18,6 +18,25 @@ namespace Amatsukaze.Components
         private InsertionAdorner _insertionAdorner;
         private DragContentAdorner _dragContentAdorner;
         private Point _mouseOffsetFromItem;
+
+        public bool OnlyEvent {
+            get { return (bool)GetValue(OnlyEventProperty); }
+            set { SetValue(OnlyEventProperty, value); }
+        }
+
+        // Using a DependencyProperty as the backing store for OnlyEvent.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty OnlyEventProperty =
+            DependencyProperty.Register("OnlyEvent", typeof(bool), typeof(DragBehavior), new PropertyMetadata(false));
+
+
+        public ICommand OnDropAt {
+            get { return (ICommand)GetValue(OnDropAtProperty); }
+            set { SetValue(OnDropAtProperty, value); }
+        }
+
+        // Using a DependencyProperty as the backing store for OnDropAt.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty OnDropAtProperty =
+            DependencyProperty.Register("OnDropAt", typeof(ICommand), typeof(DragBehavior), new PropertyMetadata(null));
 
         private static bool MovedEnoughForDrag(Vector delta)
         {
@@ -155,7 +174,19 @@ namespace Amatsukaze.Components
             }
 
             var dropTargetData = itemsControl.GetItemData(e.OriginalSource as DependencyObject);
-            DropItemAt(itemsControl.GetItemIndex(dropTargetData), itemsControl);
+
+            if (!OnlyEvent)
+            {
+                DropItemAt(itemsControl.GetItemIndex(dropTargetData), itemsControl);
+            }
+            if(OnDropAt != null)
+            {
+                var param = new Tuple<object, object>(_draggedData, dropTargetData);
+                if(OnDropAt.CanExecute(param))
+                {
+                    OnDropAt.Execute(param);
+                }
+            }
         }
 
         private void PreviewDragEnter(object sender, System.Windows.DragEventArgs e)

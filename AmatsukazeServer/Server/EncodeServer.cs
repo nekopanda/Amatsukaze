@@ -2480,14 +2480,7 @@ namespace Amatsukaze.Server
             return false;
         }
 
-        // プロファイル更新を適用
-        internal void UpdateProfile(QueueItem item)
-        {
-            scheduledQueue.MakeDirty();
-        }
-
-        // 指定アイテムの新しい優先度を適用
-        internal void UpdatePriority(QueueItem item)
+        internal void ReScheduleQueue()
         {
             scheduledQueue.MakeDirty();
         }

@@ -1035,6 +1035,14 @@ namespace Amatsukaze.Models
                         QueueItems.Remove(item);
                     }
                 }
+                else if(update.Type == UpdateType.Move)
+                {
+                    if (item != null && update.Position < QueueItems.Count)
+                    {
+                        QueueItems.Remove(item);
+                        QueueItems.Insert(update.Position, item);
+                    }
+                }
                 else
                 {
                     // Add, Updte

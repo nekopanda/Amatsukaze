@@ -953,6 +953,39 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region DropAtCommand
+        private ListenerCommand<Tuple<object, object>> _DropAtCommand;
+
+        public ListenerCommand<Tuple<object, object>> DropAtCommand {
+            get {
+                if (_DropAtCommand == null)
+                {
+                    _DropAtCommand = new ListenerCommand<Tuple<object, object>>(DropAt);
+                }
+                return _DropAtCommand;
+            }
+        }
+
+        public void DropAt(Tuple<object, object> param)
+        {
+            var fromItem = param.Item1 as DisplayQueueItem;
+            var toItem = param.Item2 as DisplayQueueItem;
+            var from = Model.QueueItems.IndexOf(fromItem);
+            var to = Model.QueueItems.IndexOf(toItem);
+            if(to == -1)
+            {
+                to = Model.QueueItems.Count;
+            }
+            to -= (to > from) ? 1 : 0;
+            Model.Server.ChangeItem(new ChangeItemData()
+            {
+                ChangeType = ChangeItemType.Move,
+                ItemId = fromItem.Model.Id,
+                Position = to
+            });
+        }
+        #endregion
+
         public SingleValueViewModel<bool>[] SearchChecks { get; private set; }
         public SingleValueViewModel<bool>[] StateChecks { get; private set; }
         public SingleValueViewModel<bool>[] PriorityChecks { get; private set; }

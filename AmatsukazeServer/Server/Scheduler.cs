@@ -245,6 +245,7 @@ namespace Amatsukaze.Server
                 level[key] = new List<QueueItem>();
             }
             level[key].Add(item);
+            isDirty = true;
             WorkerPool.NotifyAddQueue();
         }
 
@@ -318,6 +319,14 @@ namespace Amatsukaze.Server
                 foreach(var key in level.Keys.Where(key => !level[key].Any()).ToArray())
                 {
                     level.Remove(key);
+                }
+            }
+            // Orderで並べ替え
+            foreach(var level in queue)
+            {
+                foreach(var list in level.Values)
+                {
+                    list.Sort((a, b) => a.Order - b.Order);
                 }
             }
             // フラグを消す
