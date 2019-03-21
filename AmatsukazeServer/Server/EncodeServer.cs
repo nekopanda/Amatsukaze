@@ -2226,7 +2226,23 @@ namespace Amatsukaze.Server
                 var profilepath = GetProfileDirectoryPath();
                 var filepath = GetProfilePath(profilepath, data.Profile.Name);
 
-                if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
+                if (data.NewName != null)
+                {
+                    // リネーム
+                    if (profiles.ContainsKey(data.Profile.Name))
+                    {
+                        var profile = profiles[data.Profile.Name];
+                        var newfilepath = GetProfilePath(profilepath, data.NewName);
+                        File.Move(filepath, newfilepath);
+                        profile.Name = data.NewName;
+                        profiles.Remove(data.Profile.Name);
+                        profiles.Add(profile.Name, profile);
+                        message = "プロファイル「" + data.Profile.Name + "」を「" + profile.Name + "」にリネームしました";
+                    }
+                    // キューを再始動
+                    UpdateQueueItems(waits);
+                }
+                else if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
                 {
                     SetDefaultFormat(data.Profile);
                     if (data.Type == UpdateType.Update)
@@ -2275,7 +2291,21 @@ namespace Amatsukaze.Server
                 var message = "自動選択「" + data.Profile.Name + "」が見つかりません";
 
                 // 面倒だからAddもUpdateも同じ
-                if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
+
+                if (data.NewName != null)
+                {
+                    // リネーム
+                    if (profiles.ContainsKey(data.Profile.Name))
+                    {
+                        var profile = autoSelects[data.Profile.Name];
+                        profile.Name = data.NewName;
+                        autoSelects.Remove(data.Profile.Name);
+                        autoSelects.Add(profile.Name, profile);
+                        message = "自動選択「" + data.Profile.Name + "」を「" + profile.Name + "」にリネームしました";
+                        autoSelectUpdated = true;
+                    }
+                }
+                else if (data.Type == UpdateType.Add || data.Type == UpdateType.Update)
                 {
                     if (data.Type == UpdateType.Update)
                     {

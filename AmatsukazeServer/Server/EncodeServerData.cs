@@ -309,6 +309,8 @@ namespace Amatsukaze.Server
         public UpdateType Type { get; set; }
         [DataMember]
         public ProfileSetting Profile { get; set; }
+        [DataMember]
+        public string NewName { get; set; }
     }
 
     // 基本設定データ
@@ -1316,5 +1318,7 @@ namespace Amatsukaze.Server
         public UpdateType Type { get; set; }
         [DataMember]
         public AutoSelectProfile Profile { get; set; }
+        [DataMember]
+        public string NewName { get; set; }
     }
 }

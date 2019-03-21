@@ -930,6 +930,18 @@ namespace Amatsukaze.Models
             UpdateWarningText();
         }
 
+        #region Name変更通知プロパティ
+        public string Name {
+            get { return Data.Name; }
+            set { 
+                if (Data.Name == value)
+                    return;
+                Data.Name = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region FilterOption変更通知プロパティ
         public int FilterOption
         {
@@ -1866,11 +1878,6 @@ namespace Amatsukaze.Models
         public string Bitrate18H264 { get { return BitrateString(18000, 1); } }
         public string Bitrate12H264 { get { return BitrateString(12000, 1); } }
         public string Bitrate7H264 { get { return BitrateString(7000, 1); } }
-
-        public override string ToString()
-        {
-            return Data.Name;
-        }
 
         public static string GetProfileName(object item)
         {
@@ -3344,6 +3351,18 @@ namespace Amatsukaze.Models
     public class DisplayAutoSelect : NotificationObject
     {
         public AutoSelectProfile Model { get; set; }
+
+        #region Name変更通知プロパティ
+        public string Name {
+            get { return Model.Name; }
+            set { 
+                if (Model.Name == value)
+                    return;
+                Model.Name = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         #region Conditions変更通知プロパティ
         public ObservableCollection<DisplayCondition> _Conditions = new ObservableCollection<DisplayCondition>();

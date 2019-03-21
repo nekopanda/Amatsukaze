@@ -113,20 +113,68 @@ namespace Amatsukaze.ViewModels
             if (Model.SelectedAutoSelect != null)
             {
                 var profile = Model.SelectedAutoSelect;
-                var newp = new NewAutoSelectViewModel()
+                var newp = new NewProfileViewModel()
                 {
                     Model = Model,
+                    Title = "自動選択プロファイル",
+                    Operation = "追加",
+                    IsDuplicate = Name => Model.AutoSelectList.Any(
+                        s => s.Model.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)),
                     Name = profile.Model.Name + "のコピー"
                 };
 
                 await Messenger.RaiseAsync(new TransitionMessage(
-                    typeof(Views.NewAutoSelectWindow), newp, TransitionMode.Modal, "FromProfile"));
+                    typeof(Views.NewProfileWindow), newp, TransitionMode.Modal, "FromProfile"));
 
                 if (newp.Success)
                 {
                     var newprofile = ServerSupport.DeepCopy(profile.Model);
                     newprofile.Name = newp.Name;
                     await Model.AddAutoSelect(newprofile);
+                }
+            }
+        }
+        #endregion
+
+        #region RenameProfileCommand
+        private ViewModelCommand _RenameProfileCommand;
+
+        public ViewModelCommand RenameProfileCommand {
+            get {
+                if (_RenameProfileCommand == null)
+                {
+                    _RenameProfileCommand = new ViewModelCommand(RenameProfile);
+                }
+                return _RenameProfileCommand;
+            }
+        }
+
+        public async void RenameProfile()
+        {
+            if (Model.SelectedAutoSelect != null)
+            {
+                var profile = Model.SelectedAutoSelect;
+                var newp = new NewProfileViewModel()
+                {
+                    Model = Model,
+                    Title = "プロファイル自動選択",
+                    Operation = "リネーム",
+                    IsDuplicate = Name => Name != profile.Model.Name && Model.AutoSelectList.Any(
+                        s => s.Model.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)),
+                    Name = profile.Model.Name
+                };
+
+                await Messenger.RaiseAsync(new TransitionMessage(
+                    typeof(Views.NewProfileWindow), newp, TransitionMode.Modal, "FromProfile"));
+
+                if (newp.Success)
+                {
+                    await Model.Server.SetAutoSelect(new AutoSelectUpdate()
+                    {
+                        Type = UpdateType.Update,
+                        Profile = profile.Model,
+                        NewName = newp.Name
+                    });
                 }
             }
         }

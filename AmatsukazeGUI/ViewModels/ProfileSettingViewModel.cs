@@ -99,7 +99,11 @@ namespace Amatsukaze.ViewModels
                 var profile = Model.SelectedProfile;
                 var newp = new NewProfileViewModel() {
                     Model = Model,
-                    Name = profile.Data.Name + "のコピー"
+                    Title = "プロファイル",
+                    Operation = "追加",
+                    IsDuplicate = Name => Model.ProfileList.Any(
+                        s => s.Data.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)),
+                Name = profile.Data.Name + "のコピー"
                 };
 
                 await Messenger.RaiseAsync(new TransitionMessage(
@@ -112,6 +116,50 @@ namespace Amatsukaze.ViewModels
                     newprofile.Name = new string(newp.Name.ToCharArray()
                         .Where(c => Array.IndexOf(invalidChars, c) == -1).ToArray());
                     await Model.AddProfile(newprofile);
+                }
+            }
+        }
+        #endregion
+
+        #region RenameProfileCommand
+        private ViewModelCommand _RenameProfileCommand;
+
+        public ViewModelCommand RenameProfileCommand {
+            get {
+                if (_RenameProfileCommand == null)
+                {
+                    _RenameProfileCommand = new ViewModelCommand(RenameProfile);
+                }
+                return _RenameProfileCommand;
+            }
+        }
+
+        public async void RenameProfile()
+        {
+            if (Model.SelectedProfile != null)
+            {
+                var profile = Model.SelectedProfile;
+                var newp = new NewProfileViewModel()
+                {
+                    Model = Model,
+                    Title = "プロファイル",
+                    Operation = "リネーム",
+                    IsDuplicate = Name => Name != profile.Data.Name && Model.ProfileList.Any(
+                        s => s.Data.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)),
+                    Name = profile.Data.Name
+                };
+
+                await Messenger.RaiseAsync(new TransitionMessage(
+                    typeof(Views.NewProfileWindow), newp, TransitionMode.Modal, "FromProfile"));
+
+                if (newp.Success)
+                {
+                    await Model.Server.SetProfile(new ProfileUpdate()
+                    {
+                        Type = UpdateType.Update,
+                        Profile = profile.Data,
+                        NewName = newp.Name
+                    });
                 }
             }
         }

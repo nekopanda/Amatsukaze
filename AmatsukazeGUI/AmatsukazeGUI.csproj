@@ -186,9 +186,6 @@
     <Compile Include="Views\MakeScriptPanel.xaml.cs">
       <DependentUpon>MakeScriptPanel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\NewAutoSelectWindow.xaml.cs">
-      <DependentUpon>NewAutoSelectWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\NewProfileWindow.xaml.cs">
       <DependentUpon>NewProfileWindow.xaml</DependentUpon>
     </Compile>
@@ -341,10 +338,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\MakeScriptPanel.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Views\NewAutoSelectWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

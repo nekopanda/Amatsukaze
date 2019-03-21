@@ -10,7 +10,7 @@
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         mc:Ignorable="d" 
         d:DataContext="{d:DesignInstance {x:Type vm:NewProfileViewModel}}"
-        Title="Amatsukaze プロファイル追加" Height="138.445" Width="300">
+        Title="{Binding Caption}" Height="138.445" Width="350" Loaded="Window_Loaded">
 
     <Window.Resources>
         <ResourceDictionary Source="CommonResources.xaml"/>
@@ -40,8 +40,14 @@
     </i:Interaction.Triggers>
     
     <StackPanel Margin="3">
-        <TextBlock Text="新しいプロファイルの名前を入力してください" VerticalAlignment="Top" Margin="2"/>
-        <TextBox VerticalAlignment="Top" Margin="2" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <TextBlock VerticalAlignment="Top" Margin="2">
+            <Run Text="新しい"/><Run Text="{Binding Title}"/><Run Text="の名前を入力してください"/>
+        </TextBlock>
+        <TextBox VerticalAlignment="Top" Margin="2" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+            <TextBox.InputBindings>
+                <KeyBinding Key="Enter" Command="{Binding OkCommand, Mode=OneWay}"/>
+            </TextBox.InputBindings>
+        </TextBox>
         <TextBlock Margin="2" TextWrapping="Wrap" Text="{Binding Description}" Foreground="Red"/>
         <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
             <Button Content="キャンセル" Width="75" VerticalAlignment="Top" Margin="2" Command="{Binding CancelCommand}"/>

@@ -60,16 +60,24 @@ namespace Amatsukaze.ViewModels
          */
         public ClientModel Model { get; set; }
 
+        public string Title { get; set; }
+
+        public string Operation { get; set; }
+
+        public Func<string, bool> IsDuplicate;
+
         public bool Success;
 
         public void Initialize()
         {
         }
 
-        private bool IsDuplicate()
-        {
-            return Model.ProfileList.Any(s => s.Data.Name.Equals(_Name, StringComparison.OrdinalIgnoreCase));
-        }
+        public string Caption { get { return "Amatsukaze " + Title + Operation; } }
+
+        //private bool IsDuplicate()
+        //{
+        //    return Model.ProfileList.Any(s => s.Data.Name.Equals(_Name, StringComparison.OrdinalIgnoreCase));
+        //}
 
         private bool IsInvalid()
         {
@@ -92,7 +100,7 @@ namespace Amatsukaze.ViewModels
 
         public async void Ok()
         {
-            if(!IsDuplicate() && !IsInvalid())
+            if(!IsDuplicate(_Name) && !IsInvalid())
             {
                 Success = true;
                 await Messenger.RaiseAsync(new WindowActionMessage(WindowAction.Close, "Close"));
@@ -129,7 +137,7 @@ namespace Amatsukaze.ViewModels
                 if (_Name == value)
                     return;
                 _Name = value;
-                Description = IsInvalid() ? "無効な文字が含まれています。" : IsDuplicate() ? "名前が重複しています。" : "";
+                Description = IsInvalid() ? "無効な文字が含まれています。" : IsDuplicate(_Name) ? "名前が重複しています。" : "";
                 RaisePropertyChanged();
             }
         }

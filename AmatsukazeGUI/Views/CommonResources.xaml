@@ -1,6 +1,7 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:Amatsukaze.Views"
+                    xmlns:m="clr-namespace:Amatsukaze.Models"
                     xmlns:c="clr-namespace:Amatsukaze.Components">
 
     <Style x:Key="HeaderMenuStyle" TargetType="ListBox">
@@ -276,6 +277,14 @@
         <Setter Property="BorderThickness" Value="0.5"/>
         <Setter Property="Background" Value="Transparent"/>
     </Style>
+
+    <DataTemplate DataType="{x:Type m:DisplayProfile}">
+        <TextBlock Text="{Binding Name, Mode=OneWay}"/>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
+        <TextBlock Text="{Binding Name, Mode=OneWay}"/>
+    </DataTemplate>
 
     <c:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
     <c:NegateValueConverter x:Key="NegateValueConverter"/>

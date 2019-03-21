@@ -33,5 +33,10 @@ namespace Amatsukaze.Views
             InitializeComponent();
             Utils.SetWindowProperties(this);
         }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            Utils.SetWindowCenter(this);
+        }
     }
 }

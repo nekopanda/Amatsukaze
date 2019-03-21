@@ -1368,6 +1368,12 @@ namespace Amatsukaze.Models
                     }
                 }
 
+                if(data.NewName != null)
+                {
+                    // リネーム
+                    profile.Name = data.NewName;
+                }
+
                 currentNewProfile = null;
 
                 profile.SetEncoderOptions(
@@ -1497,6 +1503,12 @@ namespace Amatsukaze.Models
                         // 選択中の自動選択プロファイルが更新された
                         SelectedAutoSelect = profile;
                     }
+                }
+
+                if (data.NewName != null)
+                {
+                    // リネーム
+                    profile.Name = data.NewName;
                 }
 
                 currentNewAutoSelect = null;
