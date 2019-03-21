@@ -494,6 +494,7 @@
             </Grid.Resources>
             <ListBox x:Name="QueueList"
                 ItemsSource="{Binding Model.QueueItems}"
+                SelectedItem="{Binding Model.SelectedQueueItem, Mode=TwoWay}"
                 PreviewDragOver="ListBox_PreviewDragOver" 
                 Drop="ListBox_Drop" AllowDrop="True" 
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -501,6 +502,22 @@
                 <i:Interaction.Behaviors>
                     <c:DragBehavior OnlyEvent="True" OnDropAt="{Binding DropAtCommand}" />
                 </i:Interaction.Behaviors>
+                <ListBox.InputBindings>
+                    <KeyBinding Key="Delete" Command="{Binding RemoveCommand}"
+                                CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    <KeyBinding Key="Delete" Modifiers="Shift" Command="{Binding ShiftRemoveCommand}"
+                                CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    
+                    <KeyBinding Key="Add" Command="{Binding MoveDownCommand}"
+                                CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    <KeyBinding Key="OemPlus" Command="{Binding MoveDownCommand}"
+                                CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+
+                    <KeyBinding Key="Subtract" Command="{Binding MoveUpCommand}"
+                                CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                    <KeyBinding Key="OemMinus" Command="{Binding MoveUpCommand}"
+                                CommandParameter="{Binding SelectedItems, ElementName=QueueList}"/>
+                </ListBox.InputBindings>
                 <ListBox.Style>
                     <Style TargetType="ListBox">
                         <Setter Property="ItemTemplate" Value="{StaticResource DetailedItemTemplate}"/>

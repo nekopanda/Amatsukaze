@@ -177,6 +177,20 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region SelectedQueueItem変更通知プロパティ
+        private object _SelectedQueueItem;
+
+        public object SelectedQueueItem {
+            get { return _SelectedQueueItem; }
+            set { 
+                if (_SelectedQueueItem == value)
+                    return;
+                _SelectedQueueItem = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region AutoSelectList変更通知プロパティ
         private ObservableCollection<DisplayAutoSelect> _AutoSelectList = new ObservableCollection<DisplayAutoSelect>();
 
@@ -1039,8 +1053,8 @@ namespace Amatsukaze.Models
                 {
                     if (item != null && update.Position < QueueItems.Count)
                     {
-                        QueueItems.Remove(item);
-                        QueueItems.Insert(update.Position, item);
+                        QueueItems.Move(QueueItems.IndexOf(item), update.Position);
+                        SelectedQueueItem = QueueItems[update.Position];
                     }
                 }
                 else

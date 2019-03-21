@@ -772,25 +772,11 @@ namespace Amatsukaze.ViewModels
             }
         }
 
-        public async void Remove(IEnumerable selectedItems)
+        public void Remove(IEnumerable selectedItems)
         {
             if(ShiftDown)
             {
-                var selected = selectedItems.OfType<DisplayQueueItem>().ToArray();
-                var items = selected.Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
-                if (selected.Length - items.Length > 0)
-                {
-                    var message = new ConfirmationMessage(
-                        "TSファイルを削除できるのは、通常または自動追加のアイテムのうち\r\n" +
-                        "完了した項目だけです。" + (selected.Length - items.Length) + "件のアイテムがこれに該当しないため除外\r\nされます",
-                        "Amatsukaze TSファイル削除除外",
-                        MessageBoxImage.Information,
-                        MessageBoxButton.OK,
-                        "Confirm");
-
-                    await Messenger.RaiseAsync(message);
-                }
-                await RemoveTS(items);
+                ShiftRemove(selectedItems);
                 return;
             }
             foreach (var item in selectedItems.OfType<DisplayQueueItem>().ToArray())
@@ -802,6 +788,39 @@ namespace Amatsukaze.ViewModels
                     ChangeType = ChangeItemType.RemoveItem
                 });
             }
+        }
+        #endregion
+
+        #region ShiftRemoveCommand
+        private ListenerCommand<IEnumerable> _ShiftRemoveCommand;
+
+        public ListenerCommand<IEnumerable> ShiftRemoveCommand {
+            get {
+                if (_ShiftRemoveCommand == null)
+                {
+                    _ShiftRemoveCommand = new ListenerCommand<IEnumerable>(ShiftRemove);
+                }
+                return _ShiftRemoveCommand;
+            }
+        }
+
+        public async void ShiftRemove(IEnumerable selectedItems)
+        {
+            var selected = selectedItems.OfType<DisplayQueueItem>().ToArray();
+            var items = selected.Where(item => item.Model.State == QueueState.Complete && item.Model.IsBatch).ToArray();
+            if (selected.Length - items.Length > 0)
+            {
+                var message = new ConfirmationMessage(
+                    "TSファイルを削除できるのは、通常または自動追加のアイテムのうち\r\n" +
+                    "完了した項目だけです。" + (selected.Length - items.Length) + "件のアイテムがこれに該当しないため除外\r\nされます",
+                    "Amatsukaze TSファイル削除除外",
+                    MessageBoxImage.Information,
+                    MessageBoxButton.OK,
+                    "Confirm");
+
+                await Messenger.RaiseAsync(message);
+            }
+            await RemoveTS(items);
         }
         #endregion
 
@@ -925,6 +944,103 @@ namespace Amatsukaze.ViewModels
         }
         #endregion
 
+        #region DropAtCommand
+        private ListenerCommand<Tuple<object, object>> _DropAtCommand;
+
+        public ListenerCommand<Tuple<object, object>> DropAtCommand {
+            get {
+                if (_DropAtCommand == null)
+                {
+                    _DropAtCommand = new ListenerCommand<Tuple<object, object>>(DropAt);
+                }
+                return _DropAtCommand;
+            }
+        }
+
+        public void DropAt(Tuple<object, object> param)
+        {
+            var fromItem = param.Item1 as DisplayQueueItem;
+            var toItem = param.Item2 as DisplayQueueItem;
+            var from = Model.QueueItems.IndexOf(fromItem);
+            var to = Model.QueueItems.IndexOf(toItem);
+            if (to == -1)
+            {
+                to = Model.QueueItems.Count;
+            }
+            to -= (to > from) ? 1 : 0;
+            Model.Server.ChangeItem(new ChangeItemData()
+            {
+                ChangeType = ChangeItemType.Move,
+                ItemId = fromItem.Model.Id,
+                Position = to
+            });
+        }
+        #endregion
+
+        #region MoveUpCommand
+        private ListenerCommand<IEnumerable> _MoveUpCommand;
+
+        public ListenerCommand<IEnumerable> MoveUpCommand {
+            get {
+                if (_MoveUpCommand == null)
+                {
+                    _MoveUpCommand = new ListenerCommand<IEnumerable>(MoveUp);
+                }
+                return _MoveUpCommand;
+            }
+        }
+
+        public void MoveUp(IEnumerable selectedItems)
+        {
+            var item = selectedItems.OfType<DisplayQueueItem>().FirstOrDefault();
+            if(item != null)
+            {
+                var itemIndex = Model.QueueItems.IndexOf(item);
+                if(itemIndex > 0)
+                {
+                    Model.Server.ChangeItem(new ChangeItemData()
+                    {
+                        ChangeType = ChangeItemType.Move,
+                        ItemId = item.Model.Id,
+                        Position = itemIndex - 1
+                    });
+                }
+            }
+        }
+        #endregion
+
+        #region MoveDownCommand
+        private ListenerCommand<IEnumerable> _MoveDownCommand;
+
+        public ListenerCommand<IEnumerable> MoveDownCommand {
+            get {
+                if (_MoveDownCommand == null)
+                {
+                    _MoveDownCommand = new ListenerCommand<IEnumerable>(MoveDown);
+                }
+                return _MoveDownCommand;
+            }
+        }
+
+        public void MoveDown(IEnumerable selectedItems)
+        {
+            var item = selectedItems.OfType<DisplayQueueItem>().FirstOrDefault();
+            if (item != null)
+            {
+                var itemIndex = Model.QueueItems.IndexOf(item);
+                if (itemIndex != -1 && itemIndex != Model.QueueItems.Count - 1)
+                {
+                    Model.Server.ChangeItem(new ChangeItemData()
+                    {
+                        ChangeType = ChangeItemType.Move,
+                        ItemId = item.Model.Id,
+                        Position = itemIndex + 1
+                    });
+                }
+            }
+        }
+        #endregion
+
         #region ShiftDown変更通知プロパティ
         private bool _ShiftDown;
 
@@ -950,39 +1066,6 @@ namespace Amatsukaze.ViewModels
         public string RemoveCompletedHeader
         {
             get { return _ShiftDown ? "完了したアイテム+TSファイルを削除" : "完了したアイテムを削除"; }
-        }
-        #endregion
-
-        #region DropAtCommand
-        private ListenerCommand<Tuple<object, object>> _DropAtCommand;
-
-        public ListenerCommand<Tuple<object, object>> DropAtCommand {
-            get {
-                if (_DropAtCommand == null)
-                {
-                    _DropAtCommand = new ListenerCommand<Tuple<object, object>>(DropAt);
-                }
-                return _DropAtCommand;
-            }
-        }
-
-        public void DropAt(Tuple<object, object> param)
-        {
-            var fromItem = param.Item1 as DisplayQueueItem;
-            var toItem = param.Item2 as DisplayQueueItem;
-            var from = Model.QueueItems.IndexOf(fromItem);
-            var to = Model.QueueItems.IndexOf(toItem);
-            if(to == -1)
-            {
-                to = Model.QueueItems.Count;
-            }
-            to -= (to > from) ? 1 : 0;
-            Model.Server.ChangeItem(new ChangeItemData()
-            {
-                ChangeType = ChangeItemType.Move,
-                ItemId = fromItem.Model.Id,
-                Position = to
-            });
         }
         #endregion
 
