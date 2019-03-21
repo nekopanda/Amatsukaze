@@ -95,6 +95,12 @@
     <Compile Include="Components\LogScrollViewer.cs" />
     <Compile Include="Components\MultiStyleExtension .cs" />
     <Compile Include="Components\NegateValueConverter.cs" />
+    <Compile Include="Components\NotifyIconWrapper.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Components\NotifyIconWrapper.Designer.cs">
+      <DependentUpon>NotifyIconWrapper.cs</DependentUpon>
+    </Compile>
     <Compile Include="Components\ObservableViewModelCollection.cs" />
     <Compile Include="Components\TaskbarInfoBehavior.cs" />
     <Compile Include="Components\Utils.cs" />
@@ -393,6 +399,9 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <EmbeddedResource Include="Components\NotifyIconWrapper.resx">
+      <DependentUpon>NotifyIconWrapper.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

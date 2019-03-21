@@ -81,7 +81,7 @@ namespace Amatsukaze.ViewModels
                 });
                 await Server.Init();
                 RaisePropertyChanged("Server");
-                WindowCaption = "Amatsukaze"+Server.Version+"(Server)@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
+                WindowCaption = "AmatsukazeServer" + Server.Version+"@" + Dns.GetHostName() + ":" + App.Option.ServerPort;
 
                 // SleepCancel
                 SleepCancelVM = new SleepCancelViewModel() { Model = Server };
