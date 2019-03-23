@@ -41,7 +41,22 @@ namespace Amatsukaze.Views
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            (DataContext as ViewModels.MainWindowViewModel)?.Model?.SaveWindowPlacement(this);
+            var vm = (DataContext as ViewModels.MainWindowViewModel);
+            if(vm != null && vm.Model.IsStandalone && vm.Model.IsRunning)
+            {
+                MessageBoxResult result = MessageBox.Show("エンコード中です。" +
+                    "\r\n終了するとエンコード中の項目はすべてキャンセルされます。" +
+                    "\r\n本当に終了しますか？", "Amatsukaze終了警告", MessageBoxButton.YesNo);
+                if (result != MessageBoxResult.Yes)
+                {
+                    e.Cancel = true;
+                }
+            }
+
+            if (e.Cancel == false)
+            {
+                (DataContext as ViewModels.MainWindowViewModel)?.Model?.SaveWindowPlacement(this);
+            }
         }
     }
 }
