@@ -1493,7 +1493,7 @@ namespace Amatsukaze.Server
 
                     try
                     {
-                        fs = File.Create(fileName);
+                        fs = File.OpenWrite(fileName);
                     }
                     catch (Exception)
                     {

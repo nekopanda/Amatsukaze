@@ -1016,26 +1016,15 @@ namespace Amatsukaze.Models
         {
             if(data.QueueData != null)
             {
-                foreach(int id in QueueItems.Select(s => s.Model.Id)
-                    .Concat(data.QueueData.Items.Select(s => s.Id)).Distinct().ToArray())
+                if(QueueItems.Count != data.QueueData.Items.Count)
                 {
-                    var old = QueueItems.FirstOrDefault(s => s.Model.Id == id);
-                    var update = data.QueueData.Items.FirstOrDefault(s => s.Id == id);
-                    if(old != null && update != null)
-                    {
-                        // 更新
-                        old.Model = update;
-                    }
-                    else if(old != null)
-                    {
-                        // 削除
-                        QueueItems.Remove(old);
-                    }
-                    else
-                    {
-                        // 追加
-                        QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = update });
-                    }
+                    QueueItems.Clear();
+                    data.QueueData.Items.ForEach(
+                        item => QueueItems.Add(new DisplayQueueItem() { Parent = this, Model = item }));
+                }
+                else
+                {
+                    QueueItems.Zip(data.QueueData.Items, (dispItem, item) => dispItem.Model = item);
                 }
             }
             if(data.QueueUpdate != null)

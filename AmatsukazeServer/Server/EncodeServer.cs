@@ -2295,7 +2295,7 @@ namespace Amatsukaze.Server
                 if (data.NewName != null)
                 {
                     // リネーム
-                    if (profiles.ContainsKey(data.Profile.Name))
+                    if (autoSelects.ContainsKey(data.Profile.Name))
                     {
                         var profile = autoSelects[data.Profile.Name];
                         profile.Name = data.NewName;
