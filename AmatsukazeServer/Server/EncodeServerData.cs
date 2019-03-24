@@ -106,7 +106,7 @@ namespace Amatsukaze.Server
 
     public enum FilterFPS
     {
-        VFR, CFR24, CFR30, CFR60, SVP
+        VFR, CFR24, CFR30, CFR60, SVP, VFR30
     }
 
     public enum FilterOption

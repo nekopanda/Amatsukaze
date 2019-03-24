@@ -418,13 +418,13 @@ namespace Amatsukaze.Models
         #endregion
         public static string[] FPSList { get; } = new string[]
         {
-            "VFR", "24fps", "60fps", "SVPによる60fps化"
+            "VFR", "VFR(30fps上限)", "24fps", "60fps", "SVPによる60fps化"
         };
 
         #region SelectedFPS変更通知プロパティ
         public static FilterFPS[] FPSListData = new FilterFPS[]
         {
-            FilterFPS.VFR, FilterFPS.CFR24, FilterFPS.CFR60, FilterFPS.SVP
+            FilterFPS.VFR, FilterFPS.VFR30, FilterFPS.CFR24, FilterFPS.CFR60, FilterFPS.SVP
         };
         public int SelectedFPS {
             get { return Array.IndexOf(FPSListData, Data.KfmFps); }

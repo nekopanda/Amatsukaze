@@ -57,7 +57,7 @@ namespace Amatsukaze.Views
             {
                 MessageBoxResult result = MessageBox.Show("エンコード中です。" +
                     "\r\n終了するとエンコード中のアイテムはすべてキャンセルされます。" +
-                    "\r\n本当に終了しますか？", "Amatsukaze終了警告", MessageBoxButton.YesNo);
+                    "\r\n本当に終了しますか？", "Amatsukaze 終了確認", MessageBoxButton.YesNo);
                 if (result != MessageBoxResult.Yes)
                 {
                     e.Cancel = true;

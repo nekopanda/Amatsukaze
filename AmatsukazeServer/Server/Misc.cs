@@ -1266,7 +1266,7 @@ namespace Amatsukaze.Server
                 }
                 else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM)
                 {
-                    if (setting.KfmFps == 0)
+                    if (setting.KfmFps == FilterFPS.VFR || setting.KfmFps == FilterFPS.VFR30)
                     {
                         // VFR
                         sb.AppendLine("pass = Select(AMT_PASS, 1, 2, 3)");
@@ -1284,6 +1284,7 @@ namespace Amatsukaze.Server
                         ", ucf=" + (setting.KfmEnableUcf ? "true" : "false") +
                         ", nr=" + (setting.KfmEnableNr ? "true" : "false") +
                         ", svp=" + ((setting.KfmFps == FilterFPS.SVP) ? "true" : "false") +
+                        ", thswitch=" + ((setting.KfmFps == FilterFPS.VFR30) ? "-1" : "3") +
                         ", cuda=" + (setting.EnableCUDA ? "true" : "false") +
                         ", dev=AMT_DEV, filepath=AMT_TMP)");
                 }
@@ -1351,7 +1352,7 @@ namespace Amatsukaze.Server
                     }
                     if (setting.EnableEdgeLevel)
                     {
-                        sb.AppendLine("KEdgeLevel(16, 10, 2, uv=false)");
+                        sb.AppendLine("KEdgeLevel(16, 10, 2)");
                     }
                     sb.AppendLine("ConvertBits(10, dither=0)");
                     sb.AppendLine("if(IsProcess(\"AvsPmod.exe\")) { ConvertBits(8, dither=0) }");
