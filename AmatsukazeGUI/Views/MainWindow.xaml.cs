@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Amatsukaze.Components;
+using System.Windows.Interactivity;
 
 namespace Amatsukaze.Views
 {
@@ -34,6 +35,13 @@ namespace Amatsukaze.Views
             Utils.SetWindowProperties(this);
         }
 
+        bool ForceCloseRequested = false;
+        public void ForceClose()
+        {
+            ForceCloseRequested = true;
+            Close();
+        }
+
         private void Window_SourceInitialized(object sender, EventArgs e)
         {
             (DataContext as ViewModels.MainWindowViewModel)?.Model?.RestoreWindowPlacement(this);
@@ -42,10 +50,13 @@ namespace Amatsukaze.Views
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             var vm = (DataContext as ViewModels.MainWindowViewModel);
-            if(vm != null && vm.Model.IsStandalone && vm.Model.IsRunning)
+            if (ForceCloseRequested == false && 
+                vm != null &&
+                vm.Model.IsStandalone && 
+                vm.Model.IsRunning)
             {
                 MessageBoxResult result = MessageBox.Show("エンコード中です。" +
-                    "\r\n終了するとエンコード中の項目はすべてキャンセルされます。" +
+                    "\r\n終了するとエンコード中のアイテムはすべてキャンセルされます。" +
                     "\r\n本当に終了しますか？", "Amatsukaze終了警告", MessageBoxButton.YesNo);
                 if (result != MessageBoxResult.Yes)
                 {
@@ -57,6 +68,14 @@ namespace Amatsukaze.Views
             {
                 (DataContext as ViewModels.MainWindowViewModel)?.Model?.SaveWindowPlacement(this);
             }
+        }
+    }
+
+    public class MainWindowCloseAction : TriggerAction<MainWindow>
+    {
+        protected override void Invoke(object parameter)
+        {
+            AssociatedObject.ForceClose();
         }
     }
 }

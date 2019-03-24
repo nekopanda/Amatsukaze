@@ -59,7 +59,7 @@
         </l:InteractionMessageTrigger>
 
         <l:InteractionMessageTrigger Messenger="{Binding Messenger}" MessageKey="MainWindowAction">
-            <l:WindowInteractionMessageAction InvokeActionOnlyWhenWindowIsActive="False"/>
+            <v:MainWindowCloseAction />
         </l:InteractionMessageTrigger>
 
     </i:Interaction.Triggers>
