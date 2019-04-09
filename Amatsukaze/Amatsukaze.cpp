@@ -59,5 +59,8 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 
 	env->AddFunction("AMTDecimate", "c[duration]s", AMTDecimate::Create, 0);
 
+	env->AddFunction("AMTExec", "cs", AMTExec, 0);
+	env->AddFunction("AMTOrderedParallel", "c+", AMTOrderedParallel::Create, 0);
+
 	return "Amatsukaze plugin";
 }

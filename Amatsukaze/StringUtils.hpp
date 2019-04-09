@@ -363,3 +363,50 @@ bool ends_with(const tstring & value, const tstring & ending)
 	return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
+static tstring pathNormalize(tstring path) {
+	if (path.size() != 0) {
+		// バックスラッシュはスラッシュに変換
+		std::replace(path.begin(), path.end(), _T('\\'), _T('/'));
+		// 最後のスラッシュは取る
+		if (path.back() == _T('/')) {
+			path.pop_back();
+		}
+	}
+	return path;
+}
+
+template <typename STR>
+static size_t pathGetExtensionSplitPos(const STR& path) {
+	size_t lastsplit = path.rfind(_T('/'));
+	size_t namebegin = (lastsplit == STR::npos)
+		? 0
+		: lastsplit + 1;
+	size_t dotpos = path.rfind(_T('.'));
+	size_t len = (dotpos == STR::npos || dotpos < namebegin)
+		? path.size()
+		: dotpos;
+	return len;
+}
+
+static tstring pathGetDirectory(const tstring& path) {
+	size_t lastsplit = path.rfind(_T('/'));
+	size_t namebegin = (lastsplit == tstring::npos)
+		? 0
+		: lastsplit;
+	return path.substr(0, namebegin);
+}
+
+static tstring pathRemoveExtension(const tstring& path) {
+	const tchar* exts[] = { _T(".mp4"), _T(".mkv"), _T(".m2ts"), _T(".ts"), nullptr };
+	const tchar* c_path = path.c_str();
+	for (int i = 0; exts[i]; ++i) {
+		size_t extlen = strlenT(exts[i]);
+		if (path.size() > extlen) {
+			if (_wcsicmp(c_path + (path.size() - extlen), exts[i]) == 0) {
+				return path.substr(0, path.size() - extlen);
+			}
+		}
+	}
+	return path;
+}
+

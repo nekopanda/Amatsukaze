@@ -172,7 +172,7 @@ public:
 	{ }
 
 	void encode(
-		PClip source, VideoFormat outfmt, const std::vector<int>& frameDurations,
+		PClip source, VideoFormat outfmt, const std::vector<double>& timeCodes,
 		const std::vector<tstring>& encoderOptions,
 		IScriptEnvironment* env)
 	{
@@ -181,7 +181,7 @@ public:
 
 		int bufsize = outfmt_.width * outfmt_.height * 3;
 
-		if (frameDurations.size() > 0 && vi_.num_frames != frameDurations.size())
+		if (timeCodes.size() > 0 && vi_.num_frames != timeCodes.size() - 1)
 		{
 			THROW(RuntimeException, "ƒtƒŒ[ƒ€”‚ª‡‚¢‚Ü‚¹‚ñ");
 		}

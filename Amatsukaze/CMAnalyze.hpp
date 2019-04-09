@@ -261,7 +261,7 @@ private:
 			sb.append("ClearAutoloadDirs()\n");
 		}
 		// Amatsukaze用オートロードフォルダを追加
-		sb.append("AddAutoloadDir(\"%s\\plugins64\")\n", GetModuleDirectory());
+		sb.append("AddAutoloadDir(\"%s/plugins64\")\n", GetModuleDirectory());
 		return sb.str();
 	}
 

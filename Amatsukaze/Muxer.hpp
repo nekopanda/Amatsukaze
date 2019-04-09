@@ -16,12 +16,13 @@
 #include "ProcessThread.hpp"
 
 struct EncodeFileOutput {
-	bool vfrEnabled;
 	VideoFormat vfmt;
 	std::vector<tstring> outSubs; // 外部ファイルで出力された字幕
 	int64_t fileSize;
 	double srcBitrate;
 	double targetBitrate;
+	int vfrTimingFps;
+	tstring timecode;
 };
 
 class AMTMuxder : public AMTObject {
@@ -155,10 +156,6 @@ public:
 			}
 		}
 
-		// タイムコード用
-		bool is120fps = (eoInfo.afsTimecode || setting_.isVFR120fps());
-		std::pair<int, int> timebase = std::make_pair(vfmt.frameRateNum * (is120fps ? 4 : 2), vfmt.frameRateDenom);
-
 		tstring tmpOutPath = setting_.getVfrTmpFilePath(key);
 
 		tstring metaFile;
@@ -192,14 +189,16 @@ public:
 			file.write(sb.getMC());
 		}
 
+		// タイムコード用
+		auto timebase = std::make_pair(vfmt.frameRateNum * (fileOut.vfrTimingFps / 30), vfmt.frameRateDenom);
+
 		auto outPath = setting_.getOutFilePath(fileIn.outKey, fileIn.keyMax);
 		auto args = makeMuxerArgs(
 			setting_.getFormat(),
 			setting_.getMuxerPath(), setting_.getTimelineEditorPath(), setting_.getMp4BoxPath(),
 			encVideoFile, vfmt, audioFiles,
 			outPath, tmpOutPath, chapterFile,
-      fileOut.vfrEnabled ? setting_.getTimecodeFilePath(key) : tstring(),
-      timebase, subsFiles, subsTitles, metaFile);
+			fileOut.timecode, timebase, subsFiles, subsTitles, metaFile);
 
 		for (int i = 0; i < (int)args.size(); ++i) {
 			ctx.infoF("%s", args[i].first);

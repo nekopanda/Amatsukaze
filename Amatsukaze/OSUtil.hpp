@@ -59,7 +59,7 @@ bool DirectoryExists(const std::wstring& dirName_in)
 // ディレクトリ名を含まないファイル名リストが返る
 std::vector<std::wstring> GetDirectoryFiles(const std::wstring& dirpath, const std::wstring& pattern)
 {
-	std::wstring search = dirpath + _T("\\") + pattern;
+	std::wstring search = dirpath + _T("/") + pattern;
 	std::vector<std::wstring> result;
 	WIN32_FIND_DATAW findData;
 	HANDLE hFind = FindFirstFileW(search.c_str(), &findData);

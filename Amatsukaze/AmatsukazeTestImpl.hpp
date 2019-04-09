@@ -631,16 +631,18 @@ static int DecodePerformance(AMTContext& ctx, const ConfigWrapper& setting)
 
 static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
 {
-	std::vector<int> durations;
+	std::vector<double> durations;
+	double elapsed = 0;
+	double tick = 1000.0 * 1001 / 60000;
 	for (int i = 0; i < 30; ++i) {
-		durations.push_back(2);
-		durations.push_back(3);
+		durations.push_back(elapsed); elapsed += tick * 2;
+		durations.push_back(elapsed); elapsed += tick * 3;
 	}
 	for (int i = 0; i < 40; ++i) {
-		durations.push_back(1);
+		durations.push_back(elapsed); elapsed += tick * 1;
 	}
 	for (int i = 0; i < 50; ++i) {
-		durations.push_back(2);
+		durations.push_back(elapsed); elapsed += tick * 2;
 	}
 	std::vector<EncoderZone> cmzones;
 	cmzones.push_back(EncoderZone{ 40, 80 });
@@ -665,7 +667,7 @@ static int BitrateZones(AMTContext& ctx, const ConfigWrapper& setting)
 static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)
 {
 	File dump(setting.getSrcFilePath(), _T("rb"));
-	auto durations = dump.readArray<int>();
+	auto timeCodes = dump.readArray<double>();
 	auto cmzones = dump.readArray<EncoderZone>();
 	auto bitrateCM = dump.readValue<double>();
 	auto fpsNum = dump.readValue<int>();
@@ -673,7 +675,7 @@ static int BitrateZonesBug(AMTContext& ctx, const ConfigWrapper& setting)
 	auto timeFactor = dump.readValue<double>();
 	auto costLimit = dump.readValue<double>();
 
-	auto ret = MakeVFRBitrateZones(durations, cmzones, bitrateCM, fpsNum, fpsDenom, timeFactor, costLimit);
+	auto ret = MakeVFRBitrateZones(timeCodes, cmzones, bitrateCM, fpsNum, fpsDenom, timeFactor, costLimit);
 
 	return 0;
 }

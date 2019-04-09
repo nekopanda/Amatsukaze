@@ -438,6 +438,34 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+
+        public static string[] VFRFpsList {
+            get { return new string[] { "60fps", "120fps" }; }
+        }
+
+        #region VFRFps変更通知プロパティ
+        public int VFRFps {
+            get { return Data.KfmVfr120fps ? 1 : 0; }
+            set {
+                bool newValue = (value == 1);
+                if (Data.KfmVfr120fps == newValue)
+                    return;
+                Data.KfmVfr120fps = newValue;
+                RaisePropertyChanged("VFRFps");
+                RaisePropertyChanged("VFR120Fps");
+            }
+        }
+        public bool VFR120Fps {
+            get { return Data.KfmVfr120fps; }
+            set {
+                if (Data.KfmVfr120fps == value)
+                    return;
+                Data.KfmVfr120fps = value;
+                RaisePropertyChanged("VFRFps");
+                RaisePropertyChanged("VFR120Fps");
+            }
+        }
+        #endregion
     }
 
     public class FilterYadifViewModel : DeinterlaceAlgorithmViewModel
@@ -462,6 +490,119 @@ namespace Amatsukaze.Models
                 if (Data.YadifFps == FPSListData[idx])
                     return;
                 Data.YadifFps = FPSListData[idx];
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
+    public class FilterAutoVfrViewModel : DeinterlaceAlgorithmViewModel
+    {
+        public override string Name { get { return "AutoVfr"; } }
+
+        #region NumParallel変更通知プロパティ
+        public int NumParallel {
+            get { return Data.AutoVfrParallel; }
+            set { 
+                if (Data.AutoVfrParallel == value)
+                    return;
+                Data.AutoVfrParallel = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableFast変更通知プロパティ
+        public bool EnableFast {
+            get { return Data.AutoVfrFast; }
+            set { 
+                if (Data.AutoVfrFast == value)
+                    return;
+                Data.AutoVfrFast = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Enable30F変更通知プロパティ
+        public bool Enable30F {
+            get { return Data.AutoVfr30F; }
+            set { 
+                if (Data.AutoVfr30F == value)
+                    return;
+                Data.AutoVfr30F = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Enable60F変更通知プロパティ
+        public bool Enable60F {
+            get { return Data.AutoVfr60F; }
+            set { 
+                if (Data.AutoVfr60F == value)
+                    return;
+                Data.AutoVfr60F = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Enable24A変更通知プロパティ
+        public bool Enable24A {
+            get { return Data.AutoVfr24A; }
+            set { 
+                if (Data.AutoVfr24A == value)
+                    return;
+                Data.AutoVfr24A = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Enable30A変更通知プロパティ
+        public bool Enable30A {
+            get { return Data.AutoVfr30A; }
+            set { 
+                if (Data.AutoVfr30A == value)
+                    return;
+                Data.AutoVfr30A = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableCrop変更通知プロパティ
+        public bool EnableCrop {
+            get { return Data.AutoVfrCrop; }
+            set { 
+                if (Data.AutoVfrCrop == value)
+                    return;
+                Data.AutoVfrCrop = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Skip変更通知プロパティ
+        public int Skip {
+            get { return Data.AutoVfrSkip; }
+            set { 
+                if (Data.AutoVfrSkip == value)
+                    return;
+                Data.AutoVfrSkip = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region Ref変更通知プロパティ
+        public int Ref {
+            get { return Data.AutoVfrRef; }
+            set { 
+                if (Data.AutoVfrRef == value)
+                    return;
+                Data.AutoVfrRef = value;
                 RaisePropertyChanged();
             }
         }
@@ -570,6 +711,8 @@ namespace Amatsukaze.Models
 
         public FilterYadifViewModel Yadif { get; private set; }
 
+        public FilterAutoVfrViewModel AutoVfr { get; private set; }
+
         public DeinterlaceAlgorithmViewModel[] DeinterlaceList { get; private set; }
 
         public ClientModel Model { get; private set; }
@@ -583,10 +726,11 @@ namespace Amatsukaze.Models
             D3DVP = new FilterD3DVPViewModel() { Data = data };
             QTGMC = new FilterQTGMCViewModel() { Data = data };
             Yadif = new FilterYadifViewModel() { Data = data };
+            AutoVfr = new FilterAutoVfrViewModel() { Data = data };
 
             DeinterlaceList = new DeinterlaceAlgorithmViewModel[]
             {
-                KFM, D3DVP, QTGMC, Yadif
+                KFM, D3DVP, QTGMC, Yadif, AutoVfr
             };
         }
 
@@ -808,7 +952,7 @@ namespace Amatsukaze.Models
         {
             try
             {
-                Clipboard.SetText(AvsScriptCreator.FilterToString(Data));
+                Clipboard.SetText(AvsScriptCreator.FilterToString(Data, Model.Setting.Model));
             }
             catch { }
         }
@@ -1355,30 +1499,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region VFRFps変更通知プロパティ
-        public int VFRFps {
-            get { return Data.VFR120fps ? 1 : 0; }
-            set {
-                bool newValue = (value == 1);
-                if (Data.VFR120fps == newValue)
-                    return;
-                Data.VFR120fps = newValue;
-                RaisePropertyChanged("VFRFps");
-                RaisePropertyChanged("VFR120Fps");
-            }
-        }
-        public bool VFR120Fps {
-            get { return Data.VFR120fps; }
-            set {
-                if (Data.VFR120fps == value)
-                    return;
-                Data.VFR120fps = value;
-                RaisePropertyChanged("VFRFps");
-                RaisePropertyChanged("VFR120Fps");
-            }
-        }
-        #endregion
-
         #region MoveEDCBFiles変更通知プロパティ
         public bool MoveEDCBFiles {
             get { return Data.MoveEDCBFiles; }
@@ -1658,9 +1778,6 @@ namespace Amatsukaze.Models
         public string[] FormatList {
             get { return new string[] { "MP4", "MKV", "M2TS", "TS" }; }
         }
-        public string[] VFRFpsList {
-            get { return new string[] { "60fps", "120fps" }; }
-        }
 
         #region IsModified変更通知プロパティ
         private bool _IsModified;
@@ -1896,10 +2013,21 @@ namespace Amatsukaze.Models
             text.KeyValue("プロファイル名", Data.Name);
             text.KeyValue("更新日時", Data.LastUpdate.ToString("yyyy年MM月dd日 hh:mm:ss"));
             text.KeyValue("エンコーダ", EncoderList[(int)Data.EncoderType]);
-            text.KeyValue("エンコーダオプション", EncoderOption);
+            text.KeyValue("エンコーダ追加オプション", EncoderOption);
             text.KeyValue("JoinLogoScpコマンドファイル", Data.JLSCommandFile ?? "チャンネル設定に従う");
             text.KeyValue("JoinLogoScpオプション", Data.JLSOption ?? "チャンネル設定に従う");
             text.KeyValue("chapter_exeオプション", Data.ChapterExeOption);
+
+            text.KeyValue("MPEG2デコーダ", Mpeg2DecoderList[(int)Data.Mpeg2Decoder]);
+            text.KeyValue("H264デコーダ", H264DecoderList[(int)Data.H264Deocder]);
+            text.KeyValue("出力フォーマット", FormatList[(int)Data.OutputFormat]);
+            text.KeyValue("出力選択", OutputMask.Name);
+            text.KeyValue("SCRenameによるリネームを行う", Data.EnableRename);
+            text.KeyValue("SCRename書式", Data.RenameFormat);
+            text.KeyValue("ジャンルごとにフォルダ分け", Data.EnableGunreFolder);
+
+            text.KeyValue("実行前バッチ", Data.PreBatchFile ?? "なし");
+            text.KeyValue("実行後バッチ", Data.PostBatchFile ?? "なし");
 
             if (Data.FilterOption == Server.FilterOption.None)
             {
@@ -1918,6 +2046,7 @@ namespace Amatsukaze.Models
                             text.KeyValue("フィルタ-SMDegrainによるNR", Data.FilterSetting.KfmEnableNr);
                             text.KeyValue("フィルタ-DecombUCF", Data.FilterSetting.KfmEnableUcf);
                             text.KeyValue("フィルタ-出力fps", FilterKFMViewModel.FPSList[Filter.KFM.SelectedFPS]);
+                            text.KeyValue("フィルタ-VFRフレームタイミング", FilterKFMViewModel.VFRFpsList[Filter.KFM.VFRFps]);
                             break;
                         case DeinterlaceAlgorithm.D3DVP:
                             text.KeyValue("フィルタ-使用GPU", FilterD3DVPViewModel.GPUList[(int)Data.FilterSetting.D3dvpGpu]);
@@ -1927,6 +2056,13 @@ namespace Amatsukaze.Models
                             break;
                         case DeinterlaceAlgorithm.Yadif:
                             text.KeyValue("フィルタ-出力fps", FilterYadifViewModel.FPSList[Filter.Yadif.SelectedFPS]);
+                            break;
+                        case DeinterlaceAlgorithm.AutoVfr:
+                            text.KeyValue("フィルタ-30fpsを使用する", Filter.AutoVfr.Enable30F);
+                            text.KeyValue("フィルタ-60fpsを使用する", Filter.AutoVfr.Enable60F);
+                            text.KeyValue("フィルタ-SKIP", Filter.AutoVfr.Skip.ToString());
+                            text.KeyValue("フィルタ-REF", Filter.AutoVfr.Ref.ToString());
+                            text.KeyValue("フィルタ-CROP", Filter.AutoVfr.EnableCrop);
                             break;
                     }
                 }
@@ -1952,15 +2088,6 @@ namespace Amatsukaze.Models
                 text.KeyValue("ポストフィルタ", Data.PostFilterPath);
             }
 
-            text.KeyValue("MPEG2デコーダ", Mpeg2DecoderList[(int)Data.Mpeg2Decoder]);
-            text.KeyValue("H264デコーダ", H264DecoderList[(int)Data.H264Deocder]);
-            text.KeyValue("出力フォーマット", FormatList[(int)Data.OutputFormat]);
-            text.KeyValue("出力選択", OutputMask.Name);
-            text.KeyValue("VFRフレームタイミング", VFRFpsList[Data.VFR120fps ? 1 : 0]);
-            text.KeyValue("SCRenameによるリネームを行う", Data.EnableRename);
-            text.KeyValue("SCRename書式", Data.RenameFormat);
-            text.KeyValue("ジャンルごとにフォルダ分け", Data.EnableGunreFolder);
-
             text.KeyValue("2パス", Data.TwoPass);
             text.KeyValue("CMビットレート倍率", Data.BitrateCM.ToString());
             text.KeyValue("自動ビットレート指定", Data.AutoBuffer);
@@ -1981,8 +2108,9 @@ namespace Amatsukaze.Models
             text.KeyValue("ネットワーク越しに転送する場合のハッシュチェックを無効にする", Data.DisableHashCheck);
             text.KeyValue("ログファイルを出力先に生成しない", Data.DisableLogFile);
             text.KeyValue("一時ファイルを削除せずに残す", Data.NoRemoveTmp);
-            text.KeyValue("PMT更新によるCM認識", Data.EnablePmtCut);
-            text.KeyValue("PMT更新によるCM認識カット幅", string.Format("{0}:{1}", Data.PmtCutHeadRate, Data.PmtCutTailRate));
+            text.KeyValue("PMT更新によるCM認識", Data.EnablePmtCut
+                ? string.Format("{0}:{1}", Data.PmtCutHeadRate, Data.PmtCutTailRate) : "なし");
+            text.KeyValue("ロゴ最長フェードフレーム数指定", Data.EnableMaxFadeLength ? Data.MaxFadeLength.ToString() : "なし");
             text.KeyTable("スケジューリングリソース設定", GetResourceString());
             return text.ToString();
         }
@@ -2449,6 +2577,18 @@ namespace Amatsukaze.Models
                 if (Model.SCRenamePath == value)
                     return;
                 Model.SCRenamePath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region AutoVfrPath変更通知プロパティ
+        public string AutoVfrPath {
+            get { return Model.AutoVfrPath; }
+            set { 
+                if (Model.AutoVfrPath == value)
+                    return;
+                Model.AutoVfrPath = value;
                 RaisePropertyChanged();
             }
         }

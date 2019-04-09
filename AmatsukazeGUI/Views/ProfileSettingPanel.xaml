@@ -134,7 +134,6 @@
                     <TextBlock Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" TextWrapping="Wrap" Text="H264デコーダ"/>
                     <TextBlock Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="出力フォーマット"/>
                     <TextBlock Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="出力選択"/>
-                    <TextBlock Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6" Height="16" Text="VFRフレームタイミング"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="10,0">
                     <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="120" Height="22"
@@ -165,10 +164,6 @@
                        SelectedItem="{Binding Model.SelectedProfile.OutputMask, Mode=TwoWay}"
                        ToolTip="CMカットの精度は100%ではありません"/>
 
-                    <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="80" Height="22"
-                       ItemsSource="{Binding Model.SelectedProfile.VFRFpsList}" 
-                       SelectedIndex="{Binding Model.SelectedProfile.VFRFps, Mode=TwoWay}"
-                       ToolTip="24fpsフレームのフレーム時刻に影響します"/>
                 </StackPanel>
                 
                 <StackPanel Grid.Row="2" Grid.Column="0">

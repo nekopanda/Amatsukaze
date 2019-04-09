@@ -24,16 +24,5 @@ namespace Amatsukaze.Views
         {
             InitializeComponent();
         }
-
-        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
-        {
-            System.Diagnostics.Process.Start(e.Uri.ToString());
-        }
-
-        private void Hyperlink_PluginFolder(object sender, RequestNavigateEventArgs e)
-        {
-            var path = System.IO.Path.GetDirectoryName(typeof(FilterYadifPanel).Assembly.Location) + "\\plugins64";
-            System.Diagnostics.Process.Start(path);
-        }
     }
 }

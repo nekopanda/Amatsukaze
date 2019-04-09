@@ -1,0 +1,84 @@
+﻿<UserControl x:Class="Amatsukaze.Views.FilterAutoVfrPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
+             xmlns:m="clr-namespace:Amatsukaze.Models" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="300" d:DesignWidth="300"
+             d:DataContext="{d:DesignInstance {x:Type m:FilterAutoVfrViewModel}}">
+    <StackPanel>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            AutoVfrは<Hyperlink NavigateUri="http://putin999.blog.fc2.com/"
+                        RequestNavigate="Hyperlink_RequestNavigate">putin</Hyperlink>氏による自動VFR化フィルタです。
+            高速に処理できるので、CPUでも問題なく処理できます。
+        </TextBlock>
+        <TextBlock Margin="4" TextWrapping="Wrap">
+            このフィルタはCUDAに対応していないのでCPUで処理されます。
+        </TextBlock>
+        <StackPanel Margin="5">
+            <DockPanel>
+                <TextBlock Text="並列数"/>
+                <TextBlock Text="{Binding NumParallel, Mode=OneWay}" DockPanel.Dock="Right" Width="18" TextAlignment="Right"/>
+                <Slider Margin="4,0" Minimum="1" Maximum="16" Value="{Binding NumParallel, Mode=TwoWay}" ToolTip="CPUコア数と同程度にすると速いです。大きくするとメモリを多く消費します。"/>
+            </DockPanel>
+            <CheckBox VerticalAlignment="Center" Content="Fastを使う" IsChecked="{Binding EnableFast, Mode=TwoWay}" ToolTip="検査するフレーム数が6分の1になります" />
+            <CheckBox VerticalAlignment="Center" Content="30fpsを使う" IsChecked="{Binding Enable30F, Mode=TwoWay}" />
+            <CheckBox VerticalAlignment="Center" Content="60fpsを使う" IsChecked="{Binding Enable60F, Mode=TwoWay}" />
+            <CheckBox VerticalAlignment="Center" Content="24fps部分にAutoVfr.iniで設定した関数を使う" IsChecked="{Binding Enable24A, Mode=TwoWay}" />
+            <CheckBox VerticalAlignment="Center" Content="30fps部分にAutoVfr.iniで設定した関数を使う" IsChecked="{Binding Enable30A, Mode=TwoWay}" />
+            <WrapPanel>
+                <TextBlock VerticalAlignment="Center" Text="SKIP "/>
+                <TextBox VerticalAlignment="Center" Width="30"
+                         Text="{Binding Skip, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBox.ToolTip>
+                        <TextBlock>
+                            (0～3)
+                            <LineBreak/>ノイズと判断される短い縞判定された区間をスキップする。1～3で閾値を調整する。
+                        </TextBlock>
+                    </TextBox.ToolTip>
+                </TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <TextBlock VerticalAlignment="Center" Text="REF "/>
+                <TextBox VerticalAlignment="Center" Width="40"
+                         Text="{Binding Ref, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBox.ToolTip>
+                        <TextBlock>
+                            (0,1,more)
+                            <LineBreak/>1の時はIsCrop=Trueで作成したログが必要。
+				            <LineBreak/>テロップ中はクロップ側のログを読み、周期の判別がつけば"Func_6to2"で設定した関数に
+				            <LineBreak/>置き換え、また"Var_Ref"で設定した変数を周期に対応した値に置き換える。
+                            <LineBreak/>
+                            <LineBreak/>1の場合はテロップ区間中の周期が判別した場合のみ置換を行う。IsCrop=Trueでログを作成する必要がある。
+                            <LineBreak/>
+				            <LineBreak/>それ以上の値を設定した場合はフレーム数(5フレーム間隔)として扱い、上記に加えて
+				            <LineBreak/>前後の区間から周期を推測して置換を行う。
+				            <LineBreak/>例えば-REF 150なら150フレーム(約5秒)以上の長さの60fps区間に対して置換を試みる。
+				            <LineBreak/>よって(IsCrop=True)は必ずしも必要ではない(全て推測で置換する事になるが)。						
+				            <LineBreak/>テロップ中の縞を読まないので例えば縦にテロップが流れるシーンでも自動設定が可能だが、
+				            <LineBreak/>推測なので当然信頼性は低下する。
+				            <LineBreak/>(※推測で置換された区間は区別するために注記が付く)
+                        </TextBlock>
+                    </TextBox.ToolTip>
+                </TextBox>
+                <CheckBox VerticalAlignment="Center" Content="IsCrop" IsChecked="{Binding EnableCrop, Mode=TwoWay}" />
+            </WrapPanel>
+        </StackPanel>
+        <TextBlock TextWrapping="Wrap">
+                    このフィルタを使うにはAutoVfrとItsが必要です。
+        </TextBlock>
+        <TextBlock TextWrapping="Wrap">
+                    AutoVfrは<Hyperlink NavigateUri="http://nicojk18.sakura.ne.jp/data/AutoVfr110Neo.zip"
+                        RequestNavigate="Hyperlink_RequestNavigate">これ</Hyperlink>を解凍してAutoVfr.exeへのパスを基本設定タブで設定してください。
+        </TextBlock>
+        <TextBlock TextWrapping="Wrap">
+                    Itsは64bit版が必要なので、
+                    <Hyperlink NavigateUri="https://github.com/nekopanda/Its/releases"
+                        RequestNavigate="Hyperlink_RequestNavigate">ここ</Hyperlink>からダウンロードして、x64フォルダのIts.dllを
+                    <Hyperlink NavigateUri="exe_files\plugins64" RequestNavigate="Hyperlink_PluginFolder">exe_files\plugins64</Hyperlink>にコピーしてください。
+        </TextBlock>
+    </StackPanel>
+</UserControl>

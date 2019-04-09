@@ -96,7 +96,7 @@ namespace Amatsukaze.Server
 
     public enum DeinterlaceAlgorithm
     {
-        KFM, D3DVP, QTGMC, Yadif
+        KFM, D3DVP, QTGMC, Yadif, AutoVfr
     }
 
     public enum D3DVPGPU
@@ -145,9 +145,29 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool KfmEnableUcf;
         [DataMember]
+        public bool KfmVfr120fps;
+        [DataMember]
         public FilterFPS KfmFps;
         [DataMember]
         public FilterFPS YadifFps;
+        [DataMember]
+        public int AutoVfrParallel;
+        [DataMember]
+        public bool AutoVfrFast;
+        [DataMember]
+        public bool AutoVfr30F;
+        [DataMember]
+        public bool AutoVfr60F;
+        [DataMember]
+        public bool AutoVfr24A;
+        [DataMember]
+        public bool AutoVfr30A;
+        [DataMember]
+        public bool AutoVfrCrop;
+        [DataMember]
+        public int AutoVfrSkip;
+        [DataMember]
+        public int AutoVfrRef;
         [DataMember]
         public bool EnableResize;
         [DataMember]
@@ -227,8 +247,6 @@ namespace Amatsukaze.Server
         public bool IgnoreNoLogo { get; set; }
         [DataMember]
         public bool NoDelogo { get; set; }
-        [DataMember]
-        public bool VFR120fps { get; set; }
         [DataMember]
         public bool SystemAviSynthPlugin { get; set; }
         [DataMember]
@@ -345,6 +363,8 @@ namespace Amatsukaze.Server
         public string TsMuxeRPath { get; set; }
         [DataMember]
         public string SCRenamePath { get; set; }
+        [DataMember]
+        public string AutoVfrPath { get; set; }
 
         [DataMember]
         public string WorkPath { get; set; }

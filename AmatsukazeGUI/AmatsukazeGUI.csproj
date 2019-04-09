@@ -153,6 +153,9 @@
     <Compile Include="Views\EncodeLogPanel.xaml.cs">
       <DependentUpon>EncodeLogPanel.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\FilterAutoVfrPanel.xaml.cs">
+      <DependentUpon>FilterAutoVfrPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\FilterD3DVPPanel.xaml.cs">
       <DependentUpon>FilterD3DVPPanel.xaml</DependentUpon>
     </Compile>
@@ -258,6 +261,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\EncodeLogPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\FilterAutoVfrPanel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

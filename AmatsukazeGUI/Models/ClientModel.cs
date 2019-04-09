@@ -1401,7 +1401,6 @@ namespace Amatsukaze.Models
                 profile.DisableSubs = data.Profile.DisableSubs;
                 profile.IgnoreNoDrcsMap = data.Profile.IgnoreNoDrcsMap;
                 profile.NoDelogo = data.Profile.NoDelogo;
-                profile.VFR120Fps = data.Profile.VFR120fps;
                 profile.EnableNicoJK = data.Profile.EnableNicoJK;
                 profile.IgnoreNicoJKError = data.Profile.IgnoreNicoJKError;
                 profile.NicoJK18 = data.Profile.NicoJK18;
@@ -1439,6 +1438,7 @@ namespace Amatsukaze.Models
                 profile.Filter.KFM.EnableNR = data.Profile.FilterSetting.KfmEnableNr;
                 profile.Filter.KFM.EnableUCF = data.Profile.FilterSetting.KfmEnableUcf;
                 profile.Filter.KFM.SelectedFPS = Array.IndexOf(FilterKFMViewModel.FPSListData, data.Profile.FilterSetting.KfmFps);
+                profile.Filter.KFM.VFR120Fps = data.Profile.FilterSetting.KfmVfr120fps;
                 profile.Filter.Yadif.SelectedFPS = Array.IndexOf(FilterYadifViewModel.FPSListData, data.Profile.FilterSetting.YadifFps);
                 profile.Filter.ResizeWidth = data.Profile.FilterSetting.ResizeWidth;
                 profile.Filter.ResizeHeight = data.Profile.FilterSetting.ResizeHeight;

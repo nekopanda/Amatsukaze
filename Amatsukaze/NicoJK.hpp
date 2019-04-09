@@ -132,7 +132,7 @@ private:
 	tstring MakeNicoJK18Args(int jknum, size_t startTime, size_t endTime)
 	{
 		return StringFormat(_T("\"%s\" jk%d %zu %zu -x -f \"%s\""),
-			GetModuleDirectory() + _T("\\NicoJK18Client.exe"),
+			pathNormalize(GetModuleDirectory()) + _T("/NicoJK18Client.exe"),
 			jknum, startTime, endTime,
 			setting_.getTmpNicoJKXMLPath());
 	}

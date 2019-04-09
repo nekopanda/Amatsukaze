@@ -131,7 +131,7 @@ static tstring makeEncoderArgs(
 	const tstring& options,
 	const VideoFormat& fmt,
 	const tstring& timecodepath,
-	bool is120fps,
+	int vfrTimingFps,
 	const tstring& outpath)
 {
 	StringBuilderT sb;
@@ -187,7 +187,7 @@ static tstring makeEncoderArgs(
 	}
 
 	if (timecodepath.size() > 0 && encoder == ENCODER_X264) {
-		std::pair<int, int> timebase = std::make_pair(fmt.frameRateNum * (is120fps ? 4 : 2), fmt.frameRateDenom);
+		std::pair<int, int> timebase = std::make_pair(fmt.frameRateNum * (vfrTimingFps / 30), fmt.frameRateDenom);
 		sb.append(_T(" --tcfile-in \"%s\" --timebase %d/%d"), timecodepath, timebase.second, timebase.first);
 	}
 
@@ -392,7 +392,7 @@ public:
 		abolutePath.resize(sz);
 		GetFullPathNameW(path_.c_str(), sz, &abolutePath[0], 0);
 		abolutePath.resize(sz - 1);
-		path_ = abolutePath;
+		path_ = pathNormalize(abolutePath);
 		initialized_ = true;
 	}
 
@@ -481,7 +481,6 @@ struct Config {
 	double pmtCutSideRate[2];
 	bool looseLogoDetection;
 	bool noDelogo;
-	bool vfr120fps;
 	int maxFadeLength;
 	tstring chapterExePath;
 	tstring chapterExeOptions;
@@ -679,10 +678,6 @@ public:
 		return conf.noDelogo;
 	}
 
-	bool isVFR120fps() const {
-		return conf.vfr120fps;
-	}
-
 	int getMaxFadeLength() const {
 		return conf.maxFadeLength;
 	}
@@ -772,7 +767,7 @@ public:
 			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
 
-	tstring getTimecodeFilePath(EncodeFileKey key) const {
+	tstring getAfsTimecodePath(EncodeFileKey key) const {
 		return regtmp(StringFormat(_T("%s/v%d-%d-%d%s.timecode.txt"),
 			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)));
 	}
@@ -780,20 +775,18 @@ public:
 	tstring getAvsTmpPath(EncodeFileKey key) const {
 		auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
 			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
-		ctx.registerTmpFile(str);
-		ctx.registerTmpFile(str + _T(".result.dat"));
-		// KFMCycleAnalyzeのデバッグダンプファイルも追加
-		ctx.registerTmpFile(str + _T(".pattern.txt"));
-		ctx.registerTmpFile(str + _T(".debug.txt"));
+		ctx.registerTmpFile(str + _T("*"));
 		return str;
 	}
 
 	tstring getAvsDurationPath(EncodeFileKey key) const {
-    auto str = StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
-      tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm));
-    ctx.registerTmpFile(str + _T(".duration.txt"));
-    ctx.registerTmpFile(str + _T(".timecode.txt"));
-		return str + _T(".duration.txt");
+		return regtmp(StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)) + _T(".duration.txt"));
+	}
+
+	tstring getAvsTimecodePath(EncodeFileKey key) const {
+		return regtmp(StringFormat(_T("%s/v%d-%d-%d%s.avstmp"),
+			tmpDir.path(), key.video, key.format, key.div, GetCMSuffix(key.cm)) + _T(".timecode.txt"));
 	}
 
 	tstring getFilterAvsPath(EncodeFileKey key) const {
@@ -942,7 +935,7 @@ public:
 	}
 
 	tstring getDRCSOutPath(const std::string& md5) const {
-		return StringFormat(_T("%s\\%s.bmp"), conf.drcsOutPath, md5);
+		return StringFormat(_T("%s/%s.bmp"), conf.drcsOutPath, md5);
 	}
 
 	bool isDumpFilter() const {

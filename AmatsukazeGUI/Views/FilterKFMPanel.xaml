@@ -57,6 +57,14 @@
             <TextBlock Margin="4" Text="出力fps" VerticalAlignment="Center"/>
             <ComboBox Margin="4" Height="22" ItemsSource="{Binding FPSList}" SelectedIndex="{Binding SelectedFPS, Mode=TwoWay}"/>
         </DockPanel>
+        <DockPanel Style="{StaticResource ExtendDuration}">
+            <TextBlock Margin="4" Text="VFRフレームタイミング" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" Margin="0,3" VerticalAlignment="Top" Width="80" Height="22"
+                       ItemsSource="{Binding VFRFpsList}" 
+                       SelectedIndex="{Binding VFRFps, Mode=TwoWay}"
+                       ToolTip="24fpsフレームのフレーム時刻に影響します"/>
+        </DockPanel>
+        
         <TextBlock Margin="4" TextWrapping="Wrap">
             SVPによる60fps化を使用する場合は、SVPの
             <Hyperlink NavigateUri="https://www.svp-team.com/wiki/Download#libs"

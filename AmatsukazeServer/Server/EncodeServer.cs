@@ -1248,10 +1248,6 @@ namespace Amatsukaze.Server
                     {
                         sb.Append(" --chapter");
                     }
-                    if (profile.VFR120fps)
-                    {
-                        sb.Append(" --vfr120fps");
-                    }
                     if (profile.EnableNicoJK)
                     {
                         sb.Append(" --nicojk");
@@ -1278,7 +1274,7 @@ namespace Amatsukaze.Server
                     {
                         sb.Append(" -f \"")
                             .Append(CachedAvsScript.GetAvsFilePath(
-                                profile.FilterSetting, GetAvsCacheDirectoryPath()))
+                                profile.FilterSetting, setting, GetAvsCacheDirectoryPath()))
                             .Append("\"");
                     }
                     else if(profile.FilterOption == FilterOption.Custom)
@@ -1489,6 +1485,9 @@ namespace Amatsukaze.Server
             CheckPath("ChapterExe", setting.ChapterExePath);
             CheckPath("JoinLogoScp", setting.JoinLogoScpPath);
             CheckPath("NicoConvAss", setting.NicoConvASSPath);
+            CheckPath("tsMuxeR", setting.TsMuxeRPath);
+            CheckPath("SCRename.vbs", setting.SCRenamePath);
+            CheckPath("AutoVfr.exe", setting.AutoVfrPath);
 
             if (profile != null)
             {
@@ -1564,6 +1563,16 @@ namespace Amatsukaze.Server
                     if (string.IsNullOrEmpty(profile.RenameFormat))
                     {
                         throw new ArgumentException("リネームフォーマットが設定されていません");
+                    }
+                }
+
+                if(profile.FilterOption == FilterOption.Setting &&
+                    profile.FilterSetting.EnableDeinterlace &&
+                    profile.FilterSetting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.AutoVfr)
+                {
+                    if(string.IsNullOrEmpty(setting.AutoVfrPath))
+                    {
+                        throw new ArgumentException("AutoVfr.exeパスが設定されていません");
                     }
                 }
             }

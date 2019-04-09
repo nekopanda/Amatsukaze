@@ -86,7 +86,6 @@ static void printHelp(const tchar* bin) {
 		"                      8 : 1920x1080半透明\n"
 		"                      ORも可 例) 15: すべて出力\n"
 		"  --no-remove-tmp     一時ファイルを削除せずに残す\n"
-		"  --vfr120fps         VFR時120fpsタイミングでフレーム時刻を生成\n"
 		"                      デフォルトは60fpsタイミングで生成\n"
 		"  --x265-timefactor <数値>  x265で疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
 		"  --pmt-cut <数値>:<数値>  PMT変更でCM認識するときの最大CM認識時間割合。全再生時間に対する割合で指定する。\n"
@@ -113,53 +112,6 @@ static tstring getParam(int argc, const tchar* argv[], int ikey) {
 			"%" PRITSTR "オプションはパラメータが必要です", argv[ikey]);
 	}
 	return argv[ikey + 1];
-}
-
-static tstring pathNormalize(tstring path) {
-	if (path.size() != 0) {
-		// バックスラッシュはスラッシュに変換
-		std::replace(path.begin(), path.end(), _T('\\'), _T('/'));
-		// 最後のスラッシュは取る
-		if (path.back() == _T('/')) {
-			path.pop_back();
-		}
-	}
-	return path;
-}
-
-template <typename STR>
-static size_t pathGetExtensionSplitPos(const STR& path) {
-	size_t lastsplit = path.rfind(_T('/'));
-	size_t namebegin = (lastsplit == STR::npos)
-		? 0
-		: lastsplit + 1;
-	size_t dotpos = path.rfind(_T('.'));
-	size_t len = (dotpos == STR::npos || dotpos < namebegin)
-		? path.size()
-		: dotpos;
-	return len;
-}
-
-static tstring pathGetDirectory(const tstring& path) {
-	size_t lastsplit = path.rfind(_T('/'));
-	size_t namebegin = (lastsplit == tstring::npos)
-		? 0
-		: lastsplit;
-	return path.substr(0, namebegin);
-}
-
-static tstring pathRemoveExtension(const tstring& path) {
-	const tchar* exts[] = { _T(".mp4"), _T(".mkv"), _T(".m2ts"), _T(".ts"), nullptr };
-	const tchar* c_path = path.c_str();
-	for (int i = 0; exts[i]; ++i) {
-		size_t extlen = strlenT(exts[i]);
-		if (path.size() > extlen) {
-			if (_wcsicmp(c_path + (path.size() - extlen), exts[i]) == 0) {
-				return path.substr(0, path.size() - extlen);
-			}
-		}
-	}
-	return path;
 }
 
 static ENUM_ENCODER encoderFtomString(const tstring& str) {
@@ -193,7 +145,7 @@ static DECODER_TYPE decoderFromString(const tstring& str) {
 
 static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const tchar* argv[])
 {
-	tstring moduleDir = GetModuleDirectory();
+	tstring moduleDir = pathNormalize(GetModuleDirectory());
 	Config conf = Config();
 	conf.workDir = _T("./");
 	conf.encoderPath = _T("x264.exe");
@@ -204,9 +156,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 	conf.joinLogoScpPath = _T("join_logo_scp.exe");
 	conf.nicoConvAssPath = _T("NicoConvASS.exe");
 	conf.nicoConvChSidPath = _T("ch_sid.txt");
-	conf.drcsOutPath = moduleDir + _T("\\..\\drcs");
-	conf.drcsMapPath = conf.drcsOutPath + _T("\\drcs_map.txt");
-	conf.joinLogoScpCmdPath = moduleDir + _T("\\..\\JL\\JL_標準.txt");
+	conf.drcsOutPath = moduleDir + _T("/../drcs");
+	conf.drcsMapPath = conf.drcsOutPath + _T("/drcs_map.txt");
+	conf.joinLogoScpCmdPath = moduleDir + _T("/../JL/JL_標準.txt");
 	conf.mode = _T("ts");
 	conf.modeArgs = _T("");
 	conf.bitrateCM = 1.0;
@@ -249,7 +201,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			}
 		}
 		else if (key == _T("-e") || key == _T("--encoder")) {
-			conf.encoderPath = getParam(argc, argv, i++);
+			conf.encoderPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
 			conf.encoderOptions = getParam(argc, argv, i++);
@@ -307,22 +259,22 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			nicojk = true;
 		}
 		else if (key == _T("-m") || key == _T("--muxer")) {
-			conf.muxerPath = getParam(argc, argv, i++);
+			conf.muxerPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-t") || key == _T("--timelineeditor")) {
-			conf.timelineditorPath = getParam(argc, argv, i++);
+			conf.timelineditorPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--mp4box")) {
-			conf.mp4boxPath = getParam(argc, argv, i++);
+			conf.mp4boxPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-j") || key == _T("--json")) {
-			conf.outInfoJsonPath = getParam(argc, argv, i++);
+			conf.outInfoJsonPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-f") || key == _T("--filter")) {
-			conf.filterScriptPath = getParam(argc, argv, i++);
+			conf.filterScriptPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-pf") || key == _T("--postfilter")) {
-			conf.postFilterScriptPath = getParam(argc, argv, i++);
+			conf.postFilterScriptPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-s") || key == _T("--serivceid")) {
 			tstring sidstr = getParam(argc, argv, i++);
@@ -367,9 +319,6 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--no-delogo")) {
 			conf.noDelogo = true;
 		}
-		else if (key == _T("--vfr120fps")) {
-			conf.vfr120fps = true;
-		}
 		else if (key == _T("--x265-timefactor")) {
 			const auto arg = getParam(argc, argv, i++);
 			int ret = sscanfT(arg.c_str(), _T("%lf"), &conf.x265TimeFactor);
@@ -378,36 +327,36 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			}
 		}
 		else if (key == _T("--logo")) {
-			conf.logoPath.push_back(getParam(argc, argv, i++));
+			conf.logoPath.push_back(pathNormalize(getParam(argc, argv, i++)));
 		}
 		else if (key == _T("--drcs")) {
-			auto path = getParam(argc, argv, i++);
+			auto path = pathNormalize(getParam(argc, argv, i++));
 			conf.drcsMapPath = path;
-			conf.drcsOutPath = pathGetDirectory(pathNormalize(path));
+			conf.drcsOutPath = pathGetDirectory(path);
 			if (conf.drcsOutPath.size() == 0) {
 				conf.drcsOutPath = _T(".");
 			}
 		}
 		else if (key == _T("--chapter-exe")) {
-			conf.chapterExePath = getParam(argc, argv, i++);
+			conf.chapterExePath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--chapter-exe-options")) {
 			conf.chapterExeOptions = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--jls")) {
-			conf.joinLogoScpPath = getParam(argc, argv, i++);
+			conf.joinLogoScpPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--jls-cmd")) {
-			conf.joinLogoScpCmdPath = getParam(argc, argv, i++);
+			conf.joinLogoScpCmdPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--jls-option")) {
 			conf.joinLogoScpOptions = getParam(argc, argv, i++);
 		}
 		else if (key == _T("--trimavs")) {
-			conf.trimavsPath = getParam(argc, argv, i++);
+			conf.trimavsPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--nicoass")) {
-			conf.nicoConvAssPath = getParam(argc, argv, i++);
+			conf.nicoConvAssPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("--nicojk18")) {
 			conf.nicojk18 = true;
@@ -541,14 +490,17 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 
 	// exeを探す
 	if (conf.mode != _T("drcs") && !starts_with(conf.mode, _T("probe_"))) {
-		conf.chapterExePath = SearchExe(conf.chapterExePath);
-		conf.encoderPath = SearchExe(conf.encoderPath);
-		conf.joinLogoScpPath = SearchExe(conf.joinLogoScpPath);
-		conf.nicoConvAssPath = SearchExe(conf.nicoConvAssPath);
-		conf.nicoConvChSidPath = GetDirectoryPath(conf.nicoConvAssPath) + _T("\\ch_sid.txt");
-		conf.mp4boxPath = SearchExe(conf.mp4boxPath);
-		conf.muxerPath = SearchExe(conf.muxerPath);
-		conf.timelineditorPath = SearchExe(conf.timelineditorPath);
+		auto search = [](const tstring& path) {
+			return pathNormalize(SearchExe(path));
+		};
+		conf.chapterExePath = search(conf.chapterExePath);
+		conf.encoderPath = search(conf.encoderPath);
+		conf.joinLogoScpPath = search(conf.joinLogoScpPath);
+		conf.nicoConvAssPath = search(conf.nicoConvAssPath);
+		conf.nicoConvChSidPath = pathNormalize(GetDirectoryPath(conf.nicoConvAssPath)) + _T("/ch_sid.txt");
+		conf.mp4boxPath = search(conf.mp4boxPath);
+		conf.muxerPath = search(conf.muxerPath);
+		conf.timelineditorPath = search(conf.timelineditorPath);
 	}
 
 	return std::unique_ptr<ConfigWrapper>(new ConfigWrapper(ctx, conf));

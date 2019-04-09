@@ -290,9 +290,10 @@ public:
 
 		// 重複チェック
 		std::set<std::wstring> fileset;
-		for (int i = 0; i < (int)filelist.size(); ++i) {
-			std::wstring filename(filelist[i].filename, filelist[i].filename + filelist[i].flen);
+		for (auto it = filelist.rbegin(); it != filelist.rend(); ++it) {
+			std::wstring filename(it->filename, it->filename + it->flen);
 			if (fileset.find(filename) != fileset.end()) {
+				it->duplicate = true;
 				wprintf(L"重複: %s\n", filename.c_str());
 			}
 			else {
@@ -341,6 +342,8 @@ public:
 		std::vector<HashData*> validlist;
 		int64 totalFileSize = 0;
 		for (int64 i = 0, end = filelist.size(); i < end; i++) {
+			if (filelist[i].duplicate) continue;
+
 			MakePath(filepath + pathLen, filelist[i]);
 			WIN32_FILE_ATTRIBUTE_DATA fileAtt;
 			if (GetFileAttributesEx(filepath, GetFileExInfoStandard, &fileAtt) == FALSE) {
@@ -360,6 +363,8 @@ public:
 		handler->TotalFileSize(totalFileSize);
 
 		for (int64 i = 0, end = filelist.size(), v = 0, vend = validlist.size(); i < end; i++) {
+			if (filelist[i].duplicate) continue;
+
 			BYTE hash[HASH_LENGTH];
 
 			if (v < vend && (&filelist[i] == validlist[v])) {
@@ -479,6 +484,7 @@ protected:
 		__int64 filesize;
 		LPCWSTR filename;
 		int flen;
+		bool duplicate;
 	};
 
 	struct VirtualAllocMemory {

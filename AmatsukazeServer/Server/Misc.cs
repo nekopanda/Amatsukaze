@@ -230,12 +230,13 @@ namespace Amatsukaze.Server
         public static string CreateSuffix(int n)
         {
             if (n == 0) return "";
-            var suffix = "-";
-            while(n > 0)
+            var suffix = "";
+            while (n > 0)
             {
-                suffix += (char)('A' + (n % 27) - 1);
+                suffix = (char)('A' + (n % 27) - ((n < 27) ? 1 : 0)) + suffix;
                 n /= 27;
             }
+            suffix = "-" + suffix;
             return suffix;
         }
 
@@ -701,7 +702,11 @@ namespace Amatsukaze.Server
                 DeblockQuality = 3,
                 DeblockStrength = DeblockStrength.Medium,
                 ResizeWidth = 1280,
-                ResizeHeight = 720
+                ResizeHeight = 720,
+                AutoVfrParallel = 4,
+                AutoVfr30F = true,
+                AutoVfr60F = true,
+                AutoVfrSkip = 2
             };
         }
 
@@ -737,6 +742,14 @@ namespace Amatsukaze.Server
                 // 互換性維持
                 profile.FilterOption = FilterOption.Custom;
                 profile.FilterSetting = DefaultFilterSetting();
+            }
+            if(profile.FilterSetting.AutoVfrParallel == 0)
+            {
+                // 初期値
+                profile.FilterSetting.AutoVfrParallel = 4;
+                profile.FilterSetting.AutoVfr30F = true;
+                profile.FilterSetting.AutoVfr60F = true;
+                profile.FilterSetting.AutoVfrSkip = 2;
             }
             return profile;
         }
@@ -1228,11 +1241,11 @@ namespace Amatsukaze.Server
             return null;
         }
 
-        public static string FilterToString(FilterSetting setting)
+        public static string FilterToString(FilterSetting filter, Setting setting)
         {
             StringBuilder sb = new StringBuilder();
 
-            if (setting.EnableCUDA)
+            if (filter.EnableCUDA)
             {
                 sb.AppendLine("SetDeviceOpt(DEV_CUDA_PINNED_HOST) # CUDAデータ転送最適化");
                 sb.AppendLine("dsrc = AMT_SOURCE.OnCPU(2)");
@@ -1242,31 +1255,31 @@ namespace Amatsukaze.Server
                 sb.AppendLine("dsrc = AMT_SOURCE");
             }
 
-            if (setting.EnableDeinterlace)
+            if (filter.EnableDeinterlace)
             {
                 int videoOutPass = 0;
-                if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.D3DVP)
+                if (filter.DeinterlaceAlgorithm == DeinterlaceAlgorithm.D3DVP)
                 {
-                    var device = GetGPUString(setting.D3dvpGpu);
+                    var device = GetGPUString(filter.D3dvpGpu);
                     sb.AppendLine("AMT_SOURCE.D3DVP(" + ((device != null) ? "device=\"" + device + "\"" : "") + ")");
-                    if (setting.EnableCUDA)
+                    if (filter.EnableCUDA)
                     {
                         sb.AppendLine("OnCPU(2)");
                     }
                 }
-                else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.QTGMC)
+                else if (filter.DeinterlaceAlgorithm == DeinterlaceAlgorithm.QTGMC)
                 {
-                    var preset = GetQTGMCPreseet(setting.QtgmcPreset);
+                    var preset = GetQTGMCPreseet(filter.QtgmcPreset);
                     if(preset != null)
                     {
                         preset = ", preset=\"" + preset + "\"";
                     }
-                    sb.AppendLine("dsrc.KFMDeint(mode=1" + preset + ", ucf=false, nr=false" + 
-                        ", cuda=" + (setting.EnableCUDA ? "true" : "false") + ")");
+                    sb.AppendLine("dsrc.KFMDeint(mode=1" + preset + ", ucf=false, nr=false" +
+                        ", cuda=" + (filter.EnableCUDA ? "true" : "false") + ", is120=" + filter.KfmVfr120fps + ")");
                 }
-                else if (setting.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM)
+                else if (filter.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM)
                 {
-                    if (setting.KfmFps == FilterFPS.VFR || setting.KfmFps == FilterFPS.VFR30)
+                    if (filter.KfmFps == FilterFPS.VFR || filter.KfmFps == FilterFPS.VFR30)
                     {
                         // VFR
                         sb.AppendLine("pass = Select(AMT_PASS, 1, 2, 3)");
@@ -1279,22 +1292,22 @@ namespace Amatsukaze.Server
                         sb.AppendLine("AMT_PRE_PROC = (AMT_PASS < 1)");
                         videoOutPass = 1;
                     }
-                    sb.AppendLine("dsrc.KFMDeint(mode=" + ((setting.KfmFps == FilterFPS.CFR24) ? 2 : 4) +
+                    sb.AppendLine("dsrc.KFMDeint(mode=" + ((filter.KfmFps == FilterFPS.CFR24) ? 2 : 4) +
                         ", pass=pass" +
-                        ", ucf=" + (setting.KfmEnableUcf ? "true" : "false") +
-                        ", nr=" + (setting.KfmEnableNr ? "true" : "false") +
-                        ", svp=" + ((setting.KfmFps == FilterFPS.SVP) ? "true" : "false") +
-                        ", thswitch=" + ((setting.KfmFps == FilterFPS.VFR30) ? "-1" : "3") +
-                        ", cuda=" + (setting.EnableCUDA ? "true" : "false") +
+                        ", ucf=" + (filter.KfmEnableUcf ? "true" : "false") +
+                        ", nr=" + (filter.KfmEnableNr ? "true" : "false") +
+                        ", svp=" + ((filter.KfmFps == FilterFPS.SVP) ? "true" : "false") +
+                        ", thswitch=" + ((filter.KfmFps == FilterFPS.VFR30) ? "-1" : "3") +
+                        ", cuda=" + (filter.EnableCUDA ? "true" : "false") +
                         ", dev=AMT_DEV, filepath=AMT_TMP)");
                 }
-                else
+                else if(filter.DeinterlaceAlgorithm == DeinterlaceAlgorithm.Yadif)
                 {
-                    if (setting.YadifFps == FilterFPS.CFR24)
+                    if (filter.YadifFps == FilterFPS.CFR24)
                     {
                         sb.AppendLine("AMT_SOURCE.Yadifmod2(mode=0).TDecimate(mode=1)");
                     }
-                    else if (setting.YadifFps == FilterFPS.CFR30)
+                    else if (filter.YadifFps == FilterFPS.CFR30)
                     {
                         sb.AppendLine("AMT_SOURCE.Yadifmod2(mode=0)");
                     }
@@ -1302,7 +1315,53 @@ namespace Amatsukaze.Server
                     {
                         sb.AppendLine("AMT_SOURCE.Yadifmod2(mode=1)");
                     }
-                    if (setting.EnableCUDA)
+                    if (filter.EnableCUDA)
+                    {
+                        sb.AppendLine("OnCPU(2)");
+                    }
+                }
+                else
+                {
+                    // AutoVfr
+                    int parallel = filter.AutoVfrParallel;
+                    var fname = filter.AutoVfrFast ? "Auto_Vfr_Fast" : "Auto_Vfr";
+                    var crop = filter.AutoVfrFast ? "" : ",IsCrop=" + (filter.AutoVfrCrop ? "true" : "false");
+                    var concatarg = "C:\\Windows\\System32\\cmd.exe /c copy " +
+                        string.Join("+", Enumerable.Range(1, parallel).Select(i => "$DQ\"+AMT_TMP+\".autovfr" + i + ".log$DQ")) +
+                        " $DQ\"+AMT_TMP+\".autovfr.log$DQ ";
+                    var autovfrarg = "$DQ" + setting.AutoVfrPath +
+                        "$DQ -i $DQ\"+logp+\"$DQ -o $DQ\"+defp+\"$DQ" +
+                        " -SKIP "+filter.AutoVfrSkip+
+                        " -REF "+filter.AutoVfrRef+
+                        " -30F "+(filter.AutoVfr30F ? "1" : "0")+
+                        " -60F " + (filter.AutoVfr60F ? "1" : "0")+
+                        " -24A "+(filter.AutoVfr24A ? "1" : "0")+
+                        " -30A "+(filter.AutoVfr30A ? "1" : "0");
+
+                    concatarg = concatarg.Replace("$DQ", "\"+Chr(34)+\"").Replace("+\"\"+", "+");
+                    autovfrarg = autovfrarg.Replace("$DQ", "\"+Chr(34)+\"").Replace("+\"\"+", "+");
+
+                    sb.AppendLine("Import(\"" + Path.GetDirectoryName(setting.AutoVfrPath) + "\\" + fname + ".avs\")");
+                    sb.AppendLine("AMT_PRE_PROC = (AMT_PASS < 2)");
+                    sb.AppendLine("logp = AMT_TMP + \".autovfr.log\"");
+                    sb.AppendLine("defp = AMT_TMP + \".autovfr.def\"");
+                    if (parallel <= 1)
+                    {
+                        sb.AppendLine("if(AMT_PASS == 0) { AMT_SOURCE." + fname + "(logp" + crop + ") }");
+                        sb.AppendLine("if(AMT_PASS == 1) { AMT_SOURCE.AMTExec(" + autovfrarg + ").Trim(0,-1) }");
+                    }
+                    else
+                    {
+                        sb.AppendLine("af = function[AMT_TMP](n){\n\tMakeSource()." + fname + "(AMT_TMP+\".autovfr\"+string(n)+\".log\"" + 
+                            crop + ",cut=" + parallel + ",number=n)\n}");
+                        sb.AppendLine("if(AMT_PASS == 0) {\n\tAMTOrderedParallel(" +
+                            string.Join(",", Enumerable.Range(1, parallel).Select(i => "af(" + i + ")")) +
+                            ")\n\tPrefetch(" + parallel + ")\n}");
+                        sb.AppendLine("if(AMT_PASS == 1) {\n\tAMT_SOURCE\n\tAMTExec(\"" + concatarg + "\")\n\tAMTExec(\"" + autovfrarg + "\")\n\tTrim(0,-1)\n}");
+                    }
+                    sb.AppendLine("if(AMT_PASS == 2) { AMT_SOURCE.Its(defp,output=AMT_TMP+\".timecode.txt\") }");
+                    videoOutPass = 2;
+                    if (filter.EnableCUDA)
                     {
                         sb.AppendLine("OnCPU(2)");
                     }
@@ -1320,44 +1379,44 @@ namespace Amatsukaze.Server
             }
 
             // ポストプロセス
-            if (setting.EnableResize || setting.EnableTemporalNR || 
-                setting.EnableDeband || setting.EnableEdgeLevel ||
-                setting.EnableDeblock)
+            if (filter.EnableResize || filter.EnableTemporalNR || 
+                filter.EnableDeband || filter.EnableEdgeLevel ||
+                filter.EnableDeblock)
             {
-                if (setting.EnableDeblock)
+                if (filter.EnableDeblock)
                 {
                     // QPClipのOnCPUはGPUメモリ節約のため
                     // dsrcにQTGMCパスと25フレームくらいの時間差でアクセスすることになるので
                     // キャッシュを大量に消費してしまうので、CPU側に逃がす
                     sb.AppendLine("KDeblock(qpclip=dsrc.QPClip().OnCPU(2),quality=" +
-                        setting.DeblockQuality + "," +
-                        GetDeblockOption(setting.DeblockStrength) + ",sharp=" +
-                        setting.DeblockSharpen + ")");
+                        filter.DeblockQuality + "," +
+                        GetDeblockOption(filter.DeblockStrength) + ",sharp=" +
+                        filter.DeblockSharpen + ")");
                 }
-                if (setting.EnableResize || setting.EnableTemporalNR ||
-                    setting.EnableDeband || setting.EnableEdgeLevel)
+                if (filter.EnableResize || filter.EnableTemporalNR ||
+                    filter.EnableDeband || filter.EnableEdgeLevel)
                 {
                     sb.AppendLine("ConvertBits(14)");
-                    if (setting.EnableResize)
+                    if (filter.EnableResize)
                     {
-                        sb.AppendLine("BlackmanResize(" + setting.ResizeWidth + "," + setting.ResizeHeight + ")");
+                        sb.AppendLine("BlackmanResize(" + filter.ResizeWidth + "," + filter.ResizeHeight + ")");
                     }
-                    if (setting.EnableTemporalNR)
+                    if (filter.EnableTemporalNR)
                     {
                         sb.AppendLine("KTemporalNR(3, 1)");
                     }
-                    if (setting.EnableDeband)
+                    if (filter.EnableDeband)
                     {
                         sb.AppendLine("KDeband(25, 1, 2, true)");
                     }
-                    if (setting.EnableEdgeLevel)
+                    if (filter.EnableEdgeLevel)
                     {
                         sb.AppendLine("KEdgeLevel(16, 10, 2)");
                     }
                     sb.AppendLine("ConvertBits(10, dither=0)");
                     sb.AppendLine("if(IsProcess(\"AvsPmod.exe\")) { ConvertBits(8, dither=0) }");
                 }
-                sb.AppendLine(setting.EnableCUDA ? "OnCUDA(2, AMT_DEV)" : "Prefetch(4)");
+                sb.AppendLine(filter.EnableCUDA ? "OnCUDA(2, AMT_DEV)" : "Prefetch(4)");
             }
 
             return sb.ToString();
@@ -1385,9 +1444,9 @@ namespace Amatsukaze.Server
 
         // settingのスクリプトファイルへのパスを返す
         //（同じスクリプトがあればそのパス、なければ作る）
-        public static string GetAvsFilePath(FilterSetting setting, string cacheRoot)
+        public static string GetAvsFilePath(FilterSetting filter, Setting setting, string cacheRoot)
         {
-            var textBytes = Encoding.Default.GetBytes(AvsScriptCreator.FilterToString(setting));
+            var textBytes = Encoding.Default.GetBytes(AvsScriptCreator.FilterToString(filter, setting));
             var code = GetHashCode(textBytes);
 
             if(Directory.Exists(cacheRoot) == false)

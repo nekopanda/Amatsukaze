@@ -397,7 +397,16 @@ public:
 
 	void clearTmpFiles() {
 		for (auto& path : tmpFiles) {
-			removeT(path.c_str());
+			if (path.find(_T('*')) != tstring::npos) {
+				auto dir = pathGetDirectory(path);
+				for (auto name : GetDirectoryFiles(dir, path.substr(dir.size() + 1))) {
+					auto path2 = dir + _T("/") + name;
+					removeT(path2.c_str());
+				}
+			}
+			else {
+				removeT(path.c_str());
+			}
 		}
 		tmpFiles.clear();
 	}

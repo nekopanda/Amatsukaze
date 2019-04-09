@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <numeric>
+#include <regex>
 
 #include "StreamUtils.hpp"
 #include "ReaderWriterFFmpeg.hpp"
@@ -158,6 +159,58 @@ class AMTFilterSource : public AMTObject {
 		std::string script;
 		StringBuilder append;
 	};
+
+	void readTimecodeFile(const tstring& filepath) {
+		File file(filepath, _T("r"));
+		std::regex re("#\\s*total:\\s*([+-]?([0-9]*[.])?[0-9]+).*");
+		std::string str;
+		timeCodes_.clear();
+		while (file.getline(str)) {
+			if (str.size()) {
+				std::smatch m;
+				if (std::regex_search(str, m, re)) {
+					timeCodes_.push_back(std::atof(m[1].str().c_str()) * 1000);
+					return;
+				}
+				else if (str[0] != '#') {
+					timeCodes_.push_back(std::atoi(str.c_str()));
+				}
+			}
+		}
+		// 合計時間を推測
+		size_t numFrames = timeCodes_.size();
+		if (numFrames >= 2) {
+			timeCodes_.push_back(timeCodes_[numFrames - 1] * 2 - timeCodes_[numFrames - 2]);
+		}
+		else if (numFrames == 1) {
+			timeCodes_.push_back(timeCodes_[0] + 1000.0 / 60.0);
+		}
+	}
+
+	void readTimecode(EncodeFileKey key) {
+		auto timecodepath = setting_.getAvsTimecodePath(key);
+		// timecodeファイルがあったら読み込む
+		if (File::exists(timecodepath)) {
+			readTimecodeFile(timecodepath);
+			// ベースFPSを推測
+			// フレームタイミングとの差の和が最も小さいFPSをベースFPSとする
+			double minDiff = timeCodes_.back();
+			double epsilon = timeCodes_.size() * 10e-10;
+			for (auto fps : { 60, 120, 240 }) {
+				double mult = fps / 1001.0;
+				double inv = 1.0 / mult;
+				double diff = 0;
+				for (auto ts : timeCodes_) {
+					diff += std::abs(inv * std::round(ts * mult) - ts);
+				}
+				if (diff < minDiff - epsilon) {
+					vfrTimingFps_ = fps;
+					minDiff = diff;
+				}
+			}
+		}
+	}
+
 public:
 	// Main (+ Post)
 	AMTFilterSource(AMTContext&ctx,
@@ -170,6 +223,7 @@ public:
 		: AMTObject(ctx)
 		, setting_(setting)
 		, env_(make_unique_ptr((IScriptEnvironment2*)nullptr))
+		, vfrTimingFps_(0)
 	{
 		try {
 			// フィルタ前処理用リソース確保
@@ -209,17 +263,12 @@ public:
 			}
 
 			auto durationpath = setting_.getAvsDurationPath(key);
-			// durationファイルがあったら読み込む
+			// durationファイルがAMTDecimateを挟む
 			if (File::exists(durationpath)) {
-				File file(durationpath, _T("r"));
-				std::string str;
-				while (file.getline(str)) {
-					if (str.size()) {
-						frameDurations.push_back(std::atoi(str.c_str()));
-					}
-				}
 				sb.append("AMTDecimate(\"%s\")\n", durationpath);
 			}
+
+			readTimecode(key);
 
 			if (setting_.isDumpFilter()) {
 				sb.append("DumpFilterGraph(\"%s\", 1)\n",
@@ -268,9 +317,13 @@ public:
 		return outZones_;
 	}
 
-	// 各フレームのFPS（FrameTimingがない場合サイズゼロ）
-	const std::vector<int>& getFrameDurations() const {
-		return frameDurations;
+	// 各フレームの時間ms(最後のフレームの表示時間を定義するため要素数はフレーム数+1)
+	const std::vector<double>& getTimeCodes() const {
+		return timeCodes_;
+	}
+
+	int getVfrTimingFps() const {
+		return vfrTimingFps_;
 	}
 
 	IScriptEnvironment2* getEnv() const {
@@ -284,7 +337,8 @@ private:
 	PClip filter_;
 	VideoFormat outfmt_;
 	std::vector<EncoderZone> outZones_;
-	std::vector<int> frameDurations;
+	std::vector<double> timeCodes_;
+	int vfrTimingFps_;
 
 	void writeScriptFile(EncodeFileKey key) {
 		auto& str = script_.Str();
@@ -384,23 +438,27 @@ private:
 		ctx.infoF("フィルタパス%d 完了: %.2f秒", pass + 1, sw.getTotal());
 	}
 
-	void makeMainFilterSource(
+	void defineMakeSource(
 		EncodeFileKey key,
 		const StreamReformInfo& reformInfo,
 		const tstring& logopath)
 	{
 		auto& sb = script_.Get();
-		sb.append("AMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(key.video));
-		sb.append("Prefetch(1, 4)\n");
+		sb.append("function MakeSource(bool \"mt\") {\n");
+		sb.append("\tmt = default(mt, false)\n");
+		sb.append("\tAMTSource(\"%s\")\n", setting_.getTmpAMTSourcePath(key.video));
+		sb.append("\tif(mt) { Prefetch(1, 4) }\n");
 
 		if (setting_.isNoDelogo() == false && logopath.size() > 0) {
-			sb.append("logo = \"%s\"\n", logopath);
-			sb.append("AMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\", maxfade=%d)\n",
+			sb.append("\tlogo = \"%s\"\n", logopath);
+			sb.append("\tAMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\", maxfade=%d)\n",
 				setting_.getTmpLogoFramePath(key.video), setting_.getMaxFadeLength());
-			sb.append("Prefetch(1, 4)\n");
+			sb.append("\tif(mt) { Prefetch(1, 4) }\n");
 		}
 
+		sb.append("\t");
 		trimInput(key, reformInfo);
+		sb.append("}\n");
 	}
 
 	void trimInput(EncodeFileKey key,
@@ -448,11 +506,12 @@ private:
 		InitEnv();
 
 		auto tmppath = setting_.getAvsTmpPath(key);
+		std::replace(tmppath.begin(), tmppath.end(), _T('/'), _T('\\'));
 
-		makeMainFilterSource(key, reformInfo, logopath);
+		defineMakeSource(key, reformInfo, logopath);
 
 		auto& sb = script_.Get();
-		sb.append("AMT_SOURCE = last\n");
+		sb.append("AMT_SOURCE = MakeSource(true)\n");
 		sb.append("AMT_TMP = \"%s\"\n", tmppath);
 		sb.append("AMT_PASS = %d\n", pass);
 		sb.append("AMT_DEV = %d\n", gpuIndex);
@@ -490,22 +549,22 @@ private:
 		int numSrcFrames = (int)outFrames.size();
 
 		VideoInfo outvi = filter_->GetVideoInfo();
-		int numOutFrames = frameDurations.size()
-			? std::accumulate(frameDurations.begin(), frameDurations.end(), 0)
-			: outvi.num_frames;
+		int numOutFrames = outvi.num_frames;
 
 		const VideoFormat& infmt = reformInfo.getFormat(key).videoFormat;
 		double srcDuration = (double)numSrcFrames * infmt.frameRateDenom / infmt.frameRateNum;
-		double clipDuration = (double)numOutFrames * outvi.fps_denominator / outvi.fps_numerator;
+		double clipDuration = timeCodes_.size()
+			? timeCodes_.back() / 1000.0
+			: (double)numOutFrames * outvi.fps_denominator / outvi.fps_numerator;
 		bool outParity = filter_->GetParity(0);
 
 		ctx.infoF("フィルタ入力: %dフレーム %d/%dfps (%s)",
 			numSrcFrames, infmt.frameRateNum, infmt.frameRateDenom,
 			infmt.progressive ? "プログレッシブ" : "インターレース");
 
-		if (frameDurations.size()) {
+		if (timeCodes_.size()) {
 			ctx.infoF("フィルタ出力: %dフレーム VFR (ベース %d/%d fps)",
-				outvi.num_frames, outvi.fps_numerator, outvi.fps_denominator);
+				numOutFrames, outvi.fps_numerator, outvi.fps_denominator);
 		}
 		else {
 			ctx.infoF("フィルタ出力: %dフレーム %d/%dfps (%s)",
@@ -521,8 +580,16 @@ private:
 			ctx.warn("フレーム数が変わっていますがインターレースのままです。プログレッシブ出力が目的ならAssumeBFF()をavsファイルの最後に追加してください。");
 		}
 
-		// フレーム数が変わっている場合はゾーンを引き伸ばす
-		if (numSrcFrames != numOutFrames) {
+		if (timeCodes_.size()) {
+			// VFRタイムスタンプをoutZonesに反映させる
+			double tick = (double)infmt.frameRateDenom / infmt.frameRateNum;
+			for (int i = 0; i < (int)outZones_.size(); ++i) {
+				outZones_[i].startFrame = std::lower_bound(timeCodes_.begin(), timeCodes_.end(), outZones_[i].startFrame * tick * 1000) - timeCodes_.begin();
+				outZones_[i].endFrame = std::lower_bound(timeCodes_.begin(), timeCodes_.end(), outZones_[i].endFrame * tick * 1000) - timeCodes_.begin();
+			}
+		}
+		else if (numSrcFrames != numOutFrames) {
+			// フレーム数が変わっている場合はゾーンを引き伸ばす
 			double scale = (double)numOutFrames / numSrcFrames;
 			for (int i = 0; i < (int)outZones_.size(); ++i) {
 				outZones_[i].startFrame = std::max(0, std::min(numOutFrames, (int)std::round(outZones_[i].startFrame * scale)));
@@ -547,142 +614,6 @@ private:
 		outfmt_.frameRateNum = vi.fps_numerator;
 		// インターレースかどうかは取得できないのでパリティがfalse(BFF?)だったらプログレッシブと仮定
 		outfmt_.progressive = (filter_->GetParity(0) == false);
-	}
-};
-
-// 各フレームのFPS情報から、各種データを生成
-class FilterVFRProc : public AMTObject
-{
-	bool is120fps;  // 120fpsタイミング
-	int fpsNum, fpsDenom; // 60fpsのフレームレート
-	double totalDuration; // 合計時間（チェック用）
-	std::vector<int> frameFps_; // 各フレームのFPS(120fpsの場合)/各フレームの60fpsフレーム数(60fpsの場合)
-	std::vector<int> frameMap_; // VFRフレーム番号 -> 60fpsフレーム番号のマッピング
-
-	bool is23(const std::vector<int>& durations, int offset) {
-		if (offset + 1 < durations.size()) {
-			return durations[offset] == 2 && durations[offset + 1] == 3;
-		}
-		return false;
-	}
-
-	bool is32(const std::vector<int>& durations, int offset) {
-		if (offset + 1 < durations.size()) {
-			return durations[offset] == 3 && durations[offset + 1] == 2;
-		}
-		return false;
-	}
-
-	bool is2224(const std::vector<int>& durations, int offset) {
-		if (offset + 3 < durations.size()) {
-			return durations[offset] == 2 &&
-				durations[offset + 1] == 2 &&
-				durations[offset + 2] == 2 &&
-				durations[offset + 3] == 4;
-		}
-		return false;
-	}
-
-public:
-	FilterVFRProc(AMTContext&ctx, const std::vector<int>& durations, const VideoInfo& vi, bool is120fps)
-		: AMTObject(ctx)
-		, is120fps(is120fps)
-	{
-		fpsNum = vi.fps_numerator;
-		fpsDenom = vi.fps_denominator;
-
-		auto it = std::find_if(
-			durations.begin(), durations.end(), [](int n) { return n != 1; });
-		if (it == durations.end()) {
-			// すべて1の場合はCFR
-			return;
-		}
-
-		int n = 0;
-		for (int i = 0; i < (int)durations.size(); ++i) {
-			frameMap_.push_back(n);
-			n += durations[i];
-		}
-
-		if (is120fps) {
-			// パターンが出現したところをVFR化
-			// （時間がズレないようにする）
-			for (int i = 0; i < (int)durations.size(); ) {
-				if (is23(durations, i)) {
-					frameFps_.push_back(-1);
-					frameFps_.push_back(-1);
-					i += 2;
-				}
-				else if (is32(durations, i)) {
-					frameFps_.push_back(-1);
-					frameFps_.push_back(-1);
-					i += 2;
-				}
-				else if (is2224(durations, i)) {
-					for (int i = 0; i < 4; ++i) {
-						frameFps_.push_back(-1);
-					}
-					i += 4;
-				}
-				else {
-					frameFps_.push_back(durations[i]);
-					i += 1;
-				}
-			}
-		}
-		else {
-			// 60fpsタイミング
-			frameFps_ = durations;
-		}
-
-		assert(frameFps_.size() == frameMap_.size());
-
-		int numFrames60 = std::accumulate(durations.begin(), durations.end(), 0);
-		totalDuration = (double)numFrames60 * fpsDenom / fpsNum;
-	}
-
-	bool isEnabled() const {
-		return frameMap_.size() > 0;
-	}
-
-	const std::vector<int>& getFrameMap() const {
-		return frameMap_;
-	}
-
-	void toVFRZones(std::vector<EncoderZone>& zones) const {
-		for (int i = 0; i < (int)zones.size(); ++i) {
-			zones[i].startFrame = (int)(std::lower_bound(frameMap_.begin(), frameMap_.end(), zones[i].startFrame) - frameMap_.begin());
-			zones[i].endFrame = (int)(std::lower_bound(frameMap_.begin(), frameMap_.end(), zones[i].endFrame) - frameMap_.begin());
-		}
-	}
-
-	void makeTimecode(const tstring& filepath) const {
-		StringBuilder sb;
-		sb.append("# timecode format v2\n");
-		ctx.infoF("[VFR] %d fpsタイミングでタイムコードを生成します", is120fps ? 120 : 60);
-		if (is120fps) {
-			const double timestep = (double)fpsDenom / fpsNum;
-			const double time24 = (fpsDenom * 10.0) / (fpsNum * 4.0);
-			double curTime = 0;
-			double maxDiff = 0; // チェック用
-			for (int i = 0; i < (int)frameFps_.size(); ++i) {
-				maxDiff = std::max(maxDiff, std::abs(curTime - frameMap_[i] * timestep));
-				sb.append("%d\n", (int)std::round(curTime * 1000));
-				curTime += (frameFps_[i] == -1) ? time24 : (frameFps_[i] * timestep);
-			}
-			ctx.infoF("60fpsフレーム表示時刻とVFRタイムコードによる表示時刻との最大差: %f ms", maxDiff * 1000);
-			if (std::abs(curTime - totalDuration) >= 0.000001) {
-				// 1us以上のズレがあったらエラーとする
-				THROWF(RuntimeException, "タイムコードの合計時間と映像時間の合計にズレがあります。(%f != %f)", curTime, totalDuration);
-			}
-		}
-		else {
-			for (int i = 0; i < (int)frameMap_.size(); ++i) {
-				sb.append("%d\n", (int)std::round(frameMap_[i] * (double)fpsDenom / fpsNum * 1000));
-			}
-		}
-		File file(filepath, _T("w"));
-		file.write(sb.getMC());
 	}
 };
 
@@ -729,7 +660,7 @@ public:
 
 // VFRでだいたいのレートコントロールを実現する
 // VFRタイミングとCMゾーンからゾーンとビットレートを作成
-std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
+std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<double>& timeCodes,
 	const std::vector<EncoderZone>& cmzones, double bitrateCM,
 	int fpsNum, int fpsDenom, double timeFactor, double costLimit)
 {
@@ -745,16 +676,17 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
 		double cost; // 後ろのブロックと結合したときの追加コスト
 	};
 
-	if (durations.size() == 0) {
+	if (timeCodes.size() == 0) {
 		return std::vector<BitrateZone>();
 	}
+	int numFrames = (int)timeCodes.size() - 1;
 	// 8フレームごとの平均ビットレートを計算
-	std::vector<double> units(nblocks((int)durations.size(), UNIT_FRAMES));
+	std::vector<double> units(nblocks(numFrames, UNIT_FRAMES));
 	for (int i = 0; i < (int)units.size(); ++i) {
-		auto start = durations.begin() + i * UNIT_FRAMES;
-		auto end = ((i + 1) * UNIT_FRAMES < durations.size()) ? start + UNIT_FRAMES : durations.end();
-		int sum = std::accumulate(start, end, 0);
-		double invfps = (double)sum / (int)(end - start);
+		auto start = timeCodes.begin() + i * UNIT_FRAMES;
+		auto end = ((i + 1) * UNIT_FRAMES < timeCodes.size()) ? start + UNIT_FRAMES : timeCodes.end() - 1;
+		double sum = (*end - *start) / 1000.0 * fpsNum / fpsDenom;
+		double invfps = sum / (int)(end - start);
 		units[i] = (invfps - 1.0) * timeFactor + 1.0;
 	}
 	// cmzonesを適用
@@ -817,8 +749,7 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
 	}
 
 	// 最大ブロック数
-	int totalDuration = std::accumulate(durations.begin(), durations.end(), 0);
-	auto totalHours = totalDuration * (double)fpsDenom / fpsNum / 3600.0;
+	auto totalHours = timeCodes.back() / 1000.0 / 3600.0;
 	int targetNumZones = std::max(1, (int)(TARGET_ZONES_PER_HOUR * totalHours));
 	double totalCostLimit = units.size() * costLimit;
 
@@ -872,7 +803,7 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
 		const auto& cur = blocks[i];
 		BitrateZone zone = BitrateZone();
 		zone.startFrame = cur.index * UNIT_FRAMES;
-		zone.endFrame = std::min((int)durations.size(), blocks[cur.next].index * UNIT_FRAMES);
+		zone.endFrame = std::min(numFrames, blocks[cur.next].index * UNIT_FRAMES);
 		zone.bitrate = cur.avg;
 		zones.push_back(zone);
 	}
@@ -882,11 +813,71 @@ std::vector<BitrateZone> MakeVFRBitrateZones(const std::vector<int>& durations,
 
 // VFRに対応していないエンコーダでビットレート指定を行うとき用の
 // 平均フレームレートを考慮したビットレートを計算する
-double AdjustVFRBitrate(const std::vector<int>& durations)
+double AdjustVFRBitrate(const std::vector<double>& timeCodes, int fpsNum, int fpsDenom)
 {
-	if (durations.size() == 0) {
+	if (timeCodes.size() == 0) {
 		return 1.0;
 	}
-	int totalDurations = std::accumulate(durations.begin(), durations.end(), 0);
-	return (double)totalDurations / durations.size();
+	return (timeCodes.back()) / ((timeCodes.size() - 1) * fpsNum / fpsDenom);
 }
+
+AVSValue __cdecl AMTExec(AVSValue args, void* user_data, IScriptEnvironment* env)
+{
+	auto cmd = StringFormat(_T("%s"), args[1].AsString());
+	PRINTF(StringFormat("AMTExec: %s\n", cmd).c_str());
+	StdRedirectedSubProcess proc(cmd);
+	proc.join();
+	return args[0];
+}
+
+class AMTOrderedParallel : public GenericVideoFilter
+{
+	struct ClipData {
+		PClip clip;
+		int numFrames;
+		int current;
+		std::mutex mutex;
+	};
+	std::vector<ClipData> clips_;
+public:
+	AMTOrderedParallel(AVSValue clips, IScriptEnvironment* env)
+		: GenericVideoFilter(clips[0].AsClip())
+		, clips_(clips.ArraySize())
+	{
+		int maxFrames = 0;
+		for (int i = 0; i < clips.ArraySize(); ++i) {
+			clips_[i].clip = clips[i].AsClip();
+			clips_[i].numFrames = clips_[i].clip->GetVideoInfo().num_frames;
+			maxFrames = std::max(maxFrames, clips_[i].numFrames);
+		}
+		vi.num_frames = maxFrames * clips.ArraySize();
+	}
+
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env)
+	{
+		int nclips = (int)clips_.size();
+		int clipidx = n % nclips;
+		auto& data = clips_[clipidx];
+		int frameidx = std::min(data.numFrames - 1, n / nclips);
+		std::unique_lock<std::mutex> lock(data.mutex);
+		for (; data.current <= frameidx; data.current++) {
+			data.clip->GetFrame(data.current, env);
+		}
+		return env->NewVideoFrame(vi);
+	}
+
+	int __stdcall SetCacheHints(int cachehints, int frame_range) {
+		if (cachehints == CACHE_GET_MTMODE) {
+			return MT_NICE_FILTER;
+		}
+		return 0;
+	};
+
+	static AVSValue __cdecl Create(AVSValue args, void* user_data, IScriptEnvironment* env)
+	{
+		return new AMTOrderedParallel(
+			args[0],       // clips
+			env
+		);
+	}
+};
