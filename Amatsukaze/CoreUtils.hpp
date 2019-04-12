@@ -43,11 +43,20 @@ DEFINE_EXCEPTION(TestException)
 
 #undef DEFINE_EXCEPTION
 
+namespace core_utils {
+constexpr const char* str_end(const char *str) { return *str ? str_end(str + 1) : str; }
+constexpr bool str_slant(const char *str) { return *str == '\\' ? true : (*str ? str_slant(str + 1) : false);}
+constexpr const char* r_slant(const char* str) { return *str == '\\' ? (str + 1) : r_slant(str - 1); }
+constexpr const char* file_name(const char* str) { return str_slant(str) ? r_slant(str_end(str)) : str; }
+}
+
+#define __FILENAME__ core_utils::file_name(__FILE__)
+
 #define THROW(exception, message) \
-	throw_exception_(exception(StringFormat("Exception thrown at %s:%d\r\nMessage: " message, __FILE__, __LINE__)))
+	throw_exception_(exception(StringFormat("Exception thrown at %s:%d\r\nMessage: " message, __FILENAME__, __LINE__)))
 
 #define THROWF(exception, fmt, ...) \
-	throw_exception_(exception(StringFormat("Exception thrown at %s:%d\r\nMessage: " fmt, __FILE__, __LINE__, __VA_ARGS__)))
+	throw_exception_(exception(StringFormat("Exception thrown at %s:%d\r\nMessage: " fmt, __FILENAME__, __LINE__, __VA_ARGS__)))
 
 static void throw_exception_(const Exception& exc)
 {
