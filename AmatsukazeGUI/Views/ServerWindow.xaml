@@ -128,6 +128,9 @@
                         <DataTrigger Binding="{Binding Server.NowEncoding}" Value="True">
                             <Setter Property="Background" Value="Violet" />
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding Server.EncodePaused}" Value="True">
+                            <Setter Property="Background" Value="Yellow" />
+                        </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </Grid.Style>
@@ -139,16 +142,19 @@
                             <DataTrigger Binding="{Binding Server.NowEncoding}" Value="True">
                                 <Setter Property="Text" Value="エンコード中" />
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding Server.EncodePaused}" Value="True">
+                                <Setter Property="Text" Value="一時停止中" />
+                            </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </TextBlock.Style>
             </TextBlock>
-            <TextBlock Text="一時停止" Grid.Column="1" TextAlignment="Center">
+            <TextBlock Text="キュー停止" Grid.Column="1" TextAlignment="Center">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Setter Property="Background" Value="Yellow"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding Server.EncodePaused}" Value="False">
+                            <DataTrigger Binding="{Binding Server.QueuePaused}" Value="False">
                                 <Setter Property="Foreground" Value="Gray"/>
                                 <Setter Property="Background" Value="Transparent"/>
                             </DataTrigger>

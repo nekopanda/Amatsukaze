@@ -151,7 +151,19 @@ namespace Amatsukaze.ViewModels
             get { return (ConsoleList?.Count ?? 0) > 8; }
         }
 
-        public string RunningState { get { return Model.IsRunning ? "エンコード中" : "停止"; } }
+        public string RunningState {
+            get {
+                if(Model.IsRunning)
+                {
+                    if(Model.IsSuspended || Model.IsScheduledSuspend)
+                    {
+                        return "一時停止中";
+                    }
+                    return "エンコード中";
+                }
+                return "停止";
+            }
+        }
 
         public QueueViewModel QueueVM { get; private set; }
 
@@ -192,6 +204,8 @@ namespace Amatsukaze.ViewModels
         {
             var modelListener = new PropertyChangedEventListener(Model);
             modelListener.Add(() => Model.IsRunning, (_, __) => RaisePropertyChanged(() => RunningState));
+            modelListener.Add(() => Model.IsSuspended, (_, __) => RaisePropertyChanged(() => RunningState));
+            modelListener.Add(() => Model.IsScheduledSuspend, (_, __) => RaisePropertyChanged(() => RunningState));
             modelListener.Add(() => Model.ServerHostName, (_, __) => RaisePropertyChanged(() => WindowCaption));
             modelListener.Add(() => Model.ServerVersion, (_, __) => RaisePropertyChanged(() => WindowCaption));
             modelListener.Add(() => Model.IsCurrentResultFail, (_, __) =>

@@ -497,7 +497,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		conf.encoderPath = search(conf.encoderPath);
 		conf.joinLogoScpPath = search(conf.joinLogoScpPath);
 		conf.nicoConvAssPath = search(conf.nicoConvAssPath);
-		conf.nicoConvChSidPath = pathNormalize(GetDirectoryPath(conf.nicoConvAssPath)) + _T("/ch_sid.txt");
+		conf.nicoConvChSidPath = pathGetDirectory(conf.nicoConvAssPath) + _T("/ch_sid.txt");
 		conf.mp4boxPath = search(conf.mp4boxPath);
 		conf.muxerPath = search(conf.muxerPath);
 		conf.timelineditorPath = search(conf.timelineditorPath);

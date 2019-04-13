@@ -37,12 +37,12 @@ std::wstring SearchExe(const std::wstring& name) {
 	return buf;
 }
 
-std::wstring GetDirectoryPath(const std::wstring& name) {
-	wchar_t buf[AMT_MAX_PATH] = { 0 };
-	std::copy(name.begin(), name.end(), buf);
-	PathRemoveFileSpecW(buf);
-	return buf;
-}
+//std::wstring GetDirectoryPath(const std::wstring& name) {
+//	wchar_t buf[AMT_MAX_PATH] = { 0 };
+//	std::copy(name.begin(), name.end(), buf);
+//	PathRemoveFileSpecW(buf);
+//	return buf;
+//}
 
 bool DirectoryExists(const std::wstring& dirName_in)
 {
