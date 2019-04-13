@@ -98,7 +98,7 @@ namespace Amatsukaze.Server
                         item.Profile = server.PendingProfile;
                     }
                     // IDを振り直す
-                    item.Id = nextItemId++;
+                    item.Order = item.Id = nextItemId++;
                 }
             }
         }

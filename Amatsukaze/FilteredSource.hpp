@@ -818,7 +818,7 @@ double AdjustVFRBitrate(const std::vector<double>& timeCodes, int fpsNum, int fp
 	if (timeCodes.size() == 0) {
 		return 1.0;
 	}
-	return (timeCodes.back()) / ((timeCodes.size() - 1) * fpsNum / fpsDenom);
+	return (timeCodes.back() / 1000.0) / (timeCodes.size() - 1) * fpsNum / fpsDenom;
 }
 
 AVSValue __cdecl AMTExec(AVSValue args, void* user_data, IScriptEnvironment* env)

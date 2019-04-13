@@ -484,7 +484,7 @@
                     <TextBlock DockPanel.Dock="Left" Text="停止" VerticalAlignment="Center"/>
                     <TextBlock DockPanel.Dock="Right" Text="稼働" VerticalAlignment="Center"/>
                     <Button DockPanel.Dock="Top" Height="20" Margin="6,0" Command="{Binding TogglePauseCommand, Mode=OneWay}"
-                        ToolTip="キュー停止状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
+                        ToolTip="新しいエンコードが始まらないようにキューを止めます。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
