@@ -387,6 +387,42 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region IsSuspended変更通知プロパティ
+        public bool IsSuspended {
+            get { return state.Suspend; }
+            set { 
+                if (state.Suspend == value)
+                    return;
+                state.Suspend = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IsScheduledPaused変更通知プロパティ
+        public bool IsScheduledPaused {
+            get { return state.ScheduledPause; }
+            set { 
+                if (state.ScheduledPause == value)
+                    return;
+                state.ScheduledPause = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region IsScheduledSuspend変更通知プロパティ
+        public bool IsScheduledSuspend {
+            get { return state.ScheduledSuspend; }
+            set { 
+                if (state.ScheduledSuspend == value)
+                    return;
+                state.ScheduledSuspend = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region ClientLog変更通知プロパティ
         private ObservableCollection<string> _ClientLog = new ObservableCollection<string>();
 
@@ -1115,7 +1151,7 @@ namespace Amatsukaze.Models
             if(data.Setting != null)
             {
                 Setting = new DisplaySetting() { Model = data.Setting };
-                Setting.RefreshGPUResources();
+                Setting.Refresh();
             }
             if (data.UIState != null)
             {
@@ -1173,9 +1209,20 @@ namespace Amatsukaze.Models
             if(data.State != null)
             {
                 IsPaused = data.State.Pause;
+                IsSuspended = data.State.Suspend;
                 IsRunning = data.State.Running;
+                IsScheduledPaused = data.State.ScheduledPause;
+                IsScheduledSuspend = data.State.ScheduledSuspend;
                 ProgressState = IsRunning ? TaskbarItemProgressState.Normal : TaskbarItemProgressState.None;
                 ProgressValue = data.State.Progress;
+
+                for(int i = 0; i < data.State.EncoderSuspended.Length; ++i)
+                {
+                    if(i < ConsoleList.Count)
+                    {
+                        ConsoleList[i].IsSuspended = data.State.EncoderSuspended[i];
+                    }
+                }
             }
             if (data.AddQueueBatFiles != null)
             {

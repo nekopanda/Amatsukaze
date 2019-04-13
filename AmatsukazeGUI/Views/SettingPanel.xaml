@@ -10,7 +10,7 @@
              xmlns:c="clr-namespace:Amatsukaze.Components" 
              xmlns:Models="clr-namespace:Amatsukaze.Models" x:Class="Amatsukaze.Views.SettingPanel" 
              mc:Ignorable="d" 
-             d:DesignHeight="900" d:DesignWidth="500"
+             d:DesignHeight="1300" d:DesignWidth="500"
              d:DataContext="{d:DesignInstance {x:Type vm:SettingViewModel}}">
     
     <UserControl.Resources>
@@ -40,6 +40,7 @@
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -244,6 +245,42 @@
                                         <TextBox Text="{Binding Max, Mode=TwoWay}"
                                                     Width="50"/>
                                     </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                </StackPanel>
+                
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="稼働時間設定" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                <StackPanel Grid.Row="4" Grid.Column="1" Margin="10,10,0,0">
+                    <CheckBox  Margin="0,4" Height="16"  Content="稼働時間設定を有効にする"
+                               IsChecked="{Binding Model.Setting.EnableRunHours, Mode=TwoWay}"/>
+                    <DockPanel>
+                        <TextBlock VerticalAlignment="Center" Text="停止中は"/>
+                        <ComboBox Width="200" IsEnabled="{Binding Model.Setting.EnableRunHours}"
+                                  ItemsSource="{Binding Model.Setting.RunHoursSuspendEncodersList}"
+                                  SelectedIndex="{Binding Model.Setting.RunHoursSuspendEncodersIndex, Mode=TwoWay}" />
+                        <TextBlock VerticalAlignment="Center" Text="を停止する"/>
+                    </DockPanel>
+                    <DockPanel HorizontalAlignment="Left" Margin="0,5,0,0">
+                        <TextBlock DockPanel.Dock="Top" HorizontalAlignment="Center" FontWeight="Bold" Text="稼働する時間帯"/>
+                        <ItemsControl ItemsSource="{Binding Model.Setting.RunHours}"
+                                      IsEnabled="{Binding Model.Setting.EnableRunHours}" Height="96">
+                            <ItemsControl.Template>
+                                <ControlTemplate>
+                                    <ItemsPresenter />
+                                </ControlTemplate>
+                            </ItemsControl.Template>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Vertical"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type m:DisplayRunHour}">
+                                    <CheckBox Margin="4,0" Height="16"
+                                              Content="{Binding HourText}"
+                                              IsChecked="{Binding Enabled, Mode=TwoWay}"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

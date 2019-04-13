@@ -94,9 +94,9 @@ namespace Amatsukaze.Server
             return Send(RPCMethodId.ChangeItem, data);
         }
 
-        public Task PauseEncode(bool pause)
+        public Task PauseEncode(PauseRequest request)
         {
-            return Send(RPCMethodId.PauseEncode, pause);
+            return Send(RPCMethodId.PauseEncode, request);
         }
 
         public Task CancelAddQueue()

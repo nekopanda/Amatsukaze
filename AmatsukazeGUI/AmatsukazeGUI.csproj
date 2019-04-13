@@ -213,6 +213,9 @@
     <Compile Include="Views\SleepCancelWindow.xaml.cs">
       <DependentUpon>SleepCancelWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SummaryItem.xaml.cs">
+      <DependentUpon>SummaryItem.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\SummaryPanel.xaml.cs">
       <DependentUpon>SummaryPanel.xaml</DependentUpon>
     </Compile>
@@ -377,6 +380,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\SleepCancelWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\SummaryItem.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

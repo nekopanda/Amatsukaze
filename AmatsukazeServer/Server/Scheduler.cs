@@ -37,7 +37,10 @@ namespace Amatsukaze.Server
         public IEnumerable<IScheduleWorker> Workers { get { return workers.Select(w => w.TargetWorker); } }
 
         private int numParallel;
-        private bool isPause;
+
+        public bool ScheduledPaused { get; private set; }
+        public bool UserPaused { get; private set; }
+        public bool IsPaused { get { return ScheduledPaused || UserPaused; } }
 
         private int numActive;
 
@@ -169,18 +172,26 @@ namespace Amatsukaze.Server
         {
             EnsureNumWorkers(parallel);
             numParallel = parallel;
-            if(isPause == false)
+            if(IsPaused == false)
             {
                 SetActive(numParallel);
             }
         }
 
-        public void SetPause(bool pause)
+        public void SetPause(bool pause, bool scheduled)
         {
-            if(isPause != pause)
+            var current = IsPaused;
+            if(scheduled)
             {
-                isPause = pause;
-                SetActive(isPause ? 0 : numParallel);
+                ScheduledPaused = pause;
+            }
+            else
+            {
+                UserPaused = pause;
+            }
+            if(IsPaused != current)
+            {
+                SetActive(IsPaused ? 0 : numParallel);
             }
         }
 

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -181,19 +182,19 @@ namespace Amatsukaze.Lib
                                    int flagsAndAttributes, IntPtr hTemplateFile);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr GetCurrentProcess();
+        public static extern IntPtr GetCurrentProcess();
 
         [DllImport("advapi32.dll", SetLastError = true)]
-        private static extern bool OpenProcessToken(IntPtr ProcessHandle,
+        public static extern bool OpenProcessToken(IntPtr ProcessHandle,
             uint DesiredAccess,
             out IntPtr TokenHandle);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool CloseHandle(IntPtr hObject);
+        public static extern bool CloseHandle(IntPtr hObject);
 
         [DllImport("advapi32.dll", SetLastError = true,
             CharSet = System.Runtime.InteropServices.CharSet.Auto)]
-        private static extern bool LookupPrivilegeValue(string lpSystemName,
+        public static extern bool LookupPrivilegeValue(string lpSystemName,
             string lpName,
             out long lpLuid);
 
@@ -257,6 +258,27 @@ namespace Amatsukaze.Lib
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool ExitWindowsEx(ExitWindows uFlags,
             int dwReason);
+
+        [Flags]
+        public enum ThreadAccess : int
+        {
+            TERMINATE = (0x0001),
+            SUSPEND_RESUME = (0x0002),
+            GET_CONTEXT = (0x0008),
+            SET_CONTEXT = (0x0010),
+            SET_INFORMATION = (0x0020),
+            QUERY_INFORMATION = (0x0040),
+            SET_THREAD_TOKEN = (0x0080),
+            IMPERSONATE = (0x0100),
+            DIRECT_IMPERSONATION = (0x0200)
+        }
+
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+        [DllImport("kernel32.dll")]
+        public static extern uint SuspendThread(IntPtr hThread);
+        [DllImport("kernel32.dll")]
+        public static extern int ResumeThread(IntPtr hThread);
     }
 
     [Serializable]

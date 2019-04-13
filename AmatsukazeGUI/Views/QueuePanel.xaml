@@ -49,9 +49,255 @@
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
-        </DockPanel.Resources>
 
-        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsFilterPanelOpen, Mode=TwoWay}">
+            <Style x:Key="ExpanderRightHeaderStyle" TargetType="{x:Type ToggleButton}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                            <Border Padding="{TemplateBinding Padding}">
+                                <Grid Background="Transparent" SnapsToDevicePixels="False">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="19"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid>
+                                        <Grid.LayoutTransform>
+                                            <TransformGroup>
+                                                <TransformGroup.Children>
+                                                    <TransformCollection>
+                                                        <RotateTransform Angle="-90"/>
+                                                    </TransformCollection>
+                                                </TransformGroup.Children>
+                                            </TransformGroup>
+                                        </Grid.LayoutTransform>
+                                        <Ellipse x:Name="circle" HorizontalAlignment="Center" Height="19" Stroke="DarkGray" VerticalAlignment="Center" Width="19"/>
+                                        <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" SnapsToDevicePixels="false" Stroke="#666" StrokeThickness="2" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0" Grid.Row="1" RecognizesAccessKey="True" SnapsToDevicePixels="True" VerticalAlignment="Top"/>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="true">
+                                    <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF3C7FB1"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#222"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF526C7B"/>
+                                    <Setter Property="StrokeThickness" TargetName="circle" Value="1.5"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#FF003366"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="ExpanderUpHeaderStyle" TargetType="{x:Type ToggleButton}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                            <Border Padding="{TemplateBinding Padding}">
+                                <Grid Background="Transparent" SnapsToDevicePixels="False">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="19"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid>
+                                        <Grid.LayoutTransform>
+                                            <TransformGroup>
+                                                <TransformGroup.Children>
+                                                    <TransformCollection>
+                                                        <RotateTransform Angle="180"/>
+                                                    </TransformCollection>
+                                                </TransformGroup.Children>
+                                            </TransformGroup>
+                                        </Grid.LayoutTransform>
+                                        <Ellipse x:Name="circle" HorizontalAlignment="Center" Height="19" Stroke="DarkGray" VerticalAlignment="Center" Width="19"/>
+                                        <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" SnapsToDevicePixels="false" Stroke="#666" StrokeThickness="2" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" Margin="4,0,0,0" RecognizesAccessKey="True" SnapsToDevicePixels="True" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="true">
+                                    <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF3C7FB1"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#222"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF526C7B"/>
+                                    <Setter Property="StrokeThickness" TargetName="circle" Value="1.5"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#FF003366"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="ExpanderLeftHeaderStyle" TargetType="{x:Type ToggleButton}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                            <Border Padding="{TemplateBinding Padding}">
+                                <Grid Background="Transparent" SnapsToDevicePixels="False">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="19"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid>
+                                        <Grid.LayoutTransform>
+                                            <TransformGroup>
+                                                <TransformGroup.Children>
+                                                    <TransformCollection>
+                                                        <RotateTransform Angle="90"/>
+                                                    </TransformCollection>
+                                                </TransformGroup.Children>
+                                            </TransformGroup>
+                                        </Grid.LayoutTransform>
+                                        <Ellipse x:Name="circle" HorizontalAlignment="Center" Height="19" Stroke="DarkGray" VerticalAlignment="Center" Width="19"/>
+                                        <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" SnapsToDevicePixels="false" Stroke="#666" StrokeThickness="2" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0" Grid.Row="1" RecognizesAccessKey="True" SnapsToDevicePixels="True" VerticalAlignment="Top"/>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="true">
+                                    <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF3C7FB1"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#222"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF526C7B"/>
+                                    <Setter Property="StrokeThickness" TargetName="circle" Value="1.5"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#FF003366"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="ExpanderHeaderFocusVisual">
+                <Setter Property="Control.Template">
+                    <Setter.Value>
+                        <ControlTemplate>
+                            <Border>
+                                <Rectangle Margin="0" SnapsToDevicePixels="true" Stroke="Black" StrokeThickness="1" StrokeDashArray="1 2"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="ExpanderDownHeaderStyle" TargetType="{x:Type ToggleButton}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                            <Border Padding="{TemplateBinding Padding}">
+                                <Grid Background="Transparent" SnapsToDevicePixels="False">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="19"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Ellipse x:Name="circle" HorizontalAlignment="Center" Height="19" Stroke="DarkGray" VerticalAlignment="Center" Width="19"/>
+                                    <Path x:Name="arrow" Data="M 1,1.5 L 4.5,5 L 8,1.5" HorizontalAlignment="Center" SnapsToDevicePixels="false" Stroke="#666" StrokeThickness="2" VerticalAlignment="Center"/>
+                                    <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" Margin="4,0,0,0" RecognizesAccessKey="True" SnapsToDevicePixels="True" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="true">
+                                    <Setter Property="Data" TargetName="arrow" Value="M 1,4.5  L 4.5,1  L 8,4.5"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF3C7FB1"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#222"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="true">
+                                    <Setter Property="Stroke" TargetName="circle" Value="#FF526C7B"/>
+                                    <Setter Property="StrokeThickness" TargetName="circle" Value="1.5"/>
+                                    <Setter Property="Stroke" TargetName="arrow" Value="#FF003366"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="ExpanderStyle1" TargetType="{x:Type Expander}">
+                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Expander}">
+                            <Border BorderBrush="{TemplateBinding BorderBrush}" 
+                                    BorderThickness="{TemplateBinding BorderThickness}" 
+                                    Background="{TemplateBinding Background}" 
+                                    CornerRadius="3" SnapsToDevicePixels="true">
+                                <DockPanel>
+                                    <ToggleButton x:Name="HeaderSite"
+                                                  Height="{TemplateBinding MinHeight}"
+                                                  ContentTemplate="{TemplateBinding HeaderTemplate}" 
+                                                  ContentTemplateSelector="{TemplateBinding HeaderTemplateSelector}"
+                                                  Content="{TemplateBinding Header}" 
+                                                  DockPanel.Dock="Top" 
+                                                  Foreground="{TemplateBinding Foreground}" 
+                                                  FontWeight="{TemplateBinding FontWeight}" 
+                                                  FocusVisualStyle="{StaticResource ExpanderHeaderFocusVisual}" 
+                                                  FontStyle="{TemplateBinding FontStyle}" 
+                                                  FontStretch="{TemplateBinding FontStretch}" 
+                                                  FontSize="{TemplateBinding FontSize}" 
+                                                  FontFamily="{TemplateBinding FontFamily}" 
+                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                                  IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                                  Margin="0" MinWidth="0" MinHeight="0" Padding="{TemplateBinding Padding}" 
+                                                  Style="{StaticResource ExpanderDownHeaderStyle}" 
+                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                    <ContentPresenter x:Name="ExpandSite" 
+                                                      DockPanel.Dock="Bottom" 
+                                                      Focusable="false" 
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                                      Margin="{TemplateBinding Padding}"
+                                                      Visibility="Collapsed" 
+                                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                </DockPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsExpanded" Value="true">
+                                    <Setter Property="Visibility" TargetName="ExpandSite" Value="Visible"/>
+                                </Trigger>
+                                <Trigger Property="ExpandDirection" Value="Right">
+                                    <Setter Property="DockPanel.Dock" TargetName="ExpandSite" Value="Right"/>
+                                    <Setter Property="DockPanel.Dock" TargetName="HeaderSite" Value="Left"/>
+                                    <Setter Property="Style" TargetName="HeaderSite" Value="{StaticResource ExpanderRightHeaderStyle}"/>
+                                </Trigger>
+                                <Trigger Property="ExpandDirection" Value="Up">
+                                    <Setter Property="DockPanel.Dock" TargetName="ExpandSite" Value="Top"/>
+                                    <Setter Property="DockPanel.Dock" TargetName="HeaderSite" Value="Bottom"/>
+                                    <Setter Property="Style" TargetName="HeaderSite" Value="{StaticResource ExpanderUpHeaderStyle}"/>
+                                </Trigger>
+                                <Trigger Property="ExpandDirection" Value="Left">
+                                    <Setter Property="DockPanel.Dock" TargetName="ExpandSite" Value="Left"/>
+                                    <Setter Property="DockPanel.Dock" TargetName="HeaderSite" Value="Right"/>
+                                    <Setter Property="Style" TargetName="HeaderSite" Value="{StaticResource ExpanderLeftHeaderStyle}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="false">
+                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+        </DockPanel.Resources>
+        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsFilterPanelOpen, Mode=TwoWay}" Style="{StaticResource ExpanderStyle1}" MinHeight="22">
             <Expander.Header>
                 <!-- HeaderのコンテナのHorizontalAlignmentをOneWayToSourceを使ってStretchに書き換えるテク -->
                 <DockPanel HorizontalAlignment="{Binding HorizontalAlignment, RelativeSource={RelativeSource AncestorType=ContentPresenter}, Mode=OneWayToSource}">
@@ -62,7 +308,7 @@
                         <TextBlock Text="検索" VerticalAlignment="Center"/>
                         <Button DockPanel.Dock="Right" Content="☓" Width="18" Command="{Binding ClearSearchWordCommand}" 
                             IsTabStop="False" Focusable="False" ToolTip="フィルタをクリア"/>
-                        <TextBox Margin="3" Text="{Binding SearchWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Margin="3,0" FontSize="14" Text="{Binding SearchWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </DockPanel>
                 </DockPanel>
             </Expander.Header>
@@ -101,7 +347,7 @@
                 </GroupBox>
             </DockPanel>
         </Expander>
-        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsControlPanelOpen, Mode=TwoWay}">
+        <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsControlPanelOpen, Mode=TwoWay}" Style="{StaticResource ExpanderStyle1}" MinHeight="22">
             <Expander.Header>
                 <Grid HorizontalAlignment="{Binding HorizontalAlignment, RelativeSource={RelativeSource AncestorType=ContentPresenter}, Mode=OneWayToSource}">
                     <Grid.ColumnDefinitions>
@@ -110,8 +356,8 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock VerticalAlignment="Center">操作パネル</TextBlock>
                     <DockPanel Grid.Column="1">
-                        <TextBlock Margin="0,0,0,6" VerticalAlignment="Center">表示</TextBlock>
-                        <Slider Margin="3" Height="24" Maximum="2" Value="{Binding Model.Setting.ListStyle, Mode=TwoWay}"
+                        <TextBlock VerticalAlignment="Center">表示</TextBlock>
+                        <Slider Margin="3,0" Height="20" Maximum="2" Value="{Binding Model.Setting.ListStyle, Mode=TwoWay}"
                             VerticalAlignment="Center" HorizontalAlignment="Stretch" ToolTip="表示切り替え"/>
                     </DockPanel>
                 </Grid>
@@ -223,68 +469,140 @@
                     SelectedIndex="{Binding Model.FinishSetting.Action, Mode=TwoWay}"/>
             </DockPanel>
             <Separator DockPanel.Dock="Right" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-            <DockPanel HorizontalAlignment="Stretch"
-                ToolTip="キュー停止状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
-                <TextBlock DockPanel.Dock="Left" Text="キュー停止" VerticalAlignment="Center"/>
-                <TextBlock DockPanel.Dock="Right" Text="キュー稼働" VerticalAlignment="Center"/>
-                <Button DockPanel.Dock="Left" Height="20" Margin="6,0" Command="{Binding TogglePauseCommand, Mode=OneWay}">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate>
-                                        <Grid>
-                                            <Border CornerRadius="10" Background="DodgerBlue" BorderThickness="2"/>
-                                            <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Right"/>
-                                            <TextBlock Text="キュー稼働中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="White"/>
-                                        </Grid>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate>
-                                                <Grid>
-                                                    <Border CornerRadius="10" Background="LightGray" BorderThickness="2"/>
-                                                    <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Left"/>
-                                                    <TextBlock Text="キュー停止中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="Black"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
-                                                                        <DataTrigger.EnterActions>
-                                                                            <BeginStoryboard Name="Blinking">
-                                                                                <Storyboard>
-                                                                                    <ColorAnimationUsingKeyFrames
+            <Grid>
+                <Grid.Resources>
+                    <Style x:Key="ScheduledStopStyle" TargetType="{x:Type FrameworkElement}">
+                        <Setter Property="Visibility" Value="Hidden"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Model.IsScheduledPaused}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Resources>
+                <DockPanel HorizontalAlignment="Stretch">
+                    <TextBlock DockPanel.Dock="Left" Text="停止" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Right" Text="稼働" VerticalAlignment="Center"/>
+                    <Button DockPanel.Dock="Top" Height="20" Margin="6,0" Command="{Binding TogglePauseCommand, Mode=OneWay}"
+                        ToolTip="キュー停止状態では新しいエンコードは始まりません。&#xa;キュー操作時に意図しないエンコード開始を防ぐには、キューを停止してください。">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate>
+                                            <Grid>
+                                                <Border CornerRadius="10" Background="DodgerBlue" BorderThickness="2"/>
+                                                <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Right"/>
+                                                <TextBlock Text="キュー稼働中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="White"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate>
+                                                    <Grid>
+                                                        <Border CornerRadius="10" Background="LightGray" BorderThickness="2"/>
+                                                        <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Left"/>
+                                                        <TextBlock Text="キュー停止中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="Black"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Model.IsPaused}" Value="True">
+                                                                            <DataTrigger.EnterActions>
+                                                                                <BeginStoryboard Name="Blinking">
+                                                                                    <Storyboard>
+                                                                                        <ColorAnimationUsingKeyFrames
                                                                                         Storyboard.TargetProperty="(Foreground).(SolidColorBrush.Color)"
                                                                                         Duration="0:0:1.2" RepeatBehavior="Forever">
-                                                                                        <DiscreteColorKeyFrame Value="Black" KeyTime="0:0:0" />
-                                                                                        <DiscreteColorKeyFrame Value="LightGray" KeyTime="0:0:0.8" />
-                                                                                    </ColorAnimationUsingKeyFrames>
-                                                                                </Storyboard>
-                                                                            </BeginStoryboard>
-                                                                        </DataTrigger.EnterActions>
-                                                                        <DataTrigger.ExitActions>
-                                                                            <RemoveStoryboard BeginStoryboardName="Blinking"/>
-                                                                        </DataTrigger.ExitActions>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Grid>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-            </DockPanel>
+                                                                                            <DiscreteColorKeyFrame Value="Black" KeyTime="0:0:0" />
+                                                                                            <DiscreteColorKeyFrame Value="LightGray" KeyTime="0:0:0.8" />
+                                                                                        </ColorAnimationUsingKeyFrames>
+                                                                                    </Storyboard>
+                                                                                </BeginStoryboard>
+                                                                            </DataTrigger.EnterActions>
+                                                                            <DataTrigger.ExitActions>
+                                                                                <RemoveStoryboard BeginStoryboardName="Blinking"/>
+                                                                            </DataTrigger.ExitActions>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button DockPanel.Dock="Left" Height="20" Margin="6,0" Command="{Binding ToggleSuspendCommand, Mode=OneWay}"
+                        ToolTip="実行中のエンコードプロセスを一時停止します">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate>
+                                            <Grid>
+                                                <Border CornerRadius="10" Background="DodgerBlue" BorderThickness="2"/>
+                                                <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Right"/>
+                                                <TextBlock Text="エンコードOK" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="White"/>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Model.IsSuspended}" Value="True">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate>
+                                                    <Grid>
+                                                        <Border CornerRadius="10" Background="LightGray" BorderThickness="2"/>
+                                                        <Ellipse Width="20" Fill="White" Stroke="Black" HorizontalAlignment="Left"/>
+                                                        <TextBlock Text="エンコード一時停止中" TextAlignment="Center" VerticalAlignment="Center" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="Black"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Model.IsSuspended}" Value="True">
+                                                                            <DataTrigger.EnterActions>
+                                                                                <BeginStoryboard Name="Blinking">
+                                                                                    <Storyboard>
+                                                                                        <ColorAnimationUsingKeyFrames
+                                                                                        Storyboard.TargetProperty="(Foreground).(SolidColorBrush.Color)"
+                                                                                        Duration="0:0:1.2" RepeatBehavior="Forever">
+                                                                                            <DiscreteColorKeyFrame Value="Black" KeyTime="0:0:0" />
+                                                                                            <DiscreteColorKeyFrame Value="LightGray" KeyTime="0:0:0.8" />
+                                                                                        </ColorAnimationUsingKeyFrames>
+                                                                                    </Storyboard>
+                                                                                </BeginStoryboard>
+                                                                            </DataTrigger.EnterActions>
+                                                                            <DataTrigger.ExitActions>
+                                                                                <RemoveStoryboard BeginStoryboardName="Blinking"/>
+                                                                            </DataTrigger.ExitActions>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </DockPanel>
+                <Border Style="{StaticResource ScheduledStopStyle}" Background="White" Opacity="0.85" IsHitTestVisible="False"/>
+                <TextBlock Style="{StaticResource ScheduledStopStyle}" VerticalAlignment="Center" TextAlignment="Center" FontWeight="Bold" Text="稼働時間設定により停止中です" IsHitTestVisible="False"/>
+            </Grid>
         </DockPanel>
 
         <Grid>

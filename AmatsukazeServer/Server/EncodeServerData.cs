@@ -407,6 +407,13 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool EnableShutdownAction { get; set; }
 
+        [DataMember]
+        public bool EnableRunHours { get; set; }
+        [DataMember]
+        public bool RunHoursSuspendEncoders { get; set; }
+        [DataMember]
+        public bool[] RunHours { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ActualWorkPath
@@ -1207,12 +1214,47 @@ namespace Amatsukaze.Server
     [DataContract]
     public class State
     {
+        // キュー停止
         [DataMember]
         public bool Pause { get; set; }
+
+        // エンコードサスペンド
+        [DataMember]
+        public bool Suspend { get; set; }
+
+        // エンコードサスペンド
+        [DataMember]
+        public bool[] EncoderSuspended { get; set; }
+
+        // エンコード実行中
         [DataMember]
         public bool Running { get; set; }
+
+        // スケジューリングにより一時停止状態
+        [DataMember]
+        public bool ScheduledPause { get; set; }
+
+        // スケジューリングにより一時停止状態
+        [DataMember]
+        public bool ScheduledSuspend { get; set; }
+
+        // 進捗
         [DataMember]
         public double Progress { get; set; }
+    }
+
+    [DataContract]
+    public class PauseRequest
+    {
+        // true: キュー停止, false: エンコーダ停止
+        [DataMember]
+        public bool IsQueue { get; set; }
+        // 停止するエンコーダ -1の場合は全エンコーダ
+        [DataMember]
+        public int Index { get; set; }
+        // 停止か稼働か
+        [DataMember]
+        public bool Pause { get; set; }
     }
 
     [DataContract]

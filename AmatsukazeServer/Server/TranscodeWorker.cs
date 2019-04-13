@@ -35,6 +35,10 @@ namespace Amatsukaze.Server
         public List<string> TextLines { get { return consoleText.TextLines; } }
         public EncodeState State { get; private set; }
 
+        public bool ScheduledSuspended { get; private set; }
+        public bool UserSuspended { get; private set; }
+        public bool Suspended { get { return ScheduledSuspended || UserSuspended; } }
+
         private List<Task> waitList;
 
         public TranscodeWorker(int id, EncodeServer server)
@@ -97,6 +101,30 @@ namespace Amatsukaze.Server
                 return true;
             }
             return false;
+        }
+
+        public void SetSuspend(bool suspend, bool scheduled)
+        {
+            bool current = Suspended;
+            if(scheduled)
+            {
+                ScheduledSuspended = suspend;
+            }
+            else
+            {
+                UserSuspended = suspend;
+            }
+            if(Suspended != current)
+            {
+                if(Suspended)
+                {
+                    process?.Suspend();
+                }
+                else
+                {
+                    process?.Resume();
+                }
+            }
         }
 
         private Task WriteTextBytes(byte[] buffer, int offset, int length)
@@ -930,6 +958,12 @@ namespace Amatsukaze.Server
 
                             // 起動コマンドをログ出力
                             await WriteTextBytes(Encoding.Default.GetBytes(exename + " " + args + "\n"));
+
+                            // サスペンドチェック
+                            if (Suspended)
+                            {
+                                process.Suspend();
+                            }
 
                             // キャンセルチェック
                             if (item.State == QueueState.Canceled)

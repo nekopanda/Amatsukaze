@@ -71,7 +71,7 @@ namespace Amatsukaze.ViewModels
         {
             ConsoleList = new ObservableViewModelCollection<SummaryItemViewModel, DisplayConsole>(Model.ConsoleList, s =>
             {
-                var vm = new SummaryItemViewModel() { Data = s };
+                var vm = new SummaryItemViewModel() { Model = Model, Data = s };
                 vm.Initialize();
                 return vm;
             });

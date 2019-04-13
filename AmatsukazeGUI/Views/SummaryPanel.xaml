@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Amatsukaze.Views"
              xmlns:vm="clr-namespace:Amatsukaze.ViewModels" 
              mc:Ignorable="d" 
              d:DesignHeight="300" d:DesignWidth="300"
@@ -12,60 +13,7 @@
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:SummaryItemViewModel">
-                <Button Command="{Binding DataContext.ShowItemDetailCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                        CommandParameter="{Binding}">
-                    <Button.Style>
-                        <Style TargetType="ButtonBase">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ButtonBase">
-                                        <Border Background="{TemplateBinding Background}" Padding="0,3">
-                                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                            <Setter Property="Background" Value="White"/>
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="LightGray" />
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                    <DockPanel>
-                        <TextBlock Text="{Binding Data.Id, Mode=OneWay}" VerticalAlignment="Center" TextAlignment="Center" MinWidth="14"/>
-                        <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                        <TextBlock FontWeight="Bold" Text="{Binding Data.PhaseString, Mode=OneWay}" 
-                               VerticalAlignment="Center" TextAlignment="Center"
-                               Width="50" Margin="3,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
-                                            <Setter Property="Visibility" Value="Hidden"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                        <TextBlock DockPanel.Dock="Right" Margin="5,0,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Data.GpuIndex}" Value="-1">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        CPU:<Run Text="{Binding Data.CPU, Mode=OneWay}"/>
-                        HDD:<Run Text="{Binding Data.HDD, Mode=OneWay}"/>
-                        GPU:<Run Text="{Binding Data.GPU, Mode=OneWay}"/>@<Run Text="{Binding Data.GpuIndex, Mode=OneWay}"/>
-                        </TextBlock>
-                        <TextBlock Text="{Binding Data.LastLine, Mode=OneWay}" Foreground="{Binding ForeColor, Mode=OneWay}" VerticalAlignment="Center"/>
-                    </DockPanel>
-                </Button>
+                <local:SummaryItem />
             </DataTemplate>
         </ItemsControl.ItemTemplate>
     </ItemsControl>

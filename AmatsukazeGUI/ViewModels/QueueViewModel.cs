@@ -301,7 +301,11 @@ namespace Amatsukaze.ViewModels
             {
                 if (selectPathVM.PauseStart)
                 {
-                    await Model.Server?.PauseEncode(true);
+                    await Model.Server?.PauseEncode(new PauseRequest()
+                    {
+                        IsQueue = true,
+                        Pause = true
+                    });
                 }
                 Model.Server?.AddQueue(req).AttachHandler();
             }
@@ -896,7 +900,35 @@ namespace Amatsukaze.ViewModels
 
         public void TogglePause()
         {
-            Model.Server?.PauseEncode(!Model.IsPaused);
+            Model.Server?.PauseEncode(new PauseRequest()
+            {
+                IsQueue = true,
+                Pause = !Model.IsPaused
+            });
+        }
+        #endregion
+
+        #region ToggleSuspendCommand
+        private ViewModelCommand _ToggleSuspendCommand;
+
+        public ViewModelCommand ToggleSuspendCommand {
+            get {
+                if (_ToggleSuspendCommand == null)
+                {
+                    _ToggleSuspendCommand = new ViewModelCommand(ToggleSuspend);
+                }
+                return _ToggleSuspendCommand;
+            }
+        }
+
+        public void ToggleSuspend()
+        {
+            Model.Server?.PauseEncode(new PauseRequest()
+            {
+                IsQueue = false,
+                Index = -1,
+                Pause = !Model.IsSuspended
+            });
         }
         #endregion
 

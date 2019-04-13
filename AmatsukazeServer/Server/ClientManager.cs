@@ -258,7 +258,7 @@ namespace Amatsukaze.Server
                     server.ChangeItem((ChangeItemData)arg);
                     break;
                 case RPCMethodId.PauseEncode:
-                    server.PauseEncode((bool)arg);
+                    server.PauseEncode((PauseRequest)arg);
                     break;
                 case RPCMethodId.CancelAddQueue:
                     server.CancelAddQueue();

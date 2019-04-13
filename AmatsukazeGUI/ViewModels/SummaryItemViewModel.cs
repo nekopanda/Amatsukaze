@@ -64,6 +64,8 @@ namespace Amatsukaze.ViewModels
         private Brush middle = new SolidColorBrush(Colors.Gray);
         private Brush black = new SolidColorBrush(Colors.Black);
 
+        public ClientModel Model { get; set; }
+
         public DisplayConsole Data { get; set; }
 
         #region ForeColor変更通知プロパティ
@@ -111,5 +113,30 @@ namespace Amatsukaze.ViewModels
                 ForeColor = black;
             }
         }
+
+        #region ToggleSuspendCommand
+        private ViewModelCommand _ToggleSuspendCommand;
+
+        public ViewModelCommand ToggleSuspendCommand {
+            get {
+                if (_ToggleSuspendCommand == null)
+                {
+                    _ToggleSuspendCommand = new ViewModelCommand(ToggleSuspend);
+                }
+                return _ToggleSuspendCommand;
+            }
+        }
+
+        public void ToggleSuspend()
+        {
+            Model.Server.PauseEncode(new Server.PauseRequest()
+            {
+                IsQueue = false,
+                Index = Data.Id - 1,
+                Pause = !Data.IsSuspended
+            });
+        }
+        #endregion
+
     }
 }

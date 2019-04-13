@@ -24,7 +24,7 @@ namespace Amatsukaze.Server
         Task SetProfile(ProfileUpdate data);
         Task SetAutoSelect(AutoSelectUpdate data);
         Task ChangeItem(ChangeItemData data);
-        Task PauseEncode(bool pause);
+        Task PauseEncode(PauseRequest request);
         Task CancelAddQueue();
         Task CancelSleep();
 
@@ -190,7 +190,7 @@ namespace Amatsukaze.Server
             { RPCMethodId.SetAutoSelect, typeof(AutoSelectUpdate) },
             { RPCMethodId.AddQueue, typeof(AddQueueRequest) },
             { RPCMethodId.ChangeItem, typeof(ChangeItemData) },
-            { RPCMethodId.PauseEncode, typeof(bool) },
+            { RPCMethodId.PauseEncode, typeof(PauseRequest) },
             { RPCMethodId.CancelAddQueue, null },
             { RPCMethodId.CancelSleep, null },
             { RPCMethodId.SetCommonData, typeof(CommonData) },
@@ -508,9 +508,9 @@ namespace Amatsukaze.Server
             Server.Finish();
         }
 
-        public Task PauseEncode(bool pause)
+        public Task PauseEncode(PauseRequest request)
         {
-            return Server.PauseEncode(Copy(pause));
+            return Server.PauseEncode(Copy(request));
         }
 
         public Task CancelAddQueue()

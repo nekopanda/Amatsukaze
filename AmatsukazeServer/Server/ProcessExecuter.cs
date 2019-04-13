@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amatsukaze.Lib;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,6 +12,8 @@ namespace Amatsukaze.Server
     public interface IProcessExecuter : IDisposable
     {
         void Canel();
+        void Suspend();
+        void Resume();
     }
 
     public class NormalProcess : IProcessExecuter
@@ -18,6 +21,8 @@ namespace Amatsukaze.Server
         public Process Process { get; private set; }
 
         public Func<byte[], int, int, Task> OnOutput;
+
+        private IntPtr[] SuspendedThreads;
 
         public NormalProcess(ProcessStartInfo psi)
         {
@@ -37,8 +42,16 @@ namespace Amatsukaze.Server
                 }
 
                 // アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
+                if(SuspendedThreads != null)
+                {
+                    foreach (var pOpenThread in SuspendedThreads)
+                    {
+                        WinAPI.CloseHandle(pOpenThread);
+                    };
+                }
                 Process.Dispose();
                 // 大きなフィールドを null に設定します。
+                SuspendedThreads = null;
                 Process = null;
 
                 disposedValue = true;
@@ -60,6 +73,37 @@ namespace Amatsukaze.Server
             // GC.SuppressFinalize(this);
         }
         #endregion
+
+
+        public void Suspend()
+        {
+            if (Process == null || Process.ProcessName == string.Empty)
+                return;
+
+            if (SuspendedThreads != null)
+                return;
+
+            SuspendedThreads = Process.Threads.OfType<ProcessThread>()
+                .Select(pT => WinAPI.OpenThread(WinAPI.ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id))
+                .Where(pOpenThread => pOpenThread != IntPtr.Zero)
+                .Where(pOpenThread => WinAPI.SuspendThread(pOpenThread) != 0xFFFFFFFFU).ToArray();
+        }
+
+        public void Resume()
+        {
+            if (Process == null || Process.ProcessName == string.Empty)
+                return;
+
+            if (SuspendedThreads == null)
+                return;
+            
+            foreach(var pOpenThread in SuspendedThreads)
+            {
+                WinAPI.ResumeThread(pOpenThread);
+                WinAPI.CloseHandle(pOpenThread);
+            };
+            SuspendedThreads = null;
+        }
 
         private async Task RedirectOut(Stream stream)
         {

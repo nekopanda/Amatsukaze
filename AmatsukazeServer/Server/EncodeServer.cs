@@ -106,9 +106,25 @@ namespace Amatsukaze.Server
 
         internal ResourceManager ResourceManager { get; private set; } = new ResourceManager();
 
+        private PauseScheduler pauseScheduler;
+
         // データファイル
         private DataFile<LogItem> logFile;
         private DataFile<CheckLogItem> checkLogFile;
+
+        #region QueuePaused変更通知プロパティ
+        private bool _QueuePaused = false;
+
+        public bool QueuePaused {
+            get { return _QueuePaused; }
+            set { 
+                if (_QueuePaused == value)
+                    return;
+                _QueuePaused = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
 
         #region EncodePaused変更通知プロパティ
         private bool encodePaused = false;
@@ -309,6 +325,8 @@ namespace Amatsukaze.Server
             SetScheduleParam(AppData_.setting.SchedulingEnabled, 
                 AppData_.setting.NumGPU, AppData_.setting.MaxGPUResources);
 
+            pauseScheduler = new PauseScheduler(this, workerPool);
+
 #if PROFILE
             prof.PrintTime("EncodeServer 2");
 #endif
@@ -339,8 +357,8 @@ namespace Amatsukaze.Server
             if (AppData_.setting.PauseOnStarted && queueManager.Queue.Any(s => s.IsActive))
             {
                 // アクティブなアイテムがある状態から開始する場合はキューを凍結する
-                EncodePaused = true;
-                workerPool.SetPause(true);
+                QueuePaused = true;
+                workerPool.SetPause(true, false);
                 queueManager.UpdateQueueItems(null);
             }
 
@@ -405,6 +423,7 @@ namespace Amatsukaze.Server
                     watchFileQ.Complete();
                     saveSettingQ.Complete();
                     drcsQ.Complete();
+                    pauseScheduler.Complete();
 
                     if (settingUpdated)
                     {
@@ -830,6 +849,10 @@ namespace Amatsukaze.Server
                 AppData_.setting.MaxGPUResources.Length < ResourceManager.MAX_GPU)
             {
                 AppData_.setting.MaxGPUResources = Enumerable.Repeat(100, ResourceManager.MAX_GPU).ToArray();
+            }
+            if (AppData_.setting.RunHours == null)
+            {
+                AppData_.setting.RunHours = Enumerable.Repeat(true, 24).ToArray();
             }
             if (AppData_.scriptData == null)
             {
@@ -2372,6 +2395,7 @@ namespace Amatsukaze.Server
                         // 無効な設定となった
                         AppData_.finishSetting.Action = FinishAction.None;
                     }
+                    pauseScheduler.NotifySettingChanged();
 
                     settingUpdated = true;
                     return Task.WhenAll(
@@ -2412,11 +2436,31 @@ namespace Amatsukaze.Server
             return Task.FromResult(0);
         }
 
-        public async Task PauseEncode(bool pause)
+        public async Task PauseEncode(PauseRequest request)
         {
-            EncodePaused = pause;
+            if (request.IsQueue)
+            {
+                workerPool.SetPause(request.Pause, false);
+            }
+            else
+            {
+                if(request.Index == -1)
+                {
+                    foreach(var worker in workerPool.Workers.OfType<TranscodeWorker>())
+                    {
+                        worker.SetSuspend(request.Pause, false);
+                    }
+                }
+                else
+                {
+                    var workers = workerPool.Workers.ToArray();
+                    if(request.Index < workers.Length)
+                    {
+                        ((TranscodeWorker)workers[request.Index]).SetSuspend(request.Pause, false);
+                    }
+                }
+            }
             Task task = RequestState();
-            workerPool.SetPause(pause);
             await task;
         }
 
@@ -2689,10 +2733,17 @@ namespace Amatsukaze.Server
 
         internal Task RequestState()
         {
+            var workers = workerPool.Workers.OfType<TranscodeWorker>().ToArray();
+            QueuePaused = workerPool.IsPaused;
+            EncodePaused = workers.All(w => w.Suspended);
             var state = new State()
             {
-                Pause = encodePaused,
+                Pause = workerPool.UserPaused,
+                Suspend = workers.All(w => w.UserSuspended),
+                EncoderSuspended = workers.Select(w => w.UserSuspended).ToArray(),
                 Running = nowEncoding,
+                ScheduledPause = workerPool.ScheduledPaused,
+                ScheduledSuspend = workers.FirstOrDefault()?.ScheduledSuspended ?? false,
                 Progress = Progress
             };
             return Client.OnCommonData(new CommonData()

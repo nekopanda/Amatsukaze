@@ -156,6 +156,20 @@ namespace Amatsukaze.Models
         public int GPU { get { return _Resource?.Req.GPU ?? 0; } }
         public int GpuIndex { get { return _Resource?.GpuIndex ?? -1; } }
         #endregion
+
+        #region IsSuspended変更通知プロパティ
+        private bool _IsSuspended;
+
+        public bool IsSuspended {
+            get { return _IsSuspended; }
+            set { 
+                if (_IsSuspended == value)
+                    return;
+                _IsSuspended = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
     }
 
     public class DisplayQueueItem : NotificationObject
@@ -2330,17 +2344,55 @@ namespace Amatsukaze.Models
         #endregion
     }
 
+    public class DisplayRunHour : NotificationObject
+    {
+        public Setting Model { get; set; }
+        public int Hour { get; set; }
+        public string HourText { get { return string.Format("{0:00}:00-{0:00}:59", Hour); } }
+
+        #region Enabled変更通知プロパティ
+        public bool Enabled {
+            get {
+                if (Model?.RunHours == null)
+                {
+                    return true;
+                }
+                return Model.RunHours[Hour];
+            }
+            set {
+                if (Model?.RunHours == null)
+                    return;
+                if (Model.RunHours[Hour] == value)
+                    return;
+                Model.RunHours[Hour] = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+    }
+
     public class DisplaySetting : NotificationObject
     {
         public Setting Model { get; set; }
 
         public DisplayGPUResource[] GPUResources { get; private set; }
 
-        public void RefreshGPUResources()
+        public DisplayRunHour[] RunHours { get; private set; }
+
+        private void RefreshGPUResources()
         {
             GPUResources = Enumerable.Range(0, Model.NumGPU).Select(
                 i => new DisplayGPUResource() { Model = Model, Index = i }).ToArray();
             RaisePropertyChanged("GPUResources");
+        }
+
+        public void Refresh()
+        {
+            RefreshGPUResources();
+
+            RunHours = Enumerable.Range(0, 24).Select(
+                i => new DisplayRunHour() { Model = Model, Hour = i }).ToArray();
+            RaisePropertyChanged("RunHours");
         }
 
         #region WorkPath変更通知プロパティ
@@ -2791,6 +2843,37 @@ namespace Amatsukaze.Models
             }
         }
         #endregion
+
+        #region EnableRunHours変更通知プロパティ
+        public bool EnableRunHours {
+            get { return Model.EnableRunHours; }
+            set { 
+                if (Model.EnableRunHours == value)
+                    return;
+                Model.EnableRunHours = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region RunHoursSuspendEncodersIndex変更通知プロパティ
+        public string[] RunHoursSuspendEncodersList { get; private set; } = new string[]
+        {
+            "キューのみ", "キューと実行中のエンコーダの両方"
+        };
+
+        public int RunHoursSuspendEncodersIndex {
+            get { return Model.RunHoursSuspendEncoders ? 1 : 0; }
+            set {
+                var valuei = (value == 0) ? false : true;
+                if (Model.RunHoursSuspendEncoders == valuei)
+                    return;
+                Model.RunHoursSuspendEncoders = valuei;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
     }
 
     public class DisplayFinishSetting : NotificationObject

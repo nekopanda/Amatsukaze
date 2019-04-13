@@ -395,5 +395,9 @@ namespace Amatsukaze.Server
         {
             process?.Canel();
         }
+
+        // 未実装
+        public void Suspend() { }
+        public void Resume() { }
     }
 }
