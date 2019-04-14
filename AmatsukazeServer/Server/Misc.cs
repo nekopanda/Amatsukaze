@@ -1275,7 +1275,7 @@ namespace Amatsukaze.Server
                         preset = ", preset=\"" + preset + "\"";
                     }
                     sb.AppendLine("dsrc.KFMDeint(mode=1" + preset + ", ucf=false, nr=false" +
-                        ", cuda=" + (filter.EnableCUDA ? "true" : "false") + ", is120=" + filter.KfmVfr120fps + ")");
+                        ", cuda=" + (filter.EnableCUDA ? "true" : "false") + ")");
                 }
                 else if (filter.DeinterlaceAlgorithm == DeinterlaceAlgorithm.KFM)
                 {
@@ -1299,6 +1299,7 @@ namespace Amatsukaze.Server
                         ", svp=" + ((filter.KfmFps == FilterFPS.SVP) ? "true" : "false") +
                         ", thswitch=" + ((filter.KfmFps == FilterFPS.VFR30) ? "-1" : "3") +
                         ", cuda=" + (filter.EnableCUDA ? "true" : "false") +
+                        ", is120=" + filter.KfmVfr120fps +
                         ", dev=AMT_DEV, filepath=AMT_TMP)");
                 }
                 else if(filter.DeinterlaceAlgorithm == DeinterlaceAlgorithm.Yadif)
@@ -1348,7 +1349,7 @@ namespace Amatsukaze.Server
                     if (parallel <= 1)
                     {
                         sb.AppendLine("if(AMT_PASS == 0) { AMT_SOURCE." + fname + "(logp" + crop + ") }");
-                        sb.AppendLine("if(AMT_PASS == 1) { AMT_SOURCE.AMTExec(" + autovfrarg + ").Trim(0,-1) }");
+                        sb.AppendLine("if(AMT_PASS == 1) { AMT_SOURCE.AMTExec(\"" + autovfrarg + "\").Trim(0,-1) }");
                     }
                     else
                     {
