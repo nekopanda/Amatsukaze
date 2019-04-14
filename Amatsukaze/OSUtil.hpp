@@ -64,6 +64,10 @@ std::vector<std::wstring> GetDirectoryFiles(const std::wstring& dirpath, const s
 	WIN32_FIND_DATAW findData;
 	HANDLE hFind = FindFirstFileW(search.c_str(), &findData);
 	if (hFind == INVALID_HANDLE_VALUE) {
+		if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+			// ファイルが1つもなかった
+			return std::vector<std::wstring>();
+		}
 		THROWF(IOException, "ファイル列挙に失敗: %s", search);
 	}
 	do {
