@@ -236,6 +236,17 @@ namespace Amatsukaze.ViewModels
             // PreFailアイテムは優先度が0になるので注意
             if (PriorityChecks[Math.Max(0, Math.Min(4, item.Priority - 1))].Value == false) return false;
             if (StateChecks[StateIndex(item.Model.State)].Value == false) return false;
+            if (EnableFilterDate)
+            {
+                if (FilterDateStart != null)
+                {
+                    if (item.Model.EncodeFinish < FilterDateStart) return false;
+                }
+                if (FilterDateEnd != null)
+                {
+                    if (item.Model.EncodeStart > FilterDateEnd) return false;
+                }
+            }
             if (string.IsNullOrEmpty(_SearchWord)) return true;
             return (SearchChecks[1].Value && item.Model.ServiceName.IndexOf(_SearchWord) != -1) ||
                 (SearchChecks[0].Value && item.Model.FileName.IndexOf(_SearchWord) != -1) ||
@@ -1209,6 +1220,51 @@ namespace Amatsukaze.ViewModels
                     SuppressUpdateCount--;
                     itemsView.Refresh();
                 }
+            }
+        }
+        #endregion
+
+        #region EnableFilterDate変更通知プロパティ
+        private bool _EnableFilterDate;
+
+        public bool EnableFilterDate {
+            get { return _EnableFilterDate; }
+            set { 
+                if (_EnableFilterDate == value)
+                    return;
+                _EnableFilterDate = value;
+                RaisePropertyChanged();
+                itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region FilterDateStart変更通知プロパティ
+        private DateTime? _FilterDateStart;
+
+        public DateTime? FilterDateStart {
+            get { return _FilterDateStart; }
+            set { 
+                if (_FilterDateStart == value)
+                    return;
+                _FilterDateStart = value;
+                RaisePropertyChanged();
+                itemsView.Refresh();
+            }
+        }
+        #endregion
+
+        #region FilterDateEnd変更通知プロパティ
+        private DateTime? _FilterDateEnd;
+
+        public DateTime? FilterDateEnd {
+            get { return _FilterDateEnd; }
+            set { 
+                if (_FilterDateEnd == value)
+                    return;
+                _FilterDateEnd = value;
+                RaisePropertyChanged();
+                itemsView.Refresh();
             }
         }
         #endregion

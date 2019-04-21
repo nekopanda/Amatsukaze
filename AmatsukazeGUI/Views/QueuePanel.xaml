@@ -345,6 +345,13 @@
                         <CheckBox Padding="6,0" Content="すべて" IsChecked="{Binding PriorityCheckAll, Mode=TwoWay}"/>
                     </WrapPanel>
                 </GroupBox>
+                <WrapPanel HorizontalAlignment="Left" Margin="6,0">
+                    <CheckBox Content="エンコード日時が" VerticalAlignment="Center" IsChecked="{Binding EnableFilterDate, Mode=TwoWay}"/>
+                    <DatePicker IsEnabled="{Binding EnableFilterDate}" SelectedDate="{Binding FilterDateStart, Mode=TwoWay}" />
+                    <TextBlock Text="から" VerticalAlignment="Center" />
+                    <DatePicker IsEnabled="{Binding EnableFilterDate}" SelectedDate="{Binding FilterDateEnd, Mode=TwoWay}" />
+                    <TextBlock Text="まで" VerticalAlignment="Center"/>
+                </WrapPanel>
             </DockPanel>
         </Expander>
         <Expander DockPanel.Dock="Top" IsExpanded="{Binding IsControlPanelOpen, Mode=TwoWay}" Style="{StaticResource ExpanderStyle1}" MinHeight="22">
