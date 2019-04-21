@@ -134,7 +134,7 @@ private:
 		return StringFormat(_T("\"%s\" jk%d %zu %zu -x -f \"%s\""),
 			pathNormalize(GetModuleDirectory()) + _T("/NicoJK18Client.exe"),
 			jknum, startTime, endTime,
-			setting_.getTmpNicoJKXMLPath());
+			pathToOS(setting_.getTmpNicoJKXMLPath()));
 	}
 
 	bool getNicoJKXml(time_t startTime, int duration)
@@ -217,14 +217,15 @@ private:
 		sb.append(_T("\"%s\" -width %d -height %d -wfilename \"%s\" -chapter 0"),
 			setting_.getNicoConvAssPath(),
 			width[(int)type], height[(int)type],
-			setting_.getTmpNicoJKASSPath(type));
+			pathToOS(setting_.getTmpNicoJKASSPath(type)));
 		if (mode == CONV_ASS_LOG) {
 			sb.append(_T(" -nicojk 1"), startTime);
 		}
 		if (mode != CONV_ASS_XML) {
 			sb.append(_T(" -tx_starttime %zu"), startTime);
 		}
-		sb.append(_T(" \"%s\""), (mode != CONV_ASS_XML) ? setting_.getSrcFilePath() : setting_.getTmpNicoJKXMLPath());
+		sb.append(_T(" \"%s\""), pathToOS(
+			(mode != CONV_ASS_XML) ? setting_.getSrcFilePath() : setting_.getTmpNicoJKXMLPath()));
 		return sb.str();
 	}
 

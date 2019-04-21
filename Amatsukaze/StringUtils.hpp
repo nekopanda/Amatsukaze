@@ -410,3 +410,8 @@ static tstring pathRemoveExtension(const tstring& path) {
 	return path;
 }
 
+static tstring pathToOS(const tstring& path) {
+	tstring ret = path;
+	std::replace(ret.begin(), ret.end(), _T('/'), _T('\\'));
+	return ret;
+}

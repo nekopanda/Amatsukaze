@@ -506,13 +506,12 @@ private:
 		InitEnv();
 
 		auto tmppath = setting_.getAvsTmpPath(key);
-		std::replace(tmppath.begin(), tmppath.end(), _T('/'), _T('\\'));
 
 		defineMakeSource(key, reformInfo, logopath);
 
 		auto& sb = script_.Get();
 		sb.append("AMT_SOURCE = MakeSource(true)\n");
-		sb.append("AMT_TMP = \"%s\"\n", tmppath);
+		sb.append("AMT_TMP = \"%s\"\n", pathToOS(tmppath));
 		sb.append("AMT_PASS = %d\n", pass);
 		sb.append("AMT_DEV = %d\n", gpuIndex);
 		sb.append("AMT_SOURCE\n");

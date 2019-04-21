@@ -301,8 +301,8 @@ private:
 	tstring MakeChapterExeArgs(int videoFileIndex, const tstring& avspath)
 	{
 		return StringFormat(_T("\"%s\" -v \"%s\" -o \"%s\" %s"),
-			setting_.getChapterExePath(), avspath,
-			setting_.getTmpChapterExePath(videoFileIndex),
+			setting_.getChapterExePath(), pathToOS(avspath),
+			pathToOS(setting_.getTmpChapterExePath(videoFileIndex)),
 			setting_.getChapterExeOptions());
 	}
 
@@ -323,14 +323,14 @@ private:
 		StringBuilderT sb;
 		sb.append(_T("\"%s\""), setting_.getJoinLogoScpPath());
 		if (logopath.size() > 0) {
-			sb.append(_T(" -inlogo \"%s\""), setting_.getTmpLogoFramePath(videoFileIndex));
+			sb.append(_T(" -inlogo \"%s\""), pathToOS(setting_.getTmpLogoFramePath(videoFileIndex)));
 		}
 		sb.append(_T(" -inscp \"%s\" -incmd \"%s\" -o \"%s\" -oscp \"%s\" -odiv \"%s\" %s"),
-			setting_.getTmpChapterExePath(videoFileIndex),
-			setting_.getJoinLogoScpCmdPath(),
-			setting_.getTmpTrimAVSPath(videoFileIndex),
-			setting_.getTmpJlsPath(videoFileIndex),
-      setting_.getTmpDivPath(videoFileIndex),
+			pathToOS(setting_.getTmpChapterExePath(videoFileIndex)),
+			pathToOS(setting_.getJoinLogoScpCmdPath()),
+			pathToOS(setting_.getTmpTrimAVSPath(videoFileIndex)),
+			pathToOS(setting_.getTmpJlsPath(videoFileIndex)),
+			pathToOS(setting_.getTmpDivPath(videoFileIndex)),
 			setting_.getJoinLogoScpOptions());
 		return sb.str();
 	}
