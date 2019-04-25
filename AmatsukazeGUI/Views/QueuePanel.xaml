@@ -716,14 +716,15 @@
                         <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0">
                                 <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
                                 <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
-                            <TextBlock.ToolTip>
-                                <TextBlock>
+                                <TextBlock.ToolTip>
+                                    <TextBlock>
                                         <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
                                         <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
                                         <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
                                         <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
-                                </TextBlock>
-                            </TextBlock.ToolTip>
+                                        <LineBreak/>出力先: <Run Text="{Binding OutDir, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </TextBlock.ToolTip>
                             </TextBlock>
                         <ContentControl Margin="0,0,5,0" Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
                     </DockPanel>
@@ -755,15 +756,16 @@
                                 SelectedItem="{Binding Priority, Mode=TwoWay}"/>
                         <TextBlock DockPanel.Dock="Top" Margin="0,0,5,0">
                                 <Run Text="{Binding Model.FileName, Mode=OneWay}"/>
-                            <TextBlock.ToolTip>
-                                <TextBlock>
-                                    <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
-                                    <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
-                                    <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
-                                    <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
-                                    <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
-                                </TextBlock>
-                            </TextBlock.ToolTip>
+                                <TextBlock.ToolTip>
+                                    <TextBlock>
+                                        <Run Text="{Binding Model.DirName, Mode=OneWay}"/>
+                                        <LineBreak/><Run Text="{Binding Model.FileName, Mode=OneWay}"/>
+                                        <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
+                                        <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
+                                        <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
+                                        <LineBreak/>出力先: <Run Text="{Binding OutDir, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </TextBlock.ToolTip>
                             </TextBlock>
                         <ContentControl Margin="0,0,5,0" Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
                     </DockPanel>
@@ -802,6 +804,7 @@
                                         <LineBreak/>ジャンル: <Run Text="{Binding GenreString, Mode=OneWay}"/>
                                         <LineBreak/>映像サイズ: <Run Text="{Binding VideoSizeString, Mode=OneWay}"/>
                                         <LineBreak/>タグ: <Run Text="{Binding TagString, Mode=OneWay}"/>
+                                        <LineBreak/>出力先: <Run Text="{Binding OutDir, Mode=OneWay}"/>
                                     </TextBlock>
                                     <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ShowState}"/>
                                 </DockPanel>

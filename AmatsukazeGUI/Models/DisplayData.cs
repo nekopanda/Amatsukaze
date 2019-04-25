@@ -203,6 +203,12 @@ namespace Amatsukaze.Models
         public string TsTimeString { get { return Model.TsTime.ToString("yyyy年MM月dd日"); } }
         public string ServiceString { get { return Model.ServiceName + "(" + Model.ServiceId + ")"; } }
 
+        public string OutDir {
+            get {
+                return Path.GetDirectoryName(_Model.DstPath);
+            }
+        }
+
         public TimeSpan Elapsed
         {
             get
