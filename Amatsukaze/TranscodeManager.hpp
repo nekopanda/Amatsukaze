@@ -563,36 +563,33 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		size_t numFrames = reformInfo.getFilterSourceFrames(videoFileIndex).size();
 		// チャプター解析は300フレーム（約10秒）以上ある場合だけ
 		//（短すぎるとエラーになることがあるので）
-		if (setting.isChapterEnabled() && numFrames >= 300)
-		{
-			int numFrames = (int)reformInfo.getFilterSourceFrames(videoFileIndex).size();
-			cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(
-				new CMAnalyze(ctx, setting, videoFileIndex, numFrames)));
+		bool isAnalyze = (setting.isChapterEnabled() && numFrames >= 300);
 
-			CMAnalyze* cma = cmanalyze.back().get();
+		cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(isAnalyze 
+			? new CMAnalyze(ctx, setting, videoFileIndex, numFrames) 
+			: new CMAnalyze(ctx, setting)));
 
-			if (setting.isPmtCutEnabled()) {
-				// PMT変更によるCM追加認識
-				cma->applyPmtCut(numFrames, setting.getPmtCutSideRate(),
-					reformInfo.getPidChangedList(videoFileIndex));
+		CMAnalyze* cma = cmanalyze.back().get();
+
+		if (isAnalyze && setting.isPmtCutEnabled()) {
+			// PMT変更によるCM追加認識
+			cma->applyPmtCut(numFrames, setting.getPmtCutSideRate(),
+				reformInfo.getPidChangedList(videoFileIndex));
+		}
+
+		if (videoFileIndex == mainFileIndex) {
+			if (setting.getTrimAVSPath().size()) {
+				// Trim情報入力
+				cma->inputTrimAVS(numFrames, setting.getTrimAVSPath());
 			}
+		}
 
-			if (videoFileIndex == mainFileIndex) {
-				if (setting.getTrimAVSPath().size()) {
-					// Trim情報入力
-					cma->inputTrimAVS(numFrames, setting.getTrimAVSPath());
-				}
-			}
+		logoFound.emplace_back(numFrames, cma->getLogoPath().size() > 0);
+		reformInfo.applyCMZones(videoFileIndex, cma->getZones(), cma->getDivs());
 
-			logoFound.emplace_back(numFrames, cma->getLogoPath().size() > 0);
-			reformInfo.applyCMZones(videoFileIndex, cma->getZones(), cma->getDivs());
-
+		if (isAnalyze) {
 			chapterMakers[videoFileIndex] = std::unique_ptr<MakeChapter>(
 				new MakeChapter(ctx, setting, reformInfo, videoFileIndex, cma->getTrims()));
-		}
-		else {
-			// チャプターCM解析無効
-			cmanalyze.emplace_back(std::unique_ptr<CMAnalyze>(new CMAnalyze(ctx, setting)));
 		}
 	}
 	if (setting.isChapterEnabled()) {
