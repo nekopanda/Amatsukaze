@@ -434,10 +434,7 @@ private:
 		cmzones.clear();
 		for (int i = 0; i < (int)split.size(); i += 2) {
 			EncoderZone zone = { split[i], split[i + 1] };
-			// æ“ª––”öˆÈŠO‚Ì’Z‚·‚¬‚é‹æŠÔ‚ÍŽÌ‚Ä‚é
-			if (zone.startFrame == 0 ||
-				zone.endFrame == numFrames ||
-				zone.endFrame - zone.startFrame > 30) {
+			if (zone.endFrame - zone.startFrame > 0) {
 				cmzones.push_back(zone);
 			}
 		}

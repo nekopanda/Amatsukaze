@@ -491,7 +491,12 @@ private:
 			// Trimが必要
 			for (int i = 0; i < (int)trimZones.size(); ++i) {
 				if (i > 0) sb.append("++");
-				sb.append("Trim(%d,%d)", trimZones[i].startFrame, trimZones[i].endFrame);
+				// Trimのlast_frame==0は末尾まですべてという意味なので、0のときは例外処理
+				// endFrame >= startFrameなので、endFrame==0のときはstartFrame==0
+				if(trimZones[i].endFrame == 0)
+					sb.append("Trim(0,-1)");
+				else
+					sb.append("Trim(%d,%d)", trimZones[i].startFrame, trimZones[i].endFrame);
 			}
 			sb.append("\n");
 		}
