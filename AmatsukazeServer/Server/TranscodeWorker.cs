@@ -1125,7 +1125,20 @@ namespace Amatsukaze.Server
                     if (item.IsTest)
                     {
                         // 出力ファイルを削除
-                        File.Delete(dstpath + ext);
+                        for(int retry = 0; ; ++retry)
+                        {
+                            // 終了直後は消せないことがあるので、リトライする
+                            try
+                            {
+                                File.Delete(dstpath + ext);
+                                break;
+                            }
+                            catch(IOException)
+                            {
+                                if (retry > 10) throw;
+                                await Task.Delay(3000);
+                            }
+                        }
                     }
 
                     if (item.State == QueueState.Canceled)
@@ -1412,6 +1425,11 @@ namespace Amatsukaze.Server
             catch (Exception e)
             {
                 await server.FatalError(Id, "エンコード中にエラー", e);
+                if(item != null)
+                {
+                    item.State = QueueState.Failed;
+                    await server.NotifyQueueItemUpdate(item);
+                }
                 return false;
             }
             finally
