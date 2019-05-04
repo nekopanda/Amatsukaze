@@ -11,15 +11,15 @@
 
 #include "TranscodeManager.hpp"
 #include "AmatsukazeTestImpl.hpp"
+#include "Version.h"
 
 // MSVCのマルチバイトはUnicodeでないので文字列操作に適さないのでwchar_tで文字列操作をする
 
 
 static void printCopyright() {
 	PRINTF(
-		"Amatsukaze - Automated MPEG2-TS Transcoder\n"
-		"Built on %s %s\n"
-		"Copyright (c) 2017-2019 Nekopanda\n", __DATE__, __TIME__);
+		"Amatsukaze %s built on %s %s\n"
+		"Copyright (c) 2017-2019 Nekopanda\n", AMATSUKAZE_VERSION, __DATE__, __TIME__);
 }
 
 static void printHelp(const tchar* bin) {

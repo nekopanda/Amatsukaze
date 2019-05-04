@@ -98,6 +98,9 @@
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>.\Version.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -111,6 +114,9 @@
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>.\Version.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -129,6 +135,9 @@
       <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <PreBuildEvent>
+      <Command>.\Version.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -146,6 +155,9 @@
       <AdditionalLibraryDirectories>$(SolutionDir)lib\$(PlatformTarget);$(OutDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>utv_core.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>.\Version.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />

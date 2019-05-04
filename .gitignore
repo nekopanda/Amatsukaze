@@ -10,3 +10,7 @@ Release/
 /packages/
 
 *.bak
+
+/Amatsukaze/Version.h
+/AmatsukazeServer/Version.t4
+/AmatsukazeServer/Properties/AssemblyInfo.cs
