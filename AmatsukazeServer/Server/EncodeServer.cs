@@ -594,7 +594,7 @@ namespace Amatsukaze.Server
             return GetDRCSImagePath(GetDRCSDirectoryPath(), md5);
         }
 
-        private string GetDRCSImagePath(string md5, string dirPath)
+        private string GetDRCSImagePath(string dirPath, string md5)
         {
             return dirPath + "\\" + md5 + ".bmp";
         }

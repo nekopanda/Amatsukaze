@@ -181,7 +181,7 @@ namespace Amatsukaze.Server
             return ret;
         }
 
-        private Regex regex = new Regex("\\[字幕\\] 映像時刻(\\d+)分(\\d+)秒付近にマッピングのないDRCS外字があります。追加してください -> .*\\\\([0-9A-F]+)\\.bmp");
+        private Regex regex = new Regex("\\[字幕\\] 映像時刻(\\d+)分(\\d+)秒付近にマッピングのないDRCS外字があります。追加してください -> .*[/\\\\]([0-9A-F]+)\\.bmp");
 
         private bool MatchDRCSInfo(string line, out string md5, out TimeSpan elapsed)
         {
