@@ -619,3 +619,6 @@ googletest/googletest/msvc/gtest-md.slnを開いて、ビルドしてくださ�
 できたgtest.lib/gtestd.libをlib/x64(or x86)へコピーしてください。
 
 単体テストプロジェクト(AmatsukazeUnitTest)は、他にOpenCVも使っているので、OpenCV 3.2.0をビルドしてこれもlibをlib/x64(or x86)へコピーしてください。
+
+gitでバージョンを取得するので、gitにパスを通した状態で、gitリポジトリでビルドする必要があります。
+
