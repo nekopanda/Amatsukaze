@@ -18,7 +18,7 @@
 
 static void printCopyright() {
 	PRINTF(
-		"Amatsukaze %s built on %s %s\n"
+		"Amatsukaze - Automated MPEG2-TS Transcoder %s (%s %s)\n"
 		"Copyright (c) 2017-2019 Nekopanda\n", AMATSUKAZE_VERSION, __DATE__, __TIME__);
 }
 
