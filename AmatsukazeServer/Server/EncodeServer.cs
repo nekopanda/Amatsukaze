@@ -280,13 +280,16 @@ namespace Amatsukaze.Server
                     await CancelSleep(); // 大丈夫だと思うけどきれいにしておく
                     NowEncoding = true;
                     Progress = 0;
-                    await RequestState();
+                    await RequestState(StateChangeEvent.WorkersStarted);
                 },
                 OnFinish = async ()=> {
                     NowEncoding = false;
                     Progress = 1;
-                    await RequestState();
-                    if (disposedValue) return;
+                    if(disposedValue)
+                    {
+                        return;
+                    }
+                    await RequestState(StateChangeEvent.WorkersFinished);
                     if (preventSuspend != null)
                     {
                         preventSuspend.Dispose();
@@ -393,6 +396,8 @@ namespace Amatsukaze.Server
         {
             if (!disposedValue)
             {
+                disposedValue = true;
+
                 if (disposing)
                 {
                     // TODO: マネージ状態を破棄します (マネージ オブジェクト)。
@@ -475,7 +480,6 @@ namespace Amatsukaze.Server
                 // TODO: アンマネージ リソース (アンマネージ オブジェクト) を解放し、下のファイナライザーをオーバーライドします。
                 // TODO: 大きなフィールドを null に設定します。
 
-                disposedValue = true;
             }
         }
 
@@ -594,6 +598,11 @@ namespace Amatsukaze.Server
         internal string GetDRCSDirectoryPath()
         {
             return Path.GetFullPath("drcs");
+        }
+
+        internal string GetSoundDirectoryPath()
+        {
+            return Path.GetFullPath("sound");
         }
 
         internal string GetDRCSImagePath(string md5)
@@ -2744,6 +2753,20 @@ namespace Amatsukaze.Server
 
         internal Task RequestState()
         {
+            return RequestState(null);
+        }
+
+        private void PlaySound(string name)
+        {
+            var localClientRunning = ClientManager?.HasLocalClient() ?? true;
+            if (localClientRunning == false)
+            {
+                Util.PlayRandomSound("sound\\" + name);
+            }
+        }
+
+        internal Task RequestState(StateChangeEvent? changeEvent)
+        {
             var workers = workerPool.Workers.OfType<TranscodeWorker>().ToArray();
             QueuePaused = workerPool.IsPaused;
             EncodePaused = workers.All(w => w.Suspended);
@@ -2757,9 +2780,28 @@ namespace Amatsukaze.Server
                 ScheduledSuspend = workers.FirstOrDefault()?.ScheduledSuspended ?? false,
                 Progress = Progress
             };
-            return Client.OnCommonData(new CommonData()
+            if(changeEvent != null)
             {
-                State = state
+                switch (changeEvent)
+                {
+                    case StateChangeEvent.WorkersStarted:
+                        PlaySound("start");
+                        break;
+                    case StateChangeEvent.WorkersFinished:
+                        PlaySound("complete");
+                        break;
+                    case StateChangeEvent.EncodeSucceeded:
+                        PlaySound("succeeded");
+                        break;
+                    case StateChangeEvent.EncodeFailed:
+                        PlaySound("failed");
+                        break;
+                }
+            }
+            return Client.OnUIData(new UIData()
+            {
+                State = state,
+                StateChangeEvent = changeEvent
             });
         }
 

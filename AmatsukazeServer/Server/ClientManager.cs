@@ -206,6 +206,13 @@ namespace Amatsukaze.Server
             return true;
         }
 
+        // ローカル接続しているクライアントがいるか？
+        public bool HasLocalClient()
+        {
+            IPHostEntry iphostentry = Dns.GetHostEntry(Dns.GetHostName());
+            return ClientList.Any(client => IsRemoteHost(iphostentry, client.RemoteIP.Address) == false);
+        }
+
         public byte[] GetMacAddress()
         {
             // リモートのクライアントを見つけて、

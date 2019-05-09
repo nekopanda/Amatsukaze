@@ -281,6 +281,16 @@ namespace Amatsukaze.Server
             };
             return escapeFileNameRegex.Replace(name, eval);
         }
+
+        public static void PlayRandomSound(string dir)
+        {
+            if (Directory.Exists(dir) == false) return;
+            var files = Directory.EnumerateFiles(dir, "*.wav").ToArray();
+            if (files.Length == 0) return;
+            var file = files[Environment.TickCount % files.Length];
+            var player = new System.Media.SoundPlayer(file);
+            player.Play();
+        }
     }
 
     public abstract class ConsoleTextBase : NotificationObject

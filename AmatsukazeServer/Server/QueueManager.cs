@@ -657,13 +657,11 @@ namespace Amatsukaze.Server
             if (Queue.Contains(item))
             {
                 // ないアイテムをUpdateすると追加されてしまうので
-                return Task.WhenAll(
-                    ClientQueueUpdate(new QueueUpdate()
+                return ClientQueueUpdate(new QueueUpdate()
                     {
                         Type = UpdateType.Update,
                         Item = item
-                    }),
-                    server.RequestState());
+                    });
             }
             return Task.FromResult(0);
         }

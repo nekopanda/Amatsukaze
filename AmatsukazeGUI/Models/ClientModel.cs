@@ -1054,9 +1054,32 @@ namespace Amatsukaze.Models
             sw.Flush();
         }
 
+        private void PlaySound(string name)
+        {
+            Util.PlayRandomSound("sound\\" + name);
+        }
+
         public Task OnUIData(UIData data)
         {
-            if(data.QueueData != null)
+            if (data.State != null)
+            {
+                IsPaused = data.State.Pause;
+                IsSuspended = data.State.Suspend;
+                IsRunning = data.State.Running;
+                IsScheduledPaused = data.State.ScheduledPause;
+                IsScheduledSuspend = data.State.ScheduledSuspend;
+                ProgressState = IsRunning ? TaskbarItemProgressState.Normal : TaskbarItemProgressState.None;
+                ProgressValue = data.State.Progress;
+
+                for (int i = 0; i < data.State.EncoderSuspended.Length; ++i)
+                {
+                    if (i < ConsoleList.Count)
+                    {
+                        ConsoleList[i].IsSuspended = data.State.EncoderSuspended[i];
+                    }
+                }
+            }
+            if (data.QueueData != null)
             {
                 if(QueueItems.Count != data.QueueData.Items.Count)
                 {
@@ -1149,6 +1172,24 @@ namespace Amatsukaze.Models
             {
                 SleepCancel = data.SleepCancel;
             }
+            if(data.StateChangeEvent != null)
+            {
+                switch(data.StateChangeEvent)
+                {
+                    case StateChangeEvent.WorkersStarted:
+                        PlaySound("start");
+                        break;
+                    case StateChangeEvent.WorkersFinished:
+                        PlaySound("complete");
+                        break;
+                    case StateChangeEvent.EncodeSucceeded:
+                        PlaySound("succeeded");
+                        break;
+                    case StateChangeEvent.EncodeFailed:
+                        PlaySound("failed");
+                        break;
+                }
+            }
             return Task.FromResult(0);
         }
 
@@ -1211,24 +1252,6 @@ namespace Amatsukaze.Models
                 serverInfo = data.ServerInfo;
                 RaisePropertyChanged("ServerHostName");
                 RaisePropertyChanged("ServerVersion");
-            }
-            if(data.State != null)
-            {
-                IsPaused = data.State.Pause;
-                IsSuspended = data.State.Suspend;
-                IsRunning = data.State.Running;
-                IsScheduledPaused = data.State.ScheduledPause;
-                IsScheduledSuspend = data.State.ScheduledSuspend;
-                ProgressState = IsRunning ? TaskbarItemProgressState.Normal : TaskbarItemProgressState.None;
-                ProgressValue = data.State.Progress;
-
-                for(int i = 0; i < data.State.EncoderSuspended.Length; ++i)
-                {
-                    if(i < ConsoleList.Count)
-                    {
-                        ConsoleList[i].IsSuspended = data.State.EncoderSuspended[i];
-                    }
-                }
             }
             if (data.AddQueueBatFiles != null)
             {

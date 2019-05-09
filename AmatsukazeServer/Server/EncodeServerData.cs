@@ -1052,9 +1052,21 @@ namespace Amatsukaze.Server
         public int Seconds { get; set; }
     }
 
+    public enum StateChangeEvent
+    {
+        WorkersStarted,
+        WorkersFinished,
+        EncodeStarted,
+        EncodeSucceeded,
+        EncodeFailed,
+        EncodeCanceled,
+    }
+
     [DataContract]
     public class UIData
     {
+        [DataMember]
+        public State State { get; set; }
         [DataMember]
         public QueueData QueueData { get; set; }
         [DataMember]
@@ -1073,6 +1085,8 @@ namespace Amatsukaze.Server
         public EncodeState EncodeState { get; set; }
         [DataMember]
         public FinishSetting SleepCancel { get; set; }
+        [DataMember]
+        public StateChangeEvent? StateChangeEvent { get; set; }
     }
 
     [DataContract]
@@ -1290,9 +1304,9 @@ namespace Amatsukaze.Server
     public class CommonData
     {
         [DataMember]
-        public Setting Setting { get; set; }
-        [DataMember]
         public UIState UIState { get; set; }
+        [DataMember]
+        public Setting Setting { get; set; }
         [DataMember]
         public MakeScriptData MakeScriptData { get; set; }
         [DataMember]
@@ -1307,8 +1321,6 @@ namespace Amatsukaze.Server
         public List<int> CpuClusters { get; set; }
         [DataMember]
         public ServerInfo ServerInfo { get; set; }
-        [DataMember]
-        public State State { get; set; }
         [DataMember]
         public List<string> AddQueueBatFiles { get; set; }
         [DataMember]

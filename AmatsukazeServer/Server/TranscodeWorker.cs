@@ -1217,6 +1217,20 @@ namespace Amatsukaze.Server
             }
         }
 
+        private StateChangeEvent? EventFromItem(QueueItem item)
+        {
+            switch(item.State)
+            {
+                case QueueState.Failed:
+                    return StateChangeEvent.EncodeFailed;
+                case QueueState.Canceled:
+                    return StateChangeEvent.EncodeCanceled;
+                case QueueState.Complete:
+                    return StateChangeEvent.EncodeSucceeded;
+            }
+            return null;
+        }
+
         public async Task<bool> RunItem(QueueItem workerItem, bool forceStart)
         {
             try
@@ -1260,6 +1274,7 @@ namespace Amatsukaze.Server
                     item.EncodeStart = DateTime.Now;
                     item.ConsoleId = Id;
                     waitList.Add(server.NotifyQueueItemUpdate(item));
+                    waitList.Add(server.RequestState(StateChangeEvent.EncodeStarted));
                     logItem = await ProcessItem(forceStart);
                 }
 
@@ -1415,6 +1430,7 @@ namespace Amatsukaze.Server
                 }
 
                 waitList.Add(server.NotifyQueueItemUpdate(item));
+                waitList.Add(server.RequestState(EventFromItem(item)));
                 waitList.Add(server.RequestFreeSpace());
 
                 await Task.WhenAll(waitList);
@@ -1429,6 +1445,7 @@ namespace Amatsukaze.Server
                 {
                     item.State = QueueState.Failed;
                     await server.NotifyQueueItemUpdate(item);
+                    await server.RequestState(StateChangeEvent.EncodeFailed);
                 }
                 return false;
             }
