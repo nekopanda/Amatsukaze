@@ -242,7 +242,7 @@ namespace Amatsukaze.Server
                         item.FailReason = "このTSのチャンネル設定がありません（追加し直してください）";
                         item.Reset();
                     }
-                    else if (item.Profile.DisableChapter == false &&
+                    else if (item.Profile.NeedLogo &&
                         map[item.ServiceId].LogoSettings.Any(s => s.CanUse(item.TsTime)) == false)
                     {
                         item.FailReason = "ロゴ設定がありません";

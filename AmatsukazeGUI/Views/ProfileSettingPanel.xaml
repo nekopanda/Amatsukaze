@@ -381,6 +381,33 @@
                               ToolTip="これらのファイルも一緒にコピー・移動されるようになります。" />
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" 
                               IsChecked="{Binding Model.SelectedProfile.DisableChapter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <DockPanel>
+                        <TextBlock Text="└" FontSize="16"/>
+                        <CheckBox Height="16" Margin="0,3"  Content="ロゴ消ししない" 
+                              IsChecked="{Binding Model.SelectedProfile.NoDelogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="ロゴ解析しません。1つ目のロゴを使用します。" 
+                                   VerticalAlignment="Center" Margin="4,-2,0,0" Foreground="Red">
+                            <TextBlock.ToolTip>
+                                <TextBlock>チャンネル設定で使用するロゴのみ有効にしてください。
+                                <LineBreak/>ロゴが合っているかチェックしませんので、ご注意ください。
+                                </TextBlock>
+                            </TextBlock.ToolTip>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Hidden"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding Model.SelectedProfile.DisableChapter}" Value="True" />
+                                                <Condition Binding="{Binding Model.SelectedProfile.NoDelogo}" Value="False" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </DockPanel>
                     <CheckBox Height="16" Margin="0,3"  Content="字幕を無効にする"
                               IsChecked="{Binding Model.SelectedProfile.DisableSubs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="マッピングにないDRCS外字は無視する"
@@ -390,8 +417,6 @@
                               ToolTip="ロゴ区間が短いなどでロゴ無し判定を食らう場合などに有効にすると解決するかもです"/>
                     <CheckBox Height="16" Margin="0,3"  Content="ロゴ検出に失敗しても処理を続行する" 
                               IsChecked="{Binding Model.SelectedProfile.IgnoreNoLogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                    <CheckBox Height="16" Margin="0,3"  Content="ロゴ消ししない" 
-                              IsChecked="{Binding Model.SelectedProfile.NoDelogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない"
                               IsChecked="{Binding Model.SelectedProfile.SplitSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" 

@@ -1475,7 +1475,7 @@ public:
 			env->ThrowError("Failed to read logo file (%s)", logoPath.c_str());
 		}
 
-		if (logofPath.size() > 0) {
+		if (logofPath.size() > 0 && logofPath[0] != L'\0') {
 			ReadLogoFrameFile(logofPath, env);
 		}
 	}

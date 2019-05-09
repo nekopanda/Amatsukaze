@@ -1361,6 +1361,7 @@ namespace Amatsukaze.Models
                     return;
                 Data.DisableChapter = value;
                 RaisePropertyChanged();
+                NoDelogo = value;
             }
         }
         #endregion

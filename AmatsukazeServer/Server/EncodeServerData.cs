@@ -319,6 +319,12 @@ namespace Amatsukaze.Server
                 return mask;
             }
         }
+
+        public bool NeedLogo {
+            get {
+                return DisableChapter == false || NoDelogo == false;
+            }
+        }
     }
 
     // プロファイルの更新情報

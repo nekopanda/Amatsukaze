@@ -450,9 +450,14 @@ private:
 		sb.append("\tif(mt) { Prefetch(1, 4) }\n");
 
 		if (setting_.isNoDelogo() == false && logopath.size() > 0) {
+			auto logoframe = setting_.getTmpLogoFramePath(key.video);
+			if (!File::exists(logoframe)) {
+				// ƒƒS‰ğÍ‚ÌŒ‹‰Ê‚ª‚È‚¢
+				logoframe.clear();
+			}
 			sb.append("\tlogo = \"%s\"\n", logopath);
 			sb.append("\tAMTEraseLogo(AMTAnalyzeLogo(logo), logo, \"%s\", maxfade=%d)\n",
-				setting_.getTmpLogoFramePath(key.video), setting_.getMaxFadeLength());
+				logoframe, setting_.getMaxFadeLength());
 			sb.append("\tif(mt) { Prefetch(1, 4) }\n");
 		}
 

@@ -81,7 +81,17 @@ public:
 		const ConfigWrapper& setting)
 		: AMTObject(ctx)
 		, setting_(setting)
-	{ }
+	{
+		if (setting.isNoDelogo() == false) {
+			// CM解析無効で、ロゴ除去ありの場合は、最初のロゴを使う
+			const auto& logolist = setting.getLogoPath();
+			if (logolist.size()) {
+				logopath = logolist[0];
+				ctx.info("CM解析が無効なのでロゴ解析はしませんが、以下のロゴを使ってロゴを除去します");
+				ctx.infoF("使用するロゴ: %s", logopath);
+			}
+		}
+	}
 
 	const tstring& getLogoPath() const {
 		return logopath;
