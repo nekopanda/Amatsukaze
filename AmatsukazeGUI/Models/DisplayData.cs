@@ -1514,6 +1514,18 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region IgnoreAudioFormat変更通知プロパティ
+        public bool IgnoreAudioFormat {
+            get { return Data.IgnoreAudioFormat; }
+            set { 
+                if (Data.IgnoreAudioFormat == value)
+                    return;
+                Data.IgnoreAudioFormat = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region NoDelogo変更通知プロパティ
         public bool NoDelogo {
             get { return Data.NoDelogo; }

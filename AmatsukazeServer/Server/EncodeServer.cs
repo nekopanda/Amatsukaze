@@ -1401,6 +1401,10 @@ namespace Amatsukaze.Server
                 {
                     sb.Append(" --ignore-no-drcsmap");
                 }
+                if(profile.IgnoreAudioFormat)
+                {
+                    sb.Append(" --ignore-audio-format");
+                }
                 if (profile.NoDelogo)
                 {
                     sb.Append(" --no-delogo");

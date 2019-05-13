@@ -242,6 +242,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public bool IgnoreNoDrcsMap { get; set; }
         [DataMember]
+        public bool IgnoreAudioFormat { get; set; }
+        [DataMember]
         public bool LooseLogoDetection { get; set; }
         [DataMember]
         public bool IgnoreNoLogo { get; set; }

@@ -82,7 +82,9 @@ public:
 		for (int asrc = 0, adst = 0; asrc < (int)fileIn.audioFrames.size(); ++asrc) {
 			const std::vector<int>& frameList = fileIn.audioFrames[asrc];
 			if (frameList.size() > 0) {
-				if (fmt.audioFormat[asrc].channels == AUDIO_2LANG) {
+				bool ignoreAudioFormat = setting_.isIgnoreAudioFormat();
+				bool isDualMono = (fmt.audioFormat[asrc].channels == AUDIO_2LANG);
+				if (!ignoreAudioFormat && isDualMono) {
 					// デュアルモノは2つのAACに分離
 					ctx.infoF("音声%d-%dはデュアルモノなので2つのAACファイルに分離します", fileIn.outKey.format, asrc);
 					SpDualMonoSplitter splitter(ctx);
@@ -97,6 +99,9 @@ public:
 					audioFiles.push_back(filepath1);
 				}
 				else {
+					if (isDualMono) {
+						ctx.infoF("音声%d-%dはデュアルモノですが、音声フォーマット無視指定があるので分離しません", fileIn.outKey.format, asrc);
+					}
 					tstring filepath = setting_.getIntAudioFilePath(key, adst++);
 					File file(filepath, _T("wb"));
 					for (int frameIndex : frameList) {

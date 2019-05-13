@@ -507,6 +507,7 @@ struct Config {
 	tstring nicoConvChSidPath;
 	ENUM_FORMAT format;
 	bool splitSub;
+	bool ignoreAudioFormat;
 	bool twoPass;
 	bool autoBitrate;
 	bool chapter;
@@ -652,6 +653,10 @@ public:
 
 	bool isSplitSub() const {
 		return conf.splitSub;
+	}
+
+	bool isIgnoreAudioFormat() const {
+		return conf.ignoreAudioFormat;
 	}
 
 	bool isTwoPass() const {

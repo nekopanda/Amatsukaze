@@ -67,6 +67,7 @@ static void printHelp(const tchar* bin) {
 		"  --ignore-no-drcsmap マッピングにないDRCS外字があっても処理を続行する\n"
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
 		"  --ignore-nicojk-error ニコニコ実況取得でエラーが発生しても処理を続行する\n"
+		"  --ignore-audio-format 音声フォーマットの切り替わりでファイルを分けない\n"
 		"  --no-delogo         ロゴ消しをしない（デフォルトはロゴがある場合は消します）\n"
 		"  --loose-logo-detection ロゴ検出判定しきい値を低くします\n"
 		"  --max-fade-length <数値> ロゴの最大フェードフレーム数[16]\n"
@@ -347,6 +348,9 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("--ignore-nicojk-error")) {
 			conf.ignoreNicoJKError = true;
+		}
+		else if (key == _T("--ignore-audio-format")) {
+			conf.ignoreAudioFormat = true;
 		}
 		else if (key == _T("--loose-logo-detection")) {
 			conf.looseLogoDetection = true;
