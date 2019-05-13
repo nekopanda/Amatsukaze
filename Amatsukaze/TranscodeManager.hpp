@@ -513,7 +513,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
-	reformInfo.prepare(setting.isSplitSub());
+	reformInfo.prepare(setting.isSplitSub(), setting.isIgnoreAudioFormat());
 
 	time_t startTime = reformInfo.getFirstFrameTime();
 

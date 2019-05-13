@@ -417,6 +417,8 @@
                               ToolTip="ロゴ区間が短いなどでロゴ無し判定を食らう場合などに有効にすると解決するかもです"/>
                     <CheckBox Height="16" Margin="0,3"  Content="ロゴ検出に失敗しても処理を続行する" 
                               IsChecked="{Binding Model.SelectedProfile.IgnoreNoLogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    <CheckBox Height="16" Margin="0,3"  Content="音声フォーマットの変更でファイルを分けない" 
+                              IsChecked="{Binding Model.SelectedProfile.IgnoreAudioFormat, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない"
                               IsChecked="{Binding Model.SelectedProfile.SplitSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" 

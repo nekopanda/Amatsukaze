@@ -234,7 +234,8 @@ public:
 
 	// 1. コンストラクト直後に呼ぶ
 	// splitSub: メイン以外のフォーマットを結合しない
-	void prepare(bool splitSub) {
+	void prepare(bool splitSub, bool ignoreAudioFormat) {
+		ignoreAudioFormat_ = ignoreAudioFormat;
 		reformMain(splitSub);
 		genWaveAudioStream();
 	}
@@ -488,6 +489,7 @@ private:
 	std::vector<TimeInfo> timeList_;
 
 	std::array<std::vector<NicoJKLine>, NICOJK_MAX> nicoJKList_;
+	bool ignoreAudioFormat_;
 
 	// 計算データ
 	bool isVFR_;
@@ -1082,6 +1084,7 @@ private:
 	bool isEquealFormat(const OutVideoFormat& a, const OutVideoFormat& b) {
 		if (a.videoFormat != b.videoFormat) return false;
 		if (a.audioFormat.size() != b.audioFormat.size()) return false;
+		if (ignoreAudioFormat_) return true;
 		for (int i = 0; i < (int)a.audioFormat.size(); ++i) {
 			if (a.audioFormat[i] != b.audioFormat[i]) {
 				return false;
@@ -1341,7 +1344,7 @@ private:
 				++nskipped;
 				continue;
 			}
-			if (format != nullptr && frame.format != *format) {
+			if (!ignoreAudioFormat_ && format != nullptr && frame.format != *format) {
 				// フォーマットが違うのでスキップ
 				continue;
 			}
