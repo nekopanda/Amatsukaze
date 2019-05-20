@@ -338,7 +338,7 @@ public:
 	// 現在入力されたパケットを基準にしてrelativeだけ後のパケットの入力時刻を返す
 	int64_t getClock(int relative) {
 		if (!pcrReceived()) {
-			return pcrInfo[1].clock;
+			return -1;
 		}
 		int index = numTotakPacketsReveived + relative - 1;
 		int64_t clockDiff = pcrInfo[1].clock - pcrInfo[0].clock;
