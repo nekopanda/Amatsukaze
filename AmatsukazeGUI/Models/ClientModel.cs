@@ -1403,7 +1403,13 @@ namespace Amatsukaze.Models
                 {
                     profile = WrapProfile(data.Profile);
                     ProfileList.Insert(
-                        ProfileList.Count(s => !s.Data.Name.StartsWith("サンプル_")),
+                        ProfileList.Count(s =>
+                        {
+                            if (profile.Name.StartsWith("サンプル_")) return true;
+                            var name = s.Data.Name;
+                            if (name.StartsWith("サンプル_")) return false;
+                            return name.CompareTo(profile.Name) < 0;
+                        }),
                         profile);
 
                     if(currentNewProfile != null && data.Profile.Name == currentNewProfile)
@@ -1541,7 +1547,11 @@ namespace Amatsukaze.Models
                     profile = new DisplayAutoSelect() {
                         Model = data.Profile
                     };
-                    AutoSelectList.Add(profile);
+                    AutoSelectList.Insert(AutoSelectList.Count(s =>
+                    {
+                        var name = s.Name;
+                        return s.Name.CompareTo(profile.Name) < 0;
+                    }), profile);
 
                     if(currentNewAutoSelect != null && data.Profile.Name == currentNewAutoSelect)
                     {
