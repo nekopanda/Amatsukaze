@@ -70,7 +70,7 @@
                         <DataTemplate DataType="{x:Type m:DisplayCondition}">
                             <DockPanel>
                                 <DockPanel.Resources>
-                                    <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
+                                    <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileListView}"/>
                                     <CollectionViewSource x:Key="PriorityList" Source="{Binding Model.PriorityList}"/>
                                 </DockPanel.Resources>
                                 <TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">

@@ -32,8 +32,6 @@
                 <StackPanel Margin="5">
                     <DockPanel Margin="3">
                         <DockPanel.Resources>
-                            <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
-                            <CollectionViewSource x:Key="AutoSelectList" Source="{Binding Model.AutoSelectList}"/>
                             <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
                                 <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
                             </DataTemplate>
@@ -44,14 +42,7 @@
                         <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
                         <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
                         <ComboBox SelectedItem="{Binding Model.MakeScriptData.SelectedProfile, Mode=TwoWay}"
-                                  Height="22">
-                            <ComboBox.ItemsSource>
-                                <CompositeCollection>
-                                    <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
-                                    <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
-                                </CompositeCollection>
-                            </ComboBox.ItemsSource>
-                        </ComboBox>
+                                  Height="22" ItemsSource="{Binding Model.SelectableProfiles}" />
                     </DockPanel>
                     <DockPanel Margin="3">
                         <TextBlock Text="出力先:" />

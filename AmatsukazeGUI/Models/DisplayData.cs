@@ -1102,6 +1102,13 @@ namespace Amatsukaze.Models
                     return;
                 Data.Name = value;
                 RaisePropertyChanged();
+                RaisePropertyChanged("SortKey");
+            }
+        }
+        public string SortKey {
+            get {
+                if (Data.Name.StartsWith("サンプル_")) return Data.Name;
+                return "_" + Data.Name;
             }
         }
         #endregion

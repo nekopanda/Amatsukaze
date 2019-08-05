@@ -49,8 +49,6 @@
         <TextBlock Margin="2" Text="{Binding InputInfoText, Mode=OneWay}" TextWrapping="Wrap" />
         <StackPanel>
             <StackPanel.Resources>
-                <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileList}"/>
-                <CollectionViewSource x:Key="AutoSelectList" Source="{Binding Model.AutoSelectList}"/>
                 <DataTemplate DataType="{x:Type m:DisplayAutoSelect}">
                     <TextBlock>自動選択_<Run Text="{Binding Path=Model.Name}"/></TextBlock>
                 </DataTemplate>
@@ -60,14 +58,8 @@
                     <Run Text="（エンコード設定）" Foreground="White"/><Run FontSize="18" Text="プロファイル"/><Run Text="（エンコード設定）"/>
                 </TextBlock>
             </Grid>
-            <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" Height="25">
-                <ComboBox.ItemsSource>
-                    <CompositeCollection>
-                        <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
-                        <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
-                    </CompositeCollection>
-                </ComboBox.ItemsSource>
-            </ComboBox>
+            <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}" Height="25"
+                      ItemsSource="{Binding Model.SelectableProfiles}" />
             <Grid>
                 <TextBlock Margin="2" Text="出力先フォルダ" HorizontalAlignment="Center" FontSize="18"/>
                 <Canvas>

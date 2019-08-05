@@ -169,12 +169,10 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region ProfileList変更通知プロパティ
-        private ObservableCollection<DisplayProfile> _ProfileList = new ObservableCollection<DisplayProfile>();
+        #region ProfileListView変更通知プロパティ
+        public ObservableCollection<DisplayProfile> ProfileList { get; } = new ObservableCollection<DisplayProfile>();
 
-        public ObservableCollection<DisplayProfile> ProfileList {
-            get { return _ProfileList; }
-        }
+        public ListCollectionView ProfileListView { get; }
         #endregion
 
         #region SelectedQueueItem変更通知プロパティ
@@ -192,13 +190,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region AutoSelectList変更通知プロパティ
-        private ObservableCollection<DisplayAutoSelect> _AutoSelectList = new ObservableCollection<DisplayAutoSelect>();
+        public ObservableCollection<DisplayAutoSelect> AutoSelectList { get; } = new ObservableCollection<DisplayAutoSelect>();
 
-        public ObservableCollection<DisplayAutoSelect> AutoSelectList
-        {
-            get { return _AutoSelectList; }
-        }
+        public ListCollectionView AutoSelectListView { get; }
         #endregion
+
+        public CompositeCollection SelectableProfiles { get; } = new CompositeCollection();
 
         #region SelectedProfile変更通知プロパティ
         private DisplayProfile _SelectedProfile;
@@ -650,6 +647,15 @@ namespace Amatsukaze.Models
 
             AddLog("クライアント起動");
 
+            ProfileListView = new ListCollectionView(ProfileList);
+            ProfileListView.SortDescriptions.Add(new SortDescription("SortKey", ListSortDirection.Ascending));
+            ProfileListView.IsLiveSorting = true;
+            AutoSelectListView = new ListCollectionView(AutoSelectList);
+            AutoSelectListView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
+            AutoSelectListView.IsLiveSorting = true;
+            SelectableProfiles.Add(new CollectionContainer() { Collection = AutoSelectListView });
+            SelectableProfiles.Add(new CollectionContainer() { Collection = ProfileListView });
+
             LoadAppData();
             requestLogoThread = RequestLogoThread();
         }
@@ -857,8 +863,8 @@ namespace Amatsukaze.Models
             _LogItems.Clear();
             _CheckLogItems.Clear();
             _QueueItems.Clear();
-            _ProfileList.Clear();
-            _AutoSelectList.Clear();
+            ProfileList.Clear();
+            AutoSelectList.Clear();
         }
 
         public void Finish()
@@ -1402,15 +1408,7 @@ namespace Amatsukaze.Models
                 if(profile == null)
                 {
                     profile = WrapProfile(data.Profile);
-                    ProfileList.Insert(
-                        ProfileList.Count(s =>
-                        {
-                            if (profile.Name.StartsWith("サンプル_")) return true;
-                            var name = s.Data.Name;
-                            if (name.StartsWith("サンプル_")) return false;
-                            return name.CompareTo(profile.Name) < 0;
-                        }),
-                        profile);
+                    ProfileList.Add(profile);
 
                     if(currentNewProfile != null && data.Profile.Name == currentNewProfile)
                     {
@@ -1547,11 +1545,7 @@ namespace Amatsukaze.Models
                     profile = new DisplayAutoSelect() {
                         Model = data.Profile
                     };
-                    AutoSelectList.Insert(AutoSelectList.Count(s =>
-                    {
-                        var name = s.Name;
-                        return s.Name.CompareTo(profile.Name) < 0;
-                    }), profile);
+                    AutoSelectList.Add(profile);
 
                     if(currentNewAutoSelect != null && data.Profile.Name == currentNewAutoSelect)
                     {
