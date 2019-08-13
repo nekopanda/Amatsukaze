@@ -1759,6 +1759,38 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region NumEncodeBufferFrames変更通知プロパティ
+        public int NumEncodeBufferFrames {
+            get { return Data.NumEncodeBufferFrames; }
+            set {
+                if (Data.NumEncodeBufferFrames == value)
+                    return;
+                Data.NumEncodeBufferFrames = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("NumEncodeBufferFramesIndex");
+            }
+        }
+        public int NumEncodeBufferFramesIndex {
+            get {
+                int index = (int)Math.Sqrt(Data.NumEncodeBufferFrames / 0.35 - 4);
+                // 値が小さいところは誤差が大きくてずれるので調整
+                if(Data.NumEncodeBufferFrames < 8)
+                {
+                    return index - 1;
+                }
+                return index;
+            }
+            set {
+                int frames = (int)(0.35 * value * value + 4);
+                if (Data.NumEncodeBufferFrames == frames)
+                    return;
+                Data.NumEncodeBufferFrames = frames;
+                RaisePropertyChanged();
+                RaisePropertyChanged("NumEncodeBufferFrames");
+            }
+        }
+        #endregion
+
         #region SettingWarningText変更通知プロパティ
         private string _SettingWarningText;
 

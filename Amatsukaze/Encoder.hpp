@@ -166,10 +166,12 @@ private:
 class AMTFilterVideoEncoder : public AMTObject {
 public:
 	AMTFilterVideoEncoder(
-		AMTContext&ctx)
+		AMTContext&ctx, int numEncodeBufferFrames)
 		: AMTObject(ctx)
-		, thread_(this, 16)
-	{ }
+		, thread_(this, numEncodeBufferFrames)
+	{
+		ctx.infoF("バッファリングフレーム数: %d", numEncodeBufferFrames);
+	}
 
 	void encode(
 		PClip source, VideoFormat outfmt, const std::vector<double>& timeCodes,

@@ -301,6 +301,8 @@ namespace Amatsukaze.Server
         public FilterOption FilterOption { get; set; }
         [DataMember]
         public FilterSetting FilterSetting { get; set; }
+        [DataMember]
+        public int NumEncodeBufferFrames { get; set; }
 
         public ExtensionDataObject ExtensionData { get; set; }
 

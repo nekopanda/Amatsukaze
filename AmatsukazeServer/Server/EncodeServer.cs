@@ -1263,6 +1263,10 @@ namespace Amatsukaze.Server
                         sb.Append(" --x265-timefactor ")
                             .Append(setting.X265VFRTimeFactor.ToString("N2"));
                     }
+                    if(profile.NumEncodeBufferFrames > 0)
+                    {
+                        sb.Append(" -eb ").Append(profile.NumEncodeBufferFrames);
+                    }
                     if (profile.SplitSub)
                     {
                         sb.Append(" --splitsub");

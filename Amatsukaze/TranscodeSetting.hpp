@@ -473,6 +473,7 @@ struct Config {
 	double x265TimeFactor;
 	int serviceId;
 	DecoderSetting decoderSetting;
+	int numEncodeBufferFrames;
 	// CMâêÕópê›íË
 	std::vector<tstring> logoPath;
 	bool ignoreNoLogo;
@@ -644,6 +645,10 @@ public:
 
 	DecoderSetting getDecoderSetting() const {
 		return conf.decoderSetting;
+	}
+
+	int getNumEncodeBufferFrames() const {
+		return conf.numEncodeBufferFrames;
 	}
 
 	const std::vector<tstring>& getLogoPath() const {

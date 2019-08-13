@@ -751,6 +751,10 @@ namespace Amatsukaze.Server
                 profile.FilterSetting.AutoVfr60F = true;
                 profile.FilterSetting.AutoVfrSkip = 2;
             }
+            if(profile.NumEncodeBufferFrames == 0)
+            {
+                profile.NumEncodeBufferFrames = 16;
+            }
             return profile;
         }
 

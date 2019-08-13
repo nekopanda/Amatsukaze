@@ -725,7 +725,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 						outfmt, bitrateZones, vfrBitrateScale,
 						fileOut.timecode, fileOut.vfrTimingFps, key, pass[i]));
 			}
-			AMTFilterVideoEncoder encoder(ctx);
+			AMTFilterVideoEncoder encoder(ctx, std::max(4, setting.getNumEncodeBufferFrames()));
 			encoder.encode(filterClip, outfmt,
 				timeCodes, encoderArgs, env);
 		}

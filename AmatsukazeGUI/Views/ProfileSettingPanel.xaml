@@ -234,6 +234,20 @@
                             </DataTemplate>
                         </ContentPresenter.Resources>
                     </ContentPresenter>
+                    <DockPanel ToolTip="フィルタからエンコーダに渡すときのバッファリングフレーム数です">
+                        <DockPanel.Resources>
+                            <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
+                                                         ConvertWhenTrue="Visible" ConvertWhenFalse="Hidden"/>
+                        </DockPanel.Resources>
+                        <TextBlock HorizontalAlignment="Left" Height="16" VerticalAlignment="Center" Margin="0,4" Text="バッファリングフレーム数"/>
+                        <TextBlock DockPanel.Dock="Right" Width="30"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                   Text="{Binding Model.SelectedProfile.NumEncodeBufferFrames}"/>
+                        <Slider Margin="3,2" Height="18"
+                                SmallChange="1" Maximum="54" Minimum="1"
+                                Value="{Binding Model.SelectedProfile.NumEncodeBufferFramesIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                LargeChange="4" TickFrequency="1"/>
+                    </DockPanel>
                 </StackPanel>
 
                 <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
