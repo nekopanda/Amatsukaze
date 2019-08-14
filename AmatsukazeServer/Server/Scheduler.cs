@@ -13,19 +13,23 @@ namespace Amatsukaze.Server
 
     class WorkerPool
     {
+        private enum State
+        {
+            InActive, // 無効状態
+            Parking,  // 待機状態
+            Running   // アイテム実行中
+        }
         private class Worker
         {
-            public bool IsSleeping;
-            public QueueItem WorkItem; // 強制的に実行するアイテム
-            public BufferBlock<int> NotifyQ;
+            public int Id;
+            public State State;
             public IScheduleWorker TargetWorker;
         }
 
         private List<Worker> workers = new List<Worker>();
-        private List<Task> workerThreads = new List<Task>();
 
-        private List<Worker> running = new List<Worker>();
-        private List<Worker> parking = new List<Worker>();
+        private int numRunning;
+        private SortedSet<int> parking = new SortedSet<int>(); // 待機状態のワーカーID
 
         public ScheduledQueue Queue;
 
@@ -34,7 +38,14 @@ namespace Amatsukaze.Server
         public Func<Task> OnFinish;
         public Func<int, string, Exception, Task> OnError;
 
-        public IEnumerable<IScheduleWorker> Workers { get { return workers.Select(w => w.TargetWorker); } }
+        public IEnumerable<IScheduleWorker> Workers {
+            get {
+                var lastRunning = workers.LastOrDefault(w => w.State == State.Running);
+                var numActive = Math.Max(numParallel,
+                    (lastRunning != null) ? (workers.IndexOf(lastRunning) + 1) : 0);
+                return workers.Take(numActive).Select(w => w.TargetWorker);
+            }
+        }
 
         private int numParallel;
 
@@ -42,85 +53,57 @@ namespace Amatsukaze.Server
         public bool UserPaused { get; private set; }
         public bool IsPaused { get { return ScheduledPaused || UserPaused; } }
 
-        private int numActive;
-
-        private async Task WorkerThread(int id)
+        private async void RunItem(Worker worker, QueueItem item, bool forceStart)
         {
             try
             {
-                var w = workers[id];
-                while (await w.NotifyQ.OutputAvailableAsync())
+                worker.State = State.Running;
+                if (numRunning++ == 0)
                 {
-                    await workers[id].NotifyQ.ReceiveAsync();
-
-                    if(parking.Remove(w) == false)
-                    {
-                        // 自分は呼ばれてなかった
-                        continue;
-                    }
-
-                    bool isFirst = (running.Count == 0);
-
-                    running.Add(w);
-
-                    int failCount = 0; // 今は使ってない...
-                    int runCount = 0;
-                    while (id < numActive || w.WorkItem != null)
-                    {
-                        QueueItem item;
-                        if(w.WorkItem != null)
-                        {
-                            item = w.WorkItem;
-                            Queue.StartItem(item);
-                        }
-                        else
-                        {
-                            item = Queue.PopItem();
-                            if(item == null)
-                            {
-                                running.Remove(w);
-                                parking.Add(w);
-                                if (runCount > 0 && running.Count == 0)
-                                {
-                                    // 自分が最後
-                                    await OnFinish();
-                                }
-                                break;
-                            }
-                        }
-                        if (runCount == 0 && isFirst)
-                        {
-                            // 自分が最初に開始した
-                            await OnStart();
-                        }
-                        ++runCount;
-                        if (await w.TargetWorker.RunItem(item, w.WorkItem != null))
-                        {
-                            failCount = 0;
-                        }
-                        Queue.ReleaseItem(item);
-                        if (failCount > 0)
-                        {
-                            int waitSec = (failCount * 10 + 10);
-                            await Task.WhenAll(
-                                OnError(id, "エンコードに失敗したので" + waitSec + "秒待機します。", null),
-                                Task.Delay(waitSec * 1000));
-                        }
-                        w.WorkItem = null;
-                    }
-
-                    if(id >= numActive)
-                    {
-                        // sleep要求
-                        running.Remove(w);
-                        parking.Remove(w);
-                        w.IsSleeping = true;
-                    }
+                    await OnStart();
+                }
+                try
+                {
+                    await worker.TargetWorker.RunItem(item, forceStart);
+                }
+                catch (Exception exception)
+                {
+                    await OnError(worker.Id, "エンコードが不明なエラーで終了しました", exception);
+                }
+                finally
+                {
+                    Queue.ReleaseItem(item);
+                }
+                worker.State = State.InActive;
+                if (IsPaused == false && worker.Id < numParallel)
+                {
+                    worker.State = State.Parking;
+                    parking.Add(worker.Id);
+                    ScheduleTask();
+                }
+                if (--numRunning == 0)
+                {
+                    await OnFinish();
                 }
             }
             catch (Exception exception)
             {
-                await OnError(id, "EncodeThreadがエラー終了しました", exception);
+                await OnError(worker.Id, "EncodeThreadがエラー終了しました", exception);
+            }
+        }
+
+        private void ScheduleTask()
+        {
+            while(parking.Count > 0)
+            {
+                var item = Queue.PopItem();
+                if(item == null)
+                {
+                    return;
+                }
+                var wid = parking.First();
+                parking.Remove(wid);
+                RunItem(workers[wid], item, false);
             }
         }
 
@@ -129,28 +112,7 @@ namespace Amatsukaze.Server
         /// </summary>
         public void NotifyAddQueue()
         {
-            foreach (var w in parking)
-            {
-                w.NotifyQ.Post(0);
-            }
-        }
-
-        private void ActivateOneWorker(QueueItem item)
-        {
-            var worker = workers.First(w => w.IsSleeping);
-            worker.IsSleeping = false;
-            worker.WorkItem = item;
-            parking.Add(worker);
-            worker.NotifyQ.Post(0);
-        }
-
-        private void SetActive(int active)
-        {
-            while (running.Count + parking.Count < active)
-            {
-                ActivateOneWorker(null);
-            }
-            numActive = active;
+            ScheduleTask();
         }
 
         private void EnsureNumWorkers(int numWorkers)
@@ -160,22 +122,31 @@ namespace Amatsukaze.Server
                 int id = workers.Count;
                 workers.Add(new Worker()
                 {
-                    IsSleeping = true,
-                    NotifyQ = new BufferBlock<int>(),
+                    Id = id,
+                    State = State.InActive,
                     TargetWorker = NewWorker(id)
                 });
-                workerThreads.Add(WorkerThread(id));
+                if (IsPaused == false && id < numParallel)
+                {
+                    workers[id].State = State.Parking;
+                    parking.Add(id);
+                }
             }
         }
 
         public void SetNumParallel(int parallel)
         {
-            EnsureNumWorkers(parallel);
             numParallel = parallel;
-            if(IsPaused == false)
+            EnsureNumWorkers(parallel);
+            foreach (var id in parking)
             {
-                SetActive(numParallel);
+                if(id >= numParallel)
+                {
+                    workers[id].State = State.InActive;
+                }
             }
+            parking.RemoveWhere(id => id >= numParallel);
+            ScheduleTask();
         }
 
         public void SetPause(bool pause, bool scheduled)
@@ -191,26 +162,49 @@ namespace Amatsukaze.Server
             }
             if(IsPaused != current)
             {
-                SetActive(IsPaused ? 0 : numParallel);
+                if(IsPaused)
+                {
+                    foreach(var id in parking)
+                    {
+                        workers[id].State = State.InActive;
+                    }
+                    parking.Clear();
+                }
+                else
+                {
+                    for(int id = 0; id < numParallel; ++id)
+                    {
+                        if(workers[id].State == State.InActive)
+                        {
+                            workers[id].State = State.Parking;
+                            parking.Add(id);
+                        }
+                    }
+                    ScheduleTask();
+                }
             }
         }
 
         // アイテムを１つだけ強制的に開始する
         public void ForceStart(QueueItem item)
         {
-            EnsureNumWorkers(running.Count + parking.Count + 1);
-            ActivateOneWorker(item);
-        }
-
-        // タスクを待たずに終了させる
-        public Task Finish()
-        {
-            SetActive(0);
-            foreach(var w in workers)
+            var idleWorker = workers.FirstOrDefault(w => w.State != State.Running);
+            if (idleWorker == null)
             {
-                w.NotifyQ.Complete();
+                EnsureNumWorkers(workers.Count + 1);
+                idleWorker = workers.Last();
+
+                if(idleWorker.State == State.Running)
+                {
+                    throw new InvalidProgramException();
+                }
+             }
+            if(idleWorker.State == State.Parking)
+            {
+                parking.Remove(idleWorker.Id);
             }
-            return Task.WhenAll(workerThreads);
+            Queue.StartItem(item);
+            RunItem(idleWorker, item, true);
         }
     }
 

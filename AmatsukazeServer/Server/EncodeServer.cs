@@ -286,6 +286,7 @@ namespace Amatsukaze.Server
                     NowEncoding = false;
                     Progress = 1;
                     await RequestState();
+                    if (disposedValue) return;
                     if (preventSuspend != null)
                     {
                         preventSuspend.Dispose();
@@ -409,6 +410,7 @@ namespace Amatsukaze.Server
                     // 終了時にプロセスが残らないようにする
                     if (workerPool != null)
                     {
+                        workerPool.SetNumParallel(0);
                         foreach (var worker in workerPool.Workers.Cast<TranscodeWorker>())
                         {
                             if (worker != null)
@@ -416,7 +418,6 @@ namespace Amatsukaze.Server
                                 worker.CancelCurrentItem();
                             }
                         }
-                        workerPool.Finish();
                     }
 
                     queueQ.Complete();
@@ -462,6 +463,12 @@ namespace Amatsukaze.Server
                         {
                             // Dispose中の例外は仕方ないので無視する
                         }
+                    }
+
+                    if (preventSuspend != null)
+                    {
+                        preventSuspend.Dispose();
+                        preventSuspend = null;
                     }
                 }
 
