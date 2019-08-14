@@ -547,7 +547,7 @@ static void amatsukaze_av_log_callback(
 		fprintf(stderr, buf);
 	}
 	if (print_prefix) {
-		fflush(stdout);
+		fflush(stderr);
 	}
 
 	LeaveCriticalSection(&g_log_crisec);

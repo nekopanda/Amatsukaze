@@ -224,8 +224,8 @@ private:
 				dst->write(mc);
 			}
 			else {
-				fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
-				fflush(isErr ? stderr : stdout);
+				fwrite(mc.data, mc.length, 1, SUBPROC_OUT);
+				fflush(SUBPROC_OUT);
 			}
 		}
 	};

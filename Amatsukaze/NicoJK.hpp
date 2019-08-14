@@ -87,9 +87,8 @@ private:
 			virtual void OnTextLine(const uint8_t* ptr, int len, int brlen) {
 				std::vector<char> line = utf8ToString(ptr, len);
 				line.push_back('\n');
-				auto out = isErr ? stderr : stdout;
-				fwrite(line.data(), line.size(), 1, out);
-				fflush(out);
+				fwrite(line.data(), line.size(), 1, SUBPROC_OUT);
+				fflush(SUBPROC_OUT);
 				++nlines;
 			}
 		};

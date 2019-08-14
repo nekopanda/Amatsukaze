@@ -18,6 +18,10 @@
 #include "StreamUtils.hpp"
 #include "PerformanceUtil.hpp"
 
+//#define SUBPROC_OUT (isErr ? stderr : stdout)
+// 出力が混ざるのを防ぐため全てstderrに出力
+#define SUBPROC_OUT stderr
+
 // スレッドはstart()で開始（コンストラクタから仮想関数を呼ぶことはできないため）
 // run()は派生クラスで実装されているのでrun()が終了する前に派生クラスのデストラクタが終了しないように注意！
 // 安全のためjoin()が完了していない状態でThreadBaseのデストラクタに入るとエラーとする
@@ -440,10 +444,9 @@ private:
 		if (isUtf8) {
 			line = utf8ToString(ptr, len);
 			// 変換する場合はここで出力
-			auto out = isErr ? stderr : stdout;
-			fwrite(line.data(), line.size(), 1, out);
-			fprintf(out, "\n");
-			fflush(out);
+			fwrite(line.data(), line.size(), 1, SUBPROC_OUT);
+			fprintf(SUBPROC_OUT, "\n");
+			fflush(SUBPROC_OUT);
 		}
 		else {
 			line = std::vector<char>(ptr, ptr + len);
@@ -464,8 +467,8 @@ private:
 		}
 		if (!isUtf8) {
 			// 変換しない場合はここですぐに出力
-			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
-			fflush(isErr ? stderr : stdout);
+			fwrite(mc.data, mc.length, 1, SUBPROC_OUT);
+			fflush(SUBPROC_OUT);
 		}
 	}
 };

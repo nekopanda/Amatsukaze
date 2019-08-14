@@ -287,8 +287,8 @@ private:
 	protected:
 		virtual void onOut(bool isErr, MemoryChunk mc) {
 			// これはマルチスレッドで呼ばれるの注意
-			fwrite(mc.data, mc.length, 1, isErr ? stderr : stdout);
-			fflush(isErr ? stderr : stdout);
+			fwrite(mc.data, mc.length, 1, SUBPROC_OUT);
+			fflush(SUBPROC_OUT);
 		}
 	};
 
