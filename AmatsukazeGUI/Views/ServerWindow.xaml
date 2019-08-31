@@ -7,7 +7,7 @@
         xmlns:v="clr-namespace:Amatsukaze.Views"
         xmlns:vm="clr-namespace:Amatsukaze.ViewModels"
         xmlns:c="clr-namespace:Amatsukaze.Components" 
-        Title="{Binding WindowCaption}" Height="450" Width="685.104" StateChanged="Window_StateChanged" Closing="Window_Closing">
+        Title="{Binding WindowCaption}" Height="450" Width="685.104" StateChanged="Window_StateChanged">
     
     <Window.DataContext>
         <vm:ServerViewModel/>

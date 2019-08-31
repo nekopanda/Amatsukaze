@@ -43,6 +43,8 @@ namespace Amatsukaze.Views
 
         protected override void OnClosed(EventArgs e)
         {
+            NotifyIcon?.Dispose();
+            NotifyIcon = null;
             CompositeDisposable.Dispose();
             base.OnClosed(e);
         }
@@ -67,12 +69,6 @@ namespace Amatsukaze.Views
                     ShowInTaskbar = true;
                     break;
             }
-        }
-
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            NotifyIcon?.Dispose();
-            NotifyIcon = null;
         }
     }
 }
