@@ -80,6 +80,7 @@ protected:
 		void open(const tstring& path) {
 			totalIntVideoSize_ = 0;
 			file_ = std::unique_ptr<File>(new File(path, _T("wb")));
+			file_->setLowPriority();
 		}
 		void close() {
 			file_ = nullptr;

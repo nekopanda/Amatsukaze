@@ -194,6 +194,49 @@ static tstring makeEncoderArgs(
 	return sb.str();
 }
 
+enum ENUM_AUDIO_ENCODER {
+	AUDIO_ENCODER_NEROAAC,
+	AUDIO_ENCODER_QAAC,
+	AUDIO_ENCODER_FDKAAC,
+};
+
+static tstring makeAudioEncoderArgs(
+	ENUM_AUDIO_ENCODER encoder,
+	const tstring& options,
+	int kbps,
+	const tstring& outpath)
+{
+	StringBuilderT sb;
+
+	sb.append(_T("%s "), options);
+
+	if (kbps) {
+		switch (encoder) {
+		case AUDIO_ENCODER_NEROAAC:
+			sb.append(_T("-br %d "), kbps * 1000);
+			break;
+		case AUDIO_ENCODER_QAAC:
+			sb.append(_T("-a %d "), kbps * 1000);
+			break;
+		case AUDIO_ENCODER_FDKAAC:
+			sb.append(_T("-b %d "), kbps * 1000);
+			break;
+		}
+	}
+
+	switch (encoder) {
+	case AUDIO_ENCODER_NEROAAC:
+		sb.append(_T("-if - -of %s"), outpath);
+		break;
+	case AUDIO_ENCODER_QAAC:
+	case AUDIO_ENCODER_FDKAAC:
+		sb.append(_T("-o %s -"), outpath);
+		break;
+	}
+
+	return sb.str();
+}
+
 static std::vector<std::pair<tstring, bool>> makeMuxerArgs(
 	ENUM_FORMAT format,
 	const tstring& binpath,
@@ -454,6 +497,9 @@ struct Config {
 	ENUM_ENCODER encoder;
 	tstring encoderPath;
 	tstring encoderOptions;
+	ENUM_AUDIO_ENCODER audioEncoder;
+	tstring audioEncoderPath;
+	tstring audioEncoderOptions;
 	tstring muxerPath;
 	tstring timelineditorPath;
 	tstring mp4boxPath;
@@ -473,6 +519,7 @@ struct Config {
 	double x265TimeFactor;
 	int serviceId;
 	DecoderSetting decoderSetting;
+	int audioBitrateInKbps;
 	int numEncodeBufferFrames;
 	// CMâêÕópê›íË
 	std::vector<tstring> logoPath;
@@ -563,6 +610,18 @@ public:
 		return conf.encoderOptions;
 	}
 
+	ENUM_AUDIO_ENCODER getAudioEncoder() const {
+		return conf.audioEncoder;
+	}
+
+	tstring getAudioEncoderPath() const {
+		return conf.audioEncoderPath;
+	}
+
+	tstring getAudioEncoderOptions() const {
+		return conf.audioEncoderOptions;
+	}
+
 	ENUM_FORMAT getFormat() const {
 		return conf.format;
 	}
@@ -645,6 +704,10 @@ public:
 
 	DecoderSetting getDecoderSetting() const {
 		return conf.decoderSetting;
+	}
+
+	int getAudioBitrateInKbps() const {
+		return conf.audioBitrateInKbps;
 	}
 
 	int getNumEncodeBufferFrames() const {

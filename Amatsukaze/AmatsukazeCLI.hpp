@@ -43,6 +43,11 @@ static void printHelp(const tchar* bin) {
 		"  -bcm|--bitrate-cm <float>   CM判定されたところのビットレート倍率\n"
 		"  --2pass             2passエンコード\n"
 		"  --splitsub          メイン以外のフォーマットは結合しない\n"
+		"  -aet|--audio-encoder-type <タイプ> 音声エンコーダ[]"
+		"                      対応エンコーダ: neroAac, qaac, fdkaac\n"
+		"                      指定しなければ音声はエンコードしない\n"
+		"  -aet|--audio-encoder <パス> 音声エンコーダ[]"
+		"  -aeo|--audio-encoder-option <オプション> 音声エンコーダへ渡すオプション[]\n"
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
 		"                      対応フォーマット: mp4,mkv,m2ts,ts\n"
 		"  -m|--muxer  <パス>  L-SMASHのmuxerまたはmkvmergeまたはtsMuxeRへのパス[muxer.exe]\n"
@@ -130,6 +135,19 @@ static ENUM_ENCODER encoderFtomString(const tstring& str) {
 	return (ENUM_ENCODER)-1;
 }
 
+static ENUM_AUDIO_ENCODER audioEncoderFtomString(const tstring& str) {
+	if (str == _T("neroAac")) {
+		return AUDIO_ENCODER_NEROAAC;
+	}
+	else if (str == _T("qaac")) {
+		return AUDIO_ENCODER_QAAC;
+	}
+	else if (str == _T("fdkaac")) {
+		return AUDIO_ENCODER_FDKAAC;
+	}
+	return (ENUM_AUDIO_ENCODER)-1;
+}
+
 static DECODER_TYPE decoderFromString(const tstring& str) {
 	if (str == _T("default")) {
 		return DECODER_DEFAULT;
@@ -206,6 +224,22 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		}
 		else if (key == _T("-eo") || key == _T("--encoder-option")) {
 			conf.encoderOptions = getParam(argc, argv, i++);
+		}
+		else if (key == _T("-aet") || key == _T("--audio-encoder-type")) {
+			tstring arg = getParam(argc, argv, i++);
+			conf.audioEncoder = audioEncoderFtomString(arg);
+			if (conf.audioEncoder == (ENUM_AUDIO_ENCODER)-1) {
+				PRINTF("--audio-encoder-typeの指定が間違っています: %" PRITSTR "\n", arg.c_str());
+			}
+		}
+		else if (key == _T("-ae") || key == _T("--audio-encoder")) {
+			conf.encoderPath = pathNormalize(getParam(argc, argv, i++));
+		}
+		else if (key == _T("-aeo") || key == _T("--audio-encoder-option")) {
+			conf.encoderOptions = getParam(argc, argv, i++);
+		}
+		else if (key == _T("-ab") || key == _T("--audio-bitrate")) {
+			conf.audioBitrateInKbps = std::stoi(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-b") || key == _T("--bitrate")) {
 			const auto arg = getParam(argc, argv, i++);
