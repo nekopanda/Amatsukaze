@@ -234,8 +234,8 @@ public:
 
 	// 1. コンストラクト直後に呼ぶ
 	// splitSub: メイン以外のフォーマットを結合しない
-	void prepare(bool splitSub, bool ignoreAudioFormat) {
-		ignoreAudioFormat_ = ignoreAudioFormat;
+	void prepare(bool splitSub, bool isEncodeAudio) {
+		isEncodeAudio_ = isEncodeAudio;
 		reformMain(splitSub);
 		genWaveAudioStream();
 	}
@@ -405,6 +405,20 @@ public:
 		return std::make_pair(srcTotalDuration_, outTotalDuration_);
 	}
 
+	// 音声フレーム番号リストからFilterAudioFrameリストに変換
+	std::vector<FilterAudioFrame> getWaveInput(const std::vector<int>& frameList) const {
+		std::vector<FilterAudioFrame> ret;
+		for (int i = 0; i < (int)frameList.size(); ++i) {
+			FilterAudioFrame frame = { 0 };
+			auto& info = audioFrameList_[frameList[i]];
+			frame.frameIndex = frameList[i];
+			frame.waveOffset = info.waveOffset;
+			frame.waveLength = info.waveDataSize;
+			ret.push_back(frame);
+		}
+		return ret;
+	}
+
 	void printOutputMapping(std::function<tstring(EncodeFileKey)> getFileName) const
 	{
 		ctx.info("[出力ファイル]");
@@ -489,7 +503,7 @@ private:
 	std::vector<TimeInfo> timeList_;
 
 	std::array<std::vector<NicoJKLine>, NICOJK_MAX> nicoJKList_;
-	bool ignoreAudioFormat_;
+	bool isEncodeAudio_;
 
 	// 計算データ
 	bool isVFR_;
@@ -1084,7 +1098,7 @@ private:
 	bool isEquealFormat(const OutVideoFormat& a, const OutVideoFormat& b) {
 		if (a.videoFormat != b.videoFormat) return false;
 		if (a.audioFormat.size() != b.audioFormat.size()) return false;
-		if (ignoreAudioFormat_) return true;
+		if (isEncodeAudio_) return true;
 		for (int i = 0; i < (int)a.audioFormat.size(); ++i) {
 			if (a.audioFormat[i] != b.audioFormat[i]) {
 				return false;
@@ -1344,7 +1358,7 @@ private:
 				++nskipped;
 				continue;
 			}
-			if (!ignoreAudioFormat_ && format != nullptr && frame.format != *format) {
+			if (format != nullptr && frame.format != *format) {
 				// フォーマットが違うのでスキップ
 				continue;
 			}

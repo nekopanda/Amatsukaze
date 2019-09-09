@@ -25,7 +25,15 @@ namespace Amatsukaze.Server
         x264 = 0,
         x265,
         QSVEnc,
-        NVEnc
+        NVEnc,
+        VCEEnc
+    }
+
+    public enum AudioEncoderType
+    {
+        NeroAac,
+        Qaac,
+        Fdkaac
     }
 
     public enum DecoderType
@@ -201,6 +209,8 @@ namespace Amatsukaze.Server
         public string QSVEncOption { get; set; }
         [DataMember]
         public string NVEncOption { get; set; }
+        [DataMember]
+        public string VCEEncOption { get; set; }
 
         [DataMember]
         public DecoderType Mpeg2Decoder { get; set; }
@@ -241,8 +251,6 @@ namespace Amatsukaze.Server
         public bool DisableSubs { get; set; }
         [DataMember]
         public bool IgnoreNoDrcsMap { get; set; }
-        [DataMember]
-        public bool IgnoreAudioFormat { get; set; }
         [DataMember]
         public bool LooseLogoDetection { get; set; }
         [DataMember]
@@ -306,6 +314,24 @@ namespace Amatsukaze.Server
         [DataMember]
         public int NumEncodeBufferFrames { get; set; }
 
+        [DataMember]
+        public string AdditionalEraseLogo { get; set; }
+
+        [DataMember]
+        public bool EnableAudioEncode { get; set; }
+        [DataMember]
+        public AudioEncoderType AudioEncoderType { get; set; }
+        [DataMember]
+        public string NeroAacOption { get; set; }
+        [DataMember]
+        public string QaacOption { get; set; }
+        [DataMember]
+        public string FdkaacOption { get; set; }
+        [DataMember]
+        public bool EnableAudioBitrate { get; set; }
+        [DataMember]
+        public int AudioBitrateInKbps { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public int NicoJKFormatMask
@@ -350,6 +376,8 @@ namespace Amatsukaze.Server
         [DataMember]
         public string NVEncPath { get; set; }
         [DataMember]
+        public string VCEEncPath { get; set; }
+        [DataMember]
         public string MuxerPath { get; set; }
         [DataMember]
         public string MKVMergePath { get; set; }
@@ -369,6 +397,12 @@ namespace Amatsukaze.Server
         public string SCRenamePath { get; set; }
         [DataMember]
         public string AutoVfrPath { get; set; }
+        [DataMember]
+        public string NeroAacEncPath { get; set; }
+        [DataMember]
+        public string QaacPath { get; set; }
+        [DataMember]
+        public string FdkaacPath { get; set; }
 
         [DataMember]
         public string WorkPath { get; set; }

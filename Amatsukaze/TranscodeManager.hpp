@@ -23,6 +23,7 @@
 #include "CaptionFormatter.hpp"
 #include "EncoderOptionParser.hpp"
 #include "NicoJK.hpp"
+#include "AudioEncoder.hpp"
 
 class AMTSplitter : public TsSplitter {
 public:
@@ -514,7 +515,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 
-	reformInfo.prepare(setting.isSplitSub(), setting.isIgnoreAudioFormat());
+	reformInfo.prepare(setting.isSplitSub(), setting.isEncodeAudio());
 
 	time_t startTime = reformInfo.getFirstFrameTime();
 
@@ -659,6 +660,23 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 		}
 	}
 	ctx.infoF("字幕ファイル生成完了: %.2f秒", sw.getAndReset());
+
+	if (setting.isEncodeAudio()) {
+		ctx.info("[音声エンコード]");
+		for (int i = 0; i < (int)keys.size(); ++i) {
+			auto key = keys[i];
+			auto outpath = setting.getIntAudioFilePath(key, 0);
+			auto args = makeAudioEncoderArgs(
+				setting.getAudioEncoder(),
+				setting.getAudioEncoderPath(),
+				setting.getAudioEncoderOptions(),
+				setting.getAudioBitrateInKbps(),
+				outpath);
+			auto format = reformInfo.getFormat(key);
+			auto audioFrames = reformInfo.getWaveInput(reformInfo.getEncodeFile(key).audioFrames[0]);
+			EncodeAudio(ctx, args, outpath, format.audioFormat[0], audioFrames);
+		}
+	}
 
 	auto argGen = std::unique_ptr<EncoderArgumentGenerator>(new EncoderArgumentGenerator(setting, reformInfo));
 

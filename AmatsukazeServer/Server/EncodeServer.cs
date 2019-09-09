@@ -1081,9 +1081,13 @@ namespace Amatsukaze.Server
             {
                 return setting.QSVEncPath;
             }
-            else
+            else if (encoderType == EncoderType.NVEnc)
             {
                 return setting.NVEncPath;
+            }
+            else
+            {
+                return setting.VCEEncPath;
             }
         }
 
@@ -1101,9 +1105,13 @@ namespace Amatsukaze.Server
             {
                 return profile.QSVEncOption;
             }
-            else
+            else if (profile.EncoderType == EncoderType.NVEnc)
             {
                 return profile.NVEncOption;
+            }
+            else
+            {
+                return profile.VCEEncOption;
             }
         }
 
@@ -1121,9 +1129,61 @@ namespace Amatsukaze.Server
             {
                 return "QSVEnc";
             }
-            else
+            else if (encoderType == EncoderType.NVEnc)
             {
                 return "NVEnc";
+            }
+            else
+            {
+                return "VCEEnc";
+            }
+        }
+
+        private static string GetAudioEncoderPath(AudioEncoderType encoderType, Setting setting)
+        {
+            if (encoderType == AudioEncoderType.NeroAac)
+            {
+                return setting.NeroAacEncPath;
+            }
+            else if (encoderType == AudioEncoderType.Qaac)
+            {
+                return setting.QaacPath;
+            }
+            else
+            {
+                return setting.FdkaacPath;
+            }
+        }
+
+        private string GetAudioEncoderOption(ProfileSetting profile)
+        {
+            if (profile.AudioEncoderType == AudioEncoderType.NeroAac)
+            {
+                return profile.NeroAacOption;
+            }
+            else if (profile.AudioEncoderType == AudioEncoderType.Qaac)
+            {
+                return profile.QaacOption;
+            }
+            else
+            {
+                return profile.FdkaacOption;
+            }
+        }
+
+        private string GetAudioEncoderName(AudioEncoderType encoderType)
+        {
+            if (encoderType == AudioEncoderType.NeroAac)
+            {
+                return "neroAac";
+            }
+            else if (encoderType == AudioEncoderType.Qaac)
+            {
+                return "qaac";
+            }
+            else
+            {
+                return "fdkaac";
             }
         }
 
@@ -1217,8 +1277,6 @@ namespace Amatsukaze.Server
                     sb.Append(" --chapter");
                 }
                 else {
-                    string encoderPath = GetEncoderPath(profile.EncoderType, setting);
-
                     double bitrateCM = profile.BitrateCM;
                     if (bitrateCM == 0)
                     {
@@ -1230,7 +1288,7 @@ namespace Amatsukaze.Server
                         .Append("\" -et ")
                         .Append(GetEncoderName(profile.EncoderType))
                         .Append(" -e \"")
-                        .Append(encoderPath)
+                        .Append(GetEncoderPath(profile.EncoderType, setting))
                         .Append("\" -j \"")
                         .Append(json)
                         .Append("\"");
@@ -1274,9 +1332,9 @@ namespace Amatsukaze.Server
                         sb.Append(" -bcm ").Append(bitrateCM);
                     }
                     if (setting.EnableX265VFRTimeFactor &&
-                        profile.EncoderType == EncoderType.x265)
+                        (profile.EncoderType == EncoderType.x265 || profile.EncoderType == EncoderType.NVEnc))
                     {
-                        sb.Append(" --x265-timefactor ")
+                        sb.Append(" --timefactor ")
                             .Append(setting.X265VFRTimeFactor.ToString("N2"));
                     }
                     if(profile.NumEncodeBufferFrames > 0)
@@ -1351,6 +1409,24 @@ namespace Amatsukaze.Server
                     {
                         sb.Append(" --2pass");
                     }
+
+                    if(profile.EnableAudioEncode)
+                    {
+                        sb.Append("\" -aet ")
+                            .Append(GetAudioEncoderName(profile.AudioEncoderType))
+                            .Append(" -ae \"")
+                            .Append(GetAudioEncoderPath(profile.AudioEncoderType, setting))
+                            .Append("\"");
+
+                        var audioEncoderOption = GetAudioEncoderOption(profile);
+                        if (string.IsNullOrEmpty(audioEncoderOption) == false)
+                        {
+                            sb.Append(" -aeo \"")
+                                .Append(audioEncoderOption)
+                                .Append("\"");
+                        }
+
+                    }
                 } // if (mode != ProcMode.CMCheck)
 
                 if (!profile.DisableSubs)
@@ -1400,10 +1476,6 @@ namespace Amatsukaze.Server
                 if (profile.IgnoreNoDrcsMap)
                 {
                     sb.Append(" --ignore-no-drcsmap");
-                }
-                if(profile.IgnoreAudioFormat)
-                {
-                    sb.Append(" --ignore-audio-format");
                 }
                 if (profile.NoDelogo)
                 {
@@ -1524,6 +1596,7 @@ namespace Amatsukaze.Server
             CheckPath("x265", setting.X265Path);
             CheckPath("QSVEnc", setting.QSVEncPath);
             CheckPath("NVEnc", setting.NVEncPath);
+            CheckPath("VCEEnc", setting.VCEEncPath);
 
             CheckPath("L-SMASH Muxer", setting.MuxerPath);
             CheckPath("MP4Box", setting.MP4BoxPath);
@@ -1535,6 +1608,10 @@ namespace Amatsukaze.Server
             CheckPath("tsMuxeR", setting.TsMuxeRPath);
             CheckPath("SCRename.vbs", setting.SCRenamePath);
             CheckPath("AutoVfr.exe", setting.AutoVfrPath);
+
+            CheckPath("neroAacEnc", setting.NeroAacEncPath);
+            CheckPath("qaac", setting.QaacPath);
+            CheckPath("fdkaac", setting.FdkaacPath);
 
             if (profile != null)
             {
@@ -1620,6 +1697,15 @@ namespace Amatsukaze.Server
                     if(string.IsNullOrEmpty(setting.AutoVfrPath))
                     {
                         throw new ArgumentException("AutoVfr.exeパスが設定されていません");
+                    }
+                }
+
+                if (profile.EnableAudioEncode)
+                {
+                    string audioEncoderPath = GetAudioEncoderPath(profile.AudioEncoderType, setting);
+                    if (string.IsNullOrEmpty(audioEncoderPath))
+                    {
+                        throw new ArgumentException("音声エンコーダパスが設定されていません");
                     }
                 }
             }

@@ -89,6 +89,7 @@ enum ENUM_ENCODER {
 	ENCODER_X265,
 	ENCODER_QSVENC,
 	ENCODER_NVENC,
+	ENCODER_VCEENC,
 };
 
 enum ENUM_FORMAT {
@@ -121,6 +122,7 @@ static const char* encoderToString(ENUM_ENCODER encoder) {
 	case ENCODER_X265: return "x265";
 	case ENCODER_QSVENC: return "QSVEnc";
 	case ENCODER_NVENC: return "NVEnc";
+	case ENCODER_VCEENC: return "VCEEnc";
 	}
 	return "Unknown";
 }
@@ -158,6 +160,7 @@ static tstring makeEncoderArgs(
 	case ENCODER_X264:
 	case ENCODER_QSVENC:
 	case ENCODER_NVENC:
+	case ENCODER_VCEENC:
 		sb.append(fmt.progressive ? _T("") : _T(" --tff"));
 		break;
 	case ENCODER_X265:
@@ -182,6 +185,7 @@ static tstring makeEncoderArgs(
 		break;
 	case ENCODER_QSVENC:
 	case ENCODER_NVENC:
+	case ENCODER_VCEENC:
 		sb.append(_T(" --format raw --y4m -i -"));
 		break;
 	}
@@ -195,6 +199,7 @@ static tstring makeEncoderArgs(
 }
 
 enum ENUM_AUDIO_ENCODER {
+	AUDIO_ENCODER_NONE,
 	AUDIO_ENCODER_NEROAAC,
 	AUDIO_ENCODER_QAAC,
 	AUDIO_ENCODER_FDKAAC,
@@ -202,35 +207,36 @@ enum ENUM_AUDIO_ENCODER {
 
 static tstring makeAudioEncoderArgs(
 	ENUM_AUDIO_ENCODER encoder,
+	const tstring& binpath,
 	const tstring& options,
 	int kbps,
 	const tstring& outpath)
 {
 	StringBuilderT sb;
 
-	sb.append(_T("%s "), options);
+	sb.append(_T("\"%s\" %s"), binpath, options);
 
 	if (kbps) {
 		switch (encoder) {
 		case AUDIO_ENCODER_NEROAAC:
-			sb.append(_T("-br %d "), kbps * 1000);
+			sb.append(_T(" -br %d "), kbps * 1000);
 			break;
 		case AUDIO_ENCODER_QAAC:
-			sb.append(_T("-a %d "), kbps * 1000);
+			sb.append(_T(" -a %d "), kbps * 1000);
 			break;
 		case AUDIO_ENCODER_FDKAAC:
-			sb.append(_T("-b %d "), kbps * 1000);
+			sb.append(_T(" -b %d "), kbps * 1000);
 			break;
 		}
 	}
 
 	switch (encoder) {
 	case AUDIO_ENCODER_NEROAAC:
-		sb.append(_T("-if - -of %s"), outpath);
+		sb.append(_T(" -if - -of \"%s\""), outpath);
 		break;
 	case AUDIO_ENCODER_QAAC:
 	case AUDIO_ENCODER_FDKAAC:
-		sb.append(_T("-o %s -"), outpath);
+		sb.append(_T(" -o \"%s\" -"), outpath);
 		break;
 	}
 
@@ -507,7 +513,6 @@ struct Config {
 	tstring nicoConvChSidPath;
 	ENUM_FORMAT format;
 	bool splitSub;
-	bool ignoreAudioFormat;
 	bool twoPass;
 	bool autoBitrate;
 	bool chapter;
@@ -524,6 +529,7 @@ struct Config {
 	int numEncodeBufferFrames;
 	// CM解析用設定
 	std::vector<tstring> logoPath;
+	std::vector<tstring> eraseLogoPath;
 	bool ignoreNoLogo;
 	bool ignoreNoDrcsMap;
 	bool ignoreNicoJKError;
@@ -615,6 +621,10 @@ public:
 		return conf.audioEncoder;
 	}
 
+	bool isEncodeAudio() const {
+		return conf.audioEncoder != AUDIO_ENCODER_NONE;
+	}
+
 	tstring getAudioEncoderPath() const {
 		return conf.audioEncoderPath;
 	}
@@ -653,10 +663,6 @@ public:
 
 	bool isSplitSub() const {
 		return conf.splitSub;
-	}
-
-	bool isIgnoreAudioFormat() const {
-		return conf.ignoreAudioFormat;
 	}
 
 	bool isTwoPass() const {
@@ -721,6 +727,10 @@ public:
 
 	const std::vector<tstring>& getLogoPath() const {
 		return conf.logoPath;
+	}
+
+	const std::vector<tstring>& getEraseLogoPath() const {
+		return conf.eraseLogoPath;
 	}
 
 	bool isIgnoreNoLogo() const {
@@ -904,8 +914,11 @@ public:
 		return regtmp(StringFormat(_T("%s/amts%d.avs"), tmpDir.path(), vindex));
 	}
 
-	tstring getTmpLogoFramePath(int vindex) const {
-		return regtmp(StringFormat(_T("%s/logof%d.txt"), tmpDir.path(), vindex));
+	tstring getTmpLogoFramePath(int vindex, int logoIndex = -1) const {
+		if (logoIndex == -1) {
+			return regtmp(StringFormat(_T("%s/logof%d.txt"), tmpDir.path(), vindex));
+		}
+		return regtmp(StringFormat(_T("%s/logof%d-%d.txt"), tmpDir.path(), vindex, logoIndex));
 	}
 
 	tstring getTmpChapterExePath(int vindex) const {
@@ -1021,7 +1034,11 @@ public:
 	}
 
 	bool isZoneAvailable() const {
-		return conf.encoder != ENCODER_QSVENC && conf.encoder != ENCODER_NVENC;
+		return conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265 || conf.encoder == ENCODER_NVENC;
+	}
+
+	bool isZoneWithoutBitrateAvailable() const {
+		return conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265;
 	}
 
 	bool isEncoderSupportVFR() const {
@@ -1029,11 +1046,7 @@ public:
 	}
 
 	bool isBitrateCMEnabled() const {
-		return conf.bitrateCM != 1.0 && isZoneAvailable();
-	}
-
-	bool isAdjustBitrateVFR() const {
-		return true;
+		return conf.bitrateCM != 1.0;
 	}
 
 	tstring getOptions(
@@ -1044,21 +1057,25 @@ public:
 	{
 		StringBuilderT sb;
 		sb.append(_T("%s"), conf.encoderOptions);
+		double targetBitrate = 0;
 		if (conf.autoBitrate) {
-			double targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
-			if (isEncoderSupportVFR() == false && isAdjustBitrateVFR()) {
+			targetBitrate = conf.bitrate.getTargetBitrate(srcFormat, srcBitrate);
+			if (isEncoderSupportVFR() == false) {
 				// タイムコード非対応エンコーダにおけるビットレートのVFR調整
 				targetBitrate *= vfrBitrateScale;
 			}
-			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
-			if (key.cm == CMTYPE_CM) {
+			if (key.cm == CMTYPE_CM && !isZoneAvailable()) {
 				targetBitrate *= conf.bitrateCM;
 			}
+			double maxBitrate = std::max(targetBitrate * 2, srcBitrate);
 			if (conf.encoder == ENCODER_QSVENC) {
 				sb.append(_T(" --la %d --maxbitrate %d"), (int)targetBitrate, (int)maxBitrate);
 			}
 			else if (conf.encoder == ENCODER_NVENC) {
 				sb.append(_T(" --vbrhq %d --maxbitrate %d"), (int)targetBitrate, (int)maxBitrate);
+			}
+			else if (conf.encoder == ENCODER_VCEENC) {
+				sb.append(_T(" --vbr %d --max-bitrate %d"), (int)targetBitrate, (int)maxBitrate);
 			}
 			else {
 				sb.append(_T(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d"),
@@ -1071,13 +1088,24 @@ public:
 		}
 		if (zones.size() &&
 			isZoneAvailable() &&
-			((isEncoderSupportVFR() == false && isAdjustBitrateVFR()) || isBitrateCMEnabled()))
+			(isEncoderSupportVFR() == false || isBitrateCMEnabled()))
 		{
-			sb.append(_T(" --zones "));
-			for (int i = 0; i < (int)zones.size(); ++i) {
-				auto zone = zones[i];
-				sb.append(_T("%s%d,%d,b=%.3g"), (i > 0) ? "/" : "",
-					zone.startFrame, zone.endFrame - 1, zone.bitrate);
+			if (isZoneWithoutBitrateAvailable()) {
+				// x264/265
+				sb.append(_T(" --zones "));
+				for (int i = 0; i < (int)zones.size(); ++i) {
+					auto zone = zones[i];
+					sb.append(_T("%s%d,%d,b=%.3g"), (i > 0) ? "/" : "",
+						zone.startFrame, zone.endFrame - 1, zone.bitrate);
+				}
+			}
+			else if(conf.autoBitrate) {
+				// NVEnc
+				for (int i = 0; i < (int)zones.size(); ++i) {
+					auto zone = zones[i];
+					sb.append(_T(" --dynamic-rc %d:%d,vbrhq=%d"), (i > 0) ? "/" : "",
+						zone.startFrame, zone.endFrame - 1, targetBitrate * zone.bitrate);
+				}
 			}
 		}
 		if (conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265) {

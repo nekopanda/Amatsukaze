@@ -74,6 +74,7 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="x265パス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="QSVEncCパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="NVEncCパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="VCEEncCパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="L-SMASH Muxerパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="mkvmergeパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="MP4Boxパス"/>
@@ -84,6 +85,9 @@
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="tsMuxeRパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="SCRename.vbsパス"/>
                     <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="AutoVfr.exeパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="neroAacEnc.exeパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="qaac.exeパス"/>
+                    <TextBlock HorizontalAlignment="Right" Height="16" Margin="0,6" Text="fdkaac.exeパス"/>
                 </StackPanel>
                 <DockPanel Grid.Row="1" Grid.Column="1" Margin="10,0,0,0">
                     <StackPanel DockPanel.Dock="Right">
@@ -93,6 +97,7 @@
                         <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearAmatsukazePathCommand}"/>
                         <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX264PathCommand}"/>
                         <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearX265PathCommand}"/>
+                        <Border Height="28"/>
                         <Border Height="28"/>
                         <Border Height="28"/>
                         <Button Height="20" Content="クリア" Margin="4" ToolTip="{StaticResource tooltip}" Command="{Binding ClearMuxerPathCommand}"/>
@@ -112,6 +117,7 @@
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.X265Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.QSVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.NVEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.VCEEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.MuxerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.MKVMergePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.MP4BoxPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
@@ -122,6 +128,9 @@
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.TsMuxeRPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.SCRenamePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.AutoVfrPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.NeroAacEncPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.QaacPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
+                        <TextBox Height="22" Margin="0,3" Text="{Binding Model.Setting.FdkaacPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                     </StackPanel>
                 </DockPanel>
 

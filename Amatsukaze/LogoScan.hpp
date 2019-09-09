@@ -38,7 +38,7 @@ float CalcCorrelation5x5(const float* k, const float* Y, int x, int y, int w, fl
 	}
 	if (pavg) *pavg = avg;
 	return sum;
-};
+}
 
 // ComputeKernel.cpp
 bool IsAVXAvailable();
@@ -1534,6 +1534,9 @@ class LogoFrame : AMTObject
 	};
 	std::unique_ptr<EvalResult[]> evalResults;
 
+	// 絶対値<0.2fは不明とみなす
+	const float THRESH = 0.2f;
+
 	int bestLogo;
 	float logoRatio;
 
@@ -1588,6 +1591,7 @@ class LogoFrame : AMTObject
 public:
 	LogoFrame(AMTContext& ctx, const std::vector<tstring>& logofiles, float maskratio)
 		: AMTObject(ctx)
+		, bestLogo(-1)
 	{
 		numLogos = (int)logofiles.size();
 		logoArr = std::unique_ptr<LogoDataParam[]>(new LogoDataParam[logofiles.size()]);
@@ -1638,33 +1642,30 @@ public:
 		}
 	}
 
-	void writeResult(const tstring& outpath)
+	// 0番目～numCandidatesまでのロゴから最も合っているロゴ(bestLogo)を選択
+	// numCandidatesの指定がない場合(-1)は、すべてのロゴから検索
+	void selectLogo(int numCandidates = -1)
 	{
-		// 絶対値<0.2fは不明とみなす
-		const float thresh = 0.2f;
-		const float threshL = 0.5f; // MinMax評価用
-		// MinMax幅
-		const float avgDur = 1.0f;
-		const float medianDur = 0.5f;
-
-		// ロゴを選択 //
+		if (numCandidates < 0) {
+			numCandidates = numLogos;
+		}
 		struct Summary {
 			float cost;    // 消した後のゴミの量
 			int numFrames;  // 検出したフレーム数
 		};
-		std::vector<Summary> logoSummary(numLogos);
+		std::vector<Summary> logoSummary(numCandidates);
 		for (int n = 0; n < numFrames; ++n) {
-			for (int i = 0; i < numLogos; ++i) {
-				auto& r = evalResults[n * numLogos + i];
+			for (int i = 0; i < numCandidates; ++i) {
+				auto& r = evalResults[n * numCandidates + i];
 				// ロゴを検出 かつ 消せてる
-				if (r.corr0 > thresh && std::abs(r.corr1) < thresh) {
+				if (r.corr0 > THRESH && std::abs(r.corr1) < THRESH) {
 					logoSummary[i].numFrames++;
 					logoSummary[i].cost += std::abs(r.corr1);
 				}
 			}
 		}
-		std::vector<float> logoScore(numLogos);
-		for (int i = 0; i < numLogos; ++i) {
+		std::vector<float> logoScore(numCandidates);
+		for (int i = 0; i < numCandidates; ++i) {
 			auto& s = logoSummary[i];
 			// (消した後のゴミの量の平均) * (検出したフレーム割合の逆数)
 			logoScore[i] = (s.numFrames == 0) ? INFINITY :
@@ -1678,6 +1679,23 @@ public:
 		}
 		bestLogo = (int)(std::min_element(logoScore.begin(), logoScore.end()) - logoScore.begin());
 		logoRatio = (float)logoSummary[bestLogo].numFrames / numFrames;
+	}
+
+	// logoIndexに指定したロゴのlogoframeファイルを出力
+	// logoIndexの指定がない場合(-1)は、bestLogoを出力
+	void writeResult(const tstring& outpath, int logoIndex = -1)
+	{
+		if (logoIndex < 0) {
+			if (bestLogo < 0) {
+				selectLogo();
+			}
+			logoIndex = bestLogo;
+		}
+
+		const float threshL = 0.5f; // MinMax評価用
+																// MinMax幅
+		const float avgDur = 1.0f;
+		const float medianDur = 0.5f;
 
 		// スコアに変換
 		int halfAvgFrames = int(framesPerSec * avgDur / 2 + 0.5f);
@@ -1689,7 +1707,7 @@ public:
 		std::vector<float> rawScores_(numFrames + winFrames);
 		auto rawScores = rawScores_.begin() + halfWinFrames;
 		for (int n = 0; n < numFrames; ++n) {
-			auto& r = evalResults[n * numLogos + bestLogo];
+			auto& r = evalResults[n * numLogos + logoIndex];
 			// corr0のマイナスとcorr1のプラスはノイズなので消す
 			rawScores[n] = std::max(0.0f, r.corr0) + std::min(0.0f, r.corr1);
 		}
@@ -1719,7 +1737,7 @@ public:
 			// これも必要
 			float avg = std::accumulate(rawScores + i - halfAvgFrames,
 				rawScores + i + halfAvgFrames + 1, 0.0f) / aveFrames;
-			int avgResult = (std::abs(avg) < thresh) ? 1 : (avg < 0.0f) ? 0 : 2;
+			int avgResult = (std::abs(avg) < THRESH) ? 1 : (avg < 0.0f) ? 0 : 2;
 
 			// 両者が違ってたら不明とする
 			frameResult[i].result = (minMaxResult != avgResult) ? 1 : minMaxResult;
@@ -1756,34 +1774,34 @@ public:
 			auto sEnd = sEnd_;
 			auto eEnd = eEnd_;
 			if (sEnd != frameResult.end()) {
-				if (sEnd->score >= thresh) {
+				if (sEnd->score >= THRESH) {
 					// すでに始まっているので戻ってみる
 					sEnd = std::find_if(std::make_reverse_iterator(sEnd), frameResult.rend(),
-						[=](FrameResult r) { return r.score < thresh; }).base();
+						[=](FrameResult r) { return r.score < THRESH; }).base();
 				}
 				else {
 					// まだ始まっていないので進んでみる
 					sEnd = std::find_if(sEnd, frameResult.end(),
-						[=](FrameResult r) { return r.score >= thresh; });
+						[=](FrameResult r) { return r.score >= THRESH; });
 				}
 			}
 			if (eEnd != frameResult.end()) {
-				if (eEnd->score <= -thresh) {
+				if (eEnd->score <= -THRESH) {
 					// すでに終わっているので戻ってみる
 					eEnd = std::find_if(std::make_reverse_iterator(eEnd), std::make_reverse_iterator(sEnd),
-						[=](FrameResult r) { return r.score > -thresh; }).base();
+						[=](FrameResult r) { return r.score > -THRESH; }).base();
 				}
 				else {
 					// まだ終わっていないので進んでみる
 					eEnd = std::find_if(eEnd, frameResult.end(),
-						[=](FrameResult r) { return r.score <= -thresh; });
+						[=](FrameResult r) { return r.score <= -THRESH; });
 				}
 			}
 
 			auto sStart = std::find_if(std::make_reverse_iterator(sEnd),
-				std::make_reverse_iterator(it), [=](FrameResult r) { return r.score <= -thresh; }).base();
+				std::make_reverse_iterator(it), [=](FrameResult r) { return r.score <= -THRESH; }).base();
 			auto eStart = std::find_if(std::make_reverse_iterator(eEnd),
-				std::make_reverse_iterator(sEnd), [=](FrameResult r) { return r.score >= thresh; }).base();
+				std::make_reverse_iterator(sEnd), [=](FrameResult r) { return r.score >= THRESH; }).base();
 
 			auto sBest = std::find_if(sStart, sEnd, [](FrameResult r) { return r.score > 0; });
 			auto eBest = std::find_if(std::make_reverse_iterator(eEnd),

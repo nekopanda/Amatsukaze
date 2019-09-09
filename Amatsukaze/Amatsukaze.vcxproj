@@ -169,6 +169,7 @@
     <ClInclude Include="AMTLogo.hpp" />
     <ClInclude Include="AMTSource.hpp" />
     <ClInclude Include="AribString.hpp" />
+    <ClInclude Include="AudioEncoder.hpp" />
     <ClInclude Include="CaptionData.hpp" />
     <ClInclude Include="CaptionFormatter.hpp" />
     <ClInclude Include="CMAnalyze.hpp" />

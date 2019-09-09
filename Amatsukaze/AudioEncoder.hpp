@@ -39,6 +39,9 @@ void EncodeAudio(AMTContext& ctx, const tstring& encoder_args,
 {
 	using namespace wave;
 
+	ctx.info("[音声エンコーダ起動]");
+	ctx.infoF("%s", encoder_args);
+
 	auto process = std::unique_ptr<StdRedirectedSubProcess>(
 		new StdRedirectedSubProcess(encoder_args, 5));
 

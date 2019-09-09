@@ -29,6 +29,9 @@
     </i:Interaction.Triggers>
     
     <DockPanel>
+        <DockPanel.Resources>
+            <BooleanToVisibilityConverter x:Key="BoolVisibilityConverter" />
+        </DockPanel.Resources>
 
         <DockPanel DockPanel.Dock="Top">
             <TextBlock DockPanel.Dock="Left" Text="プロファイル" VerticalAlignment="Center" Margin="5"/>
@@ -64,6 +67,8 @@
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -118,7 +123,7 @@
                         </ComboBox.ItemsSource>
                     </ComboBox>
                     <DockPanel>
-                        <CheckBox Content="チャンネル設定に従う" DockPanel.Dock="Right" x:Name="JLSOptionEnable" VerticalAlignment="Center"
+                        <CheckBox Content="チャンネル設定に従う" DockPanel.Dock="Right" VerticalAlignment="Center"
                                   IsChecked="{Binding Model.SelectedProfile.EnableJLSOption, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"/>
                         <TextBox ToolTip="JoinLogoScpのオプション"
                                  Text="{Binding Model.SelectedProfile.JLSOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -234,20 +239,6 @@
                             </DataTemplate>
                         </ContentPresenter.Resources>
                     </ContentPresenter>
-                    <DockPanel ToolTip="フィルタからエンコーダに渡すときのバッファリングフレーム数です">
-                        <DockPanel.Resources>
-                            <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
-                                                         ConvertWhenTrue="Visible" ConvertWhenFalse="Hidden"/>
-                        </DockPanel.Resources>
-                        <TextBlock HorizontalAlignment="Left" Height="16" VerticalAlignment="Center" Margin="0,4" Text="バッファリングフレーム数"/>
-                        <TextBlock DockPanel.Dock="Right" Width="30"
-                                   VerticalAlignment="Center" HorizontalAlignment="Center"
-                                   Text="{Binding Model.SelectedProfile.NumEncodeBufferFrames}"/>
-                        <Slider Margin="3,2" Height="18"
-                                SmallChange="1" Maximum="54" Minimum="1"
-                                Value="{Binding Model.SelectedProfile.NumEncodeBufferFramesIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                LargeChange="4" TickFrequency="1"/>
-                    </DockPanel>
                 </StackPanel>
 
                 <TextBlock Grid.Row="4" HorizontalAlignment="Left" Text="ビットレート設定" VerticalAlignment="Top" Margin="0,76.667,0,0"/>
@@ -259,7 +250,7 @@
                         <Border Width="10"/>
                         <TextBox HorizontalAlignment="Left" Width="50" Height="23"
                              Text="{Binding Model.SelectedProfile.BitrateCM, Mode=TwoWay, StringFormat=\{0:F\}, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip="CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。&#xA;QSVEnc,NVEncで通常出力の場合は対応していません。"/>
+                             ToolTip="CMのビットレートを下げたいときに1より小さい値（0.3など）を設定すると有効です。&#xA;QSVEnc,VCEEncで通常出力の場合は対応していません。"/>
                     </DockPanel>
                     <DockPanel>
                         <CheckBox x:Name="autoBitrateCheck" DockPanel.Dock="Top" Content="自動ビットレート指定"
@@ -318,9 +309,59 @@
                         <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding Model.SelectedProfile.Bitrate7H264}" HorizontalAlignment="Center" />
                     </Grid>
                 </StackPanel>
-                
-                <TextBlock Grid.Row="5" HorizontalAlignment="Left" Text="ニコニコ実況コメント" VerticalAlignment="Top" Margin="0,45.667,0,0"/>
+
+                <TextBlock Grid.Row="5" HorizontalAlignment="Right" Text="音声エンコード" VerticalAlignment="Top" Margin="0,4"/>
+                <StackPanel Grid.Row="5" Margin="0,24,0,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Model.SelectedProfile.EnableAudioEncode}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Grid.Row="5" Height="16" HorizontalAlignment="Right" Margin="0,4" 
+                               Text="音声エンコーダ" VerticalAlignment="Top"/>
+                    <TextBlock Grid.Row="5" Height="16" HorizontalAlignment="Right" Margin="0,4" 
+                               Text="音声ビットレート" VerticalAlignment="Top"/>
+                    <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,8" Height="32">音声エンコーダ<LineBreak/>追加オプション</TextBlock>
+                </StackPanel>
                 <StackPanel Grid.Row="5" Grid.Column="1" Margin="10,0">
+                    <CheckBox Content="音声をエンコードする" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,4"
+                                  IsChecked="{Binding Model.SelectedProfile.EnableAudioEncode, Mode=TwoWay}"/>
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Model.SelectedProfile.EnableAudioEncode}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <ComboBox Margin="0,3" HorizontalAlignment="Left" VerticalAlignment="Top" Width="120" Height="22" 
+                              ItemsSource="{Binding Model.SelectedProfile.AudioEncoderList}"
+                              SelectedIndex="{Binding Model.SelectedProfile.AudioEncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox Width="50" Height="22" Margin="4,0"
+                                 IsEnabled="{Binding IsChecked, ElementName=audioBitrateCheck}"
+                                 Text="{Binding Model.SelectedProfile.AudioBitrateInKbps, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                            <TextBlock Text="kbps" VerticalAlignment="Center"/>
+                            <CheckBox x:Name="audioBitrateCheck" Content="ビットレートを指定しない" 
+                                      DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0"
+                                      IsChecked="{Binding Model.SelectedProfile.EnableAudioBitrate, Mode=TwoWay, Converter={StaticResource InverseBooleanConverter}}"/>
+                        </StackPanel>
+                        <TextBox Margin="0,3" Height="40" TextWrapping="Wrap"
+                             Text="{Binding Model.SelectedProfile.AudioEncoderOption, Mode=TwoWay}"
+                             VerticalAlignment="Top"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Grid.Row="6" HorizontalAlignment="Left" Text="ニコニコ実況コメント" VerticalAlignment="Top" Margin="0,45.667,0,0"/>
+                <StackPanel Grid.Row="6" Grid.Column="1" Margin="10,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -372,11 +413,11 @@
                     </Grid>
                 </StackPanel>
                 
-                <StackPanel Grid.Row="6" Grid.Column="0">
+                <StackPanel Grid.Row="7" Grid.Column="0">
                     <TextBlock HorizontalAlignment="Left" Height="16" Margin="0,80" Text="その他の設定"/>
                 </StackPanel>
-                <StackPanel Grid.Row="6" Grid.Column="1" Margin="10,0">
-                    <CheckBox Height="16" Margin="0,3"  Content="関連ファイル(*.err,*.program.txtなど)も処理" 
+                <StackPanel Grid.Row="7" Grid.Column="1" Margin="10,0">
+                    <CheckBox Height="16" Margin="0,3"  Content="関連ファイル(*.err,*.program.txtなど)もコピー/移動する" 
                               IsChecked="{Binding Model.SelectedProfile.MoveEDCBFiles, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="これらのファイルも一緒にコピー・移動されるようになります。" />
                     <CheckBox Height="16" Margin="0,3"  Content="チャプター・CM解析を無効にする" 
@@ -392,12 +433,8 @@
                               IsChecked="{Binding Model.SelectedProfile.IgnoreNoLogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     <CheckBox Height="16" Margin="0,3"  Content="ロゴ消ししない" 
                               IsChecked="{Binding Model.SelectedProfile.NoDelogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない"
-                              IsChecked="{Binding Model.SelectedProfile.SplitSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="システムにインストールされているAviSynthプラグインを有効にする" 
                               IsChecked="{Binding Model.SelectedProfile.SystemAviSynthPlugin, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする"
-                              IsChecked="{Binding Model.SelectedProfile.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="ログファイルを出力先に生成しない"
                               IsChecked="{Binding Model.SelectedProfile.DisableLogFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <CheckBox Height="16" Margin="0,3"  Content="一時ファイルを削除せずに残す"
@@ -432,13 +469,48 @@
                     </CheckBox>
                 </StackPanel>
 
-                <StackPanel Grid.Row="7" Grid.Column="0">
+                <StackPanel Grid.Row="8" Grid.Column="0" Margin="0,20,0,0"
+                            Visibility="{Binding IsExpanded, ElementName=detailSettingPanel, Converter={StaticResource BoolVisibilityConverter}}">
+                    <TextBlock Height="16" Margin="0,4" />
+                    <TextBlock Height="16" Margin="0,4" />
+                    <TextBlock Height="32" Margin="0,4" HorizontalAlignment="Right" TextAlignment="Right">
+                        追加ロゴ消し用<LineBreak/>ロゴリスト
+                    </TextBlock>
+                </StackPanel>
+                <Expander Grid.Row="8" Grid.Column="1" x:Name="detailSettingPanel" Header="詳細設定">
+                    <StackPanel>
+                        <CheckBox Height="16" Margin="0,3"  Content="メイン以外のフォーマットは結合しない"
+                            IsChecked="{Binding Model.SelectedProfile.SplitSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする"
+                              IsChecked="{Binding Model.SelectedProfile.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox Margin="0,3" Height="40" TextWrapping="Wrap"
+                             Text="{Binding Model.SelectedProfile.AudioEncoderOption, Mode=TwoWay}"
+                                 ToolTip="CM解析用のメインのロゴとは別に、ロゴ消し用のロゴを追加できます。"
+                             VerticalAlignment="Top"/>
+                        <DockPanel ToolTip="フィルタからエンコーダに渡すときのバッファリングフレーム数です">
+                            <DockPanel.Resources>
+                                <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
+                                                        ConvertWhenTrue="Visible" ConvertWhenFalse="Hidden"/>
+                            </DockPanel.Resources>
+                            <TextBlock HorizontalAlignment="Left" Height="16" VerticalAlignment="Center" Margin="0,4" Text="バッファリングフレーム数"/>
+                            <TextBlock DockPanel.Dock="Right" Width="30"
+                                VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Text="{Binding Model.SelectedProfile.NumEncodeBufferFrames}"/>
+                            <Slider Margin="3,2" Height="18"
+                            SmallChange="1" Maximum="54" Minimum="1"
+                            Value="{Binding Model.SelectedProfile.NumEncodeBufferFramesIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            LargeChange="4" TickFrequency="1"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Expander>
+                
+                <StackPanel Grid.Row="9" Grid.Column="0">
                     <TextBlock HorizontalAlignment="Left" Margin="0,40">
                         スケジューリング<LineBreak/>リソース設定
                     </TextBlock>
                 </StackPanel>
 
-                <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,5,0,0">
+                <StackPanel Grid.Row="9" Grid.Column="1" Margin="0,5,0,0">
                     <StackPanel.Resources>
                         <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"
                                                          ConvertWhenTrue="Visible" ConvertWhenFalse="Collapsed"/>

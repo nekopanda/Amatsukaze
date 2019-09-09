@@ -31,7 +31,7 @@ static void printHelp(const tchar* bin) {
 		"  -s|--serviceid <数値> 処理するサービスIDを指定[]\n"
 		"  -w|--work   <パス>  一時ファイルパス[./]\n"
 		"  -et|--encoder-type <タイプ>  使用エンコーダタイプ[x264]\n"
-		"                      対応エンコーダ: x264,x265,QSVEnc,NVEnc\n"
+		"                      対応エンコーダ: x264,x265,QSVEnc,NVEnc,VCEEnc\n"
 		"  -e|--encoder <パス> エンコーダパス[x264.exe]\n"
 		"  -eo|--encoder-option <オプション> エンコーダへ渡すオプション[]\n"
 		"                      入力ファイルの解像度、アスペクト比、インタレースフラグ、\n"
@@ -46,7 +46,7 @@ static void printHelp(const tchar* bin) {
 		"  -aet|--audio-encoder-type <タイプ> 音声エンコーダ[]"
 		"                      対応エンコーダ: neroAac, qaac, fdkaac\n"
 		"                      指定しなければ音声はエンコードしない\n"
-		"  -aet|--audio-encoder <パス> 音声エンコーダ[]"
+		"  -ae|--audio-encoder <パス> 音声エンコーダ[]"
 		"  -aeo|--audio-encoder-option <オプション> 音声エンコーダへ渡すオプション[]\n"
 		"  -fmt|--format <フォーマット> 出力フォーマット[mp4]\n"
 		"                      対応フォーマット: mp4,mkv,m2ts,ts\n"
@@ -63,11 +63,11 @@ static void printHelp(const tchar* bin) {
 		"  --subtitles         字幕を処理する\n"
 		"  --nicojk            ニコニコ実況コメントを追加する\n"
 		"  --logo <パス>       ロゴファイルを指定（いくつでも指定可能）\n"
+		"  --erase-logo <パス> ロゴ消し用追加ロゴファイル。ロゴ消しに適用されます。（いくつでも指定可能）\n"
 		"  --drcs <パス>       DRCSマッピングファイルパス\n"
 		"  --ignore-no-drcsmap マッピングにないDRCS外字があっても処理を続行する\n"
 		"  --ignore-no-logo    ロゴが見つからなくても処理を続行する\n"
 		"  --ignore-nicojk-error ニコニコ実況取得でエラーが発生しても処理を続行する\n"
-		"  --ignore-audio-format 音声フォーマットの切り替わりでファイルを分けない\n"
 		"  --no-delogo         ロゴ消しをしない（デフォルトはロゴがある場合は消します）\n"
 		"  --loose-logo-detection ロゴ検出判定しきい値を低くします\n"
 		"  --max-fade-length <数値> ロゴの最大フェードフレーム数[16]\n"
@@ -93,7 +93,7 @@ static void printHelp(const tchar* bin) {
 		"                      ORも可 例) 15: すべて出力\n"
 		"  --no-remove-tmp     一時ファイルを削除せずに残す\n"
 		"                      デフォルトは60fpsタイミングで生成\n"
-		"  --x265-timefactor <数値>  x265で疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
+		"  --timefactor <数値>  x265やNVEncで疑似VFRレートコントロールするときの時間レートファクター[0.25]\n"
 		"  --pmt-cut <数値>:<数値>  PMT変更でCM認識するときの最大CM認識時間割合。全再生時間に対する割合で指定する。\n"
 		"                      例えば 0.1:0.2 とすると開始10%%までにPMT変更があった場合はそのPMT変更までをCM認識する。\n"
 		"                      また終わりから20%%までにPMT変更があった場合も同様にCM認識する。[0:0]\n"
@@ -132,6 +132,9 @@ static ENUM_ENCODER encoderFtomString(const tstring& str) {
 	}
 	else if (str == _T("nvenc") || str == _T("NVEnc")) {
 		return ENCODER_NVENC;
+	}
+	else if (str == _T("vceenc") || str == _T("VCEEnc")) {
+		return ENCODER_VCEENC;
 	}
 	return (ENUM_ENCODER)-1;
 }
@@ -349,9 +352,6 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--ignore-nicojk-error")) {
 			conf.ignoreNicoJKError = true;
 		}
-		else if (key == _T("--ignore-audio-format")) {
-			conf.ignoreAudioFormat = true;
-		}
 		else if (key == _T("--loose-logo-detection")) {
 			conf.looseLogoDetection = true;
 		}
@@ -361,15 +361,18 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 		else if (key == _T("--no-delogo")) {
 			conf.noDelogo = true;
 		}
-		else if (key == _T("--x265-timefactor")) {
+		else if (key == _T("--timefactor")) {
 			const auto arg = getParam(argc, argv, i++);
 			int ret = sscanfT(arg.c_str(), _T("%lf"), &conf.x265TimeFactor);
 			if (ret == 0) {
-				THROWF(ArgumentException, "--x265-timefactorの指定が間違っています");
+				THROWF(ArgumentException, "--timefactorの指定が間違っています");
 			}
 		}
 		else if (key == _T("--logo")) {
 			conf.logoPath.push_back(pathNormalize(getParam(argc, argv, i++)));
+		}
+		else if (key == _T("--erase-logo")) {
+			conf.eraseLogoPath.push_back(pathNormalize(getParam(argc, argv, i++)));
 		}
 		else if (key == _T("--drcs")) {
 			auto path = pathNormalize(getParam(argc, argv, i++));

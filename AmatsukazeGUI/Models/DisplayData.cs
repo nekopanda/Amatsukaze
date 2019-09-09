@@ -1159,6 +1159,7 @@ namespace Amatsukaze.Models
                     case EncoderType.x265: return Data.X265Option;
                     case EncoderType.QSVEnc: return Data.QSVEncOption;
                     case EncoderType.NVEnc: return Data.NVEncOption;
+                    case EncoderType.VCEEnc: return Data.VCEEncOption;
                 }
                 return null;
             }
@@ -1184,6 +1185,11 @@ namespace Amatsukaze.Models
                         if (Data.NVEncOption == value)
                             return;
                         Data.NVEncOption = value;
+                        break;
+                    case EncoderType.VCEEnc:
+                        if (Data.VCEEncOption == value)
+                            return;
+                        Data.VCEEncOption = value;
                         break;
                     default:
                         return;
@@ -1514,18 +1520,6 @@ namespace Amatsukaze.Models
         }
         #endregion
 
-        #region IgnoreAudioFormat変更通知プロパティ
-        public bool IgnoreAudioFormat {
-            get { return Data.IgnoreAudioFormat; }
-            set { 
-                if (Data.IgnoreAudioFormat == value)
-                    return;
-                Data.IgnoreAudioFormat = value;
-                RaisePropertyChanged();
-            }
-        }
-        #endregion
-
         #region NoDelogo変更通知プロパティ
         public bool NoDelogo {
             get { return Data.NoDelogo; }
@@ -1803,6 +1797,106 @@ namespace Amatsukaze.Models
         }
         #endregion
 
+        #region AdditionalEraseLogo変更通知プロパティ
+        public string AdditionalEraseLogo {
+            get { return Data.AdditionalEraseLogo; }
+            set { 
+                if (Data.AdditionalEraseLogo == value)
+                    return;
+                Data.AdditionalEraseLogo = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableAudioEncode変更通知プロパティ
+        private bool _EnableAudioEncode;
+
+        public bool EnableAudioEncode {
+            get { return _EnableAudioEncode; }
+            set { 
+                if (_EnableAudioEncode == value)
+                    return;
+                _EnableAudioEncode = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region AudioEncoderType変更通知プロパティ
+        public int AudioEncoderTypeInt {
+            get { return (int)Data.AudioEncoderType; }
+            set { 
+                if ((int)Data.AudioEncoderType == value)
+                    return;
+                Data.AudioEncoderType = (AudioEncoderType)value;
+                RaisePropertyChanged();
+                RaisePropertyChanged("AudioEncoderOption");
+            }
+        }
+        #endregion
+
+        #region AudioEncoderOption変更通知プロパティ
+        public string AudioEncoderOption {
+            get {
+                switch (Data.AudioEncoderType)
+                {
+                    case AudioEncoderType.NeroAac: return Data.NeroAacOption;
+                    case AudioEncoderType.Qaac: return Data.QaacOption;
+                    case AudioEncoderType.Fdkaac: return Data.FdkaacOption;
+                }
+                return null;
+            }
+            set {
+                switch (Data.AudioEncoderType)
+                {
+                    case AudioEncoderType.NeroAac:
+                        if (Data.NeroAacOption == value)
+                            return;
+                        Data.NeroAacOption = value;
+                        break;
+                    case AudioEncoderType.Qaac:
+                        if (Data.QaacOption == value)
+                            return;
+                        Data.QaacOption = value;
+                        break;
+                    case AudioEncoderType.Fdkaac:
+                        if (Data.FdkaacOption == value)
+                            return;
+                        Data.FdkaacOption = value;
+                        break;
+                    default:
+                        return;
+                }
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region EnableAudioBitrate変更通知プロパティ
+        public bool EnableAudioBitrate {
+            get { return Data.EnableAudioBitrate; }
+            set { 
+                if (Data.EnableAudioBitrate == value)
+                    return;
+                Data.EnableAudioBitrate = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region AudioBitrateInKbps変更通知プロパティ
+        public int AudioBitrateInKbps {
+            get { return Data.AudioBitrateInKbps; }
+            set { 
+                if (Data.AudioBitrateInKbps == value)
+                    return;
+                Data.AudioBitrateInKbps = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
         #region SettingWarningText変更通知プロパティ
         private string _SettingWarningText;
 
@@ -1818,7 +1912,7 @@ namespace Amatsukaze.Models
         #endregion
 
         public string[] EncoderList {
-            get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc" }; }
+            get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc", "VCEEnc" }; }
         }
         public string[] Mpeg2DecoderList {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
@@ -1848,6 +1942,9 @@ namespace Amatsukaze.Models
         public DisplayOutputMask[] OutputOptionList { get { return OutputOptionList_; } }
         public string[] FormatList {
             get { return new string[] { "MP4", "MKV", "M2TS", "TS" }; }
+        }
+        public string[] AudioEncoderList {
+            get { return new string[] { "NeroAAC", "qaac", "fdkaac" }; }
         }
 
         #region IsModified変更通知プロパティ
@@ -1984,6 +2081,10 @@ namespace Amatsukaze.Models
             if (Data.EncoderType == EncoderType.NVEnc && Data.TwoPass)
             {
                 sb.Append("NVEncは2パスに対応していません\r\n");
+            }
+            if (Data.EncoderType == EncoderType.VCEEnc && Data.TwoPass)
+            {
+                sb.Append("VCEEncは2パスに対応していません\r\n");
             }
             if (Data.EnableNicoJK && Data.NicoJKFormats.Any(s => s) == false)
             {
@@ -2698,6 +2799,42 @@ namespace Amatsukaze.Models
                 if (Model.AutoVfrPath == value)
                     return;
                 Model.AutoVfrPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region NeroAacEncPath変更通知プロパティ
+        public string NeroAacEncPath {
+            get { return Model.NeroAacEncPath; }
+            set { 
+                if (Model.NeroAacEncPath == value)
+                    return;
+                Model.NeroAacEncPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region QaacPath変更通知プロパティ
+        public string QaacPath {
+            get { return Model.QaacPath; }
+            set { 
+                if (Model.QaacPath == value)
+                    return;
+                Model.QaacPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region FdkaacPath変更通知プロパティ
+        public string FdkaacPath {
+            get { return Model.FdkaacPath; }
+            set { 
+                if (Model.FdkaacPath == value)
+                    return;
+                Model.FdkaacPath = value;
                 RaisePropertyChanged();
             }
         }

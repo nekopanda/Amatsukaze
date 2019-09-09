@@ -32,16 +32,21 @@ public:
 		tstring avspath = makeAVSFile(videoFileIndex);
 
 		// ÉçÉSâêÕ
-		if (setting_.getLogoPath().size() > 0) {
+		if (setting_.getLogoPath().size() > 0 || setting_.getEraseLogoPath().size() > 0) {
 			ctx.info("[ÉçÉSâêÕ]");
 			sw.start();
 			logoFrame(videoFileIndex, avspath);
 			ctx.infoF("äÆóπ: %.2fïb", sw.getAndReset());
 
+			ctx.info("[ÉçÉSâêÕåãâ ]");
 			if (logopath.size() > 0) {
-				ctx.info("[ÉçÉSâêÕåãâ ]");
-				ctx.infoF("É}ÉbÉ`ÇµÇΩÉçÉS: %s", logopath.c_str());
+				ctx.infoF("É}ÉbÉ`ÇµÇΩÉçÉS: %s", logopath);
 				PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex));
+			}
+			const auto& eraseLogoPath = setting_.getEraseLogoPath();
+			for (int i = 0; i < (int)eraseLogoPath.size(); ++i) {
+				ctx.infoF("í«â¡ÉçÉS%d: %s", i + 1, eraseLogoPath[i]);
+				PrintFileAll(setting_.getTmpLogoFramePath(videoFileIndex, i));
 			}
 		}
 
@@ -278,19 +283,31 @@ private:
 			auto vi = clip->GetVideoInfo();
 			int duration = vi.num_frames * vi.fps_denominator / vi.fps_numerator;
 
-			logo::LogoFrame logof(ctx, setting_.getLogoPath(), 0.35f);
-			logof.scanFrames(clip, env.get());
-#if 0
-			logof.dumpResult(setting_.getTmpLogoFramePath(videoFileIndex));
-#endif
-			logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
+			const auto& logoPath = setting_.getLogoPath();
+			const auto& eraseLogoPath = setting_.getEraseLogoPath();
 
-			float threshold = setting_.isLooseLogoDetection() ? 0.03f : (duration <= 60 * 7) ? 0.03f : 0.1f;
-			if (logof.getLogoRatio() < threshold) {
-				ctx.info("Ç±ÇÃãÊä‘ÇÕÉ}ÉbÉ`Ç∑ÇÈÉçÉSÇÕÇ†ÇËÇ‹ÇπÇÒÇ≈ÇµÇΩ");
+			std::vector<tstring> allLogoPath = logoPath;
+			allLogoPath.insert(allLogoPath.end(), eraseLogoPath.begin(), eraseLogoPath.end());
+			logo::LogoFrame logof(ctx, allLogoPath, 0.35f);
+			logof.scanFrames(clip, env.get());
+
+			if (logoPath.size() > 0) {
+#if 0
+				logof.dumpResult(setting_.getTmpLogoFramePath(videoFileIndex));
+#endif
+				logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex));
+
+				float threshold = setting_.isLooseLogoDetection() ? 0.03f : (duration <= 60 * 7) ? 0.03f : 0.1f;
+				if (logof.getLogoRatio() < threshold) {
+					ctx.info("Ç±ÇÃãÊä‘ÇÕÉ}ÉbÉ`Ç∑ÇÈÉçÉSÇÕÇ†ÇËÇ‹ÇπÇÒÇ≈ÇµÇΩ");
+				}
+				else {
+					logopath = setting_.getLogoPath()[logof.getBestLogo()];
+				}
 			}
-			else {
-				logopath = setting_.getLogoPath()[logof.getBestLogo()];
+
+			for (int i = 0; i < (int)eraseLogoPath.size(); ++i) {
+				logof.writeResult(setting_.getTmpLogoFramePath(videoFileIndex, i), (int)logoPath.size() + i);
 			}
 		}
 		catch (const AvisynthError& avserror) {
