@@ -1160,6 +1160,7 @@ namespace Amatsukaze.Models
                     case EncoderType.QSVEnc: return Data.QSVEncOption;
                     case EncoderType.NVEnc: return Data.NVEncOption;
                     case EncoderType.VCEEnc: return Data.VCEEncOption;
+                    case EncoderType.SVTAV1: return Data.SVTAV1Option;
                 }
                 return null;
             }
@@ -1190,6 +1191,11 @@ namespace Amatsukaze.Models
                         if (Data.VCEEncOption == value)
                             return;
                         Data.VCEEncOption = value;
+                        break;
+                    case EncoderType.SVTAV1:
+                        if (Data.SVTAV1Option == value)
+                            return;
+                        Data.SVTAV1Option = value;
                         break;
                     default:
                         return;
@@ -1912,7 +1918,7 @@ namespace Amatsukaze.Models
         #endregion
 
         public string[] EncoderList {
-            get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc", "VCEEnc" }; }
+            get { return new string[] { "x264", "x265", "QSVEnc", "NVEnc", "VCEEnc", "SVT-AV1" }; }
         }
         public string[] Mpeg2DecoderList {
             get { return new string[] { "デフォルト", "QSV", "CUVID" }; }
@@ -2085,6 +2091,10 @@ namespace Amatsukaze.Models
             if (Data.EncoderType == EncoderType.VCEEnc && Data.TwoPass)
             {
                 sb.Append("VCEEncは2パスに対応していません\r\n");
+            }
+            if (Data.EncoderType == EncoderType.SVTAV1 && Data.TwoPass)
+            {
+                sb.Append("SVTAV1は2パスに対応していません\r\n");
             }
             if (Data.EnableNicoJK && Data.NicoJKFormats.Any(s => s) == false)
             {
@@ -2663,6 +2673,30 @@ namespace Amatsukaze.Models
                 if (Model.NVEncPath == value)
                     return;
                 Model.NVEncPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region VCEEncPath変更通知プロパティ
+        public string VCEEncPath {
+            get { return Model.VCEEncPath; }
+            set { 
+                if (Model.VCEEncPath == value)
+                    return;
+                Model.VCEEncPath = value;
+                RaisePropertyChanged();
+            }
+        }
+        #endregion
+
+        #region SVTAV1Path変更通知プロパティ
+        public string SVTAV1Path {
+            get { return Model.SVTAV1Path; }
+            set { 
+                if (Model.SVTAV1Path == value)
+                    return;
+                Model.SVTAV1Path = value;
                 RaisePropertyChanged();
             }
         }

@@ -90,6 +90,7 @@ enum ENUM_ENCODER {
 	ENCODER_QSVENC,
 	ENCODER_NVENC,
 	ENCODER_VCEENC,
+	ENCODER_SVTAV1,
 };
 
 enum ENUM_FORMAT {
@@ -123,6 +124,7 @@ static const char* encoderToString(ENUM_ENCODER encoder) {
 	case ENCODER_QSVENC: return "QSVEnc";
 	case ENCODER_NVENC: return "NVEnc";
 	case ENCODER_VCEENC: return "VCEEnc";
+	case ENCODER_SVTAV1: return "SVT-AV1";
 	}
 	return "Unknown";
 }
@@ -145,14 +147,16 @@ static tstring makeEncoderArgs(
 	//ss << " --input-res " << fmt.width << "x" << fmt.height;
 	//ss << " --sar " << fmt.sarWidth << ":" << fmt.sarHeight;
 
-	if (fmt.colorPrimaries != AVCOL_PRI_UNSPECIFIED) {
-		sb.append(_T(" --colorprim %s"), av::getColorPrimStr(fmt.colorPrimaries));
-	}
-	if (fmt.transferCharacteristics != AVCOL_TRC_UNSPECIFIED) {
-		sb.append(_T(" --transfer %s"), av::getTransferCharacteristicsStr(fmt.transferCharacteristics));
-	}
-	if (fmt.colorSpace != AVCOL_TRC_UNSPECIFIED) {
-		sb.append(_T(" --colormatrix %s"), av::getColorSpaceStr(fmt.colorSpace));
+	if (encoder != ENCODER_SVTAV1) {
+		if (fmt.colorPrimaries != AVCOL_PRI_UNSPECIFIED) {
+			sb.append(_T(" --colorprim %s"), av::getColorPrimStr(fmt.colorPrimaries));
+		}
+		if (fmt.transferCharacteristics != AVCOL_TRC_UNSPECIFIED) {
+			sb.append(_T(" --transfer %s"), av::getTransferCharacteristicsStr(fmt.transferCharacteristics));
+		}
+		if (fmt.colorSpace != AVCOL_TRC_UNSPECIFIED) {
+			sb.append(_T(" --colormatrix %s"), av::getColorSpaceStr(fmt.colorSpace));
+		}
 	}
 
 	// インターレース
@@ -169,9 +173,19 @@ static tstring makeEncoderArgs(
 			THROW(ArgumentException, "HEVCのインターレース出力には対応していません");
 		}
 		break;
+	case ENCODER_SVTAV1:
+		if (fmt.progressive == false) {
+			THROW(ArgumentException, "AV1のインターレース出力には対応していません");
+		}
+		break;
 	}
 
-	sb.append(_T(" %s -o \"%s\""), options, outpath);
+	if (encoder == ENCODER_SVTAV1) {
+		sb.append(_T(" %s -b \"%s\""), options, outpath);
+	}
+	else {
+		sb.append(_T(" %s -o \"%s\""), options, outpath);
+	}
 
 	// 入力形式
 	switch (encoder) {
@@ -187,6 +201,9 @@ static tstring makeEncoderArgs(
 	case ENCODER_NVENC:
 	case ENCODER_VCEENC:
 		sb.append(_T(" --format raw --y4m -i -"));
+		break;
+	case ENCODER_SVTAV1:
+		sb.append(_T(" -i stdin"));
 		break;
 	}
 
@@ -1077,6 +1094,9 @@ public:
 			else if (conf.encoder == ENCODER_VCEENC) {
 				sb.append(_T(" --vbr %d --max-bitrate %d"), (int)targetBitrate, (int)maxBitrate);
 			}
+			else if (conf.encoder == ENCODER_SVTAV1) {
+				sb.append(_T(" -rc 2 -tbr %d"), (int)(targetBitrate * 1000));
+			}
 			else {
 				sb.append(_T(" --bitrate %d --vbv-maxrate %d --vbv-bufsize %d"),
 					(int)targetBitrate, (int)maxBitrate, (int)maxBitrate);
@@ -1108,9 +1128,12 @@ public:
 				}
 			}
 		}
-		if (conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265) {
-			if (numFrames > 0) {
+		if (numFrames > 0) {
+			if (conf.encoder == ENCODER_X264 || conf.encoder == ENCODER_X265) {
 				sb.append(_T(" --frames %d"), numFrames);
+			}
+			else if (conf.encoder == ENCODER_SVTAV1) {
+				sb.append(_T(" -n %d"), numFrames);
 			}
 		}
 		return sb.str();

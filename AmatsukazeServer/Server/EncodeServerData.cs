@@ -26,7 +26,8 @@ namespace Amatsukaze.Server
         x265,
         QSVEnc,
         NVEnc,
-        VCEEnc
+        VCEEnc,
+        SVTAV1
     }
 
     public enum AudioEncoderType
@@ -211,6 +212,8 @@ namespace Amatsukaze.Server
         public string NVEncOption { get; set; }
         [DataMember]
         public string VCEEncOption { get; set; }
+        [DataMember]
+        public string SVTAV1Option { get; set; }
 
         [DataMember]
         public DecoderType Mpeg2Decoder { get; set; }
@@ -377,6 +380,8 @@ namespace Amatsukaze.Server
         public string NVEncPath { get; set; }
         [DataMember]
         public string VCEEncPath { get; set; }
+        [DataMember]
+        public string SVTAV1Path { get; set; }
         [DataMember]
         public string MuxerPath { get; set; }
         [DataMember]

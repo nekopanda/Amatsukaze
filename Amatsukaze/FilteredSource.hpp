@@ -478,6 +478,7 @@ private:
 		const StreamReformInfo& reformInfo)
 	{
 		// このencoderIndex+cmtype用の出力フレームリスト作成
+		const auto& srcFrames = reformInfo.getFilterSourceAudioFrames(key.video);
 		const auto& outFrames = reformInfo.getEncodeFile(key).videoFrames;
 		int numSrcFrames = (int)outFrames.size();
 
@@ -498,7 +499,7 @@ private:
 		auto& sb = script_.Get();
 		if (trimZones.size() > 1 ||
 			trimZones[0].startFrame != 0 ||
-			trimZones[0].endFrame != (outFrames.size() - 1))
+			trimZones[0].endFrame != (srcFrames.size() - 1))
 		{
 			// Trimが必要
 			for (int i = 0; i < (int)trimZones.size(); ++i) {

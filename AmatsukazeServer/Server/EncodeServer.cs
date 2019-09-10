@@ -1085,9 +1085,13 @@ namespace Amatsukaze.Server
             {
                 return setting.NVEncPath;
             }
-            else
+            else if (encoderType == EncoderType.VCEEnc)
             {
                 return setting.VCEEncPath;
+            }
+            else
+            {
+                return setting.SVTAV1Path;
             }
         }
 
@@ -1109,9 +1113,13 @@ namespace Amatsukaze.Server
             {
                 return profile.NVEncOption;
             }
-            else
+            else if (profile.EncoderType == EncoderType.VCEEnc)
             {
                 return profile.VCEEncOption;
+            }
+            else
+            {
+                return profile.SVTAV1Option;
             }
         }
 
@@ -1133,9 +1141,13 @@ namespace Amatsukaze.Server
             {
                 return "NVEnc";
             }
-            else
+            else if (encoderType == EncoderType.VCEEnc)
             {
                 return "VCEEnc";
+            }
+            else
+            {
+                return "SVT-AV1";
             }
         }
 
@@ -1597,6 +1609,7 @@ namespace Amatsukaze.Server
             CheckPath("QSVEnc", setting.QSVEncPath);
             CheckPath("NVEnc", setting.NVEncPath);
             CheckPath("VCEEnc", setting.VCEEncPath);
+            CheckPath("SVTAV1", setting.SVTAV1Path);
 
             CheckPath("L-SMASH Muxer", setting.MuxerPath);
             CheckPath("MP4Box", setting.MP4BoxPath);

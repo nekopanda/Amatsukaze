@@ -311,13 +311,13 @@ namespace Amatsukaze.Server
         {
             for (int i = 0; i < count; ++i)
             {
-                if (buf[i] == '\n' || buf[i] == '\r')
+                if (buf[i] == '\n' || buf[i] == '\r' || buf[i] == 0x08)
                 {
                     if (rawtext.Count > 0)
                     {
                         OutLine();
                     }
-                    isCR = (buf[i] == '\r');
+                    isCR = (buf[i] == '\r' || buf[i] == 0x08);
                 }
                 else
                 {
