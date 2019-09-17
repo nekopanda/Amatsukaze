@@ -7,14 +7,23 @@ using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Data;
 
 namespace Amatsukaze.Components
 {
     public class ObservableViewModelCollection<TViewModel, TModel> : ObservableCollection<TViewModel>
     {
-        private readonly ObservableCollection<TModel> _source;
+        private readonly INotifyCollectionChanged _source;
         private readonly Func<TModel, TViewModel> _viewModelFactory;
         private CollectionChangedEventListener _listener;
+
+        public ObservableViewModelCollection(CollectionView source, Func<TModel, TViewModel> viewModelFactory)
+            : base(source.Cast<TModel>().Select(model => viewModelFactory(model)))
+        {
+            _source = source;
+            _viewModelFactory = viewModelFactory;
+            _listener = new CollectionChangedEventListener(_source, OnSourceCollectionChanged);
+        }
 
         public ObservableViewModelCollection(ObservableCollection<TModel> source, Func<TModel, TViewModel> viewModelFactory)
             : base(source.Select(model => viewModelFactory(model)))

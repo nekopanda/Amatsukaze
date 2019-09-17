@@ -1816,14 +1816,12 @@ namespace Amatsukaze.Models
         #endregion
 
         #region EnableAudioEncode変更通知プロパティ
-        private bool _EnableAudioEncode;
-
         public bool EnableAudioEncode {
-            get { return _EnableAudioEncode; }
+            get { return Data.EnableAudioEncode; }
             set { 
-                if (_EnableAudioEncode == value)
+                if (Data.EnableAudioEncode == value)
                     return;
-                _EnableAudioEncode = value;
+                Data.EnableAudioEncode = value;
                 RaisePropertyChanged();
             }
         }

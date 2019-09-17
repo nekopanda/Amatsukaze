@@ -1123,8 +1123,8 @@ public:
 				// NVEnc
 				for (int i = 0; i < (int)zones.size(); ++i) {
 					auto zone = zones[i];
-					sb.append(_T(" --dynamic-rc %d:%d,vbrhq=%d"), (i > 0) ? "/" : "",
-						zone.startFrame, zone.endFrame - 1, targetBitrate * zone.bitrate);
+					sb.append(_T(" --dynamic-rc %d:%d,vbrhq=%d"), 
+						zone.startFrame, zone.endFrame - 1, (int)std::round(targetBitrate * zone.bitrate));
 				}
 			}
 		}

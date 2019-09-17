@@ -172,14 +172,14 @@ namespace Amatsukaze.ViewModels
         public void Initialize()
         {
             ProfileList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile>(
-                Model.ProfileList, s => new QueueMenuProfileViewModel()
+                Model.ProfileListView, s => new QueueMenuProfileViewModel()
                 {
                     QueueVM = this,
                     Item = s
                 });
 
             AutoSelectList = new ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect>(
-                Model.AutoSelectList, s => new QueueMenuProfileViewModel()
+                Model.AutoSelectListView, s => new QueueMenuProfileViewModel()
                 {
                     QueueVM = this,
                     Item = s
@@ -187,6 +187,9 @@ namespace Amatsukaze.ViewModels
 
             PriorityList = new List<PriorityItemViewModel>(
                 Model.PriorityList.Select(p => new PriorityItemViewModel() { QueueVM = this, Priority = p }));
+
+            SelectableProfile.Add(new CollectionContainer() { Collection = AutoSelectList });
+            SelectableProfile.Add(new CollectionContainer() { Collection = ProfileList });
 
             queueListener = new CollectionItemListener<DisplayQueueItem>(Model.QueueItems,
                 item => item.PropertyChanged += QueueItemPropertyChanged,
@@ -382,6 +385,7 @@ namespace Amatsukaze.ViewModels
         public ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayProfile> ProfileList { get; private set; }
         public ObservableViewModelCollection<QueueMenuProfileViewModel, DisplayAutoSelect> AutoSelectList { get; private set; }
         public List<PriorityItemViewModel> PriorityList { get; private set; }
+        public CompositeCollection SelectableProfile { get; } = new CompositeCollection();
 
         #region SearchWord変更通知プロパティ
         private string _SearchWord;

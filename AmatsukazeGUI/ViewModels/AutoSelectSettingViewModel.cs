@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
 
 namespace Amatsukaze.ViewModels
 {
@@ -60,8 +61,15 @@ namespace Amatsukaze.ViewModels
 
         public void Initialize()
         {
+            ProfileList.Add("ペンディングにする");
+            ProfileList.Add(new CollectionContainer() { Collection = Model.ProfileListView });
+            PriorityList.Add("デフォルト");
+            PriorityList.Add(new CollectionContainer() { Collection = Model.PriorityList });
         }
 
+
+        public CompositeCollection ProfileList { get; } = new CompositeCollection();
+        public CompositeCollection PriorityList { get; } = new CompositeCollection();
 
         #region ApplyProfileCommand
         private ViewModelCommand _ApplyProfileCommand;

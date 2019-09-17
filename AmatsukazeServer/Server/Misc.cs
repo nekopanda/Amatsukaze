@@ -437,19 +437,22 @@ namespace Amatsukaze.Server
             public int size;
         }
 
-        private static async Task ReadFile(BufferBlock<Buffer> bufferQ, BufferBlock<Buffer> computeQ, FileStream src)
+        private static Task ReadFile(BufferBlock<Buffer> bufferQ, BufferBlock<Buffer> computeQ, FileStream src)
         {
-            while (true)
+            return Task.Run(() =>
             {
-                var buf = await bufferQ.ReceiveAsync();
-                buf.size = await src.ReadAsync(buf.buffer, 0, buf.buffer.Length);
-                if(buf.size == 0)
+                while (true)
                 {
-                    computeQ.Complete();
-                    break;
+                    var buf = bufferQ.Receive();
+                    buf.size = src.Read(buf.buffer, 0, buf.buffer.Length);
+                    if (buf.size == 0)
+                    {
+                        computeQ.Complete();
+                        break;
+                    }
+                    computeQ.Post(buf);
                 }
-                computeQ.Post(buf);
-            }
+            });
         }
 
         private static async Task ComputeHash(BufferBlock<Buffer> computeQ, BufferBlock<Buffer> writeQ, HashAlgorithm hash)
@@ -465,14 +468,17 @@ namespace Amatsukaze.Server
             writeQ.Complete();
         }
 
-        private static async Task WriteFile(BufferBlock<Buffer> writeQ, BufferBlock<Buffer> bufferQ, FileStream dst)
+        private static Task WriteFile(BufferBlock<Buffer> writeQ, BufferBlock<Buffer> bufferQ, FileStream dst)
         {
-            while (await writeQ.OutputAvailableAsync())
+            return Task.Run(() =>
             {
-                var buf = await writeQ.ReceiveAsync();
-                await dst.WriteAsync(buf.buffer, 0, buf.size);
-                bufferQ.Post(buf);
-            }
+                while (writeQ.OutputAvailableAsync().Result)
+                {
+                    var buf = writeQ.Receive();
+                    dst.Write(buf.buffer, 0, buf.size);
+                    bufferQ.Post(buf);
+                }
+            });
         }
 
         public static async Task<byte[]> CopyWithHash(string srcpath, string dstpath)

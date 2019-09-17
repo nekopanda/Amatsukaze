@@ -266,14 +266,6 @@ public:
 	~File() {
 		fclose(fp_);
 	}
-	void setLowPriority() {
-		FILE_IO_PRIORITY_HINT_INFO priorityHint;
-		priorityHint.PriorityHint = IoPriorityHintLow;
-		if (!SetFileInformationByHandle((HANDLE)_get_osfhandle(_fileno(fp_)),
-			FileIoPriorityHintInfo, &priorityHint, sizeof(priorityHint))) {
-			THROWF(IOException, "failed to set io priority: %s", GetFullPath(path_));
-		}
-	}
 	void write(MemoryChunk mc) const {
 		if (mc.length == 0) return;
 		if (fwrite(mc.data, mc.length, 1, fp_) != 1) {

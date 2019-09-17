@@ -1422,9 +1422,20 @@ namespace Amatsukaze.Server
                         sb.Append(" --2pass");
                     }
 
-                    if(profile.EnableAudioEncode)
+                    if(string.IsNullOrEmpty(profile.AdditionalEraseLogo) == false)
                     {
-                        sb.Append("\" -aet ")
+                        foreach (var logo in profile.AdditionalEraseLogo.Split(
+                            new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            sb.Append(" --erase-logo \"")
+                                .Append(logo)
+                                .Append("\"");
+                        }
+                    }
+
+                    if (profile.EnableAudioEncode)
+                    {
+                        sb.Append(" -aet ")
                             .Append(GetAudioEncoderName(profile.AudioEncoderType))
                             .Append(" -ae \"")
                             .Append(GetAudioEncoderPath(profile.AudioEncoderType, setting))

@@ -81,7 +81,6 @@ protected:
 		void open(const tstring& path) {
 			totalIntVideoSize_ = 0;
 			file_ = std::unique_ptr<File>(new File(path, _T("wb")));
-			file_->setLowPriority();
 		}
 		void close() {
 			file_ = nullptr;
@@ -674,7 +673,7 @@ static void transcodeMain(AMTContext& ctx, const ConfigWrapper& setting)
 				outpath);
 			auto format = reformInfo.getFormat(key);
 			auto audioFrames = reformInfo.getWaveInput(reformInfo.getEncodeFile(key).audioFrames[0]);
-			EncodeAudio(ctx, args, outpath, format.audioFormat[0], audioFrames);
+			EncodeAudio(ctx, args, setting.getWaveFilePath(), format.audioFormat[0], audioFrames);
 		}
 	}
 

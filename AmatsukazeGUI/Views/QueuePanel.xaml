@@ -396,13 +396,7 @@
                             </Style>
                         </c:DropDownMenuButton.Style>
                         <c:DropDownMenuButton.DropDownContextMenu>
-                            <ContextMenu x:Name="buttonProfileMenu">
-                                <ContextMenu.ItemsSource>
-                                    <CompositeCollection>
-                                        <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
-                                        <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
-                                    </CompositeCollection>
-                                </ContextMenu.ItemsSource>
+                            <ContextMenu x:Name="buttonProfileMenu" ItemsSource="{Binding SelectableProfile}">
                                 <ContextMenu.ItemContainerStyle>
                                     <Style TargetType="MenuItem">
                                         <Setter Property="Header" Value="{Binding Path=Item}"/>
@@ -916,13 +910,8 @@
                             Command="{Binding CopySettingTextCommand}"
                             CommandParameter="{Binding SelectedItems, ElementName=QueueList}" />
                         <Separator />
-                        <MenuItem Header="プロファイル変更" Style="{StaticResource MenuForSelectedItems}">
-                            <MenuItem.ItemsSource>
-                                <CompositeCollection>
-                                    <CollectionContainer Collection="{Binding Source={StaticResource AutoSelectList}}"/>
-                                    <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
-                                </CompositeCollection>
-                            </MenuItem.ItemsSource>
+                        <MenuItem Header="プロファイル変更" Style="{StaticResource MenuForSelectedItems}"
+                                  ItemsSource="{Binding SelectableProfile}">
                             <MenuItem.ItemContainerStyle>
                                 <Style TargetType="MenuItem">
                                     <Setter Property="Header" Value="{Binding Path=Item}"/>

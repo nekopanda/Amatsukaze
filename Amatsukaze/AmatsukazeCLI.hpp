@@ -240,7 +240,7 @@ static std::unique_ptr<ConfigWrapper> parseArgs(AMTContext& ctx, int argc, const
 			}
 		}
 		else if (key == _T("-ae") || key == _T("--audio-encoder")) {
-			conf.encoderPath = pathNormalize(getParam(argc, argv, i++));
+			conf.audioEncoderPath = pathNormalize(getParam(argc, argv, i++));
 		}
 		else if (key == _T("-aeo") || key == _T("--audio-encoder-option")) {
 			conf.encoderOptions = getParam(argc, argv, i++);

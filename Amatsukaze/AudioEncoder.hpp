@@ -76,9 +76,10 @@ void EncodeAudio(AMTContext& ctx, const tstring& encoder_args,
 	File srcFile(audiopath, _T("rb"));
 	AutoBuffer buffer;
 	int frameWaveLength = audioSamplesPerFrame * bytesPerSample * nchannels;
+	MemoryChunk mc = buffer.space(frameWaveLength);
+	mc.length = frameWaveLength;
 
 	for (size_t i = 0; i < audioFrames.size(); ++i) {
-		MemoryChunk mc = buffer.space(frameWaveLength);
 		if (audioFrames[i].waveLength != 0) {
 			// wave‚ª‚ ‚é‚È‚ç“Ç‚Þ
 			srcFile.seek(audioFrames[i].waveOffset, SEEK_SET);

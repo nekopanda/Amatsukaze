@@ -317,7 +317,7 @@
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Model.SelectedProfile.EnableAudioEncode}" Value="False">
-                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -337,7 +337,7 @@
                                 <Setter Property="Visibility" Value="Visible"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Model.SelectedProfile.EnableAudioEncode}" Value="False">
-                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -347,8 +347,8 @@
                               SelectedIndex="{Binding Model.SelectedProfile.AudioEncoderTypeInt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         <StackPanel Orientation="Horizontal">
                             <TextBox Width="50" Height="22" Margin="4,0"
-                                 IsEnabled="{Binding IsChecked, ElementName=audioBitrateCheck}"
-                                 Text="{Binding Model.SelectedProfile.AudioBitrateInKbps, Mode=TwoWay, StringFormat=\{0:F\}}" />
+                                 IsEnabled="{Binding Model.SelectedProfile.EnableAudioBitrate}"
+                                 Text="{Binding Model.SelectedProfile.AudioBitrateInKbps, Mode=TwoWay, StringFormat=\{0:D\}}" />
                             <TextBlock Text="kbps" VerticalAlignment="Center"/>
                             <CheckBox x:Name="audioBitrateCheck" Content="ビットレートを指定しない" 
                                       DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0"
@@ -484,9 +484,9 @@
                         <CheckBox Height="16" Margin="0,3"  Content="ネットワーク越しに転送する場合のハッシュチェックを無効にする"
                               IsChecked="{Binding Model.SelectedProfile.DisableHashCheck, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBox Margin="0,3" Height="40" TextWrapping="Wrap"
-                             Text="{Binding Model.SelectedProfile.AudioEncoderOption, Mode=TwoWay}"
+                             Text="{Binding Model.SelectedProfile.AdditionalEraseLogo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="CM解析用のメインのロゴとは別に、ロゴ消し用のロゴを追加できます。"
-                             VerticalAlignment="Top"/>
+                             VerticalAlignment="Top" PreviewDragOver="TextBox_PreviewDragOver" Drop="TextBox_Drop"/>
                         <DockPanel ToolTip="フィルタからエンコーダに渡すときのバッファリングフレーム数です">
                             <DockPanel.Resources>
                                 <l:VisibilityAndBooleanConverter x:Key="VisibilityAndBooleanConverter"

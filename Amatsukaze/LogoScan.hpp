@@ -1656,7 +1656,7 @@ public:
 		std::vector<Summary> logoSummary(numCandidates);
 		for (int n = 0; n < numFrames; ++n) {
 			for (int i = 0; i < numCandidates; ++i) {
-				auto& r = evalResults[n * numCandidates + i];
+				auto& r = evalResults[n * numLogos + i];
 				// ロゴを検出 かつ 消せてる
 				if (r.corr0 > THRESH && std::abs(r.corr1) < THRESH) {
 					logoSummary[i].numFrames++;

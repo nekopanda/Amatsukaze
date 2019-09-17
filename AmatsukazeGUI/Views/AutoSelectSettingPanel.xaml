@@ -69,10 +69,6 @@
 
                         <DataTemplate DataType="{x:Type m:DisplayCondition}">
                             <DockPanel>
-                                <DockPanel.Resources>
-                                    <CollectionViewSource x:Key="ProfileList" Source="{Binding Model.ProfileListView}"/>
-                                    <CollectionViewSource x:Key="PriorityList" Source="{Binding Model.PriorityList}"/>
-                                </DockPanel.Resources>
                                 <TextBlock TextWrapping="Wrap" DockPanel.Dock="Top">
                                 <Run Text="{Binding Condition}"/> <Run Text="{Binding WarningText}" Foreground="Red"/>
                                 </TextBlock>
@@ -81,24 +77,12 @@
                             </TextBlock>-->
                                 <DockPanel Margin="3">
                                     <ComboBox Width="80" HorizontalAlignment="Left" DockPanel.Dock="Right" 
-                                        SelectedItem="{Binding Priority, Mode=TwoWay}">
-                                        <ComboBox.ItemsSource>
-                                            <CompositeCollection>
-                                                <sys:String>デフォルト</sys:String>
-                                                <CollectionContainer Collection="{Binding Source={StaticResource PriorityList}}"/>
-                                            </CompositeCollection>
-                                        </ComboBox.ItemsSource>
-                                    </ComboBox>
+                                              SelectedItem="{Binding Priority, Mode=TwoWay}"
+                                              ItemsSource="{Binding Path=DataContext.PriorityList, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                     <TextBlock Text="優先度:" VerticalAlignment="Center" DockPanel.Dock="Right"/>
                                     <TextBlock Text="プロファイル" VerticalAlignment="Center"/>
-                                    <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
-                                        <ComboBox.ItemsSource>
-                                            <CompositeCollection>
-                                                <sys:String>ペンディングにする</sys:String>
-                                                <CollectionContainer Collection="{Binding Source={StaticResource ProfileList}}"/>
-                                            </CompositeCollection>
-                                        </ComboBox.ItemsSource>
-                                    </ComboBox>
+                                    <ComboBox SelectedItem="{Binding SelectedProfile, Mode=TwoWay}"
+                                        ItemsSource="{Binding Path=DataContext.ProfileList, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                 </DockPanel>
                             </DockPanel>
                         </DataTemplate>

@@ -1097,8 +1097,8 @@ private:
 
 	bool isEquealFormat(const OutVideoFormat& a, const OutVideoFormat& b) {
 		if (a.videoFormat != b.videoFormat) return false;
-		if (a.audioFormat.size() != b.audioFormat.size()) return false;
 		if (isEncodeAudio_) return true;
+		if (a.audioFormat.size() != b.audioFormat.size()) return false;
 		for (int i = 0; i < (int)a.audioFormat.size(); ++i) {
 			if (a.audioFormat[i] != b.audioFormat[i]) {
 				return false;
@@ -1279,7 +1279,8 @@ private:
 			}
 			double audioDuration = file.time - audioState.time;
 			double audioPts = endPts - audioDuration;
-			fillAudioFrames(file, i, &audioFormat[i], audioPts, audioDuration, adiff);
+			const AudioFormat* format = isEncodeAudio_ ? nullptr : &audioFormat[i];
+			fillAudioFrames(file, i, format, audioPts, audioDuration, adiff);
 		}
 	}
 
