@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -16,6 +17,8 @@ namespace NicoJK18Client
         {
             try
             {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+                    | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
                 var client = new NicoJK18Client(args);
                 client.Exec();
                 return 0;
@@ -24,6 +27,14 @@ namespace NicoJK18Client
             {
                 Console.Error.WriteLine(e.Message);
                 return 100;
+            }
+            catch (AggregateException es)
+            {
+                foreach (var e in es.InnerExceptions)
+                {
+                    Console.Error.WriteLine(e.Message);
+                }
+                return 1;
             }
             catch (Exception e)
             {
@@ -47,47 +58,21 @@ namespace NicoJK18Client
 
     public class NoThreadException : Exception
     {
-        public NoThreadException(string message)
-            : base(message) { }
+        public NoThreadException(string message) : base(message) { }
     }
+
+    public class NeedWaitException : Exception { }
 
     public class NicoJK18Client
     {
-        private static readonly int SLOT_DURATION = 5 * 60;
-        private static readonly int MAX_SLOT_REQ = 8;
         private static readonly DateTime UNIX_EPOCH = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        private static HttpClient client = new HttpClient();
-
+        private string serverUrl = "https://nicojk18.nekopanda.net/api/kakolog";
         private string dstPath, jknum;
         private long startTime = 0, endTime = 0;
-        private int retryNum = 6;
+        private int retryNum = 360;
         private bool isXml = false;
-
-        public static List<string> ReadData(Stream stream, int num)
-        {
-            var ret = new List<string>();
-            for (int i = 0; i < num; ++i)
-            {
-                var buf = new byte[4];
-                if (stream.Read(buf, 0, buf.Length) != buf.Length)
-                {
-                    throw new IOException("受信エラー");
-                }
-                int len = BitConverter.ToInt32(buf, 0);
-                buf = new byte[len];
-                if (stream.Read(buf, 0, buf.Length) != buf.Length)
-                {
-                    throw new IOException("受信エラー");
-                }
-                // DeflateStreamは生のDeflateストリームを扱うので
-                // zlibヘッダとフッダは取り除く
-                var reader = new StreamReader(new DeflateStream(
-                    new MemoryStream(buf, 2, buf.Length - 2), CompressionMode.Decompress), Encoding.UTF8);
-                ret.Add(reader.ReadToEnd());
-            }
-            return ret;
-        }
+        private bool verbose = false;
 
         private static long ParseTime(string s)
         {
@@ -107,9 +92,11 @@ namespace NicoJK18Client
                 .Append(" チャンネル 取得時間範囲のはじめ 取得時間範囲のおわり [option...]")
                 .AppendLine()
                 .AppendLine("Options:")
-                .AppendLine("  -f [filename]  --file [filename]    出力するファイル名を指定します")
-                .AppendLine("  -r num  --retry num                 取得エラーが発生した際に再取得へ行く回数")
-                .AppendLine("  -x  --xml                           出力フォーマットをXMLにします");
+                .AppendLine("  -f [filename]  --file [filename]  出力するファイル名を指定します")
+                .AppendLine("  -r num  --retry num               取得エラーが発生した際に再取得へ行く回数")
+                .AppendLine("  -x  --xml                         出力フォーマットをXMLにします")
+                .AppendLine("  --server <serverURL>              取得するサーバのURL デフォルト: https://nicojk18.nekopanda.net/api/kakolog")
+                .AppendLine("  -v                                Verboseモード");
             return sb.ToString();
         }
 
@@ -135,6 +122,15 @@ namespace NicoJK18Client
                     {
                         isXml = true;
                     }
+                    else if (arg == "-v")
+                    {
+                        verbose = true;
+                    }
+                    else if (arg == "--server")
+                    {
+                        serverUrl = args[i + 1];
+                        ++i;
+                    }
                     else if (arg[0] != '-')
                     {
                         nonamed.Add(args[i]);
@@ -149,35 +145,48 @@ namespace NicoJK18Client
                 throw new Exception(GetHelp());
             }
 
-            if (startTime > endTime || startTime + 3600 * 24 < endTime)
+            if (startTime > endTime || startTime + 3600 * 24 * 180 < endTime)
             {
                 throw new Exception("入力された時刻が不正です");
             }
 
-            // タイムアウトは3分に設定
-            client.Timeout = TimeSpan.FromMilliseconds(180*1000);
         }
 
-        private List<string> GetData(int slot, int num)
+        private string GetData(string jknum, long starttime, long endtime)
         {
-            var url = "http://nicojk18.sakura.ne.jp/api/v1/getcomment?jknum=" + jknum + "&slot=" + slot + "&num=" + num;
-            var res = client.GetAsync(url).Result;
-            if(res.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            var url = serverUrl + "/" + jknum + "?starttime=" + starttime + "&endtime=" + endtime + "&format=xml&emotion=false";
+            if(verbose)
             {
-                // これはパラメータがおかしいのでリトライしないで終了させる
-                throw new Exception("パラメータ不正");
+                Console.WriteLine("URL: " + url);
             }
-            else if(res.StatusCode == System.Net.HttpStatusCode.NotAcceptable)
+            // 本当はHttpClientは使いまわすべきだが、
+            // AutomaticDecompressionが有効だと、3回目のリクエストでデッドロックする不具合があるので、
+            // 毎回作り直す
+            using (var client = new HttpClient(new HttpClientHandler()
             {
-                // スレッドがない
-                throw new NoThreadException("スレッドがありません");
-            }
-            else if(res.StatusCode != System.Net.HttpStatusCode.OK)
+                // 圧縮サポート
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+            }))
             {
-                throw new IOException("Return code: " + res.StatusCode.ToString());
+                // タイムアウトは1分に設定
+                client.Timeout = TimeSpan.FromMilliseconds(60 * 1000);
+                client.DefaultRequestHeaders.Add("User-Agent", "NicoJK18Client");
+
+                // ResponseHeadersReadがないと、全てダウンロードするまでの時間でタイムアウト処理されてしまう
+                // データが大きいとダウンロードに時間がかかるのは当然なので、ヘッダーの受信までをタイムアウト対象期間とする
+                var res = client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).Result;
+                if (res.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    // これはパラメータがおかしいのでリトライしないで終了させる
+                    throw new Exception("パラメータ不正");
+                }
+                else if (res.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new IOException("Return code: " + res.StatusCode.ToString());
+                }
+                var stream = res.Content.ReadAsStreamAsync().Result;
+                return new StreamReader(stream).ReadToEnd();
             }
-            var stream = res.Content.ReadAsStreamAsync().Result;
-            return ReadData(stream, num);
         }
 
         private string WrapXml(IEnumerable<string> list)
@@ -206,61 +215,103 @@ namespace NicoJK18Client
         private class ChatElement
         {
             public long Date;
-            public long Thread;
             public int No;
             public string Xml;
         }
 
-        public void Exec()
+        private List<ChatElement> GetChatElements(string jknum, long starttime, long endtime)
         {
-            var recvData = new List<string>();
-
-            var startDate = UNIX_EPOCH.AddSeconds(startTime).ToLocalTime();
-            var duration = UNIX_EPOCH.AddSeconds(endTime).ToLocalTime() - startDate;
-            Console.WriteLine(startDate.ToString("yyyy年MM月dd日 HH:mm:ss") + "から" + duration.ToString() + "取得します");
-
-            // データ取得
-            var startSlot = (int)(startTime / SLOT_DURATION);
-            var endSlot = (int)((endTime + SLOT_DURATION - 1) / SLOT_DURATION);
-            for (int i = startSlot; i < endSlot; i += MAX_SLOT_REQ)
-            {
-                var nslot = Math.Min(endSlot - i, MAX_SLOT_REQ);
-                Console.WriteLine("" + i + "から" + nslot + "スロット取得します");
-                for (int retry = 0; retry < retryNum; ++retry)
-                {
-                    if (retry > 0)
-                    {
-                        int waitsec = retry * retry * 2;
-                        Console.WriteLine("" + waitsec + "秒後に再試行します ...");
-                        Thread.Sleep(waitsec * 1000);
-                    }
-                    try
-                    {
-                        recvData.AddRange(GetData(i, nslot));
-                        break;
-                    }
-                    catch (IOException e)
-                    {
-                        Console.WriteLine("失敗: " + e.Message);
-                        continue;
-                    }
-                }
-            }
-
-            // パース
             var doc = new XmlDocument();
-            doc.LoadXml(WrapXml(recvData));
+            var recvData = GetData(jknum, starttime, endtime);
+            doc.LoadXml(recvData);
+            if (doc.DocumentElement.Name == "error")
+            {
+                var message = doc.DocumentElement.InnerText;
+                if (message.Contains("チャンネルがない") || message.Contains("存在しないチャンネル"))
+                {
+                    // エラーだった
+                    throw new NoThreadException(doc.DocumentElement.InnerText);
+                }
+                else if (message.StartsWith("データ量"))
+                {
+                    // データ量が多すぎる場合は分割して取得する
+                    if (endtime - starttime < 2)
+                    {
+                        // これ以上分割できないのでエラーとする
+                        throw new Exception("データが取得できませんでした");
+                    }
+                    var mid = (starttime + endtime) / 2;
+                    return GetChatElements(jknum, starttime, mid)
+                        .Concat(GetChatElements(jknum, mid, endtime)).ToList();
+                }
+                else if (message.StartsWith("まだ取得していない"))
+                {
+                    throw new NeedWaitException();
+                }
+                throw new Exception(doc.DocumentElement.InnerText);
+            }
+            // パース
             var chats = new List<ChatElement>();
             foreach (XmlElement el in doc.DocumentElement)
             {
                 chats.Add(new ChatElement()
                 {
                     Date = long.Parse(el.Attributes["date"].Value),
-                    Thread = long.Parse(el.Attributes["thread"].Value),
                     No = int.Parse(el.Attributes["no"].Value),
                     Xml = el.OuterXml
                 });
             }
+            return chats;
+        }
+
+        private List<ChatElement> GetWithRetry(string jknum, long starttime, long endtime)
+        {
+            // データ取得
+            for (int failCount = 0, waitCount = 0; failCount < retryNum && waitCount < 6; )
+            {
+                if (failCount > 0)
+                {
+                    int waitsec = failCount * failCount * 60;
+                    Console.WriteLine("" + waitsec + "秒後に再試行します ...");
+                    Thread.Sleep(waitsec * 1000);
+                }
+                try
+                {
+                    return GetChatElements(jknum, starttime, endtime);
+                }
+                catch (NeedWaitException)
+                {
+                    failCount = 0;
+                    waitCount++;
+                    Console.WriteLine("まだサーバのデータが更新されていません");
+                    int waitsec = 10 * 60; // 10分待つ
+                    Console.WriteLine("" + waitsec + "秒後に再試行します ...");
+                    Thread.Sleep(waitsec * 1000);
+                    continue;
+                }
+                catch (IOException e)
+                {
+                    failCount++;
+                    Console.WriteLine("失敗: " + e.Message);
+                    continue;
+                }
+                catch (AggregateException e)
+                {
+                    failCount++;
+                    Console.WriteLine("失敗: " + e.Message);
+                    continue;
+                }
+            }
+            throw new Exception("データが取得できませんでした");
+        }
+
+        public void Exec()
+        {
+            var startDate = UNIX_EPOCH.AddSeconds(startTime).ToLocalTime();
+            var duration = UNIX_EPOCH.AddSeconds(endTime).ToLocalTime() - startDate;
+            Console.WriteLine(startDate.ToString("yyyy年MM月dd日 HH:mm:ss") + "から" + duration.ToString() + "取得します");
+
+            List<ChatElement> chats = GetWithRetry(jknum, startTime, endTime);
 
             Console.WriteLine("" + chats.Count + "コメント取得しました");
 
@@ -268,7 +319,6 @@ namespace NicoJK18Client
             var ordered = chats.
                 Where(c => c.Date >= startTime && c.Date < endTime).
                 OrderBy(c => c.Date).
-                ThenBy(c => c.Thread).
                 ThenBy(c => c.No).
                 Select(c => c.Xml);
 
